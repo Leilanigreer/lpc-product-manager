@@ -199,6 +199,18 @@ export default function CreateProduct() {
     return selectedCollectionObj && twoLeatherCollections.includes(selectedCollectionObj.label.toLowerCase());
   };
 
+  const shouldShowStyle = () => {
+    const styleCollections = ["animal print", "quilted classic"];
+    const selectedCollectionObj = collections.find(collection => collection.value === selectedCollection);
+    return selectedCollectionObj && styleCollections.includes(selectedCollectionObj.label.toLowerCase()); 
+  }
+
+  const shouldShowStitching = () => {
+    const hideStitchingCollections = ["classic", "home page"];
+    const selectedCollectionObj = collections.find(collection => collection.value === selectedCollection);
+    return selectedCollectionObj && hideStitchingCollections.includes(selectedCollectionObj.label.toLowerCase()); 
+  }
+
   const leatherColorOptions = [
     {label: "Select a Leather", value: ""},
     ...leatherColors
@@ -308,18 +320,28 @@ export default function CreateProduct() {
                     )}
                   </InlineStack>
                 </BlockStack>
-                <Select
-                  label="Select Stitching"
-                  options={threadColorOptions}
-                  onChange={handleStitchingColorChange}
-                  value={selectedStitchingColor}
-                />
-                <Select
-                  label="Select Embroidery"
-                  options={threadColorOptions}
-                  onChange={handleEmbroideryColorChange}
-                  value={selectedEmbroideryColor} 
-                />
+                <BlockStack gap="400">
+                  <InlineStack gap="400" align="start" wrap={false}>
+                    <Box width="50%">
+                      <Select
+                        label="Select Embroidery"
+                        options={threadColorOptions}
+                        onChange={handleEmbroideryColorChange}
+                        value={selectedEmbroideryColor} 
+                      />
+                    </Box>
+                    {shouldShowStitching() && (
+                      <Box width="50%">
+                        <Select
+                          label="Select Stitching"
+                          options={threadColorOptions}
+                          onChange={handleStitchingColorChange}
+                          value={selectedStitchingColor}
+                        />
+                      </Box>
+                    )}
+                  </InlineStack>
+                </BlockStack>
                 <BlockStack gap="400">
                   <InlineStack gap="500" align="start" wrap={false}>
                     <Box width="50%">
@@ -360,6 +382,7 @@ export default function CreateProduct() {
                   <Grid.Cell columnSpan={{xs: 6, sm: 2, md: 2, lg: 2, xl: 2}}>
                     <Text variant="bodyMd">{shape.label}</Text>
                   </Grid.Cell>
+                  {shouldShowStyle() && (
                   <Grid.Cell columnSpan={{xs: 6, sm: 5, md: 5, lg: 5, xl: 5}}>
                     <Select
                       label="Style"
@@ -370,6 +393,7 @@ export default function CreateProduct() {
                       placeholder="Select style"
                     />
                   </Grid.Cell>
+                  )}
                   <Grid.Cell columnSpan={{xs: 6, sm: 5, md: 5, lg: 5, xl: 5}}>
                     <TextField
                       label="Weight"
