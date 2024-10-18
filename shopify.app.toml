@@ -3,7 +3,7 @@
 client_id = "6f1296c99bc07317bd7d904a9749bee4"
 name = "lpc-product-creation-10-16-24"
 handle = "lpc-product-creation-10-16-24"
-application_url = "https://amongst-uploaded-su-inbox.trycloudflare.com"
+application_url = "https://t-progress-raise-otherwise.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_orders,read_products,write_products"
 
 [auth]
 redirect_urls = [
-  "https://amongst-uploaded-su-inbox.trycloudflare.com/auth/callback",
-  "https://amongst-uploaded-su-inbox.trycloudflare.com/auth/shopify/callback",
-  "https://amongst-uploaded-su-inbox.trycloudflare.com/api/auth/callback"
+  "https://t-progress-raise-otherwise.trycloudflare.com/auth/callback",
+  "https://t-progress-raise-otherwise.trycloudflare.com/auth/shopify/callback",
+  "https://t-progress-raise-otherwise.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

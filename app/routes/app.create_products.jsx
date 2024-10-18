@@ -45,7 +45,10 @@ export default function CreateProduct() {
   };
   
   const collectionAnimalClassicQclassic = ["animal print", "quilted classic", "classic"];
-  const isCollectionAnimalClassicQclassic = () => collectionAnimalClassicQclassic.includes(getSelectedCollectionLabel());
+  const isCollectionAnimalClassicQclassic = () => {
+    const selectedCollection = getSelectedCollectionLabel();
+    return collectionAnimalClassicQclassic.includes(selectedCollection);
+  };
 
   if (error) {
     return <div>Error: {error}</div>;
@@ -92,7 +95,7 @@ export default function CreateProduct() {
                 selectedFont={formState.selectedFont}
                 onChange={handleChange('selectedFont')}
               />
-              {!isCollectionAnimalClassicQclassic() && (
+              {!isCollectionAnimalClassicQclassic && (
                 <ThreadColorSelector
                   threadColors={threadColors}
                   selectedEmbroideryColor={formState.selectedEmbroideryColor}
