@@ -52,3 +52,21 @@ model Style {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+model Font {
+  id        String   @id @default(cuid())
+  name      String
+  image_url String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Thread {
+  id             String   @id @default(cuid())
+  name           String
+  abbreviation   String
+  amann_number   String
+  isacord_number String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
