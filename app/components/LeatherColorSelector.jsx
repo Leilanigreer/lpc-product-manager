@@ -6,11 +6,11 @@ const LeatherColorSelector = ({
   selectedLeatherColor1, 
   selectedLeatherColor2, 
   onChange, 
-  isTwoLeatherCollection 
+  isCollectionAnimalClassicQclassic 
 }) => {
   const renderColorSelector = (label, value, field, index) => (
     <>
-      <Box width={isTwoLeatherCollection ? "25%" : "50%"}>
+      <Box width={isCollectionAnimalClassicQclassic() ? "25%" : "50%"}>
         <Select
           label={label}
           options={[{ label: "Select a Leather", value: "" }, ...leatherColors]}
@@ -18,7 +18,7 @@ const LeatherColorSelector = ({
           value={value}
         />
       </Box>
-      <Box width={isTwoLeatherCollection ? "25%" : "50%"}>
+      <Box width={isCollectionAnimalClassicQclassic() ? "25%" : "50%"}>
         {value && (
           <BlockStack gap="200">
             <Text variant="bodyMd" as="p">{index === 2 ? "2nd Leather Preview:" : "Leather Preview:"}</Text>
@@ -37,7 +37,7 @@ const LeatherColorSelector = ({
     <Card>
       <InlineStack gap="500" align="start" wrap={false}>
         {renderColorSelector("Select Leather Color", selectedLeatherColor1, 'selectedLeatherColor1', 1)}
-        {isTwoLeatherCollection && (
+        {isCollectionAnimalClassicQclassic() && (
           renderColorSelector("Select 2nd Leather Color", selectedLeatherColor2, 'selectedLeatherColor2', 2)
         )}
       </InlineStack>

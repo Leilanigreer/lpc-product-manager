@@ -23,9 +23,8 @@ export { loader };
 
 export default function CreateProduct() {
   const { collections, leatherColors, threadColors, fonts, shapes, styles, error } = useLoaderData();
-  const collectionAnimalClassicQclassic = ["animal print", "quilted classic", "classic"];
   console.log('shapes from loader', shapes);
-
+  
   const [formState, setFormState] = useFormState({
     selectedCollection: "",
     selectedOfferingType: "",
@@ -37,19 +36,16 @@ export default function CreateProduct() {
     selectedStyles: {},
     weights: {},
   });
-
+  
   const handleChange = (field) => (value) => setFormState(field, value);
-
+  
   const getSelectedCollectionLabel = () => {
     const selectedCollectionObj = collections.find(collection => collection.value === formState.selectedCollection);
     return selectedCollectionObj ? selectedCollectionObj.label.toLowerCase() : "";
   };
-
-  const isCollectionAnimalClassicQclassic = collectionAnimalClassicQclassic.includes(getSelectedCollectionLabel());
-
-  const isTwoLeatherCollection = () => ["animal print", "quilted classic"].includes(getSelectedCollectionLabel());
-  const shouldShowStyle = () => ["animal print", "quilted classic"].includes(getSelectedCollectionLabel());
-  const shouldShowStitching = () => !["animal print", "quilted classic"].includes(getSelectedCollectionLabel());
+  
+  const collectionAnimalClassicQclassic = ["animal print", "quilted classic", "classic"];
+  const isCollectionAnimalClassicQclassic = () => collectionAnimalClassicQclassic.includes(getSelectedCollectionLabel());
 
   if (error) {
     return <div>Error: {error}</div>;
@@ -89,14 +85,14 @@ export default function CreateProduct() {
                 selectedLeatherColor1={formState.selectedLeatherColor1}
                 selectedLeatherColor2={formState.selectedLeatherColor2}
                 onChange={handleChange}
-                isTwoLeatherCollection={isTwoLeatherCollection()}
+                isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
               />
               <FontSelector
                 fonts={fonts}
                 selectedFont={formState.selectedFont}
                 onChange={handleChange('selectedFont')}
               />
-              {shouldShowStitching() && (
+              {!isCollectionAnimalClassicQclassic() && (
                 <ThreadColorSelector
                   threadColors={threadColors}
                   selectedEmbroideryColor={formState.selectedEmbroideryColor}
@@ -113,7 +109,7 @@ export default function CreateProduct() {
               threadColors={threadColors}
               formState={formState}
               handleChange={handleChange}
-              shouldShowStyle={shouldShowStyle}
+              isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
             />
           </Card>
         </Layout.Section>

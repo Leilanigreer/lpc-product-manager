@@ -7,7 +7,7 @@ const ShapeSelector = ({
   threadColors, 
   formState, 
   handleChange, 
-  shouldShowStyle 
+  isCollectionAnimalClassicQclassic 
 }) => {
   return (
     <BlockStack gap="400">
@@ -17,7 +17,7 @@ const ShapeSelector = ({
           <Grid.Cell columnSpan={{ xs: 6, sm: 2, md: 2, lg: 2, xl: 2 }}>
             <Text variant="bodyMd">{shape.label}</Text>
           </Grid.Cell>
-          {shouldShowStyle() && (
+          {isCollectionAnimalClassicQclassic() && (
             <Grid.Cell columnSpan={{ xs: 6, sm: 5, md: 5, lg: 5, xl: 5 }}>
               <Select
                 label="Style"
