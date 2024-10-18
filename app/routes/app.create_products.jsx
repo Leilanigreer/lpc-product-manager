@@ -1,5 +1,6 @@
-import { useLoaderData } from "@remix-run/react";
-import { TitleBar } from "@shopify/app-bridge-react";
+import React, { useEffect } from "react";
+import { Form, useLoaderData, useFetcher } from "@remix-run/react";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { useFormState } from "../hooks/useFormState";
 import { loader } from "../lib/loaders";
 import CollectionSelector from "../components/CollectionSelector.jsx";
@@ -7,7 +8,7 @@ import LeatherColorSelector from "../components/LeatherColorSelector.jsx";
 import FontSelector from "../components/FontSelector.jsx";
 import ThreadColorSelector from "../components/ThreadColorSelector.jsx";
 import ShapeSelector from "../components/ShapeSelector.jsx";
-
+import { generateSKU, generateTitle } from "../lib/productAttributes.js";
 
 import {
   Page,
@@ -17,13 +18,16 @@ import {
   BlockStack,
   InlineStack,
   RadioButton,
+  Button,
 } from "@shopify/polaris";
 
 export { loader };
 
 export default function CreateProduct() {
   const { collections, leatherColors, threadColors, fonts, shapes, styles, error } = useLoaderData();
-  console.log('shapes from loader', shapes);
+  const fetcher = useFetcher();
+  const shopify = useAppBridge(); 
+  const isLoading = ["loading", "submitting"].includes(fetcher.state) && fetcher.formMethod === "POST";
   
   const [formState, setFormState] = useFormState({
     selectedCollection: "",
@@ -50,73 +54,115 @@ export default function CreateProduct() {
     return collectionAnimalClassicQclassic.includes(selectedCollection);
   };
 
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    
+    // Generate SKU and title
+    const sku = generateSKU(formState);
+    const title = generateTitle(formState);
+    
+    // Append generated data to formData
+    formData.append('sku', sku);
+    formData.append('title', title);
+    
+    // Add all formState data to formData
+    Object.entries(formState).forEach(([key, value]) => {
+      formData.append(key, typeof value === 'object' ? JSON.stringify(value) : value);
+    });
+
+    fetcher.submit(formData, { method: "POST" });
+  };
+
+  useEffect(() => {
+    if (fetcher.data?.product?.id) {
+      shopify.toast.show("Product created");
+    }
+  }, [fetcher.data, shopify]);
+
   if (error) {
     return <div>Error: {error}</div>;
-  };
+  }
 
   return (
     <Page>
       <TitleBar title="Create a new product" />
-      <Layout>
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">Create Product Page</Text>
-              <InlineStack gap="400" align="start">
-                <RadioButton
-                  label="Customizable"
-                  checked={formState.selectedOfferingType === 'customizable'}
-                  id="customizable"
-                  name="productType"
-                  onChange={() => handleChange('selectedOfferingType')('customizable')}
+      <Form method="post" onSubmit={handleSubmit}>
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">Create Product Page</Text>
+                <InlineStack gap="400" align="start">
+                  <RadioButton
+                    label="Customizable"
+                    checked={formState.selectedOfferingType === 'customizable'}
+                    id="customizable"
+                    name="productType"
+                    onChange={() => handleChange('selectedOfferingType')('customizable')}
+                  />
+                  <RadioButton
+                    label="Limited Edition"
+                    checked={formState.selectedOfferingType === 'limitedEdition'}
+                    id="limitedEdition"
+                    name="productType"
+                    onChange={() => handleChange('selectedOfferingType')('limitedEdition')}
+                  />
+                </InlineStack>
+                <CollectionSelector
+                  collections={collections}
+                  selectedCollection={formState.selectedCollection}
+                  onChange={handleChange('selectedCollection')}
                 />
-                <RadioButton
-                  label="Limited Edition"
-                  checked={formState.selectedOfferingType === 'limitedEdition'}
-                  id="limitedEdition"
-                  name="productType"
-                  onChange={() => handleChange('selectedOfferingType')('limitedEdition')}
+                <LeatherColorSelector
+                  leatherColors={leatherColors}
+                  selectedLeatherColor1={formState.selectedLeatherColor1}
+                  selectedLeatherColor2={formState.selectedLeatherColor2}
+                  onChange={handleChange}
+                  isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
                 />
-              </InlineStack>
-              <CollectionSelector
-                collections={collections}
-                selectedCollection={formState.selectedCollection}
-                onChange={handleChange('selectedCollection')}
-              />
-              <LeatherColorSelector
-                leatherColors={leatherColors}
-                selectedLeatherColor1={formState.selectedLeatherColor1}
-                selectedLeatherColor2={formState.selectedLeatherColor2}
-                onChange={handleChange}
+                <FontSelector
+                  fonts={fonts}
+                  selectedFont={formState.selectedFont}
+                  onChange={handleChange('selectedFont')}
+                />
+                {!isCollectionAnimalClassicQclassic() && (
+                  <ThreadColorSelector
+                    threadColors={threadColors}
+                    selectedEmbroideryColor={formState.selectedEmbroideryColor}
+                    selectedStitchingColor={formState.selectedStitchingColor}
+                    onChange={handleChange}
+                  />
+                )}
+              </BlockStack>
+            </Card>
+            <Card>
+              <ShapeSelector
+                shapes={shapes}
+                styles={styles}
+                threadColors={threadColors}
+                formState={formState}
+                handleChange={handleChange}
                 isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
               />
-              <FontSelector
-                fonts={fonts}
-                selectedFont={formState.selectedFont}
-                onChange={handleChange('selectedFont')}
-              />
-              {!isCollectionAnimalClassicQclassic && (
-                <ThreadColorSelector
-                  threadColors={threadColors}
-                  selectedEmbroideryColor={formState.selectedEmbroideryColor}
-                  selectedStitchingColor={formState.selectedStitchingColor}
-                  onChange={handleChange}
-                />
-              )}
-            </BlockStack>
-          </Card>
-          <Card>
-            <ShapeSelector
-              shapes={shapes}
-              styles={styles}
-              threadColors={threadColors}
-              formState={formState}
-              handleChange={handleChange}
-              isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
-            />
-          </Card>
-        </Layout.Section>
-      </Layout>
+            </Card>
+          </Layout.Section>
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Button submit disabled={isLoading} loading={isLoading}>
+                  {isLoading ? "Creating..." : "Create Product"}
+                </Button>
+                {fetcher.data?.product && (
+                  <Text>Product created: {fetcher.data.product.title}</Text>
+                )}
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        </Layout>
+      </Form>
     </Page>
   );
 }
+
+export { action } from "./app.create_product.server";
