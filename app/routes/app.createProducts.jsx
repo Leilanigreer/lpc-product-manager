@@ -36,7 +36,7 @@ export default function CreateProduct() {
     selectedLeatherColor1: "",
     selectedLeatherColor2: "",
     selectedStitchingColor: "",
-    selectedEmbroideryColor: "",
+    selectedEmbroideryColor: {},
     selectedFont: "",
     selectedShapes: {},
     selectedStyles: {},
@@ -149,8 +149,9 @@ export default function CreateProduct() {
               {needsStitchingColor && (
                 <ThreadColorSelector
                   threadColors={threadColors}
+                  selectedEmbroideryColor={formState.selectedEmbroideryColor}
                   selectedStitchingColor={formState.selectedStitchingColor}
-                  onChange={handleChange('selectedStitchingColor')}
+                  onChange={handleChange}
                 />
               )}
               <ShapeSelector
@@ -158,6 +159,11 @@ export default function CreateProduct() {
                 styles={styles}
                 threadColors={threadColors}
                 formState={formState}
+                selectedEmbroideryColors={formState.selectedEmbroideryColors}
+                onEmbroideryColorChange={(shapeId, color) => {
+                  const newColors = { ...formState.selectedEmbroideryColors, [shapeId]: color };
+                  handleChange('selectedEmbroideryColors')(newColors);
+                }}
                 handleChange={handleChange}
                 isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
               />
