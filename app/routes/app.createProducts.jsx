@@ -81,7 +81,7 @@ export default function CreateProduct() {
     if (shouldGenerateProductData) {
       const generateProductData = async () => {
         try {
-          const skus = await generateSKUS(formState, leatherColors, threadColors, shapes);
+          const skus = await generateSKUS(formState, leatherColors, threadColors, shapes, styles);
           setGeneratedSKUs(skus);
           
           const title = generateTitle(formState, leatherColors, shapes);
@@ -96,7 +96,7 @@ export default function CreateProduct() {
       setGeneratedSKUs([]);
       setGeneratedTitle("");
     }
-  }, [shouldGenerateProductData, formState, leatherColors, threadColors, shapes]);
+  }, [shouldGenerateProductData, formState, leatherColors, threadColors, shapes, styles]);
 
   if (error) {
     console.error("Error in CreateProduct:", error);
