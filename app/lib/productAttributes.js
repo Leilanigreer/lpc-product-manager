@@ -1,59 +1,138 @@
-const getCollectionAbbreviation = (collectionId) => {
-  const collections = {
-    '297548710095': 'Quilted',
-    // Add other collection IDs and their abbreviations here
-  };
-  return collections[collectionId] || 'Unknown';
-};
+import { COLLECTION_TYPES, COLLECTION_ID_MAP } from "./constants";
+import { getCollectionType } from "./collectionUtils";
 
-export async function generateSKUS(formState, leatherColors, threadColors, shapes, styles, offeringType) {
-  console.log("Starting SKU generation process");
-  console.log("Input formState:", JSON.stringify(formState, null, 2));
-  console.log("Input leatherColors:", JSON.stringify(leatherColors, null, 2));
-  console.log("Input threadColors:", JSON.stringify(threadColors, null, 2));
-  console.log("Input shapes:", JSON.stringify(shapes, null, 2));
-  console.log("Input styles:", JSON.stringify(styles, null, 2));
-  console.log("Input offeringType:", offeringType);
+export const generateSKUS = async (formState, leatherColors, threadColors, shapes) => {
+  console.log("Generating SKUs with formState:", formState);
 
-  // Extract the numeric ID from the Shopify Collection ID
-  const collectionId = formState.selectedCollection.split('/').pop();
-  console.log("Extracted collectionId:", collectionId);
-
-  const collectionAbbreviation = getCollectionAbbreviation(collectionId);
-  console.log("Collection abbreviation:", collectionAbbreviation);
-
-  // Find the selected leather and thread colors
-  const leatherColor = leatherColors.find(color => color.value === formState.selectedLeatherColor1);
-  const threadColor = threadColors.find(color => color.value === formState.selectedStitchingColor);
-
-  console.log("Selected leather color:", leatherColor);
-  console.log("Selected thread color:", threadColor);
-
-  if (!leatherColor || !threadColor) {
-    console.log("Missing color data for SKU generation. Returning default SKU.");
-    return ["default-sku"];
+  if (!formState || !leatherColors || !threadColors || !shapes) {
+    console.error("Missing required data for SKU generation");
+    return [];
   }
 
-  // Generate SKUs for each selected shape
-  const skus = Object.entries(formState.selectedStyles)
-    .filter(([_, isSelected]) => isSelected)
-    .map(([shapeId, _]) => {
+  const collectionType = getCollectionType(formState.selectedCollection);
+  const leatherColor1 = leatherColors.find(color => color.value === formState.selectedLeatherColor1);
+  const leatherColor2 = leatherColors.find(color => color.value === formState.selectedLeatherColor2);
+  const stitchingColor = threadColors.find(color => color.value === formState.selectedStitchingColor);
+
+  if (!leatherColor1) {
+    console.error("Primary leather color not found");
+    return [];
+  }
+
+  const skus = Object.entries(formState.weights || {})
+    .filter(([_, weight]) => weight !== "") // Only generate SKUs for shapes with non-empty weights
+    .map(([shapeId, weight]) => {
       const shape = shapes.find(s => s.value === shapeId);
-      console.log("Generating SKU for shape:", shape);
-      const sku = `${collectionAbbreviation}-${leatherColor.abbreviation}L${threadColor.abbreviation}-${shape.label}`;
-      console.log("Generated SKU:", sku);
-      return sku;
-    });
+      
+      if (!shape) {
+        console.error(`Shape not found for id: ${shapeId}`);
+        return null;
+      }
 
-  console.log("Final generated SKUs:", skus);
+      let skuParts = [];
+
+      switch (collectionType) {
+        case COLLECTION_TYPES.QUILTED:
+          skuParts = [
+            "Quilted",
+            leatherColor1.abbreviation,
+            "L",
+            stitchingColor.abbreviation,
+            shape.abbreviation
+          ];
+          break;
+        case COLLECTION_TYPES.ARGYLE:
+          if (!leatherColor2) {
+            console.error("Secondary leather color not found for Argyle collection");
+            return null;
+          }
+          skuParts = [
+            "Argyle",
+            leatherColor1.abbreviation,
+            "A",
+            leatherColor2.abbreviation,
+            "L",
+            stitchingColor.abbreviation,
+            shape.abbreviation
+          ];
+          break;
+        case COLLECTION_TYPES.ANIMAL:
+          if (!leatherColor2) {
+            console.error("Secondary leather color not found for Animal collection");
+            return null;
+          }
+          skuParts = [
+            "Animal",
+            leatherColor1.abbreviation,
+            "W",
+            leatherColor2.abbreviation,
+            "L",
+            shape.abbreviation
+          ];
+          break;
+        case COLLECTION_TYPES.CLASSIC:
+          if (!leatherColor2) {
+            console.error("Secondary leather color not found for Classic collection");
+            return null;
+          }
+          skuParts = [
+            "Classic",
+            leatherColor1.abbreviation,
+            "W",
+            leatherColor2.abbreviation,
+            "L",
+            shape.abbreviation
+          ];
+          break;
+        case COLLECTION_TYPES.QCLASSIC:
+          if (!leatherColor2) {
+            console.error("Secondary leather color not found for QClassic collection");
+            return null;
+          }
+          skuParts = [
+            "QClassic",
+            leatherColor1.abbreviation,
+            "W",
+            leatherColor2.abbreviation,
+            "L",
+            shape.abbreviation
+          ];
+          break;
+        default:
+          console.error(`Unknown collection type: ${collectionType}`);
+          return null;
+      }
+
+      return skuParts.join('-');
+    })
+    .filter(sku => sku !== null); // Remove any null SKUs
+
+  console.log("Generated SKUs:", skus);
   return skus;
-}
+};
 
-export function generateTitle(formState) {
-  console.log("Generating title with formState:", JSON.stringify(formState, null, 2));
-  // Implement title generation logic here
-  // Example: return `${formState.selectedCollection} ${formState.selectedLeatherColor1} ${formState.selectedFont}`;
-  const title = `${formState.selectedCollection} ${formState.selectedLeatherColor1} ${formState.selectedFont}`;
+export const generateTitle = (formState, leatherColors, shapes) => {
+  console.log("Generating title with formState:", formState);
+  
+  const collectionType = getCollectionType(formState.selectedCollection);
+  const collectionName = formState.selectedCollection.split('/').pop(); // Extract collection ID
+  const leatherColor1 = leatherColors.find(color => color.value === formState.selectedLeatherColor1);
+  const leatherColor2 = leatherColors.find(color => color.value === formState.selectedLeatherColor2);
+  
+  let title = `${collectionName} ${leatherColor1.label}`;
+  
+  if (leatherColor2) {
+    title += ` ${leatherColor2.label}`;
+  }
+  
+  const selectedShapes = Object.keys(formState.weights)
+    .filter(shapeId => formState.weights[shapeId] !== "")
+    .map(shapeId => shapes.find(s => s.value === shapeId).label);
+  
+  if (selectedShapes.length > 0) {
+    title += ` ${selectedShapes.join(', ')}`;
+  }
+
   console.log("Generated title:", title);
-  return title;
-}
+  return title.trim();
+};

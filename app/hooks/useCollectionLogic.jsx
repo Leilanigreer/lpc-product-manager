@@ -1,20 +1,30 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { 
+  getCollectionType, 
+  needsSecondaryColor, 
+  needsStitchingColor,
+  isCollectionAnimalClassicQclassic
+} from '../lib/collectionUtils';
 
 export const useCollectionLogic = (collections, selectedCollection) => {
-  const getSelectedCollectionLabel = useCallback(() => {
-    const selectedCollectionObj = collections.find(collection => collection.value === selectedCollection);
-    return selectedCollectionObj ? selectedCollectionObj.label.toLowerCase() : "";
-  }, [collections, selectedCollection]);
+  const collectionType = useMemo(() => getCollectionType(selectedCollection), [selectedCollection]);
 
-  const collectionAnimalClassicQclassic = ["animal print", "quilted classic", "classic"];
-  
-  const isCollectionAnimalClassicQclassic = useCallback(() => {
-    const selectedCollectionLabel = getSelectedCollectionLabel();
-    return collectionAnimalClassicQclassic.includes(selectedCollectionLabel);
-  }, [getSelectedCollectionLabel]);
+  const memoizedIsCollectionAnimalClassicQclassic = useCallback(() => {
+    return isCollectionAnimalClassicQclassic(collectionType);
+  }, [collectionType]);
+
+  const memoizedNeedsSecondaryColor = useMemo(() => {
+    return needsSecondaryColor(collectionType);
+  }, [collectionType]);
+
+  const memoizedNeedsStitchingColor = useMemo(() => {
+    return needsStitchingColor(collectionType);
+  }, [collectionType]);
 
   return {
-    getSelectedCollectionLabel,
-    isCollectionAnimalClassicQclassic
+    collectionType,
+    isCollectionAnimalClassicQclassic: memoizedIsCollectionAnimalClassicQclassic,
+    needsSecondaryColor: memoizedNeedsSecondaryColor,
+    needsStitchingColor: memoizedNeedsStitchingColor,
   };
 };

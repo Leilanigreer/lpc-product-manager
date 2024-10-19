@@ -1,5 +1,5 @@
-import React from "react";
-import { BlockStack, Grid, Text, Select, TextField } from "@shopify/polaris";
+import React, { useMemo } from "react";
+import { BlockStack, Box, Divider, Grid, Text, Select, TextField, Checkbox } from "@shopify/polaris";
 
 const ShapeSelector = ({ 
   shapes, 
@@ -9,54 +9,89 @@ const ShapeSelector = ({
   handleChange, 
   isCollectionAnimalClassicQclassic 
 }) => {
+  const memoizedShapes = useMemo(() => shapes || [], [shapes]);
+  const showStyleAndEmbroidery = isCollectionAnimalClassicQclassic();
+
   return (
     <BlockStack gap="400">
       <Text as="h2" variant="headingMd">Part 2</Text>
-      {shapes.map((shape) => (
-        <Grid key={shape.value} columns={isCollectionAnimalClassicQclassic() ? 12 : 6}>
-          <Grid.Cell columnSpan={{ xs: 2, sm: 2, md: 2, lg: 2, xl: 2 }}>
-            <Text variant="bodyMd">{shape.label}</Text>
-          </Grid.Cell>
-          
-          {isCollectionAnimalClassicQclassic() && (
-            <>
-              <Grid.Cell columnSpan={{ xs: 3, sm: 3, md: 3, lg: 3, xl: 3 }}>
+      <Grid columns={showStyleAndEmbroidery ? 12 : 8}>
+        <Grid.Cell columnSpan={{xs: 2, sm: 2, md: 2, lg: 2, xl: 2}}>
+          <Text variant="bodyMd" fontWeight="bold">Shape</Text>
+        </Grid.Cell>
+        {showStyleAndEmbroidery && (
+          <>
+            <Grid.Cell columnSpan={{xs: 3, sm: 3, md: 3, lg: 3, xl: 3}}>
+              <Text variant="bodyMd" fontWeight="bold">Style</Text>
+            </Grid.Cell>
+            <Grid.Cell columnSpan={{xs: 3, sm: 3, md: 3, lg: 3, xl: 3}}>
+              <Text variant="bodyMd" fontWeight="bold">Embroidery</Text>
+            </Grid.Cell>
+          </>
+        )}
+        <Grid.Cell columnSpan={{xs: 1, sm: 1, md: 1, lg: 1, xl: 1}}>
+          <Text variant="bodyMd" fontWeight="bold">Weight</Text>
+        </Grid.Cell>
+      </Grid>
+      {memoizedShapes.map((shape, index) => (
+        <Box key={shape.value} paddingBlockEnd="400">
+          <Grid columns={showStyleAndEmbroidery ? 20 : 8}>
+            <Grid.Cell columnSpan={{xs: 2, sm: 2, md: 2, lg: 2, xl: 2}}>
+              <Checkbox
+                label={shape.label}
+                checked={formState.selectedShapes?.[shape.value] || false}
+                onChange={(checked) => {
+                  const newSelectedShapes = { ...formState.selectedShapes };
+                  if (checked) {
+                    newSelectedShapes[shape.value] = true;
+                  } else {
+                    delete newSelectedShapes[shape.value];
+                  }
+                  handleChange('selectedShapes')(newSelectedShapes);
+                }}
+              />
+            </Grid.Cell>
+            {showStyleAndEmbroidery && (
+              <>
+                <Grid.Cell columnSpan={{xs: 3, sm: 3, md: 3, lg: 3, xl: 3}}>
                 <Select
-                  label="Style"
-                  options={styles}
+                  options={styles || []}
                   onChange={(value) => handleChange('selectedStyles')({ ...formState.selectedStyles, [shape.value]: value })}
-                  value={formState.selectedStyles[shape.value] || ''}
+                  value={formState.selectedStyles?.[shape.value] || ''}
                   placeholder="Select style"
-                  labelHidden
+                  disabled={!formState.selectedShapes?.[shape.value]}
                 />
-              </Grid.Cell>
-              <Grid.Cell columnSpan={{ xs: 3, sm: 3, md: 3, lg: 3, xl: 3 }}>
+                </Grid.Cell>
+                <Grid.Cell columnSpan={{xs: 3, sm: 3, md: 3, lg: 3, xl: 3}}>
                 <Select
-                  label="Select Embroidery"
-                  options={[{ label: "Color of Thread", value: "" }, ...threadColors]}
+                  options={[
+                    { label: "Color of Thread", value: "", key: "default-thread-color" },
+                    ...(threadColors || [])
+                  ]}
                   onChange={(value) => handleChange('selectedEmbroideryColor')({ ...formState.selectedEmbroideryColor, [shape.value]: value })}
-                  value={formState.selectedEmbroideryColor[shape.value] || ''}
-                  labelHidden
+                  value={formState.selectedEmbroideryColor?.[shape.value] || ''}
+                  placeholder="Select thread color"
+                  disabled={!formState.selectedShapes?.[shape.value]}
                 />
-              </Grid.Cell>
-            </>
-          )}
-          
-          <Grid.Cell columnSpan={isCollectionAnimalClassicQclassic() ? { xs: 4, sm: 4, md: 4, lg: 4, xl: 4 } : { xs: 4, sm: 4, md: 4, lg: 4, xl: 4 }}>
-            <TextField
-              label="Weight"
-              type="number"
-              onChange={(value) => handleChange('weights')({ ...formState.weights, [shape.value]: value })}
-              value={formState.weights[shape.value] || ''}
-              placeholder="0.00"
-              labelHidden
-              autoComplete="off"
-            />
-          </Grid.Cell>
-        </Grid>
+                </Grid.Cell>
+              </>
+            )}
+            <Grid.Cell columnSpan={{xs: 2, sm: 2, md: 2, lg: 2, xl: 2}}>
+              <TextField
+                type="number"
+                onChange={(value) => handleChange('weights')({ ...formState.weights, [shape.value]: value })}
+                value={formState.weights?.[shape.value] || ''}
+                placeholder="0.00"
+                suffix="oz"
+                disabled={!formState.selectedShapes?.[shape.value]}
+              />
+            </Grid.Cell>
+          </Grid>
+          {index < memoizedShapes.length - 1 && <Divider />}
+        </Box>
       ))}
     </BlockStack>
   );
 };
 
-export default ShapeSelector;
+export default React.memo(ShapeSelector);
