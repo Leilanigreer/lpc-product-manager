@@ -3,7 +3,7 @@
 client_id = "6f1296c99bc07317bd7d904a9749bee4"
 name = "lpc-product-creation-10-16-24"
 handle = "lpc-product-creation-10-16-24"
-application_url = "https://paintings-touring-shaft-cameron.trycloudflare.com"
+application_url = "https://ross-deployment-queen-compete.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_orders,read_products,write_products"
 
 [auth]
 redirect_urls = [
-  "https://paintings-touring-shaft-cameron.trycloudflare.com/auth/callback",
-  "https://paintings-touring-shaft-cameron.trycloudflare.com/auth/shopify/callback",
-  "https://paintings-touring-shaft-cameron.trycloudflare.com/api/auth/callback"
+  "https://ross-deployment-queen-compete.trycloudflare.com/auth/callback",
+  "https://ross-deployment-queen-compete.trycloudflare.com/auth/shopify/callback",
+  "https://ross-deployment-queen-compete.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

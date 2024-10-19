@@ -139,7 +139,7 @@ export default function CreateProduct() {
                 selectedLeatherColor2={formState.selectedLeatherColor2}
                 onChange={handleChange}
                 needsSecondaryColor={needsSecondaryColor}
-                isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
+                // isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
               />
               <FontSelector
                 fonts={fonts}
