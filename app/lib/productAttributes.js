@@ -1,10 +1,13 @@
-import { COLLECTION_TYPES, COLLECTION_ID_MAP } from "./constants";
+import { COLLECTION_TYPES } from "./constants";
 import { getCollectionType } from "./collectionUtils";
 
 export const generateSKUS = async (formState, leatherColors, threadColors, shapes, styles) => {
   console.log("generateSKUS called with formState:", JSON.stringify(formState, null, 2));
-
-  if (!formState || !leatherColors || !threadColors || !shapes) {
+  
+  const collectionType = getCollectionType(formState.selectedCollection);
+  console.log("Determined collection type:", collectionType);
+  
+  if (!formState || !leatherColors || !threadColors || !shapes ) {
     console.error("Missing required parameters for generateSKUS");
     console.log("formState:", formState);
     console.log("leatherColors:", leatherColors);
@@ -13,8 +16,14 @@ export const generateSKUS = async (formState, leatherColors, threadColors, shape
     return [];
   }
 
-  const collectionType = getCollectionType(formState.selectedCollection);
-  console.log("Determined collection type:", collectionType);
+  // Check for styles only if the collection type requires it
+  if ((collectionType === COLLECTION_TYPES.ANIMAL || 
+    collectionType === COLLECTION_TYPES.CLASSIC || 
+    collectionType === COLLECTION_TYPES.QCLASSIC) && !styles) {
+  console.error("Missing styles for a collection type that requires it");
+  console.log("styles:", styles);
+  return [];
+  }
 
   const leatherColor1 = leatherColors.find(color => color.value === formState.selectedLeatherColor1);
   const leatherColor2 = leatherColors.find(color => color.value === formState.selectedLeatherColor2);
@@ -85,7 +94,7 @@ export const generateSKUS = async (formState, leatherColors, threadColors, shape
           return null;
       }
 
-      return { sku: skuParts.join('-'), shape: shape.abbreviation };
+      return { sku: skuParts.join('-'), shape: shape.abbreviation , shapeId };
     })
     .filter(item => item !== null);
 
@@ -116,8 +125,24 @@ export const generateSKUS = async (formState, leatherColors, threadColors, shape
       });
     } else {
       console.log("Processing other collection type for custom SKUs");
-      // For other collections, add -Custom to all SKUs
-      customSkus.push(...skus.map(item => `${item.sku}-Custom`));
+      // For Animal, QClassic, and Classic collections, add style abbreviation to custom SKUs
+      skus.forEach(item => {
+        const selectedStyleId = formState.selectedStyles?.[item.shapeId];
+        const style = styles.find(s => s.value === selectedStyleId);
+        if (style && style.abbreviation) {
+          let customSku = item.sku;
+          if (woodAbbreviations.includes(item.shape)) {
+            // Replace wood shapes with 'Fairway' in custom SKUs
+            customSku = customSku.replace(/-[^-]+$/, '-Fairway');
+          }
+          customSkus.push(`${customSku}-${style.abbreviation}-Custom`);
+          console.log(`Added custom SKU with style for ${item.shape}: ${customSkus[customSkus.length - 1]}`);
+        } else {
+          console.error(`Style or style abbreviation not found for shape ${item.shape}. Style ID: ${selectedStyleId}`);
+          customSkus.push(`${item.sku}-Custom`);
+          console.log(`Added custom SKU without style for ${item.shape}: ${item.sku}-Custom`);
+        }
+      });
     }
 
     skus = [...regularSkus, ...customSkus];
