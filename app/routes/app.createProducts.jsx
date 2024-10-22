@@ -8,7 +8,7 @@ import LeatherColorSelector from "../components/LeatherColorSelector.jsx";
 import FontSelector from "../components/FontSelector.jsx";
 import ThreadColorSelector from "../components/ThreadColorSelector.jsx";
 import ShapeSelector from "../components/ShapeSelector.jsx";
-import { generateSKUS, generateTitle } from "../lib/productAttributes.js";
+import { generateSKUS, generateTitle, generateHandle } from "../lib/productAttributes.js";
 import { useCollectionLogic } from "../hooks/useCollectionLogic.jsx";
 
 import {
@@ -45,6 +45,7 @@ export default function CreateProduct() {
 
   const [generatedSKUs, setGeneratedSKUs] = useState([]);
   const [generatedTitle, setGeneratedTitle] = useState("");
+  const [generatedHandle, setGeneratedHandle] = useState("");
   
   const { 
     collectionType, 
@@ -76,21 +77,54 @@ export default function CreateProduct() {
     
     if (shouldGenerateProductData) {
       const generateProductData = async () => {
+        let hasErrors = false;
+
+        // Generate SKUs
         try {
           const skus = await generateSKUS(formState, leatherColors, threadColors, shapes, styles);
           setGeneratedSKUs(skus);
-          
+          console.log("Successfully generated SKUs:", skus);
+        } catch (error) {
+          hasErrors = true;
+          console.error("Error generating SKUs:", error.message);
+          setGeneratedSKUs([]);
+        }
+
+        // Generate Title
+        try {
           const title = generateTitle(formState, leatherColors, threadColors);
           setGeneratedTitle(title);
+          console.log("Successfully generated title:", title);
+
+          // Generate Handle (depends on title)
+          try {
+            const handle = generateHandle(formState, title);
+            setGeneratedHandle(handle);
+            console.log("Successfully generated handle:", handle);
+          } catch (error) {
+            hasErrors = true;
+            console.error("Error generating handle:", error.message);
+            setGeneratedHandle("pending-handle");
+          }
+
         } catch (error) {
-          console.error("Error generating SKU:", error);
+          hasErrors = true;
+          console.error("Error generating title:", error.message);
+          setGeneratedTitle("");
+          setGeneratedHandle("pending-handle"); // Reset handle if title fails
+        }
+
+        if (hasErrors) {
+          console.log("Some product data generation failed. Check errors above.");
         }
       };
 
       generateProductData();
     } else {
+      // Reset all values if shouldGenerateProductData is false
       setGeneratedSKUs([]);
       setGeneratedTitle("");
+      setGeneratedHandle("");
     }
   }, [shouldGenerateProductData, formState, leatherColors, threadColors, shapes, styles]);
 
@@ -150,6 +184,9 @@ export default function CreateProduct() {
                   onChange={handleChange}
                 />
               )}
+            </BlockStack>
+          </Card>
+          <Card>
               <ShapeSelector
                 shapes={shapes}
                 styles={styles}
@@ -163,13 +200,18 @@ export default function CreateProduct() {
                 handleChange={handleChange}
                 isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
               />
+          </Card>
+          <Card>
               {generatedSKUs.length > 0 && (
                 <Text variant="bodyMd">Generated SKUs: {generatedSKUs.join(', ')}</Text>
               )}
               {generatedTitle && (
                 <Text variant="bodyMd">Generated Title: {generatedTitle}</Text>
               )}
-            </BlockStack>
+              {generatedHandle && (
+                <Text variant="bodyMd">Generated Handle: {generatedHandle}</Text>
+              )}
+
           </Card>
         </Layout.Section>
       </Layout>
