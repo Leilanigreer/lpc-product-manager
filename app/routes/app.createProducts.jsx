@@ -53,12 +53,8 @@ export default function CreateProduct() {
     needsStitchingColor 
   } = useCollectionLogic(collections, formState.selectedCollection);
 
-  // const memoizedIsCollectionAnimalClassicQclassic = useCallback(() => {
-  //   return isCollectionAnimalClassicQclassic();
-  // }, [isCollectionAnimalClassicQclassic]);
-
   const handleChange = useCallback((field) => (value) => {
-    console.log(`Updating ${field} with value:`, value);
+    // console.log(`Updating ${field} with value:`, value);
     setFormState(field, value);
   }, [setFormState]);
 
@@ -84,7 +80,7 @@ export default function CreateProduct() {
           const skus = await generateSKUS(formState, leatherColors, threadColors, shapes, styles);
           setGeneratedSKUs(skus);
           
-          const title = generateTitle(formState, leatherColors, shapes);
+          const title = generateTitle(formState, leatherColors, threadColors);
           setGeneratedTitle(title);
         } catch (error) {
           console.error("Error generating SKU:", error);
@@ -103,7 +99,7 @@ export default function CreateProduct() {
     return <div>Error: {error}</div>;
   }
 
-  console.log("Rendering CreateProduct component");
+  // console.log("Rendering CreateProduct component");
   return (
     <Page>
       <TitleBar title="Create a new product" />

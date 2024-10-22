@@ -3,7 +3,7 @@
 client_id = "6f1296c99bc07317bd7d904a9749bee4"
 name = "lpc-product-creation-10-16-24"
 handle = "lpc-product-creation-10-16-24"
-application_url = "https://pc-survivor-own-fiction.trycloudflare.com"
+application_url = "https://findlaw-deposits-racial-analyst.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_orders,read_products,write_products"
 
 [auth]
 redirect_urls = [
-  "https://pc-survivor-own-fiction.trycloudflare.com/auth/callback",
-  "https://pc-survivor-own-fiction.trycloudflare.com/auth/shopify/callback",
-  "https://pc-survivor-own-fiction.trycloudflare.com/api/auth/callback"
+  "https://findlaw-deposits-racial-analyst.trycloudflare.com/auth/callback",
+  "https://findlaw-deposits-racial-analyst.trycloudflare.com/auth/shopify/callback",
+  "https://findlaw-deposits-racial-analyst.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
