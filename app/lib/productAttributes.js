@@ -239,3 +239,16 @@ export const generateHandle = (formState, title) => {
         return "pendling-handle";
   }
 };
+
+// export const generateDescription = (formState, fonts) => {
+//   // const font = getFonts(formState, fonts);
+
+//   const collectionType = getCollectionType(formState.selectedCollection);
+  
+//   switch(collectionType) {
+
+//   }
+
+
+//   ``
+// };

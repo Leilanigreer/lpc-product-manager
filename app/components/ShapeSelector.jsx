@@ -80,6 +80,7 @@ const ShapeSelector = ({
               <TextField
                 type="number"
                 min = "0"
+                onWheel={(e) => e.target.blur()}
                 onChange={(value) => handleChange('weights')({ ...formState.weights, [shape.value]: value })}
                 value={formState.weights?.[shape.value] || ''}
                 placeholder="0.00"
