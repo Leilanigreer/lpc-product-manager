@@ -3,7 +3,8 @@
     "env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    "prisma/migrations/20241022populateCollections.js"
+    "prisma/migrations/20241022populateCollections.js",
+    "prisma/migrations/migrate-thread-colors.js"
   ],
   "compilerOptions": {
     "lib": [
