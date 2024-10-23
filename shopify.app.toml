@@ -3,12 +3,12 @@
 client_id = "6f1296c99bc07317bd7d904a9749bee4"
 name = "lpc-product-creation-10-16-24"
 handle = "lpc-product-creation-10-16-24"
-application_url = "https://hazard-enb-gasoline-driven.trycloudflare.com"
+application_url = "https://examine-calvin-accompanied-honey.trycloudflare.com"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "test-lpc-product.myshopify.com"
+dev_store_url = "lpc-product-creation.myshopify.com"
 include_config_on_deploy = true
 
 [access_scopes]
@@ -17,9 +17,9 @@ scopes = "read_orders,read_products,write_products"
 
 [auth]
 redirect_urls = [
-  "https://hazard-enb-gasoline-driven.trycloudflare.com/auth/callback",
-  "https://hazard-enb-gasoline-driven.trycloudflare.com/auth/shopify/callback",
-  "https://hazard-enb-gasoline-driven.trycloudflare.com/api/auth/callback"
+  "https://examine-calvin-accompanied-honey.trycloudflare.com/auth/callback",
+  "https://examine-calvin-accompanied-honey.trycloudflare.com/auth/shopify/callback",
+  "https://examine-calvin-accompanied-honey.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
