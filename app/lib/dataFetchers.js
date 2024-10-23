@@ -81,9 +81,10 @@ export const getFonts = async () => {
 export const getShapes = async () => {
   try {
     const shapes = await prisma.shape.findMany();
-    return shapes.map(({ id, name}) =>({
+    return shapes.map(({ id, name, abbreviation}) =>({
       value: id, 
       label: name,
+      abbreviation,
     }));
   } catch (error) {
     console.error("Error fetching shapes:", error);
@@ -94,9 +95,10 @@ export const getShapes = async () => {
 export const getStyles = async () => {
   try {
     const styles = await prisma.style.findMany();
-    return styles.map(({ id, name}) => ({
+    return styles.map(({ id, name, abbreviation}) => ({
       value: id, 
       label: name,
+      abbreviation,
     }));
   } catch (error) {
     console.error("Error fetching styles:", error);
