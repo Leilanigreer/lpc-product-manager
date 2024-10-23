@@ -29,12 +29,13 @@ model Session {
 }
 
 model LeatherColor {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   name         String
   abbreviation String
   image_url    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  colorTags    ColorTag[] @relation("LeatherColorToTag")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 model Shape {
@@ -64,13 +65,14 @@ model Font {
 }
 
 model Thread {
-  id             String   @id @default(cuid())
+  id             String     @id @default(cuid())
   name           String
   abbreviation   String
-  amann_number   String
-  isacord_number String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  colorTags      ColorTag[] @relation("ThreadColorToTag")
+  amann_number   String?
+  isacord_number String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 }
 
 model ProductPrice {
@@ -94,4 +96,13 @@ model Collection {
   updatedAt     DateTime       @updatedAt
 
   @@unique([handle])
+}
+
+model ColorTag {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  leatherColors LeatherColor[] @relation("LeatherColorToTag")
+  threadColors  Thread[]       @relation("ThreadColorToTag")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }

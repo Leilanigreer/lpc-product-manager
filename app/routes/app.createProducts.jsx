@@ -8,7 +8,7 @@ import LeatherColorSelector from "../components/LeatherColorSelector.jsx";
 import FontSelector from "../components/FontSelector.jsx";
 import ThreadColorSelector from "../components/ThreadColorSelector.jsx";
 import ShapeSelector from "../components/ShapeSelector.jsx";
-import { generateSKUS, generateTitle, generateHandle } from "../lib/productAttributes.js";
+import { generateSKUS, generateTitle, generateMainHandle, generateVariantNames, generateProductType } from "../lib/productAttributes.js";
 import { useCollectionLogic } from "../hooks/useCollectionLogic.jsx";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
@@ -44,6 +44,10 @@ export const action = async ({ request }) => {
           title
           handle
           status
+          descriptionHtml
+          category
+          productType
+          vendor
           variants(first: 10) {
             edges {
               node {
@@ -60,6 +64,12 @@ export const action = async ({ request }) => {
       variables: {
         input: {
           title: productData.title,
+          handle: productData.mainHandle,
+          status: 'active',
+          category: 'gid://shopify/TaxonomyCategory/sg-4-7-7-2',
+          descriptionHtml: 'pending',
+          productType: productData.productType,
+          vendor: 'Little Prince Customs'
           // Add other product fields here based on your formState
         },
       },
@@ -102,10 +112,12 @@ export default function CreateProduct() {
 
   const [generatedSKUs, setGeneratedSKUs] = useState([]);
   const [generatedTitle, setGeneratedTitle] = useState("");
-  const [generatedHandle, setGeneratedHandle] = useState("");
+  const [generatedMainHandle, setGeneratedMainHandle] = useState("");
+  const [generatedVariantNames, setGeneratedVariantNames] = useState ([]);
+  const [generatedProductType, setGeneratedProductType] = useState ("");
   
   const { 
-    collectionType, 
+    // collectionType, 
     isCollectionAnimalClassicQclassic, 
     needsSecondaryColor, 
     needsStitchingColor 
@@ -153,22 +165,43 @@ export default function CreateProduct() {
           setGeneratedTitle(title);
           console.log("Successfully generated title:", title);
 
-          // Generate Handle (depends on title)
+          // Generate Main Handle (depends on title)
           try {
-            const handle = generateHandle(formState, title);
-            setGeneratedHandle(handle);
-            console.log("Successfully generated handle:", handle);
+            const mainHandle = generateMainHandle(formState, title);
+            setGeneratedMainHandle(mainHandle);
+            console.log("Successfully generated mainHandle:", mainHandle);
           } catch (error) {
             hasErrors = true;
-            console.error("Error generating handle:", error.message);
-            setGeneratedHandle("pending-handle");
+            console.error("Error generating main handle:", error.message);
+            setGeneratedMainHandle("pending-main-handle");
           }
 
         } catch (error) {
           hasErrors = true;
           console.error("Error generating title:", error.message);
           setGeneratedTitle("");
-          setGeneratedHandle("pending-handle"); // Reset handle if title fails
+          setGeneratedMainHandle("pending-main-handle"); // Reset main handle if title fails
+        }
+
+        // Generate VariantName
+        try {
+          const variantNames = await generateVariantNames(formState, shapes, styles);
+          setGeneratedVariantNames(variantNames);
+          console.log("Successfully generated Variant Names:", variantNames);
+        } catch (error) {
+          hasErrors = true;
+          console.error("Error generating Variant Names:", error.message);
+          setGeneratedVariantNames([]);
+        }
+
+        try {
+          const productType = generateProductType(formState);
+          setGeneratedProductType(productType);
+          console.log("Successfully generated Product Type:", productType);
+        } catch (error) {
+          hasErrors = true;
+          console.error("Error generating Product Type", error.message);
+          setGeneratedProductType("");
         }
 
         if (hasErrors) {
@@ -176,12 +209,16 @@ export default function CreateProduct() {
         }
       };
 
+
+
       generateProductData();
     } else {
       // Reset all values if shouldGenerateProductData is false
       setGeneratedSKUs([]);
       setGeneratedTitle("");
-      setGeneratedHandle("");
+      setGeneratedMainHandle("");
+      setGeneratedVariantNames([]);
+      setGeneratedProductType("");
     }
   }, [shouldGenerateProductData, formState, leatherColors, threadColors, shapes, styles]);
 
@@ -259,16 +296,21 @@ export default function CreateProduct() {
               />
           </Card>
           <Card>
-              {generatedSKUs.length > 0 && (
-                <Text variant="bodyMd">Generated SKUs: {generatedSKUs.join(', ')}</Text>
-              )}
               {generatedTitle && (
                 <Text variant="bodyMd">Generated Title: {generatedTitle}</Text>
               )}
-              {generatedHandle && (
-                <Text variant="bodyMd">Generated Handle: {generatedHandle}</Text>
+              {generatedMainHandle && (
+                <Text variant="bodyMd">Generated Main Handle: {generatedMainHandle}</Text>
               )}
-
+              {generatedSKUs.length > 0 && (
+                <Text variant="bodyMd">Generated SKUs: {generatedSKUs.join(', ')}</Text>
+              )}
+              {generatedVariantNames.length > 0 && (
+                <Text variant="bodyMd">Generated Variant Names: {generatedVariantNames.join(', ')}</Text>
+              )}
+              {generatedProductType.length > 0 && (
+                <Text variant="bodyMd">Generated Product Type: {generatedProductType}</Text>
+              )}
           </Card>
         </Layout.Section>
       </Layout>
