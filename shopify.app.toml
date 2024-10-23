@@ -8,7 +8,7 @@ embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "test-lpc-product.myshopify.com"
+dev_store_url = "lpc-product-creation.myshopify.com"
 include_config_on_deploy = true
 
 [access_scopes]
