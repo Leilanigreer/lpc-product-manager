@@ -38,11 +38,12 @@ model LeatherColor {
 }
 
 model Shape {
-  id           String   @id @default(cuid())
-  name         String
-  abbreviation String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String         @id @default(cuid())
+  name          String
+  abbreviation  String?
+  productPrices ProductPrice[] // Add this relation field
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model Style {
@@ -70,4 +71,27 @@ model Thread {
   isacord_number String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model ProductPrice {
+  id           String     @id @default(cuid())
+  shopifyPrice Decimal    @db.Decimal(10, 2)
+  higherPrice  Decimal    @db.Decimal(10, 2)
+  shape        Shape      @relation(fields: [shapeId], references: [id])
+  shapeId      String
+  Collection   Collection @relation(fields: [collectionId], references: [id])
+  collectionId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Collection {
+  id            String         @id // Shopify collection ID
+  title         String
+  handle        String
+  productPrices ProductPrice[] // Add this relation field
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([handle])
 }
