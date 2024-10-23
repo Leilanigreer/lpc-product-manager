@@ -1,25 +1,45 @@
-import { COLLECTION_TYPES, COLLECTION_ID_MAP } from "./constants";
+import { COLLECTION_TYPES } from "./constants";
 import { getCollectionType } from "./collectionUtils";
 
-export const generateSKUS = async (formState, leatherColors, threadColors, shapes) => {
-  console.log("Generating SKUs with formState:", formState);
+const getColors = (formState, leatherColors, threadColors) => ({
+  leatherColor1: leatherColors.find(color => color.value === formState.selectedLeatherColor1),
+  leatherColor2: leatherColors.find(color => color.value === formState.selectedLeatherColor2),
+  stitchingColor: threadColors.find(color => color.value === formState.selectedStitchingColor),
+  offeringType: formState.selectedOfferingType
+});
 
-  if (!formState || !leatherColors || !threadColors || !shapes) {
-    console.error("Missing required data for SKU generation");
+export const generateSKUS = async (formState, leatherColors, threadColors, shapes, styles) => {
+  console.log("generateSKUS called with formState:", JSON.stringify(formState, null, 2));
+    
+  if (!formState || !leatherColors || !threadColors || !shapes ) {
+    console.error("Missing required parameters for generateSKUS");
+    console.log("formState:", formState);
+    console.log("SKU threadColors:", threadColors);
+    console.log("Available thread colors:", threadColors.map(c => c.value));
+    console.log("Thread colors array:", JSON.stringify(threadColors, null, 2));
     return [];
   }
 
+  const {leatherColor1, leatherColor2, stitchingColor, offeringType} = getColors(formState, leatherColors, threadColors);
+
   const collectionType = getCollectionType(formState.selectedCollection);
-  const leatherColor1 = leatherColors.find(color => color.value === formState.selectedLeatherColor1);
-  const leatherColor2 = leatherColors.find(color => color.value === formState.selectedLeatherColor2);
-  const stitchingColor = threadColors.find(color => color.value === formState.selectedStitchingColor);
+  
+  // Check for styles only if the collection type requires it
+  if ((collectionType === COLLECTION_TYPES.ANIMAL || 
+    collectionType === COLLECTION_TYPES.CLASSIC || 
+    collectionType === COLLECTION_TYPES.QCLASSIC) && !styles) {
+    console.error("Missing styles for a collection type that requires it");
+  return [];
+  }
 
   if (!leatherColor1) {
     console.error("Primary leather color not found");
     return [];
   }
 
-  const skus = Object.entries(formState.weights || {})
+  const woodAbbreviations = ['3Wood', '5Wood', '7Wood'];
+
+  let skus = Object.entries(formState.weights || {})
     .filter(([_, weight]) => weight !== "") // Only generate SKUs for shapes with non-empty weights
     .map(([shapeId, weight]) => {
       const shape = shapes.find(s => s.value === shapeId);
@@ -33,15 +53,16 @@ export const generateSKUS = async (formState, leatherColors, threadColors, shape
 
       switch (collectionType) {
         case COLLECTION_TYPES.QUILTED:
+          // console.log("Generating Quilted SKU");
           skuParts = [
             "Quilted",
             leatherColor1.abbreviation,
-            "L",
             stitchingColor.abbreviation,
             shape.abbreviation
           ];
           break;
         case COLLECTION_TYPES.ARGYLE:
+          // console.log("Generating Argyle SKU");
           if (!leatherColor2) {
             console.error("Secondary leather color not found for Argyle collection");
             return null;
@@ -49,90 +70,172 @@ export const generateSKUS = async (formState, leatherColors, threadColors, shape
           skuParts = [
             "Argyle",
             leatherColor1.abbreviation,
-            "A",
             leatherColor2.abbreviation,
-            "L",
             stitchingColor.abbreviation,
             shape.abbreviation
           ];
           break;
         case COLLECTION_TYPES.ANIMAL:
-          if (!leatherColor2) {
-            console.error("Secondary leather color not found for Animal collection");
-            return null;
-          }
-          skuParts = [
-            "Animal",
-            leatherColor1.abbreviation,
-            "W",
-            leatherColor2.abbreviation,
-            "L",
-            shape.abbreviation
-          ];
-          break;
         case COLLECTION_TYPES.CLASSIC:
-          if (!leatherColor2) {
-            console.error("Secondary leather color not found for Classic collection");
-            return null;
-          }
-          skuParts = [
-            "Classic",
-            leatherColor1.abbreviation,
-            "W",
-            leatherColor2.abbreviation,
-            "L",
-            shape.abbreviation
-          ];
-          break;
         case COLLECTION_TYPES.QCLASSIC:
+          // console.log(`Generating ${collectionType} SKU`);
           if (!leatherColor2) {
-            console.error("Secondary leather color not found for QClassic collection");
+            console.error(`Secondary leather color not found for ${collectionType} collection`);
             return null;
           }
           skuParts = [
-            "QClassic",
+            collectionType,
             leatherColor1.abbreviation,
-            "W",
             leatherColor2.abbreviation,
-            "L",
             shape.abbreviation
           ];
           break;
         default:
-          console.error(`Unknown collection type: ${collectionType}`);
+          // console.error(`Unknown collection type: ${collectionType}`);
           return null;
       }
 
-      return skuParts.join('-');
+      return { sku: skuParts.join('-'), shape: shape.abbreviation , shapeId };
     })
-    .filter(sku => sku !== null); // Remove any null SKUs
+    .filter(item => item !== null);
 
-  console.log("Generated SKUs:", skus);
+  // console.log("Initial SKUs generated:", skus);
+
+  if (offeringType === "customizable") {
+    // console.log("Generating custom SKUs for customizable offering");
+    const regularSkus = skus.map(item => item.sku);
+    const customSkus = [];
+
+    if (collectionType === COLLECTION_TYPES.QUILTED || collectionType === COLLECTION_TYPES.ARGYLE) {
+      // console.log("Processing Quilted or Argyle collection for custom SKUs");
+      const hasFairway = skus.some(item => item.shape === 'Fairway');
+      // console.log("Has Fairway shape:", hasFairway);
+
+      skus.forEach(item => {
+        if (item.shape === 'Fairway' || (!hasFairway && woodAbbreviations.includes(item.shape))) {
+          // If it's a Fairway or a wood club (when Fairway is not present), add only one Fairway-Custom
+          if (!customSkus.some(sku => sku.endsWith('-Fairway-Custom'))) {
+            customSkus.push(`${item.sku.replace(/-[^-]+$/, '')}-Fairway-Custom`);
+            // console.log("Added Fairway-Custom SKU");
+          }
+        } else if (!woodAbbreviations.includes(item.shape)) {
+          // For non-wood clubs, add individual custom SKUs
+          customSkus.push(`${item.sku}-Custom`);
+          // console.log(`Added custom SKU for ${item.shape}`);
+        }
+      });
+    } else {
+      // console.log("Processing other collection type for custom SKUs");
+      // For Animal, QClassic, and Classic collections, add style abbreviation to custom SKUs
+      skus.forEach(item => {
+        const selectedStyleId = formState.selectedStyles?.[item.shapeId];
+        const style = styles.find(s => s.value === selectedStyleId);
+        if (style && style.abbreviation) {
+          let customSku = item.sku;
+          if (woodAbbreviations.includes(item.shape)) {
+            // Replace wood shapes with 'Fairway' in custom SKUs
+            customSku = customSku.replace(/-[^-]+$/, '-Fairway');
+          }
+          customSkus.push(`${customSku}-${style.abbreviation}-Custom`);
+          // console.log(`Added custom SKU with style for ${item.shape}: ${customSkus[customSkus.length - 1]}`);
+        } else {
+          // console.error(`Style or style abbreviation not found for shape ${item.shape}. Style ID: ${selectedStyleId}`);
+          customSkus.push(`${item.sku}-Custom`);
+          // console.log(`Added custom SKU without style for ${item.shape}: ${item.sku}-Custom`);
+        }
+      });
+    }
+
+    skus = [...regularSkus, ...customSkus];
+  } else {
+    skus = skus.map(item => item.sku);
+  }
+
+  // console.log("Final generated SKUs:", skus);
   return skus;
 };
 
-export const generateTitle = (formState, leatherColors, shapes) => {
-  console.log("Generating title with formState:", formState);
+export const generateTitle = (formState, leatherColors, threadColors) => {
+  // console.log("generateTitle called with formState:", JSON.stringify(formState, null, 2));
+  // console.log("threadColors:", JSON.stringify(threadColors, null, 2));
+  // console.log("selectedStitchingColor:", formState.selectedStitchingColor);
+
+  // console.log("Determined collection type:", collectionType);
   
+  if (!formState || !leatherColors || !threadColors) {
+    console.error("Missing required parameters for generateTitle");
+    return "";
+  }
+
+  const { leatherColor1, leatherColor2, stitchingColor } = getColors(formState, leatherColors, threadColors);
+
   const collectionType = getCollectionType(formState.selectedCollection);
-  const collectionName = formState.selectedCollection.split('/').pop(); // Extract collection ID
-  const leatherColor1 = leatherColors.find(color => color.value === formState.selectedLeatherColor1);
-  const leatherColor2 = leatherColors.find(color => color.value === formState.selectedLeatherColor2);
-  
-  let title = `${collectionName} ${leatherColor1.label}`;
-  
-  if (leatherColor2) {
-    title += ` ${leatherColor2.label}`;
+
+  if (!leatherColor1) {
+    return "Primary leather color missing";
   }
   
-  const selectedShapes = Object.keys(formState.weights)
-    .filter(shapeId => formState.weights[shapeId] !== "")
-    .map(shapeId => shapes.find(s => s.value === shapeId).label);
+  let title = "";
   
-  if (selectedShapes.length > 0) {
-    title += ` ${selectedShapes.join(', ')}`;
+  switch (collectionType) {
+    case COLLECTION_TYPES.ANIMAL:
+    case COLLECTION_TYPES.CLASSIC:
+    case COLLECTION_TYPES.QCLASSIC:
+      if (!leatherColor2) {
+        return "Secondary leather color missing";
+      }
+      title = `${leatherColor1.label} with ${leatherColor2.label} Leather`;
+      break;
+  
+    case COLLECTION_TYPES.ARGYLE:
+      if (!leatherColor2) {
+        return "Secondary leather color missing";
+      }
+      if (!stitchingColor) {
+        return "Stitching color missing";
+      }
+      title = `${leatherColor1.label} and ${leatherColor2.label} Leather with ${stitchingColor.label} Stitching`;
+      break;
+  
+    case COLLECTION_TYPES.QUILTED:
+      if (!stitchingColor) {
+        return "Stitching color missing";
+      }
+      title = `${leatherColor1.label} Leather Quilted with ${stitchingColor.label} Stitching`;
+      break;
+  
+    default:
+      title = "Pending Title";
   }
 
   console.log("Generated title:", title);
-  return title.trim();
+  return title;
+};
+
+export const generateHandle = (formState, title) => {
+  if (!title || title === "Pending Title") {
+    return "pending-handle";
+  }
+
+  const tempHandle =title.toLowerCase()
+                          .replace(/\s+/g, '-')  // Replace all spaces with hyphens
+                          .replace(/[^a-z0-9-]/g, ''); // Remove any special characters
+
+  const collectionType = getCollectionType(formState.selectedCollection);
+  
+  switch(collectionType) {
+    case COLLECTION_TYPES.QUILTED:
+    case COLLECTION_TYPES.ANIMAL:
+    case COLLECTION_TYPES.CLASSIC:
+      return `${tempHandle}-golf-headcovers`;
+     
+    case COLLECTION_TYPES.ARGYLE:
+      return `${tempHandle}-argyle-golf-headcovers`; 
+
+    case COLLECTION_TYPES.QCLASSIC:
+      return `${tempHandle}-quilted-golf-headcovers`;
+    
+      default:
+        return "pendling-handle";
+  }
 };

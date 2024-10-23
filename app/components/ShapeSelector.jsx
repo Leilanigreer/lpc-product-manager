@@ -79,6 +79,7 @@ const ShapeSelector = ({
             <Grid.Cell columnSpan={{xs: 2, sm: 2, md: 2, lg: 2, xl: 2}}>
               <TextField
                 type="number"
+                min = "0"
                 onChange={(value) => handleChange('weights')({ ...formState.weights, [shape.value]: value })}
                 value={formState.weights?.[shape.value] || ''}
                 placeholder="0.00"
