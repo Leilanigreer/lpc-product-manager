@@ -105,3 +105,26 @@ export const getStyles = async () => {
     throw error;
   }
 }
+
+export const getProductPrices = async () => {
+  try {
+    const productPrices = await prisma.productPrice.findMany({
+      select: {
+        id: true,
+        shopifyPrice: true,
+        shapeId: true,
+        collectionId: true
+      }
+    });
+
+    return productPrices.map(({ id, shopifyPrice, shapeId, collectionId }) => ({
+      value: id,
+      shapeId,
+      collectionId,
+      shopifyPrice: parseFloat(shopifyPrice) // Ensure price is a number
+    }));
+  } catch (error) {
+    console.error("Error fetching product prices:", error);
+    throw error;
+  }
+};
