@@ -1,5 +1,12 @@
 COPY public."Style" (id, name, abbreviation, image_url, "createdAt", "updatedAt") FROM stdin;
 cm2duk0zo00086y581yq5luh2	Teardrop	Tear	\N	2024-10-17 22:02:37.956	2024-10-17 22:01:04.028
+cm2duk0zp00096y58txlhef0r	2 Stripe	2	\N	2024-10-17 22:02:37.956	2024-10-17 22:01:19.433
+cm2duk0zp000a6y58as5sriok	3 Stripe	3	\N	2024-10-17 22:02:37.956	2024-10-17 22:01:20.006
+cm2duk0zp000b6y58ni0lmpzy	Racing Stripes	Racing	\N	2024-10-17 22:02:37.956	2024-10-17 22:01:20.758
+cm2duk0zp000c6y58p4822b5n	50/50	50	\N	2024-10-17 22:02:37.956	2024-10-17 22:01:21.439
+cm2duk0zp000d6y58z7vvtz3o	Fat Stripe	Fat	\N	2024-10-17 22:02:37.956	2024-10-17 22:01:22.241
+cm2duk0zp000e6y58p91axp5o	Fat Middle	Middle	\N	2024-10-17 22:02:37.956	2024-10-17 22:01:24.16
+cm2duk0zp000f6y582nz1xfot	Quilted Bottom	QBottom	\N	2024-10-17 22:02:37.956	2024-10-17 22:01:25.062
 \.
 COPY public."Thread" (id, name, abbreviation, amann_number, isacord_number, "createdAt", "updatedAt") FROM stdin;
 cm2dvxbki0000145djbebncw9	Dark Chocolate	DCS			2024-10-17 22:40:57.81	2024-10-17 22:38:04.874

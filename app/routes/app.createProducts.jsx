@@ -8,7 +8,12 @@ import LeatherColorSelector from "../components/LeatherColorSelector.jsx";
 import FontSelector from "../components/FontSelector.jsx";
 import ThreadColorSelector from "../components/ThreadColorSelector.jsx";
 import ShapeSelector from "../components/ShapeSelector.jsx";
-import { generateSKUS, generateTitle, generateMainHandle, generateVariantNames, generateProductType } from "../lib/productAttributes.js";
+import { 
+  generateProductData,
+  generateTitle,
+  generateMainHandle,
+  generateProductType
+} from "../lib/productAttributes.js";
 import { useCollectionLogic } from "../hooks/useCollectionLogic.jsx";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
@@ -21,6 +26,7 @@ import {
   BlockStack,
   InlineStack,
   RadioButton,
+  Button,
 } from "@shopify/polaris";
 
 export const action = async ({ request }) => {
@@ -34,6 +40,18 @@ export const action = async ({ request }) => {
       productData[key] = JSON.parse(productData[key]);
     }
   });
+
+  const variants = Array.from(formData.entries())
+  .filter(([key]) => key.startsWith('variants['))
+  .reduce((acc, [key, value]) => {
+    const [, index, field] = key.match(/variants\[(\d+)\]\[(\w+)\]/);
+    if (!acc[index]) acc[index] = {};
+    acc[index][field] = value;
+    return acc;
+  }, {});
+
+
+  
 
   const response = await admin.graphql(
     `#graphql
@@ -94,7 +112,15 @@ export default function CreateProduct() {
   // console.log("useCollectionsLogic:", useCollectionLogic);
   // console.log("CreateProduct component rendering");
   
-  const { collections, leatherColors, threadColors, shapes, styles, fonts, error } = useLoaderData();
+  const { collections, 
+    leatherColors, 
+    threadColors, 
+    shapes, 
+    styles, 
+    fonts, 
+    productPrices, 
+    error 
+  } = useLoaderData();
   // console.log("Data loaded:", { collections, leatherColors, threadColors, shapes, styles, fonts });
   
   const [formState, setFormState] = useFormState({
@@ -110,6 +136,10 @@ export default function CreateProduct() {
     weights: {},
   });
 
+  const [productData, setProductData] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState(null);
+
   const [generatedSKUs, setGeneratedSKUs] = useState([]);
   const [generatedTitle, setGeneratedTitle] = useState("");
   const [generatedMainHandle, setGeneratedMainHandle] = useState("");
@@ -117,14 +147,12 @@ export default function CreateProduct() {
   const [generatedProductType, setGeneratedProductType] = useState ("");
   
   const { 
-    // collectionType, 
     isCollectionAnimalClassicQclassic, 
     needsSecondaryColor, 
     needsStitchingColor 
   } = useCollectionLogic(collections, formState.selectedCollection);
 
   const handleChange = useCallback((field) => (value) => {
-    // console.log(`Updating ${field} with value:`, value);
     setFormState(field, value);
   }, [setFormState]);
 
@@ -141,91 +169,126 @@ export default function CreateProduct() {
            hasShapeData;
   }, [formState, needsSecondaryColor, needsStitchingColor]);
 
+  const formatVariantDisplay = useCallback((variants) => {
+    // Group base variants and custom variants for display
+    const baseVariants = variants.filter(v => !v.isCustom);
+    const customVariants = variants.filter(v => v.isCustom);
+    
+    return [...baseVariants, ...customVariants]
+      .map(v => v.variantName)
+      .join(', ');
+  }, []);
+
+
   useEffect(() => {
     console.log("Effect running. Current formState:", formState);
     
     if (shouldGenerateProductData) {
-      const generateProductData = async () => {
-        let hasErrors = false;
-
-        // Generate SKUs
+      const generateData = async () => {
         try {
-          const skus = await generateSKUS(formState, leatherColors, threadColors, shapes, styles);
-          setGeneratedSKUs(skus);
-          console.log("Successfully generated SKUs:", skus);
+          const data = await generateProductData(
+            formState,
+            leatherColors,
+            threadColors,
+            shapes,
+            styles,
+            productPrices
+          );
+  
+          setProductData(data);
+          
+          // Update display states
+          setGeneratedTitle(data.title);
+          setGeneratedMainHandle(data.mainHandle);
+          setGeneratedProductType(data.productType);
+          setGeneratedSKUs(data.variants.map(v => v.sku));
+          // Sort variants to ensure base variants come before custom variants
+          setGeneratedVariantNames(data.variants
+            .sort((a, b) => {
+              // Sort by isCustom first (false comes before true)
+              if (a.isCustom !== b.isCustom) return a.isCustom ? 1 : -1;
+              // Then sort by original order
+              return 0;
+            })
+            .map(v => v.variantName)
+          );
+          
+          setSubmissionError(null);
         } catch (error) {
-          hasErrors = true;
-          console.error("Error generating SKUs:", error.message);
-          setGeneratedSKUs([]);
-        }
-
-        // Generate Title
-        try {
-          const title = generateTitle(formState, leatherColors, threadColors);
-          setGeneratedTitle(title);
-          console.log("Successfully generated title:", title);
-
-          // Generate Main Handle (depends on title)
-          try {
-            const mainHandle = generateMainHandle(formState, title);
-            setGeneratedMainHandle(mainHandle);
-            console.log("Successfully generated mainHandle:", mainHandle);
-          } catch (error) {
-            hasErrors = true;
-            console.error("Error generating main handle:", error.message);
-            setGeneratedMainHandle("pending-main-handle");
-          }
-
-        } catch (error) {
-          hasErrors = true;
-          console.error("Error generating title:", error.message);
+          console.error("Error generating product data:", error);
+          setSubmissionError(error.message);
+          setProductData(null);
+          
+          // Reset display states
           setGeneratedTitle("");
-          setGeneratedMainHandle("pending-main-handle"); // Reset main handle if title fails
-        }
-
-        // Generate VariantName
-        try {
-          const variantNames = await generateVariantNames(formState, shapes, styles);
-          setGeneratedVariantNames(variantNames);
-          console.log("Successfully generated Variant Names:", variantNames);
-        } catch (error) {
-          hasErrors = true;
-          console.error("Error generating Variant Names:", error.message);
+          setGeneratedMainHandle("");
+          setGeneratedProductType("");
+          setGeneratedSKUs([]);
           setGeneratedVariantNames([]);
         }
-
-        try {
-          const productType = generateProductType(formState);
-          setGeneratedProductType(productType);
-          console.log("Successfully generated Product Type:", productType);
-        } catch (error) {
-          hasErrors = true;
-          console.error("Error generating Product Type", error.message);
-          setGeneratedProductType("");
-        }
-
-        if (hasErrors) {
-          console.log("Some product data generation failed. Check errors above.");
-        }
       };
-
-
-
-      generateProductData();
+  
+      // Call the async function
+      generateData();
     } else {
-      // Reset all values if shouldGenerateProductData is false
-      setGeneratedSKUs([]);
+      // Reset all states if conditions aren't met
+      setProductData(null);
       setGeneratedTitle("");
       setGeneratedMainHandle("");
-      setGeneratedVariantNames([]);
       setGeneratedProductType("");
+      setGeneratedSKUs([]);
+      setGeneratedVariantNames([]);
     }
-  }, [shouldGenerateProductData, formState, leatherColors, threadColors, shapes, styles]);
+  }, [shouldGenerateProductData, formState, leatherColors, threadColors, shapes, styles, productPrices]);
 
-  if (error) {
-    console.error("Error in CreateProduct:", error);
-    return <div>Error: {error}</div>;
-  }
+  const handleSubmit = useCallback(async () => {
+    if (!productData) {
+      setSubmissionError("Please fill in all required fields");
+      return;
+    }
+  
+    try {
+      setIsSubmitting(true);
+      setSubmissionError(null);
+  
+      const formData = new FormData();
+      
+      // Add basic product data
+      formData.append('title', productData.title);
+      formData.append('mainHandle', productData.mainHandle);
+      formData.append('productType', productData.productType);
+      formData.append('selectedCollection', formState.selectedCollection);
+      formData.append('selectedOfferingType', formState.selectedOfferingType);
+      
+      // Add form state data
+      formData.append('selectedStyles', JSON.stringify(formState.selectedStyles));
+      formData.append('weights', JSON.stringify(formState.weights));
+  
+      // Add variant data
+      productData.variants.forEach((variant, index) => {
+        formData.append(`variants[${index}][sku]`, variant.sku);
+        formData.append(`variants[${index}][title]`, variant.variantName);
+        formData.append(`variants[${index}][price]`, variant.price);
+        formData.append(`variants[${index}][shapeId]`, variant.shapeId);
+        if (variant.styleId) {
+          formData.append(`variants[${index}][styleId]`, variant.styleId);
+        }
+        formData.append(`variants[${index}][options]`, JSON.stringify(variant.options));
+      });
+  
+      // Submit will be implemented later
+      console.log("Ready to submit:", Object.fromEntries(formData));
+      
+    } catch (error) {
+      setSubmissionError(error.message);
+      console.error("Submission error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [productData, formState]);
+if (error) {
+  return <div>Error: {error}</div>;
+}
 
   // console.log("Rendering CreateProduct component");
   return (
@@ -296,6 +359,8 @@ export default function CreateProduct() {
               />
           </Card>
           <Card>
+            <BlockStack gap="400">
+              {/* Preview section */}
               {generatedTitle && (
                 <Text variant="bodyMd">Generated Title: {generatedTitle}</Text>
               )}
@@ -306,11 +371,29 @@ export default function CreateProduct() {
                 <Text variant="bodyMd">Generated SKUs: {generatedSKUs.join(', ')}</Text>
               )}
               {generatedVariantNames.length > 0 && (
-                <Text variant="bodyMd">Generated Variant Names: {generatedVariantNames.join(', ')}</Text>
+                <BlockStack gap="200">
+                  <Text variant="bodyMd">Generated Variant Names:</Text>
+                  <BlockStack gap="100">
+                    {generatedVariantNames.map((variantName, index) => (
+                      <Text key={index} variant="bodyMd">• {variantName}</Text>
+                    ))}
+                  </BlockStack>
+                </BlockStack>
               )}
-              {generatedProductType.length > 0 && (
+              {generatedProductType && (
                 <Text variant="bodyMd">Generated Product Type: {generatedProductType}</Text>
               )}
+              
+              {/* Add submit button */}
+              <Button
+                primary
+                loading={isSubmitting}
+                disabled={!productData || isSubmitting}
+                onClick={handleSubmit}
+              >
+                Create Product
+              </Button>
+            </BlockStack>
           </Card>
         </Layout.Section>
       </Layout>
