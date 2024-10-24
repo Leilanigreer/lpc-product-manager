@@ -17,6 +17,7 @@ import {
 import { useCollectionLogic } from "../hooks/useCollectionLogic.jsx";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import ProductVariantCheck from "../components/ProductVariantCheck.jsx";
 
 import {
   Page,
@@ -193,7 +194,8 @@ export default function CreateProduct() {
             threadColors,
             shapes,
             styles,
-            productPrices
+            productPrices,
+            shopifyCollections,
           );
   
           setProductData(data);
@@ -240,7 +242,7 @@ export default function CreateProduct() {
       setGeneratedSKUs([]);
       setGeneratedVariantNames([]);
     }
-  }, [shouldGenerateProductData, formState, leatherColors, threadColors, shapes, styles, productPrices]);
+  }, [shouldGenerateProductData, formState, leatherColors, threadColors, shapes, styles, productPrices, shopifyCollections]);
 
   const handleSubmit = useCallback(async () => {
     if (!productData) {
@@ -361,34 +363,8 @@ if (error) {
           </Card>
           <Card>
             <BlockStack gap="400">
-              {/* Preview section */}
-              {generatedTitle && (
-                <Text variant="bodyMd">Generated Title: {generatedTitle}</Text>
-              )}
-              {generatedMainHandle && (
-                <Text variant="bodyMd">Generated Main Handle: {generatedMainHandle}</Text>
-              )}
-              {generatedSKUs.length > 0 && (
-                <Text variant="bodyMd">Generated SKUs: {generatedSKUs.join(', ')}</Text>
-              )}
-              {generatedVariantNames.length > 0 && (
-                <BlockStack gap="200">
-                  <Text variant="bodyMd">Generated Variant Names:</Text>
-                  <BlockStack gap="100">
-                    {generatedVariantNames.map((variantName, index) => (
-                      <Text key={index} variant="bodyMd">• {variantName}</Text>
-                    ))}
-                  </BlockStack>
-                </BlockStack>
-              )}
-              {generatedProductType && (
-                <Text variant="bodyMd">Generated Product Type: {generatedProductType}</Text>
-              )}
-              {formatVariantDisplay && (
-                <Text variant="=bodyMd">Variant Display: {formatVariantDisplay}</Text>
-              )}
+              <ProductVariantCheck productData={productData} />
               
-              {/* Add submit button */}
               <Button
                 primary
                 loading={isSubmitting}

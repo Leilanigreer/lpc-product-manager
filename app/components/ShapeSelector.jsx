@@ -1,6 +1,26 @@
 import React, { useMemo } from "react";
 import { BlockStack, Box, Divider, Grid, Text, Select, TextField, Checkbox } from "@shopify/polaris";
 
+const preventWheelChange = `
+  /* Completely disable spinner buttons */
+  input[type="number"] {
+    -moz-appearance: textfield !important;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+    display: none !important;
+  }
+  
+  /* Prevent scroll on number inputs */
+  input[type="number"] {
+    scroll-behavior: auto !important;
+    overflow: hidden !important;
+  }
+`;
+
+
 const ShapeSelector = ({ 
   shapes, 
   styles, 
@@ -76,18 +96,32 @@ const ShapeSelector = ({
                 </Grid.Cell>
               </>
             )}
-            <Grid.Cell columnSpan={{xs: 2, sm: 2, md: 2, lg: 2, xl: 2}}>
-              <TextField
-                type="number"
-                min = "0"
-                onWheel={(e) => e.target.blur()}
-                onChange={(value) => handleChange('weights')({ ...formState.weights, [shape.value]: value })}
-                value={formState.weights?.[shape.value] || ''}
-                placeholder="0.00"
-                suffix="oz"
-                disabled={!formState.selectedShapes?.[shape.value]}
-              />
-            </Grid.Cell>
+            <>
+              <style>{preventWheelChange}</style>
+              <Grid.Cell columnSpan={{xs: 2, sm: 2, md: 2, lg: 2, xl: 2}}>
+                <TextField
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                  }}
+                  onFocus={(e) => {
+                    e.target.addEventListener('wheel', (event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }, { passive: false });
+                  }}
+                  onChange={(value) => handleChange('weights')({ ...formState.weights, [shape.value]: value })}
+                  value={formState.weights?.[shape.value] || ''}
+                  placeholder="0.00"
+                  suffix="oz"
+                  disabled={!formState.selectedShapes?.[shape.value]}
+                />
+              </Grid.Cell>
+            </>
           </Grid>
           {index < memoizedShapes.length - 1 && <Divider />}
         </Box>
