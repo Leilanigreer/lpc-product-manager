@@ -25,6 +25,7 @@ export default function App() {
         </Link>
         <Link to="/app/additional">Additional page</Link>
         <Link to="/app/createProducts">Create a new product</Link>
+        {/* <Link to="/app/migrate-collections">add or update collections in database</Link> */}
       </NavMenu>
       <Outlet />
     </AppProvider>

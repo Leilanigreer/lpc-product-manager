@@ -10,8 +10,17 @@ const getColors = (formState, leatherColors, threadColors) => ({
 
 // Price lookup helper function
 const getVariantPrice = (shapeId, collectionId, productPrices, shapes) => {
+  console.log('Function called with:', {
+    shapeId,
+    collectionId,
+    'Number of productPrices': productPrices.length,
+    'Number of shapes': shapes.length
+  });
+
   // Get the shape to check if it's a wood type
   const shape = shapes.find(s => s.value === shapeId);
+  console.log('Shape lookup result:', shape || 'Shape not found');
+  
   if (!shape) {
     console.warn(`Shape not found for ID: ${shapeId}`);
     return "140.00"; // Default fallback price
@@ -20,30 +29,56 @@ const getVariantPrice = (shapeId, collectionId, productPrices, shapes) => {
   // If it's a wood type, use Fairway's shape ID
   const woodAbbreviations = ['3Wood', '5Wood', '7Wood', 'Fairway'];
   const isWoodType = woodAbbreviations.includes(shape.abbreviation);
+  console.log('Wood type check:', {
+    abbreviation: shape.abbreviation,
+    isWoodType
+  });
   
   // Find Fairway's shape ID if needed
   let lookupShapeId = shapeId;
   if (isWoodType) {
     const fairwayShape = shapes.find(s => s.abbreviation === 'Fairway');
+    console.log('Fairway shape lookup:', fairwayShape || 'Fairway shape not found');
+    
     if (fairwayShape) {
       lookupShapeId = fairwayShape.value;
+      console.log('Using Fairway shape ID instead:', lookupShapeId);
     } else {
       console.warn('Fairway shape not found');
       return "140.00";
     }
   }
 
-  // Look up the price
+  // Look up the price using the correct field names from your data
+  console.log('Searching for price with:', {
+    lookupShapeId,
+    collectionId
+  });
+
+  // Log first few prices to see their structure
+  console.log('First 3 prices in productPrices:', 
+    productPrices.slice(0, 3).map(p => ({
+      shapeId: p.shapeId,
+      collectionId: p.collectionId,
+      shopifyPrice: p.shopifyPrice
+    }))
+  );
+
   const priceData = productPrices.find(
     price => price.shapeId === lookupShapeId && price.collectionId === collectionId
   );
+
+  console.log('Price lookup result:', priceData || 'No matching price found');
 
   if (!priceData) {
     console.warn(`No price found for shape ${lookupShapeId} in collection ${collectionId}`);
     return "140.00";
   }
 
-  return priceData.shopifyPrice.toFixed(2);
+  // Use shopifyPrice which is already a number
+  const finalPrice = priceData.shopifyPrice.toFixed(2);
+  console.log('Returning final price:', finalPrice);
+  return finalPrice;
 };
 
 const generateSKUParts = (collectionType, { leatherColor1, leatherColor2, stitchingColor, shape, style, isCustom = false }) => {

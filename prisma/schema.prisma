@@ -75,29 +75,6 @@ model Thread {
   updatedAt      DateTime   @updatedAt
 }
 
-model ProductPrice {
-  id           String     @id @default(cuid())
-  shopifyPrice Decimal    @db.Decimal(10, 2)
-  higherPrice  Decimal    @db.Decimal(10, 2)
-  shape        Shape      @relation(fields: [shapeId], references: [id])
-  shapeId      String
-  Collection   Collection @relation(fields: [collectionId], references: [id])
-  collectionId String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-}
-
-model Collection {
-  id            String         @id // Shopify collection ID
-  title         String
-  handle        String
-  productPrices ProductPrice[] // Add this relation field
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  @@unique([handle])
-}
-
 model ColorTag {
   id            String         @id @default(cuid())
   name          String         @unique
@@ -105,4 +82,30 @@ model ColorTag {
   threadColors  Thread[]       @relation("ThreadColorToTag")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+}
+
+model ShopifyCollection {
+  id                   String         @id @default(cuid())
+  shopifyId            String
+  admin_graphql_api_id String
+  title                String
+  handle               String
+  productPrices        ProductPrice[]
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  @@unique([handle])
+  @@map("ShopifyCollections")
+}
+
+model ProductPrice {
+  id                  String             @id @default(cuid())
+  shopifyPrice        Decimal            @db.Decimal(10, 2)
+  higherPrice         Decimal            @db.Decimal(10, 2)
+  shape               Shape              @relation(fields: [shapeId], references: [id])
+  shapeId             String
+  shopifyCollection   ShopifyCollection? @relation(fields: [shopifyCollectionId], references: [id])
+  shopifyCollectionId String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 }

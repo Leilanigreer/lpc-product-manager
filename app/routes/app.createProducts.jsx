@@ -121,7 +121,7 @@ export default function CreateProduct() {
     productPrices, 
     error 
   } = useLoaderData();
-  // console.log("Data loaded:", { collections, leatherColors, threadColors, shapes, styles, fonts });
+  console.log("Data loaded:", { collections, leatherColors, threadColors, shapes, styles, fonts, productPrices });
   
   const [formState, setFormState] = useFormState({
     selectedCollection: "",
@@ -382,6 +382,9 @@ if (error) {
               )}
               {generatedProductType && (
                 <Text variant="bodyMd">Generated Product Type: {generatedProductType}</Text>
+              )}
+              {formatVariantDisplay && (
+                <Text variant="=bodyMd">Variant Display: {formatVariantDisplay}</Text>
               )}
               
               {/* Add submit button */}

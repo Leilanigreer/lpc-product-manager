@@ -112,19 +112,45 @@ export const getProductPrices = async () => {
       select: {
         id: true,
         shopifyPrice: true,
+        higherPrice: true,
         shapeId: true,
-        collectionId: true
+        shopifyCollectionId: true
       }
     });
 
-    return productPrices.map(({ id, shopifyPrice, shapeId, collectionId }) => ({
+    return productPrices.map(({ id, shopifyPrice, higherPrice, shapeId, shopifyCollectionId }) => ({
       value: id,
+      shopifyPrice: parseFloat(shopifyPrice), // Ensure price is a number
+      higherPrice: parseFloat(higherPrice), // Ensure price is a number
       shapeId,
-      collectionId,
-      shopifyPrice: parseFloat(shopifyPrice) // Ensure price is a number
+      shopifyCollectionId,
     }));
   } catch (error) {
     console.error("Error fetching product prices:", error);
+    throw error;
+  }
+};
+
+export const getShopifyCollection = async () => {
+  try {
+    const shopifyCollections = await prisma.shopifyCollection.findMany({
+      select: {
+        id: true, 
+        shopifyId: true, 
+        admin_graphql_api_id: true, 
+        title: true, 
+        handle: true, 
+      }
+    });
+    return shopifyCollections.map(({ id, shopifyId, admin_graphql_api_id, title, handle}) => ({
+      value: id, 
+      shopifyId, 
+      admin_graphql_api_id, 
+      label: title,
+      handle, 
+    }));
+  } catch (error) {
+    console.error("Error Fetching Shopify Collections from Prisma", error);
     throw error;
   }
 };
