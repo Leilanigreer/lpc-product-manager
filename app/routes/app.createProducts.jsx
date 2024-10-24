@@ -112,7 +112,8 @@ export default function CreateProduct() {
   // console.log("useCollectionsLogic:", useCollectionLogic);
   // console.log("CreateProduct component rendering");
   
-  const { collections, 
+  const { 
+    shopifyCollections, 
     leatherColors, 
     threadColors, 
     shapes, 
@@ -121,7 +122,7 @@ export default function CreateProduct() {
     productPrices, 
     error 
   } = useLoaderData();
-  console.log("Data loaded:", { collections, leatherColors, threadColors, shapes, styles, fonts, productPrices });
+  console.log("Data loaded:", { shopifyCollections, leatherColors, threadColors, shapes, styles, fonts, productPrices });
   
   const [formState, setFormState] = useFormState({
     selectedCollection: "",
@@ -150,7 +151,7 @@ export default function CreateProduct() {
     isCollectionAnimalClassicQclassic, 
     needsSecondaryColor, 
     needsStitchingColor 
-  } = useCollectionLogic(collections, formState.selectedCollection);
+  } = useCollectionLogic(shopifyCollections, formState.selectedCollection);
 
   const handleChange = useCallback((field) => (value) => {
     setFormState(field, value);
@@ -316,7 +317,7 @@ if (error) {
                 />
               </InlineStack>
               <CollectionSelector
-                collections={collections}
+                shopifyCollections={shopifyCollections}
                 selectedCollection={formState.selectedCollection}
                 onChange={handleChange('selectedCollection')}
               />
