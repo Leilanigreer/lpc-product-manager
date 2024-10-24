@@ -8,6 +8,18 @@ const getColors = (formState, leatherColors, threadColors) => ({
   offeringType: formState.selectedOfferingType
 });
 
+// Single helper function that does both collection lookup and type determination
+const getCollectionType = (formState, shopifyCollections) => {
+  console.log('Finding collection with value:', formState.selectedCollection);
+  const collection = shopifyCollections.find(col => col.value === formState.selectedCollection);
+  console.log('Found collection:', collection);
+  
+  const collectionType = collection ? getShopifyCollectionType({ handle: collection.handle }) : 'Unknown';
+  console.log('Determined collection type:', collectionType);
+  
+  return collectionType;
+};
+
 // Price lookup helper function
 const getVariantPrice = (shapeId, collectionId, productPrices, shapes) => {
   console.log('Function called with:', {
@@ -59,13 +71,13 @@ const getVariantPrice = (shapeId, collectionId, productPrices, shapes) => {
   console.log('First 3 prices in productPrices:', 
     productPrices.slice(0, 3).map(p => ({
       shapeId: p.shapeId,
-      collectionId: p.collectionId,
+      shopifyCollectionId: p.shopifyCollectionId,
       shopifyPrice: p.shopifyPrice
     }))
   );
 
   const priceData = productPrices.find(
-    price => price.shapeId === lookupShapeId && price.collectionId === collectionId
+    price => price.shapeId === lookupShapeId && price.shopifyCollectionId === collectionId
   );
 
   console.log('Price lookup result:', priceData || 'No matching price found');
@@ -134,14 +146,14 @@ const isWoodType = (shape) => {
   return woodAbbreviations.includes(shape.abbreviation);
 };
 
-const generateVariants = async (formState, leatherColors, threadColors, shapes, styles, productPrices) => {
-  if (!formState || !leatherColors || !threadColors || !shapes || !productPrices) {
+const generateVariants = async (formState, leatherColors, threadColors, shapes, styles, productPrices, shopifyCollections) => {
+  if (!formState || !leatherColors || !threadColors || !shapes || !productPrices || !shopifyCollections) {
     console.error("Missing required parameters for variant generation");
     return [];
   }
 
   const { leatherColor1, leatherColor2, stitchingColor, offeringType } = getColors(formState, leatherColors, threadColors);
-  const collectionType = getShopifyCollectionType(formState.selectedCollection);
+  const collectionType = getCollectionType(formState, shopifyCollections);
 
   if (!leatherColor1) {
     console.error("Primary leather color not found");
@@ -285,25 +297,21 @@ const generateVariants = async (formState, leatherColors, threadColors, shapes, 
   return variants;
 };
 
-export const generateProductData = async (formState, leatherColors, threadColors, shapes, styles, productPrices) => {
-  const title = generateTitle(formState, leatherColors, threadColors);
+export const generateProductData = async (formState, leatherColors, threadColors, shapes, styles, productPrices, shopifyCollections) => {
+  const title = generateTitle(formState, leatherColors, threadColors, shopifyCollections);
   return {
     title,
-    mainHandle: generateMainHandle(formState, title),
-    productType: generateProductType(formState),
-    variants: await generateVariants(formState, leatherColors, threadColors, shapes, styles, productPrices)
+    mainHandle: generateMainHandle(formState, title, shopifyCollections),
+    productType: generateProductType(formState, shopifyCollections),
+    variants: await generateVariants(formState, leatherColors, threadColors, shapes, styles, productPrices, shopifyCollections)
   };
 };
 
 
-export const generateTitle = (formState, leatherColors, threadColors) => {
-  if (!formState || !leatherColors || !threadColors) {
-    console.error("Missing required parameters for generateTitle");
-    return "";
-  }
-
+export const generateTitle = (formState, leatherColors, threadColors, shopifyCollections) => {
   const { leatherColor1, leatherColor2, stitchingColor } = getColors(formState, leatherColors, threadColors);
-  const collectionType = getShopifyCollectionType(formState.selectedCollection);
+
+  const collectionType = getCollectionType(formState, shopifyCollections);
 
   if (!leatherColor1) {
     return "Primary leather color missing";
@@ -345,7 +353,7 @@ export const generateTitle = (formState, leatherColors, threadColors) => {
   return title;
 };
 
-export const generateMainHandle = (formState, title) => {
+export const generateMainHandle = (formState, title, shopifyCollections) => {
   if (!title || title === "Pending Title") {
     return "pending-main-handle";
   }
@@ -354,7 +362,7 @@ export const generateMainHandle = (formState, title) => {
                           .replace(/\s+/g, '-')  // Replace all spaces with hyphens
                           .replace(/[^a-z0-9-]/g, ''); // Remove any special characters
 
-  const collectionType = getShopifyCollectionType(formState.selectedCollection);
+  const collectionType = getCollectionType(formState, shopifyCollections);
   
   switch(collectionType) {
     case COLLECTION_TYPES.QUILTED:
@@ -373,8 +381,8 @@ export const generateMainHandle = (formState, title) => {
   }
 };
 
-export const generateProductType = (formState) => {
-  const collectionType = getShopifyCollectionType(formState.selectedCollection);
+export const generateProductType = (formState, shopifyCollections) => {
+  const collectionType = getCollectionType(formState, shopifyCollections);
 
   if (collectionType === COLLECTION_TYPES.QUILTED) {
     return "Quilted"
