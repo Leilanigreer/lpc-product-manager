@@ -1,20 +1,19 @@
+// app/lib/collectionUtils.js
 
-import { COLLECTION_TYPES, COLLECTION_ID_MAP } from './constants';
+import { COLLECTION_TYPES, COLLECTION_HANDLE_MAP } from './constants';
 
-export const getCollectionType = (collectionId) => {
-  // console.log("getCollectionType called with collectionId:", collectionId);
-
-  // Extract the numeric ID from the full Shopify ID (if necessary)
-  const numericId = collectionId.split('/').pop();
-  // console.log("Extracted numericId:", numericId);
-
-  // Look up the collection type in our map
-  const collectionType = COLLECTION_ID_MAP[numericId];
-  // console.log("Looked up collectionType:", collectionType);
+export const getShopifyCollectionType = ({ handle }) => {
+  if (!handle) {
+    console.warn('Missing collection handle');
+    return 'Unknown';
+  }
+  
+  // Normalize the handle to lowercase for consistent comparison
+  const normalizedHandle = handle.toLowerCase();
+  const collectionType = COLLECTION_HANDLE_MAP[normalizedHandle];
   
   if (!collectionType) {
-    console.warn(`Unknown collection ID: ${numericId}`);
-    // console.log("Available collection IDs:", Object.keys(COLLECTION_ID_MAP));
+    console.warn(`Unknown collection handle: ${handle}`);
     return 'Unknown';
   }
   

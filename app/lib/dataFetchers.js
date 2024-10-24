@@ -1,40 +1,5 @@
 import prisma from "../db.server";
 
-
-export const getCollections = async (admin) => {
-  const COLLECTION_QUERY = `
-    query {
-      collections(first: 20) {
-        edges {
-          node {
-            id
-            title
-            handle
-          }
-        }
-      }
-    }
-  `;
-
-  try {
-    const response = await admin.graphql(COLLECTION_QUERY);
-    const responseJson = await response.json();
-
-    if (responseJson.data?.collections?.edges) {
-      return responseJson.data.collections.edges.map(({ node }) => ({
-        value: node.id,
-        label: node.title,
-        handle: node.handle
-      }));
-    } else {
-      throw new Error('Unexpected response structure from Shopify API');
-    }
-  } catch (error) {
-    console.error("Error fetching Shopify collections:", error);
-    throw error;
-  }
-};
-
 export const getLeatherColors = async () => {
   try {
     const leatherColors = await prisma.leatherColor.findMany();
@@ -131,7 +96,7 @@ export const getProductPrices = async () => {
   }
 };
 
-export const getShopifyCollection = async () => {
+export const getShopifyCollections = async () => {
   try {
     const shopifyCollections = await prisma.shopifyCollection.findMany({
       select: {
@@ -154,3 +119,38 @@ export const getShopifyCollection = async () => {
     throw error;
   }
 };
+
+
+// export const getCollections = async (admin) => {
+//   const COLLECTION_QUERY = `
+//     query {
+//       collections(first: 20) {
+//         edges {
+//           node {
+//             id
+//             title
+//             handle
+//           }
+//         }
+//       }
+//     }
+//   `;
+
+//   try {
+//     const response = await admin.graphql(COLLECTION_QUERY);
+//     const responseJson = await response.json();
+
+//     if (responseJson.data?.collections?.edges) {
+//       return responseJson.data.collections.edges.map(({ node }) => ({
+//         value: node.id,
+//         label: node.title,
+//         handle: node.handle
+//       }));
+//     } else {
+//       throw new Error('Unexpected response structure from Shopify API');
+//     }
+//   } catch (error) {
+//     console.error("Error fetching Shopify collections:", error);
+//     throw error;
+//   }
+// };

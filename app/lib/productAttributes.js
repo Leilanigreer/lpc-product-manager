@@ -1,5 +1,5 @@
 import { COLLECTION_TYPES } from "./constants";
-import { getCollectionType } from "./collectionUtils";
+import { getShopifyCollectionType } from "./collectionUtils";
 
 const getColors = (formState, leatherColors, threadColors) => ({
   leatherColor1: leatherColors.find(color => color.value === formState.selectedLeatherColor1),
@@ -141,7 +141,7 @@ const generateVariants = async (formState, leatherColors, threadColors, shapes, 
   }
 
   const { leatherColor1, leatherColor2, stitchingColor, offeringType } = getColors(formState, leatherColors, threadColors);
-  const collectionType = getCollectionType(formState.selectedCollection);
+  const collectionType = getShopifyCollectionType(formState.selectedCollection);
 
   if (!leatherColor1) {
     console.error("Primary leather color not found");
@@ -303,7 +303,7 @@ export const generateTitle = (formState, leatherColors, threadColors) => {
   }
 
   const { leatherColor1, leatherColor2, stitchingColor } = getColors(formState, leatherColors, threadColors);
-  const collectionType = getCollectionType(formState.selectedCollection);
+  const collectionType = getShopifyCollectionType(formState.selectedCollection);
 
   if (!leatherColor1) {
     return "Primary leather color missing";
@@ -354,7 +354,7 @@ export const generateMainHandle = (formState, title) => {
                           .replace(/\s+/g, '-')  // Replace all spaces with hyphens
                           .replace(/[^a-z0-9-]/g, ''); // Remove any special characters
 
-  const collectionType = getCollectionType(formState.selectedCollection);
+  const collectionType = getShopifyCollectionType(formState.selectedCollection);
   
   switch(collectionType) {
     case COLLECTION_TYPES.QUILTED:
@@ -374,7 +374,7 @@ export const generateMainHandle = (formState, title) => {
 };
 
 export const generateProductType = (formState) => {
-  const collectionType = getCollectionType(formState.selectedCollection);
+  const collectionType = getShopifyCollectionType(formState.selectedCollection);
 
   if (collectionType === COLLECTION_TYPES.QUILTED) {
     return "Quilted"

@@ -1,13 +1,29 @@
 import { useCallback, useMemo } from 'react';
 import { 
-  getCollectionType, 
+  getShopifyCollectionType, 
   needsSecondaryColor, 
   needsStitchingColor,
   isCollectionAnimalClassicQclassic
 } from '../lib/collectionUtils';
 
-export const useCollectionLogic = (collections, selectedCollection) => {
-  const collectionType = useMemo(() => getCollectionType(selectedCollection), [selectedCollection]);
+export const useCollectionLogic = (shopifyCollections, selectedCollection) => {
+  // console.log('shopifyCollections:', shopifyCollections);
+  // console.log('selectedCollection:', selectedCollection);
+
+  // Find the full collection object
+  const fullCollection = useMemo(() => {
+    return shopifyCollections?.find(col => col.value === selectedCollection);
+  }, [shopifyCollections, selectedCollection]);
+
+  // console.log('fullCollection:', fullCollection);
+
+  const collectionType = useMemo(() => {
+    if (!fullCollection?.handle) {
+      console.warn('Selected collection is missing handle:', fullCollection);
+      return 'Unknown';
+    }
+    return getShopifyCollectionType({ handle: fullCollection.handle });
+  }, [fullCollection]);
 
   const memoizedIsCollectionAnimalClassicQclassic = useCallback(() => {
     return isCollectionAnimalClassicQclassic(collectionType);
