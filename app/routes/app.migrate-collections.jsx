@@ -1,14 +1,20 @@
-// Save as app/routes/admin.migrate-collections.jsx
+// Save as app/routes/app.migrate-collections.jsx
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
 import { getCollections } from "../lib/dataFetchers";
 import prisma from "../db.server";
-import { Page, Layout, Button, Text, Card } from "@shopify/polaris";
+import {
+  BlockStack,
+  Card,
+  Layout,
+  Page,
+  Text,
+  Button,
+} from "@shopify/polaris";
 
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
-  // Just check authentication in loader
   return json({ ok: true });
 };
 
@@ -17,36 +23,32 @@ export const action = async ({ request }) => {
 
   try {
     console.log('Starting collections migration...');
+    const shopifyCollections = await getCollections(admin);
+    console.log(`Found ${shopifyCollections.length} collections to migrate`);
 
-    // Get collections using your existing function
-    const collections = await getCollections(admin);
-    
-    console.log(`Found ${collections.length} collections to migrate`);
-
-    // Migrate collections to your database
     const results = await Promise.all(
-      collections.map(async (collection) => {
+      shopifyCollections.map(async (collection) => {
         try {
-          // Convert from your current format to the database format
           const collectionData = {
-            id: collection.value.replace('gid://shopify/Collection/', ''),
+            shopifyId: collection.value,
             title: collection.label,
             handle: collection.handle
           };
 
-          const result = await prisma.collection.upsert({
-            where: { id: collectionData.id },
+          const result = await prisma.shopifyCollections.upsert({
+            where: { handle: collectionData.handle },
             update: {
+              shopifyId: collectionData.shopifyId,
               title: collectionData.title,
-              handle: collectionData.handle
             },
             create: {
-              id: collectionData.id,
+              shopifyId: collectionData.shopifyId,
               title: collectionData.title,
-              handle: collectionData.handle
+              handle: collectionData.handle,
             }
           });
           
+          console.log(`Successfully migrated collection: ${collectionData.title}`);
           return { success: true, collection: result };
         } catch (error) {
           console.error(`Failed to migrate collection ${collection.label}:`, error);
@@ -55,21 +57,22 @@ export const action = async ({ request }) => {
       })
     );
 
-    // Generate migration summary
     const successful = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;
 
     return json({
-      total: collections.length,
+      status: 'complete',
+      total: shopifyCollections.length,
       successful,
       failed,
-      results: results.filter(r => !r.success), // Only return failed results for display
+      results: results.filter(r => !r.success),
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
     console.error('Migration failed:', error);
     return json({ 
+      status: 'error',
       error: error.message,
       timestamp: new Date().toISOString()
     }, { status: 500 });
@@ -78,7 +81,7 @@ export const action = async ({ request }) => {
 
 export default function MigrateCollections() {
   const submit = useSubmit();
-  const { state } = useLoaderData();
+  const loaderData = useLoaderData();
 
   const runMigration = () => {
     submit({}, { method: "POST" });
@@ -90,22 +93,39 @@ export default function MigrateCollections() {
       <Layout>
         <Layout.Section>
           <Card>
-            <div style={{ padding: "20px" }}>
-              <Text variant="headingMd" as="h2">
+            <BlockStack gap="400" padding="400">
+              <Text as="h2" variant="headingMd">
                 Shopify Collections Migration
               </Text>
-              <div style={{ marginTop: "20px" }}>
-                <Text as="p" color="subdued">
-                  This will migrate all collections from Shopify to your local database.
-                  Make sure to run this only once or when you need to sync collections.
+              
+              <Text as="p" color="subdued">
+                This will migrate all collections from Shopify to your local database.
+                Make sure to run this only once or when you need to sync collections.
+              </Text>
+
+              {loaderData?.status === 'complete' && (
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodyMd" tone="success">
+                    Migration Complete: {loaderData.successful} collections migrated
+                  </Text>
+                  {loaderData.failed > 0 && (
+                    <Text as="p" variant="bodyMd" tone="critical">
+                      {loaderData.failed} collections failed to migrate
+                    </Text>
+                  )}
+                </BlockStack>
+              )}
+
+              {loaderData?.status === 'error' && (
+                <Text as="p" variant="bodyMd" tone="critical">
+                  Migration Failed: {loaderData.error}
                 </Text>
-              </div>
-              <div style={{ marginTop: "20px" }}>
-                <Button primary onClick={runMigration}>
-                  Start Migration
-                </Button>
-              </div>
-            </div>
+              )}
+
+              <Button primary onClick={runMigration}>
+                Start Migration
+              </Button>
+            </BlockStack>
           </Card>
         </Layout.Section>
       </Layout>
