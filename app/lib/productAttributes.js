@@ -46,27 +46,6 @@ const getVariantPrice = (shapeId, collectionId, productPrices, shapes) => {
   return priceData.shopifyPrice.toFixed(2);
 };
 
-// Helper function for generating variant name parts
-// const generateVariantNameParts = (collectionType, { shape, selectedStyle }) => {
-//   switch (collectionType) {
-//     case COLLECTION_TYPES.QUILTED:
-//     case COLLECTION_TYPES.ARGYLE:
-//       return [shape.label];
-    
-//     case COLLECTION_TYPES.ANIMAL:
-//     case COLLECTION_TYPES.CLASSIC:
-//     case COLLECTION_TYPES.QCLASSIC:
-//       return selectedStyle?.label 
-//         ? [selectedStyle.label, shape.label]
-//         : [shape.label];
-    
-//     default:
-//       return [shape.label];
-//   }
-// };
-
-// Helper function for generating SKU parts
-// Helper function for generating SKU parts
 const generateSKUParts = (collectionType, { leatherColor1, leatherColor2, stitchingColor, shape, style, isCustom = false }) => {
   const baseParts = {
     [COLLECTION_TYPES.QUILTED]: () => [
@@ -115,7 +94,6 @@ const generateSKUParts = (collectionType, { leatherColor1, leatherColor2, stitch
   return parts;
 };
 
-// Updated variant generation function
 const isWoodType = (shape) => {
   const woodAbbreviations = ['3Wood', '5Wood', '7Wood', 'Fairway'];
   return woodAbbreviations.includes(shape.abbreviation);
@@ -282,7 +260,6 @@ export const generateProductData = async (formState, leatherColors, threadColors
   };
 };
 
-// Rest of your existing functions (generateTitle, generateMainHandle, generateProductType) remain the same
 
 export const generateTitle = (formState, leatherColors, threadColors) => {
   if (!formState || !leatherColors || !threadColors) {
