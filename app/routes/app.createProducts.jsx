@@ -13,14 +13,13 @@ import FontSelector from "../components/FontSelector.jsx";
 import ThreadColorSelector from "../components/ThreadColorSelector.jsx";
 import ShapeSelector from "../components/ShapeSelector.jsx";
 import ProductVariantCheck from "../components/ProductVariantCheck.jsx";
+import ProductTypeSelector from "../components/ProductTypeSelector.jsx";
 import {
   Page,
   Layout,
   Text,
   Card,
   BlockStack,
-  InlineStack,
-  RadioButton,
   Button,
 } from "@shopify/polaris";
 
@@ -174,6 +173,7 @@ export default function CreateProduct() {
   const [formState, setFormState] = useFormState({
     selectedCollection: "",
     selectedOfferingType: "",
+    limitedEditionQuantity: "",
     selectedLeatherColor1: "",
     selectedLeatherColor2: "",
     selectedStitchingColor: "",
@@ -308,6 +308,9 @@ export default function CreateProduct() {
       formData.append('productType', productData.productType);
       formData.append('selectedCollection', formState.selectedCollection);
       formData.append('selectedOfferingType', formState.selectedOfferingType);
+      if (formState.selectedOfferingType === 'limitedEdition') {
+        formData.append('limitedEditionQuantity', formState.limitedEditionQuantity);
+      }
       
       // Add form state data
       formData.append('selectedStyles', JSON.stringify(formState.selectedStyles));
@@ -345,30 +348,19 @@ if (error) {
       <TitleBar title="Create a new product" />
       <Layout>
         <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">Create Product Page</Text>
-              <InlineStack gap="400" align="start">
-                <RadioButton
-                  label="Customizable"
-                  checked={formState.selectedOfferingType === 'customizable'}
-                  id="customizable"
-                  name="productType"
-                  onChange={() => handleChange('selectedOfferingType')('customizable')}
-                />
-                <RadioButton
-                  label="Limited Edition"
-                  checked={formState.selectedOfferingType === 'limitedEdition'}
-                  id="limitedEdition"
-                  name="productType"
-                  onChange={() => handleChange('selectedOfferingType')('limitedEdition')}
-                />
-              </InlineStack>
-              <CollectionSelector
-                shopifyCollections={shopifyCollections}
-                selectedCollection={formState.selectedCollection}
-                onChange={handleChange('selectedCollection')}
-              />
+        <Card>
+          <BlockStack gap="400">
+            <Text as="h2" variant="headingMd">Create Product Page</Text>
+            <CollectionSelector
+              shopifyCollections={shopifyCollections}
+              selectedCollection={formState.selectedCollection}
+              onChange={handleChange('selectedCollection')}
+            />
+            <ProductTypeSelector
+              selectedType={formState.selectedOfferingType}
+              quantity={formState.limitedEditionQuantity}
+              onChange={handleChange}
+            />
               <LeatherColorSelector
                 leatherColors={leatherColors}
                 selectedLeatherColor1={formState.selectedLeatherColor1}
