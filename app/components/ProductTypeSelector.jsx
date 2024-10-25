@@ -1,50 +1,81 @@
 import React from 'react';
-import { Card, InlineStack, Box, RadioButton, TextField, BlockStack, Text } from "@shopify/polaris";
+import {
+  Card,
+  InlineStack,
+  Box,
+  RadioButton,
+  TextField,
+  BlockStack,
+  Text,
+  Divider
+} from "@shopify/polaris";
 
 const ProductTypeSelector = ({ 
   selectedType, 
   quantity,
   onChange
 }) => {
+  const handleTypeChange = (value) => {
+    onChange('selectedOfferingType', value);
+  };
+
+  const handleQuantityChange = (value) => {
+    onChange('limitedEditionQuantity', value);
+  };
+
   return (
     <Card>
       <BlockStack gap="400">
-        <Text variant="headingSm" as="h6">Select Product Type</Text>
+        <BlockStack gap="200">
+          <Text variant="headingMd" as="h2">
+            Select Product Type
+          </Text>
+        </BlockStack>
+        
+        <Divider />
+        
         <InlineStack gap="500" align="start" wrap={false}>
-          <Box width="50%">
-            <InlineStack gap="400">
-              <RadioButton
-                label="Customizable"
-                checked={selectedType === 'customizable'}
-                id="customizable"
-                name="productType"
-                onChange={() => onChange('selectedOfferingType')('customizable')}
-              />
+          <Box minWidth="120px">
+            <RadioButton
+              label="Standard Stock"
+              checked={selectedType === 'customizable'}
+              id="customizable"
+              name="productType"
+              onChange={() => handleTypeChange('customizable')}
+              helpText="Stock Leather"
+            />
+          </Box>
+          
+          <InlineStack gap="300" align="start" wrap={false}>
+            <Box minWidth="120px">
               <RadioButton
                 label="Limited Edition"
                 checked={selectedType === 'limitedEdition'}
                 id="limitedEdition"
                 name="productType"
-                onChange={() => onChange('selectedOfferingType')('limitedEdition')}
+                onChange={() => handleTypeChange('limitedEdition')}
+                helpText="Special Hide"
               />
-            </InlineStack>
-          </Box>
-          <Box width="50%">
+            </Box>
+
             {selectedType === 'limitedEdition' && (
-              <TextField
-                label="Quantity"
-                type="number"
-                value={quantity}
-                onChange={onChange('limitedEditionQuantity')}
-                min={1}
-                autoComplete="off"
-              />
+              <Box minWidth="200px">
+                <TextField
+                  label="Quantity"
+                  type="number"
+                  value={quantity}
+                  onChange={handleQuantityChange}
+                  autoComplete="off"
+                  min={1}
+                  placeholder="Enter quantity"
+                />
+              </Box>
             )}
-          </Box>
+          </InlineStack>
         </InlineStack>
       </BlockStack>
     </Card>
   );
 };
 
-export default ProductTypeSelector;
+export default React.memo(ProductTypeSelector);

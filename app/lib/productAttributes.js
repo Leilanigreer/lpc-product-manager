@@ -1,3 +1,6 @@
+// app/lib/productAttributes.js
+
+
 import { COLLECTION_TYPES } from "./constants";
 import { getShopifyCollectionType } from "./collectionUtils";
 

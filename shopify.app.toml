@@ -3,7 +3,7 @@
 client_id = "6f1296c99bc07317bd7d904a9749bee4"
 name = "lpc-product-creation-10-16-24"
 handle = "lpc-product-creation-10-16-24"
-application_url = "https://enlarge-nasty-proposals-edit.trycloudflare.com"
+application_url = "https://socks-specialists-gbp-impacts.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_orders,read_products,write_products"
 
 [auth]
 redirect_urls = [
-  "https://enlarge-nasty-proposals-edit.trycloudflare.com/auth/callback",
-  "https://enlarge-nasty-proposals-edit.trycloudflare.com/auth/shopify/callback",
-  "https://enlarge-nasty-proposals-edit.trycloudflare.com/api/auth/callback"
+  "https://socks-specialists-gbp-impacts.trycloudflare.com/auth/callback",
+  "https://socks-specialists-gbp-impacts.trycloudflare.com/auth/shopify/callback",
+  "https://socks-specialists-gbp-impacts.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

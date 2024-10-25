@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 export const useFormState = (initialState) => {
   const [state, setState] = useState(initialState);
 
-  const handleChange = (field, value) => {
+  const handleChange = useCallback((field, value) => {
     setState(prevState => ({
       ...prevState,
-      [field]: typeof value === 'function' ? value(prevState[field]) : value
+      [field]: value
     }));
-  };
+  }, []);
 
   return [state, handleChange];
 };
