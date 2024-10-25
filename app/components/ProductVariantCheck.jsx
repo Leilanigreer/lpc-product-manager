@@ -28,6 +28,11 @@ const ProductVariantCheck = ({ productData }) => {
                 <Text variant="bodySm" color="subdued">
                   SKU: {variant.sku}
                 </Text>
+                {variant.weight && (
+                  <Text variant="bodySm" color="subdued">
+                    Weight: {variant.weight}oz
+                  </Text>
+                )}
               </BlockStack>
               <Text variant="bodyMd">${variant.price}</Text>
             </div>
@@ -39,7 +44,6 @@ const ProductVariantCheck = ({ productData }) => {
 
   return (
     <BlockStack gap="400">
-      {/* Product Information */}
       {title && (
         <Text variant="bodyMd">Generated Title: {title}</Text>
       )}
@@ -50,7 +54,6 @@ const ProductVariantCheck = ({ productData }) => {
         <Text variant="bodyMd">Generated Product Type: {productType}</Text>
       )}
 
-      {/* Variant Information */}
       {variants && variants.length > 0 && (
         <>
           {baseVariants.length > 0 && renderVariantGroup(baseVariants, "Base Variants")}

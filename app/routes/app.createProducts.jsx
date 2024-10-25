@@ -3,22 +3,16 @@ import { useLoaderData } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { useFormState } from "../hooks/useFormState.js";
 import { loader } from "../lib/loaders.js";
+import { generateProductData } from "../lib/productAttributes.js";
+import { useCollectionLogic } from "../hooks/useCollectionLogic.jsx";
+import { json } from "@remix-run/node";
+import { authenticate } from "../shopify.server";
 import CollectionSelector from "../components/CollectionSelector.jsx";
 import LeatherColorSelector from "../components/LeatherColorSelector.jsx";
 import FontSelector from "../components/FontSelector.jsx";
 import ThreadColorSelector from "../components/ThreadColorSelector.jsx";
 import ShapeSelector from "../components/ShapeSelector.jsx";
-import { 
-  generateProductData,
-  generateTitle,
-  generateMainHandle,
-  generateProductType
-} from "../lib/productAttributes.js";
-import { useCollectionLogic } from "../hooks/useCollectionLogic.jsx";
-import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
 import ProductVariantCheck from "../components/ProductVariantCheck.jsx";
-
 import {
   Page,
   Layout,
@@ -58,6 +52,10 @@ export const action = async ({ request }) => {
     `#graphql
     mutation createProduct($input: ProductInput!) {
       productCreate(input: $input) {
+        userErrors {
+          field
+          message
+        }
         product {
           id
           title
@@ -67,12 +65,38 @@ export const action = async ({ request }) => {
           category
           productType
           vendor
-          variants(first: 10) {
+          tags
+          seo {
+            title
+            description
+          }
+          options {
+          id
+          name
+          position
+          values
+          }
+          variants(first: 20) {
             edges {
               node {
                 id
-                price
+                title
                 sku
+                price
+                position
+                inventoryPolicy
+                compareAtPrice
+                taxable
+                barcode
+                fulfillmentService
+                weight
+                weightUnit
+                requiresShipping
+                inventoryManagement
+                inventoryQuantity
+                inventoryItem {
+                  id
+                }
               }
             }
           }
@@ -88,10 +112,32 @@ export const action = async ({ request }) => {
           category: 'gid://shopify/TaxonomyCategory/sg-4-7-7-2',
           descriptionHtml: 'pending',
           productType: productData.productType,
-          vendor: 'Little Prince Customs'
-          // Add other product fields here based on your formState
-        },
-      },
+          vendor: 'Little Prince Customs',
+          options: [
+            {
+            name: "Shape",
+            values: variants.map(v => v.title)
+            }
+          ],
+          variants: variants.map(variant => ({
+            sku: variant.sku,
+            price: variant.price,
+            compareAtPrice: variant.price, // Same as price if no discount
+            weight: variant.weight || 5.9, // Default weight if not specified
+            weightUnit: 'oz',
+            requiresShipping: true,
+            taxable: true,
+            inventoryManagement: 'shopify',
+            inventoryPolicy: 'pending',
+            fulfillmentService: 'manual',
+            options: [variant.title], // This maps to the Shape option
+            inventoryQuantity: 0, // Starting inventory - need to add a field
+            position: variant.position, // need to hard code this somewhere
+            grams: Math.round((variant.weight || 5.9) * 28.3495), // Convert oz to grams
+          })),
+          tags: productData.tags
+        }
+      }
     }
   );
 
@@ -123,7 +169,7 @@ export default function CreateProduct() {
     productPrices, 
     error 
   } = useLoaderData();
-  console.log("Data loaded:", { shopifyCollections, leatherColors, threadColors, shapes, styles, fonts, productPrices });
+  // console.log("Data loaded:", { shopifyCollections, leatherColors, threadColors, shapes, styles, fonts, productPrices });
   
   const [formState, setFormState] = useFormState({
     selectedCollection: "",
