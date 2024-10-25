@@ -1,6 +1,3 @@
-// app/lib/productAttributes.js
-
-
 import { COLLECTION_TYPES } from "./constants";
 import { getShopifyCollectionType } from "./collectionUtils";
 
@@ -8,7 +5,6 @@ const getColors = (formState, leatherColors, threadColors) => ({
   leatherColor1: leatherColors.find(color => color.value === formState.selectedLeatherColor1),
   leatherColor2: leatherColors.find(color => color.value === formState.selectedLeatherColor2),
   stitchingColor: threadColors.find(color => color.value === formState.selectedStitchingColor),
-  offeringType: formState.selectedOfferingType
 });
 
 const getCollectionType = (formState, shopifyCollections) => {
@@ -49,6 +45,17 @@ const getVariantPrice = (shapeId, collectionId, productPrices, shapes) => {
 
   return priceData.shopifyPrice.toFixed(2);
 };
+
+const SHAPE_ORDER = [
+  'cm2duhfg000006y58dqulghkm',    // Driver
+  'cm2duhfg300016y58sr14qoxd',    // 3-Wood
+  'cm2duhfg300026y58r1rnkvbc',    // 5-Wood
+  'cm2duhfg300036y583y11',        // 7-Wood
+  'cm2duhfg300046y58o8d',         // Fairway
+  'cm2duhfg300056y58ddfbtcxj',    // Hybrid
+  'cm2duhfg300066y583ii779yr',    // Mallet
+  'cm2duhfg300076y585ows'         // Blade
+];
 
 const generateSKUParts = (collectionType, { leatherColor1, leatherColor2, stitchingColor, shape }) => {
   const baseParts = {
@@ -103,13 +110,34 @@ const isWoodType = (shape) => {
   return woodAbbreviations.includes(shape.abbreviation);
 };
 
+const assignPositions = (variants, shapes) => {
+  const selectedShapeIds = new Set(variants.map(v => v.shapeId));
+  const orderedSelectedShapeIds = SHAPE_ORDER.filter(id => selectedShapeIds.has(id));
+  
+  console.log('Selected Shapes Order:', {
+    selectedShapes: orderedSelectedShapeIds.map(id => {
+      const shape = shapes.find(s => s.value === id);
+      return {
+        id,
+        name: shape?.label,
+        abbreviation: shape?.abbreviation
+      };
+    })
+  });
+
+  return variants.map(variant => ({
+    ...variant,
+    position: orderedSelectedShapeIds.indexOf(variant.shapeId) + 1
+  }));
+};
+
 const generateVariants = async (formState, leatherColors, threadColors, shapes, styles, productPrices, shopifyCollections) => {
   if (!formState || !leatherColors || !threadColors || !shapes || !productPrices || !shopifyCollections) {
     console.error("Missing required parameters for variant generation");
     return [];
   }
 
-  const { leatherColor1, leatherColor2, stitchingColor, offeringType } = getColors(formState, leatherColors, threadColors);
+  const { leatherColor1, leatherColor2, stitchingColor } = getColors(formState, leatherColors, threadColors);
   const collectionType = getCollectionType(formState, shopifyCollections);
 
   if (!leatherColor1) {
@@ -117,6 +145,7 @@ const generateVariants = async (formState, leatherColors, threadColors, shapes, 
     return [];
   }
 
+  // Generate regular variants
   let variants = Object.entries(formState.weights || {})
     .filter(([_, weight]) => weight !== "")
     .map(([shapeId, weight]) => {
@@ -166,74 +195,91 @@ const generateVariants = async (formState, leatherColors, threadColors, shapes, 
     })
     .filter(item => item !== null);
 
-  if (offeringType === "customizable") {
-    const customVariants = [];
-    const processedStyles = new Set();
+  // Assign positions to regular variants
+  variants = assignPositions(variants, shapes);
+  
+  console.log('Regular Variants Order:', variants.map(v => ({
+    name: v.variantName,
+    position: v.position
+  })));
 
-    variants.forEach(variant => {
-      const customPrice = (parseFloat(variant.price) + 15).toFixed(2);
-      const shape = shapes.find(s => s.label === variant.shape);
-      const weight = variant.weight;
+  // Generate custom variants
+  let nextPosition = variants.length + 1;
+  const customVariants = [];
+  const processedStyles = new Set();
 
-      if (collectionType === COLLECTION_TYPES.QUILTED || collectionType === COLLECTION_TYPES.ARGYLE) {
-        if (isWoodType(shape)) {
-          if (!customVariants.some(cv => cv.variantName === 'Customize Fairway +$15')) {
-            customVariants.push({
-              ...variant,
-              shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
-              sku: `${variant.sku.split('-').slice(0, -1).join('-')}-Fairway-Custom`,
-              variantName: 'Customize Fairway +$15',
-              price: customPrice,
-              weight,
-              isCustom: true,
-              options: { Style: 'Customize Fairway' }
-            });
-          }
-        } else {
+  variants.forEach(variant => {
+    const customPrice = (parseFloat(variant.price) + 15).toFixed(2);
+    const shape = shapes.find(s => s.label === variant.shape);
+    const weight = variant.weight;
+
+    if (collectionType === COLLECTION_TYPES.QUILTED || collectionType === COLLECTION_TYPES.ARGYLE) {
+      if (isWoodType(shape)) {
+        if (!customVariants.some(cv => cv.variantName === 'Customize Fairway +$15')) {
           customVariants.push({
             ...variant,
-            sku: `${variant.sku}-Custom`,
-            variantName: `Customize ${variant.variantName} +$15`,
+            shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
+            sku: `${variant.sku.split('-').slice(0, -1).join('-')}-Fairway-Custom`,
+            variantName: 'Customize Fairway +$15',
             price: customPrice,
             weight,
             isCustom: true,
-            options: { Style: `Customize ${variant.variantName}` }
+            position: nextPosition++,
+            options: { Style: 'Customize Fairway' }
           });
         }
       } else {
-        if (isWoodType(shape)) {
-          const styleKey = `${variant.style?.label}-${shape.abbreviation}`;
-          if (!processedStyles.has(styleKey)) {
-            customVariants.push({
-              ...variant,
-              shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
-              sku: `${variant.sku.split('-').slice(0, -1).join('-')}-Fairway-${variant.style?.abbreviation}-Custom`,
-              variantName: `Customize ${variant.style?.label} Fairway +$15`,
-              price: customPrice,
-              weight,
-              isCustom: true,
-              options: { Style: `Customize ${variant.style?.label} Fairway` }
-            });
-            processedStyles.add(styleKey);
-          }
-        } else {
+        customVariants.push({
+          ...variant,
+          sku: `${variant.sku}-Custom`,
+          variantName: `Customize ${variant.variantName} +$15`,
+          price: customPrice,
+          weight,
+          isCustom: true,
+          position: nextPosition++,
+          options: { Style: `Customize ${variant.variantName}` }
+        });
+      }
+    } else {
+      if (isWoodType(shape)) {
+        const styleKey = `${variant.style?.label}-${shape.abbreviation}`;
+        if (!processedStyles.has(styleKey)) {
           customVariants.push({
             ...variant,
-            sku: `${variant.sku}-${variant.style?.abbreviation}-Custom`,
-            variantName: `Customize ${variant.style?.label} ${variant.shape} +$15`,
+            shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
+            sku: `${variant.sku.split('-').slice(0, -1).join('-')}-Fairway-${variant.style?.abbreviation}-Custom`,
+            variantName: `Customize ${variant.style?.label} Fairway +$15`,
             price: customPrice,
             weight,
             isCustom: true,
-            options: { Style: `Customize ${variant.style?.label} ${variant.shape}` }
+            position: nextPosition++,
+            options: { Style: `Customize ${variant.style?.label} Fairway` }
           });
+          processedStyles.add(styleKey);
         }
+      } else {
+        customVariants.push({
+          ...variant,
+          sku: `${variant.sku}-${variant.style?.abbreviation}-Custom`,
+          variantName: `Customize ${variant.style?.label} ${variant.shape} +$15`,
+          price: customPrice,
+          weight,
+          isCustom: true,
+          position: nextPosition++,
+          options: { Style: `Customize ${variant.style?.label} ${variant.shape}` }
+        });
       }
-    });
+    }
+  });
 
-    variants = [...variants, ...customVariants];
-  }
+  // Combine all variants
+  variants = [...variants, ...customVariants];
 
-  // console.log("Generated variants:", variants);
+  console.log('Final Variant Order:', variants.map(v => ({
+    name: v.variantName,
+    position: v.position,
+    isCustom: v.isCustom
+  })));
 
   return variants;
 };
@@ -244,6 +290,10 @@ export const generateProductData = async (formState, leatherColors, threadColors
     title,
     mainHandle: generateMainHandle(formState, title, shopifyCollections),
     productType: generateProductType(formState, shopifyCollections),
+    seoTitle: generateSEOTitle(formState, title, shopifyCollections),
+    descriptionHTML: generateDescriptionHTLM(formState, shopifyCollections),
+    seoDescription: generateSEODescription(formState, shopifyCollections),
+    tags: generateTags(formState, leatherColors, threadColors),
     variants: await generateVariants(formState, leatherColors, threadColors, shapes, styles, productPrices, shopifyCollections)
   };
 };
@@ -308,4 +358,35 @@ const generateProductType = (formState, shopifyCollections) => {
   };
   
   return typeMap[getCollectionType(formState, shopifyCollections)] || "";
+};
+
+const generateSEOTitle = (formState, title, shopifyCollections) => {
+  if (!title || title === "Pending Title") return "pending-seo-title";
+
+  const collectionType = getCollectionType(formState, shopifyCollections);
+  
+  switch(collectionType) {
+    case COLLECTION_TYPES.QUILTED:
+    case COLLECTION_TYPES.ANIMAL:
+    case COLLECTION_TYPES.CLASSIC:
+      return `${title} Golf Headcovers`;
+    case COLLECTION_TYPES.ARGYLE:
+      return `${title} Argyle Golf Headcovers`; 
+    case COLLECTION_TYPES.QCLASSIC:
+      return `${title} Quilted Golf Headcovers`;
+    default:
+      return "pending-seo-title";
+  }
+};
+
+const generateDescriptionHTLM = (formState, shopifyCollections) => {
+  return "pending description"
+};
+
+const generateSEODescription = (formState, shopifyCollections) => {
+  return "pending SEO description"
+};
+
+const generateTags = (formSate, leatherColors, threadColors ) => {
+  return "Customizable"
 };

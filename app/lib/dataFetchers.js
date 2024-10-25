@@ -2,12 +2,25 @@ import prisma from "../db.server";
 
 export const getLeatherColors = async () => {
   try {
-    const leatherColors = await prisma.leatherColor.findMany();
-    return leatherColors.map(({ id, name, abbreviation, image_url }) => ({
+    const leatherColors = await prisma.leatherColor.findMany({
+      include: {
+        colorTags: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+    return leatherColors.map(({ id, name, abbreviation, image_url, colorTags }) => ({
       value: id,
       label: name,
       abbreviation,
-      image_url
+      image_url,
+      colorTags: colorTags.map(tag => ({
+        value: tag.id,
+        label: tag.name
+      }))
     }));
   } catch (error) {
     console.error("Error fetching leather colors:", error);
@@ -17,14 +30,69 @@ export const getLeatherColors = async () => {
 
 export const getThreadColors = async () => {
   try {
-    const threadColors = await prisma.thread.findMany();
-    return threadColors.map(({ id, name, abbreviation}) => ({
+    const threadColors = await prisma.thread.findMany({
+      include: {
+        colorTags: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+    return threadColors.map(({ id, name, abbreviation, colorTags}) => ({
       value: id, 
       label: name, 
-      abbreviation
+      abbreviation,
+      colorTags: colorTags.map(tag => ({
+        value: tag.id,
+        label: tag.name
+      }))
     }));
   } catch (error) {
     console.error("Error fetching thread colors", error);
+    throw error;
+  }
+};
+
+export const getColorTags = async () => {
+  try {
+    const colorTags = await prisma.colorTag.findMany({
+      include: {
+        threadColors: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true
+          }
+        },
+        leatherColors: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true,
+            image_url: true
+          }
+        }
+      }
+    });
+    return colorTags.map(({ id, name, threadColors, leatherColors }) => ({
+      value: id,
+      label: name,
+      threadColors: threadColors.map(thread => ({
+        value: thread.id,
+        label: thread.name,
+        abbreviation: thread.abbreviation
+      })),
+      leatherColors: leatherColors.map(leather => ({
+        value: leather.id,
+        label: leather.name,
+        abbreviation: leather.abbreviation,
+        image_url: leather.image_url
+      }))
+    }));
+  } catch (error) {
+    console.error("Error fetching color tags:", error);
     throw error;
   }
 };
@@ -119,6 +187,8 @@ export const getShopifyCollections = async () => {
     throw error;
   }
 };
+
+
 
 
 // export const getCollections = async (admin) => {

@@ -84,7 +84,6 @@ export const action = async ({ request }) => {
                 inventoryPolicy
                 compareAtPrice
                 taxable
-                barcode
                 fulfillmentService
                 weight
                 weightUnit
@@ -107,9 +106,14 @@ export const action = async ({ request }) => {
           handle: productData.mainHandle,
           status: 'active',
           category: 'gid://shopify/TaxonomyCategory/sg-4-7-7-2',
-          descriptionHtml: 'pending',
+          descriptionHtml: productData.descriptionHtml,
           productType: productData.productType,
           vendor: 'Little Prince Customs',
+          tags: productData.tags,
+          seo: {
+            title: productData.seoTitle || productData.title,
+            description: productData.seoDescription || 'pending'
+          },
           options: [{
             name: "Shape",
             values: variants.map(v => v.title)
@@ -123,14 +127,13 @@ export const action = async ({ request }) => {
             requiresShipping: true,
             taxable: true,
             inventoryManagement: 'shopify',
-            inventoryPolicy: 'pending',
+            inventoryPolicy: 'continue',
             fulfillmentService: 'manual',
             options: [variant.title],
-            inventoryQuantity: 0,
+            inventoryQuantity: 4,
             position: variant.position,
             grams: Math.round((variant.weight || 5.9) * 28.3495),
           })),
-          tags: productData.tags
         }
       }
     }
@@ -210,18 +213,54 @@ export default function CreateProduct() {
     setGenerationError(null);
     
     try {
+      // Log initial form state and weights
+      console.log('Initial Form State:', {
+        selectedCollection: formState.selectedCollection,
+        selectedOfferingType: formState.selectedOfferingType,
+        weights: formState.weights,
+        styles: formState.selectedStyles
+      });
+  
+      // Log filtered weights
       const validWeights = Object.entries(formState.weights)
         .filter(([_, weight]) => weight && weight !== "")
         .reduce((acc, [key, value]) => {
           acc[key] = value;
           return acc;
         }, {});
-
+  
+      console.log('Filtered Valid Weights:', {
+        before: formState.weights,
+        after: validWeights
+      });
+  
+      // Log shape data being passed
+      console.log('Shape Data:', {
+        availableShapes: shapes.map(shape => ({
+          id: shape.value,
+          name: shape.label,
+          abbreviation: shape.abbreviation
+        })),
+        selectedShapeIds: Object.keys(validWeights),
+        selectedStyles: formState.selectedStyles
+      });
+  
       const updatedFormState = {
         ...formState,
         weights: validWeights
       };
-
+  
+      // Log parameters being passed to generateProductData
+      console.log('Generate Product Data Parameters:', {
+        updatedFormState,
+        leatherColorsCount: leatherColors.length,
+        threadColorsCount: threadColors.length,
+        shapesCount: shapes.length,
+        stylesCount: styles?.length,
+        productPricesCount: productPrices.length,
+        shopifyCollectionsCount: shopifyCollections.length
+      });
+  
       const data = await generateProductData(
         updatedFormState,
         leatherColors,
@@ -231,7 +270,24 @@ export default function CreateProduct() {
         productPrices,
         shopifyCollections,
       );
-
+  
+      // Log generated product data
+      console.log('Generated Product Data:', {
+        title: data.title,
+        mainHandle: data.mainHandle,
+        productType: data.productType,
+        variantCount: data.variants.length,
+        variants: data.variants.map(variant => ({
+          sku: variant.sku,
+          name: variant.variantName,
+          position: variant.position,
+          isCustom: variant.isCustom,
+          shape: variant.shape,
+          style: variant.style?.label,
+          price: variant.price
+        }))
+      });
+  
       setProductData(data);
     } catch (error) {
       console.error("Error generating product data:", error);
