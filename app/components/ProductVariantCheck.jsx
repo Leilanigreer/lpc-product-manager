@@ -49,7 +49,7 @@ const ProductVariantCheck = ({ productData }) => {
     return null;
   }
 
-  const { title, mainHandle, productType, variants } = productData;
+  const { title, mainHandle, productType, seoTitle, variants } = productData;
 
   const baseVariants = variants.filter(v => !v.isCustom);
   const customVariants = variants.filter(v => v.isCustom);
@@ -58,6 +58,9 @@ const ProductVariantCheck = ({ productData }) => {
     <BlockStack gap="400">
       {title && (
         <Text variant="bodyMd">Generated Title: {title}</Text>
+      )}
+      {seoTitle && (
+        <Text variant="bodyMd">Generated SEO Title: {seoTitle}</Text>
       )}
       {mainHandle && (
         <Text variant="bodyMd">Generated Main Handle: {mainHandle}</Text>
