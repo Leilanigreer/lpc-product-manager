@@ -1,3 +1,5 @@
+// app/components/LeatherColorSelector.jsx
+
 import React from 'react';
 import { Card, InlineStack, Box, Select, BlockStack, Text, Image } from "@shopify/polaris";
 
@@ -6,7 +8,6 @@ const LeatherColorSelector = ({
   selectedLeatherColor1, 
   selectedLeatherColor2, 
   onChange, 
-  isCollectionAnimalClassicQclassic, 
   needsSecondaryColor,
 }) => {
   const renderColorSelector = (label, value, field, index) => (
@@ -15,7 +16,7 @@ const LeatherColorSelector = ({
         <Select
           label={label}
           options={[{ label: "Select a Leather", value: "" }, ...leatherColors]}
-          onChange={(newValue) => onChange(field)(newValue)}
+          onChange={(newValue) => onChange(field, newValue)}
           value={value}
         />
       </Box>
@@ -37,13 +38,23 @@ const LeatherColorSelector = ({
   return (
     <Card>
       <InlineStack gap="500" align="start" wrap={false}>
-        {renderColorSelector("Select Leather Color", selectedLeatherColor1, 'selectedLeatherColor1', 1)}
+        {renderColorSelector(
+          "Select Leather Color", 
+          selectedLeatherColor1, 
+          'selectedLeatherColor1', 
+          1
+        )}
         {needsSecondaryColor && (
-          renderColorSelector("Select 2nd Leather Color", selectedLeatherColor2, 'selectedLeatherColor2', 2)
+          renderColorSelector(
+            "Select 2nd Leather Color", 
+            selectedLeatherColor2, 
+            'selectedLeatherColor2', 
+            2
+          )
         )}
       </InlineStack>
     </Card>
   );
 };
 
-export default LeatherColorSelector;
+export default React.memo(LeatherColorSelector);

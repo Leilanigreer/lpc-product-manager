@@ -10,14 +10,18 @@ const CollectionSelector = ({ shopifyCollections, selectedCollection, onChange }
     })) : [])
   ];
 
+  const handleChange = (value) => {
+    onChange('selectedCollection', value);
+  };
+
   return (
     <Select
       label="Select a collection"
       options={options}
-      onChange={onChange}
+      onChange={handleChange}
       value={selectedCollection || ''}
     />
   );
 };
 
-export default CollectionSelector;
+export default React.memo(CollectionSelector);

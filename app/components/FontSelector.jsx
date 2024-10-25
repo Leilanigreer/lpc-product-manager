@@ -1,8 +1,14 @@
+// app/components/FontSelector.jsx
+
 import React from 'react';
 import { Card, InlineStack, Box, Select, BlockStack, Text, Image } from "@shopify/polaris";
 
 const FontSelector = ({ fonts, selectedFont, onChange }) => {
   const selectedFontObject = fonts.find(font => font.value === selectedFont);
+
+  const handleChange = (value) => {
+    onChange('selectedFont', value);
+  };
 
   return (
     <Card>
@@ -11,7 +17,7 @@ const FontSelector = ({ fonts, selectedFont, onChange }) => {
           <Select
             label="Select Font"
             options={[{ label: "Font used", value: "" }, ...fonts]}
-            onChange={onChange}
+            onChange={handleChange}
             value={selectedFont}
           />
         </Box>
@@ -32,4 +38,4 @@ const FontSelector = ({ fonts, selectedFont, onChange }) => {
   );
 };
 
-export default FontSelector;
+export default React.memo(FontSelector);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useLoaderData } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { useFormState } from "../hooks/useFormState.js";
@@ -21,6 +21,7 @@ import {
   Card,
   BlockStack,
   Button,
+  Banner
 } from "@shopify/polaris";
 
 export const action = async ({ request }) => {
@@ -36,16 +37,13 @@ export const action = async ({ request }) => {
   });
 
   const variants = Array.from(formData.entries())
-  .filter(([key]) => key.startsWith('variants['))
-  .reduce((acc, [key, value]) => {
-    const [, index, field] = key.match(/variants\[(\d+)\]\[(\w+)\]/);
-    if (!acc[index]) acc[index] = {};
-    acc[index][field] = value;
-    return acc;
-  }, {});
-
-
-  
+    .filter(([key]) => key.startsWith('variants['))
+    .reduce((acc, [key, value]) => {
+      const [, index, field] = key.match(/variants\[(\d+)\]\[(\w+)\]/);
+      if (!acc[index]) acc[index] = {};
+      acc[index][field] = value;
+      return acc;
+    }, {});
 
   const response = await admin.graphql(
     `#graphql
@@ -70,10 +68,10 @@ export const action = async ({ request }) => {
             description
           }
           options {
-          id
-          name
-          position
-          values
+            id
+            name
+            position
+            values
           }
           variants(first: 20) {
             edges {
@@ -112,27 +110,25 @@ export const action = async ({ request }) => {
           descriptionHtml: 'pending',
           productType: productData.productType,
           vendor: 'Little Prince Customs',
-          options: [
-            {
+          options: [{
             name: "Shape",
             values: variants.map(v => v.title)
-            }
-          ],
+          }],
           variants: variants.map(variant => ({
             sku: variant.sku,
             price: variant.price,
-            compareAtPrice: variant.price, // Same as price if no discount
-            weight: variant.weight || 5.9, // Default weight if not specified
+            compareAtPrice: variant.price,
+            weight: variant.weight || 5.9,
             weightUnit: 'oz',
             requiresShipping: true,
             taxable: true,
             inventoryManagement: 'shopify',
             inventoryPolicy: 'pending',
             fulfillmentService: 'manual',
-            options: [variant.title], // This maps to the Shape option
-            inventoryQuantity: 0, // Starting inventory - need to add a field
-            position: variant.position, // need to hard code this somewhere
-            grams: Math.round((variant.weight || 5.9) * 28.3495), // Convert oz to grams
+            options: [variant.title],
+            inventoryQuantity: 0,
+            position: variant.position,
+            grams: Math.round((variant.weight || 5.9) * 28.3495),
           })),
           tags: productData.tags
         }
@@ -143,21 +139,14 @@ export const action = async ({ request }) => {
   const responseJson = await response.json();
   const product = responseJson.data.productCreate.product;
 
-  // If you need to update variants, you can do so here
-  // similar to the variantResponse in the original code
-
   return json({
     product: product,
-    // Include variant data if you update it
   });
 };
 
 export { loader };
 
 export default function CreateProduct() {
-  // console.log("useCollectionsLogic:", useCollectionLogic);
-  // console.log("CreateProduct component rendering");
-  
   const { 
     shopifyCollections, 
     leatherColors, 
@@ -168,7 +157,6 @@ export default function CreateProduct() {
     productPrices, 
     error 
   } = useLoaderData();
-  // console.log("Data loaded:", { shopifyCollections, leatherColors, threadColors, shapes, styles, fonts, productPrices });
   
   const [formState, setFormState] = useFormState({
     selectedCollection: "",
@@ -184,24 +172,24 @@ export default function CreateProduct() {
     weights: {},
   });
 
-  const [productData, setProductData] = useState("");
+  const [productData, setProductData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState(null);
 
-  const [generatedSKUs, setGeneratedSKUs] = useState([]);
-  const [generatedTitle, setGeneratedTitle] = useState("");
-  const [generatedMainHandle, setGeneratedMainHandle] = useState("");
-  const [generatedVariantNames, setGeneratedVariantNames] = useState ([]);
-  const [generatedProductType, setGeneratedProductType] = useState ("");
-  
   const { 
     isCollectionAnimalClassicQclassic, 
     needsSecondaryColor, 
     needsStitchingColor 
   } = useCollectionLogic(shopifyCollections, formState.selectedCollection);
 
-  const handleChange = useCallback((field) => (value) => {
+  const handleChange = useCallback((field, value) => {
     setFormState(field, value);
+    // Clear product data when form changes
+    setProductData(null);
+    setSubmissionError(null);
+    setGenerationError(null);
   }, [setFormState]);
 
   const shouldGenerateProductData = useMemo(() => {
@@ -217,82 +205,46 @@ export default function CreateProduct() {
            hasShapeData;
   }, [formState, needsSecondaryColor, needsStitchingColor]);
 
-  const formatVariantDisplay = useCallback((variants) => {
-    // Group base variants and custom variants for display
-    const baseVariants = variants.filter(v => !v.isCustom);
-    const customVariants = variants.filter(v => v.isCustom);
+  const handleGenerateData = async () => {
+    setIsGenerating(true);
+    setGenerationError(null);
     
-    return [...baseVariants, ...customVariants]
-      .map(v => v.variantName)
-      .join(', ');
-  }, []);
+    try {
+      const validWeights = Object.entries(formState.weights)
+        .filter(([_, weight]) => weight && weight !== "")
+        .reduce((acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        }, {});
 
-
-  useEffect(() => {
-    console.log("Effect running. Current formState:", formState);
-    
-    if (shouldGenerateProductData) {
-      const generateData = async () => {
-        try {
-          const data = await generateProductData(
-            formState,
-            leatherColors,
-            threadColors,
-            shapes,
-            styles,
-            productPrices,
-            shopifyCollections,
-          );
-  
-          setProductData(data);
-          
-          // Update display states
-          setGeneratedTitle(data.title);
-          setGeneratedMainHandle(data.mainHandle);
-          setGeneratedProductType(data.productType);
-          setGeneratedSKUs(data.variants.map(v => v.sku));
-          // Sort variants to ensure base variants come before custom variants
-          setGeneratedVariantNames(data.variants
-            .sort((a, b) => {
-              // Sort by isCustom first (false comes before true)
-              if (a.isCustom !== b.isCustom) return a.isCustom ? 1 : -1;
-              // Then sort by original order
-              return 0;
-            })
-            .map(v => v.variantName)
-          );
-          
-          setSubmissionError(null);
-        } catch (error) {
-          console.error("Error generating product data:", error);
-          setSubmissionError(error.message);
-          setProductData(null);
-          
-          // Reset display states
-          setGeneratedTitle("");
-          setGeneratedMainHandle("");
-          setGeneratedProductType("");
-          setGeneratedSKUs([]);
-          setGeneratedVariantNames([]);
-        }
+      const updatedFormState = {
+        ...formState,
+        weights: validWeights
       };
-  
-      // Call the async function
-      generateData();
-    } else {
-      // Reset all states if conditions aren't met
-      setProductData(null);
-      setGeneratedTitle("");
-      setGeneratedMainHandle("");
-      setGeneratedProductType("");
-      setGeneratedSKUs([]);
-      setGeneratedVariantNames([]);
-    }
-  }, [shouldGenerateProductData, formState, leatherColors, threadColors, shapes, styles, productPrices, shopifyCollections]);
 
-  const handleSubmit = useCallback(async () => {
+      const data = await generateProductData(
+        updatedFormState,
+        leatherColors,
+        threadColors,
+        shapes,
+        styles,
+        productPrices,
+        shopifyCollections,
+      );
+
+      setProductData(data);
+    } catch (error) {
+      console.error("Error generating product data:", error);
+      setGenerationError(error.message);
+      setProductData(null);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSubmit = async () => {
     if (!productData) {
-      setSubmissionError("Please fill in all required fields");
+      setSubmissionError("Please preview product data first");
       return;
     }
   
@@ -337,42 +289,41 @@ export default function CreateProduct() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [productData, formState]);
-if (error) {
-  return <div>Error: {error}</div>;
-}
+  };
 
-  // console.log("Rendering CreateProduct component");
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
   return (
     <Page>
       <TitleBar title="Create a new product" />
       <Layout>
         <Layout.Section>
-        <Card>
-          <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">Create Product Page</Text>
-            <CollectionSelector
-              shopifyCollections={shopifyCollections}
-              selectedCollection={formState.selectedCollection}
-              onChange={handleChange('selectedCollection')}
-            />
-            <ProductTypeSelector
-              selectedType={formState.selectedOfferingType}
-              quantity={formState.limitedEditionQuantity}
-              onChange={handleChange}
-            />
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">Create Product Page</Text>
+              <CollectionSelector
+                shopifyCollections={shopifyCollections}
+                selectedCollection={formState.selectedCollection}
+                onChange={handleChange}
+              />
+              <ProductTypeSelector
+                selectedType={formState.selectedOfferingType}
+                quantity={formState.limitedEditionQuantity}
+                onChange={handleChange}
+              />
               <LeatherColorSelector
                 leatherColors={leatherColors}
                 selectedLeatherColor1={formState.selectedLeatherColor1}
                 selectedLeatherColor2={formState.selectedLeatherColor2}
                 onChange={handleChange}
                 needsSecondaryColor={needsSecondaryColor}
-                // isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
               />
               <FontSelector
                 fonts={fonts}
                 selectedFont={formState.selectedFont}
-                onChange={handleChange('selectedFont')}
+                onChange={handleChange}
               />
               {needsStitchingColor && (
                 <ThreadColorSelector
@@ -385,32 +336,56 @@ if (error) {
             </BlockStack>
           </Card>
           <Card>
-              <ShapeSelector
-                shapes={shapes}
-                styles={styles}
-                threadColors={threadColors}
-                formState={formState}
-                selectedEmbroideryColors={formState.selectedEmbroideryColors}
-                onEmbroideryColorChange={(shapeId, color) => {
-                  const newColors = { ...formState.selectedEmbroideryColors, [shapeId]: color };
-                  handleChange('selectedEmbroideryColors')(newColors);
-                }}
-                handleChange={handleChange}
-                isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
-              />
+            <ShapeSelector
+              shapes={shapes}
+              styles={styles}
+              threadColors={threadColors}
+              formState={formState}
+              selectedEmbroideryColors={formState.selectedEmbroideryColors}
+              onEmbroideryColorChange={(shapeId, color) => {
+                const newColors = { ...formState.selectedEmbroideryColors, [shapeId]: color };
+                handleChange('selectedEmbroideryColors', newColors);
+              }}
+              handleChange={handleChange}
+              isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
+            />
           </Card>
           <Card>
             <BlockStack gap="400">
-              <ProductVariantCheck productData={productData} />
+              {generationError && (
+                <Banner status="critical">
+                  {generationError}
+                </Banner>
+              )}
               
               <Button
-                primary
-                loading={isSubmitting}
-                disabled={!productData || isSubmitting}
-                onClick={handleSubmit}
+                onClick={handleGenerateData}
+                loading={isGenerating}
+                disabled={!shouldGenerateProductData || isGenerating}
               >
-                Create Product
+                Preview Product Data
               </Button>
+
+              {productData && (
+                <>
+                  <ProductVariantCheck productData={productData} />
+                  
+                  {submissionError && (
+                    <Banner status="critical">
+                      {submissionError}
+                    </Banner>
+                  )}
+                  
+                  <Button
+                    primary
+                    loading={isSubmitting}
+                    disabled={isSubmitting}
+                    onClick={handleSubmit}
+                  >
+                    Create Product
+                  </Button>
+                </>
+              )}
             </BlockStack>
           </Card>
         </Layout.Section>

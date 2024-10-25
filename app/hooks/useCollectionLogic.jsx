@@ -1,3 +1,5 @@
+// app/hooks/useCollectionLogic.jsx
+
 import { useCallback, useMemo } from 'react';
 import { 
   getShopifyCollectionType, 
