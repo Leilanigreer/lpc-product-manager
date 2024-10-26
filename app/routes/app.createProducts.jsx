@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { useLoaderData } from "@remix-run/react";
-import { TitleBar } from "@shopify/app-bridge-react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { useLoaderData, useFetcher } from "@remix-run/react";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { useFormState } from "../hooks/useFormState.js";
 import { loader } from "../lib/loaders.js";
 import { generateProductData } from "../lib/productAttributes.js";
@@ -27,124 +27,70 @@ import {
 export const action = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
-  const productData = Object.fromEntries(formData);
+  const productData = JSON.parse(formData.get('productData'));
 
-  // Parse JSON strings back into objects
-  ['selectedStyles', 'weights'].forEach(key => {
-    if (productData[key]) {
-      productData[key] = JSON.parse(productData[key]);
-    }
-  });
-
-  const variants = Array.from(formData.entries())
-    .filter(([key]) => key.startsWith('variants['))
-    .reduce((acc, [key, value]) => {
-      const [, index, field] = key.match(/variants\[(\d+)\]\[(\w+)\]/);
-      if (!acc[index]) acc[index] = {};
-      acc[index][field] = value;
-      return acc;
-    }, {});
-
-  const response = await admin.graphql(
-    `#graphql
-    mutation createProduct($input: ProductInput!) {
-      productCreate(input: $input) {
-        userErrors {
-          field
-          message
-        }
-        product {
-          id
-          title
-          handle
-          status
-          descriptionHtml
-          category
-          productType
-          vendor
-          tags
-          seo {
-            title
-            description
-          }
-          options {
+  try {
+    const response = await admin.graphql(
+      `#graphql
+      mutation populateProduct($input: ProductInput!) {
+        productCreate(input: $input) {
+          product {
             id
-            name
-            position
-            values
-          }
-          variants(first: 20) {
-            edges {
-              node {
-                id
-                title
-                sku
-                price
-                position
-                inventoryPolicy
-                compareAtPrice
-                taxable
-                fulfillmentService
-                weight
-                weightUnit
-                requiresShipping
-                inventoryManagement
-                inventoryQuantity
-                inventoryItem {
+            title
+            handle
+            status
+            variants(first: 10) {
+              edges {
+                node {
                   id
+                  price
+                  barcode
+                  createdAt
                 }
               }
             }
           }
+          userErrors {
+            field
+            message
+          }
         }
-      }
-    }`,
-    {
-      variables: {
-        input: {
-          title: productData.title,
-          handle: productData.mainHandle,
-          status: 'active',
-          category: 'gid://shopify/TaxonomyCategory/sg-4-7-7-2',
-          descriptionHtml: productData.descriptionHtml,
-          productType: productData.productType,
-          vendor: 'Little Prince Customs',
-          tags: productData.tags,
-          seo: {
-            title: productData.seoTitle || productData.title,
-            description: productData.seoDescription || 'pending'
+      }`,
+      {
+        variables: {
+          input: {
+            title: productData.title,
+            handle: productData.mainHandle,
+            status: 'ACTIVE',
+            descriptionHtml: productData.descriptionHtml,
+            productType: productData.productType,
+            vendor: 'Little Prince Customs',
+            tags: productData.tags
           },
-          options: [{
-            name: "Shape",
-            values: variants.map(v => v.title)
-          }],
-          variants: variants.map(variant => ({
-            sku: variant.sku,
-            price: variant.price,
-            compareAtPrice: variant.price,
-            weight: variant.weight || 5.9,
-            weightUnit: 'oz',
-            requiresShipping: true,
-            taxable: true,
-            inventoryManagement: 'shopify',
-            inventoryPolicy: 'continue',
-            fulfillmentService: 'manual',
-            options: [variant.title],
-            inventoryQuantity: 4,
-            position: variant.position,
-            grams: Math.round((variant.weight || 5.9) * 28.3495),
-          })),
-        }
+        },
       }
+    );
+
+    const responseJson = await response.json();
+    
+    if (responseJson.data?.productCreate?.userErrors?.length > 0) {
+      return json(
+        { errors: responseJson.data.productCreate.userErrors.map(error => `${error.field}: ${error.message}`) },
+        { status: 422 }
+      );
     }
-  );
 
-  const responseJson = await response.json();
-  const product = responseJson.data.productCreate.product;
-
-  return json({
-    product: product,
-  });
+    return json({ 
+      product: responseJson.data.productCreate.product 
+    });
+    
+  } catch (error) {
+    console.error('GraphQL Error:', error);
+    return json(
+      { errors: [error.message || "An unexpected error occurred"] },
+      { status: 500 }
+    );
+  }
 };
 
 export { loader };
@@ -153,14 +99,19 @@ export default function CreateProduct() {
   const { 
     shopifyCollections, 
     leatherColors, 
-    threadColors, 
+    threadColors,
+    colorTags, 
     shapes, 
     styles, 
     fonts, 
     productPrices, 
     error 
   } = useLoaderData();
+
+  const fetcher = useFetcher();
+  const app = useAppBridge();
   
+
   const [formState, setFormState] = useFormState({
     selectedCollection: "",
     selectedOfferingType: "",
@@ -174,12 +125,55 @@ export default function CreateProduct() {
     selectedStyles: {},
     weights: {},
   });
+  
 
   const [productData, setProductData] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionError, setSubmissionError] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
+  const [submissionError, setSubmissionError] = useState(null);
+  const [notification, setNotification] = useState(null);
+
+  const isSubmitting = 
+    ["loading", "submitting"].includes(fetcher.state) && 
+    fetcher.formMethod === "POST";
+
+    useEffect(() => {
+      if (fetcher.data?.product) {
+        setNotification({
+          message: "Product created successfully",
+          status: "success"
+        });
+        
+        setFormState({
+          selectedCollection: "",
+          selectedOfferingType: "",
+          limitedEditionQuantity: "",
+          selectedLeatherColor1: "",
+          selectedLeatherColor2: "",
+          selectedStitchingColor: "",
+          selectedEmbroideryColor: {},
+          selectedFont: "",
+          selectedShapes: {},
+          selectedStyles: {},
+          weights: {},
+        });
+        setProductData(null);
+  
+        // Clear notification after 5 seconds
+        const timer = setTimeout(() => {
+          setNotification(null);
+        }, 5000);
+  
+        return () => clearTimeout(timer);
+      } else if (fetcher.data?.errors) {
+        const errorMessage = fetcher.data.errors.join(', ');
+        setSubmissionError(errorMessage);
+        setNotification({
+          message: errorMessage,
+          status: "critical"
+        });
+      }
+    }, [fetcher.data, setFormState]);
 
   const { 
     isCollectionAnimalClassicQclassic, 
@@ -189,7 +183,6 @@ export default function CreateProduct() {
 
   const handleChange = useCallback((field, value) => {
     setFormState(field, value);
-    // Clear product data when form changes
     setProductData(null);
     setSubmissionError(null);
     setGenerationError(null);
@@ -213,81 +206,30 @@ export default function CreateProduct() {
     setGenerationError(null);
     
     try {
-      // Log initial form state and weights
-      console.log('Initial Form State:', {
-        selectedCollection: formState.selectedCollection,
-        selectedOfferingType: formState.selectedOfferingType,
-        weights: formState.weights,
-        styles: formState.selectedStyles
-      });
-  
-      // Log filtered weights
       const validWeights = Object.entries(formState.weights)
         .filter(([_, weight]) => weight && weight !== "")
         .reduce((acc, [key, value]) => {
           acc[key] = value;
           return acc;
         }, {});
-  
-      console.log('Filtered Valid Weights:', {
-        before: formState.weights,
-        after: validWeights
-      });
-  
-      // Log shape data being passed
-      console.log('Shape Data:', {
-        availableShapes: shapes.map(shape => ({
-          id: shape.value,
-          name: shape.label,
-          abbreviation: shape.abbreviation
-        })),
-        selectedShapeIds: Object.keys(validWeights),
-        selectedStyles: formState.selectedStyles
-      });
-  
+
       const updatedFormState = {
         ...formState,
         weights: validWeights
       };
-  
-      // Log parameters being passed to generateProductData
-      console.log('Generate Product Data Parameters:', {
-        updatedFormState,
-        leatherColorsCount: leatherColors.length,
-        threadColorsCount: threadColors.length,
-        shapesCount: shapes.length,
-        stylesCount: styles?.length,
-        productPricesCount: productPrices.length,
-        shopifyCollectionsCount: shopifyCollections.length
-      });
-  
+
       const data = await generateProductData(
         updatedFormState,
         leatherColors,
         threadColors,
+        colorTags,
         shapes,
         styles,
         productPrices,
         shopifyCollections,
       );
-  
-      // Log generated product data
-      console.log('Generated Product Data:', {
-        title: data.title,
-        mainHandle: data.mainHandle,
-        productType: data.productType,
-        variantCount: data.variants.length,
-        variants: data.variants.map(variant => ({
-          sku: variant.sku,
-          name: variant.variantName,
-          position: variant.position,
-          isCustom: variant.isCustom,
-          shape: variant.shape,
-          style: variant.style?.label,
-          price: variant.price
-        }))
-      });
-  
+
+      console.log('Generated Product Data:', data);
       setProductData(data);
     } catch (error) {
       console.error("Error generating product data:", error);
@@ -298,53 +240,21 @@ export default function CreateProduct() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!productData) {
-      setSubmissionError("Please preview product data first");
+      setSubmissionError("Please generate product data first");
       return;
     }
-  
-    try {
-      setIsSubmitting(true);
-      setSubmissionError(null);
-  
-      const formData = new FormData();
-      
-      // Add basic product data
-      formData.append('title', productData.title);
-      formData.append('mainHandle', productData.mainHandle);
-      formData.append('productType', productData.productType);
-      formData.append('selectedCollection', formState.selectedCollection);
-      formData.append('selectedOfferingType', formState.selectedOfferingType);
-      if (formState.selectedOfferingType === 'limitedEdition') {
-        formData.append('limitedEditionQuantity', formState.limitedEditionQuantity);
-      }
-      
-      // Add form state data
-      formData.append('selectedStyles', JSON.stringify(formState.selectedStyles));
-      formData.append('weights', JSON.stringify(formState.weights));
-  
-      // Add variant data
-      productData.variants.forEach((variant, index) => {
-        formData.append(`variants[${index}][sku]`, variant.sku);
-        formData.append(`variants[${index}][title]`, variant.variantName);
-        formData.append(`variants[${index}][price]`, variant.price);
-        formData.append(`variants[${index}][shapeId]`, variant.shapeId);
-        if (variant.styleId) {
-          formData.append(`variants[${index}][styleId]`, variant.styleId);
-        }
-        formData.append(`variants[${index}][options]`, JSON.stringify(variant.options));
-      });
-  
-      // Submit will be implemented later
-      console.log("Ready to submit:", Object.fromEntries(formData));
-      
-    } catch (error) {
-      setSubmissionError(error.message);
-      console.error("Submission error:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
+
+    setSubmissionError(null);
+    
+    const formData = new FormData();
+    formData.append('productData', JSON.stringify(productData));
+
+    fetcher.submit(formData, { 
+      method: "POST",
+      enctype: "multipart/form-data"
+    });
   };
 
   if (error) {
@@ -355,6 +265,16 @@ export default function CreateProduct() {
     <Page>
       <TitleBar title="Create a new product" />
       <Layout>
+        {notification && (
+          <Layout.Section>
+            <Banner
+              status={notification.status}
+              onDismiss={() => setNotification(null)}
+              >
+                {notification.message}
+              </Banner>
+          </Layout.Section>
+        )}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">

@@ -3,7 +3,7 @@
 client_id = "6f1296c99bc07317bd7d904a9749bee4"
 name = "lpc-product-creation-10-16-24"
 handle = "lpc-product-creation-10-16-24"
-application_url = "https://fred-headlines-tue-keeps.trycloudflare.com"
+application_url = "https://commissions-talked-conviction-drawn.trycloudflare.com"
 embedded = true
 
 [build]
@@ -13,13 +13,13 @@ include_config_on_deploy = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_orders,read_products,write_products"
+scopes = "read_inventory,write_inventory, read_orders,read_products,write_products, read_fulfillments, write_fulfillments"
 
 [auth]
 redirect_urls = [
-  "https://fred-headlines-tue-keeps.trycloudflare.com/auth/callback",
-  "https://fred-headlines-tue-keeps.trycloudflare.com/auth/shopify/callback",
-  "https://fred-headlines-tue-keeps.trycloudflare.com/api/auth/callback"
+  "https://commissions-talked-conviction-drawn.trycloudflare.com/auth/callback",
+  "https://commissions-talked-conviction-drawn.trycloudflare.com/auth/shopify/callback",
+  "https://commissions-talked-conviction-drawn.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

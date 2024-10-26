@@ -49,7 +49,7 @@ const ProductVariantCheck = ({ productData }) => {
     return null;
   }
 
-  const { title, mainHandle, productType, seoTitle, variants } = productData;
+  const { title, mainHandle, productType, seoTitle, tags, variants } = productData;
 
   const baseVariants = variants.filter(v => !v.isCustom);
   const customVariants = variants.filter(v => v.isCustom);
@@ -67,6 +67,9 @@ const ProductVariantCheck = ({ productData }) => {
       )}
       {productType && (
         <Text variant="bodyMd">Generated Product Type: {productType}</Text>
+      )}
+      {tags && (
+        <Text variant="bodyMd">Generated tags: {tags}</Text>
       )}
 
       {variants && variants.length > 0 && (
