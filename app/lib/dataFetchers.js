@@ -2,7 +2,7 @@ import prisma from "../db.server";
 
 export const getLeatherColors = async () => {
   try {
-    const leatherColors = await prisma.leatherColor.findMany({
+    const leatherColors = await prisma.LeatherColor.findMany({
       include: {
         colorTags: {
           select: {
@@ -28,9 +28,9 @@ export const getLeatherColors = async () => {
   }
 };
 
-export const getThreadColors = async () => {
+export const getStitchingThreadColors = async () => {
   try {
-    const threadColors = await prisma.thread.findMany({
+    const stitchingThreadColors = await prisma.StitchingThread.findMany({
       include: {
         colorTags: {
           select: {
@@ -40,7 +40,7 @@ export const getThreadColors = async () => {
         }
       }
     });
-    return threadColors.map(({ id, name, abbreviation, colorTags}) => ({
+    return stitchingThreadColors.map(({ id, name, abbreviation, colorTags}) => ({
       value: id, 
       label: name, 
       abbreviation,
@@ -50,16 +50,49 @@ export const getThreadColors = async () => {
       }))
     }));
   } catch (error) {
-    console.error("Error fetching thread colors", error);
+    console.error("Error fetching stitching thread colors", error);
+    throw error;
+  }
+};
+export const getEmbroideryThreadColors = async () => {
+  try {
+    const embroideryThreadColors = await prisma.EmbroideryThread.findMany({
+      include: {
+        colorTags: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+    return embroideryThreadColors.map(({ id, name, abbreviation, colorTags}) => ({
+      value: id, 
+      label: name, 
+      abbreviation,
+      colorTags: colorTags.map(tag => ({
+        value: tag.id,
+        label: tag.name
+      }))
+    }));
+  } catch (error) {
+    console.error("Error fetching embroidery thread colors", error);
     throw error;
   }
 };
 
 export const getColorTags = async () => {
   try {
-    const colorTags = await prisma.colorTag.findMany({
+    const colorTags = await prisma.ColorTag.findMany({
       include: {
-        threadColors: {
+        embroideryColors: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true
+          }
+        },
+        stitchingColors: {
           select: {
             id: true,
             name: true,
@@ -76,13 +109,18 @@ export const getColorTags = async () => {
         }
       }
     });
-    return colorTags.map(({ id, name, threadColors, leatherColors }) => ({
+    return colorTags.map(({ id, name, stitchingColors, embroideryColors, leatherColors }) => ({
       value: id,
       label: name,
-      threadColors: threadColors.map(thread => ({
-        value: thread.id,
-        label: thread.name,
-        abbreviation: thread.abbreviation
+      stitchingColors: stitchingColors.map(stitchingThread => ({
+        value: stitchingThread.id,
+        label: stitchingThread.name,
+        abbreviation: stitchingThread.abbreviation
+      })),
+      embroideryColors: embroideryColors.map(embroideryThread => ({
+        value: embroideryThread.id,
+        label: embroideryThread.name,
+        abbreviation: embroideryThread.abbreviation
       })),
       leatherColors: leatherColors.map(leather => ({
         value: leather.id,
@@ -99,7 +137,7 @@ export const getColorTags = async () => {
 
 export const getFonts = async () => {
   try {
-    const fonts = await prisma.font.findMany();
+    const fonts = await prisma.Font.findMany();
     return fonts.map(({ id, name, image_url }) => ({
       value: id, 
       label: name,
@@ -113,7 +151,7 @@ export const getFonts = async () => {
 
 export const getShapes = async () => {
   try {
-    const shapes = await prisma.shape.findMany();
+    const shapes = await prisma.Shape.findMany();
     return shapes.map(({ id, name, abbreviation}) =>({
       value: id, 
       label: name,
@@ -127,7 +165,7 @@ export const getShapes = async () => {
 
 export const getStyles = async () => {
   try {
-    const styles = await prisma.style.findMany();
+    const styles = await prisma.Style.findMany();
     return styles.map(({ id, name, abbreviation}) => ({
       value: id, 
       label: name,
@@ -141,7 +179,7 @@ export const getStyles = async () => {
 
 export const getProductPrices = async () => {
   try {
-    const productPrices = await prisma.productPrice.findMany({
+    const productPrices = await prisma.ProductPrice.findMany({
       select: {
         id: true,
         shopifyPrice: true,
@@ -166,7 +204,7 @@ export const getProductPrices = async () => {
 
 export const getShopifyCollections = async () => {
   try {
-    const shopifyCollections = await prisma.shopifyCollection.findMany({
+    const shopifyCollections = await prisma.ShopifyCollection.findMany({
       select: {
         id: true, 
         shopifyId: true, 

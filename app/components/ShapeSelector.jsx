@@ -23,7 +23,7 @@ const preventWheelChange = `
 const ShapeSelector = ({ 
   shapes, 
   styles, 
-  threadColors, 
+  embroideryThreadColors, 
   formState, 
   handleChange, 
   isCollectionAnimalClassicQclassic
@@ -128,7 +128,7 @@ const ShapeSelector = ({
                   <Select
                     options={[
                       { label: "Color of Thread", value: "", key: "default-thread-color" },
-                      ...(threadColors || [])
+                      ...(embroideryThreadColors || [])
                     ]}
                     onChange={(value) => handleEmbroideryChange(shape.value, value)}
                     value={formState.selectedEmbroideryColors?.[shape.value] || ''}

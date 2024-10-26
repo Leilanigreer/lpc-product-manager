@@ -99,7 +99,8 @@ export default function CreateProduct() {
   const { 
     shopifyCollections, 
     leatherColors, 
-    threadColors,
+    stitchingThreadColors,
+    embroideryThreadColors,
     colorTags, 
     shapes, 
     styles, 
@@ -221,7 +222,8 @@ export default function CreateProduct() {
       const data = await generateProductData(
         updatedFormState,
         leatherColors,
-        threadColors,
+        stitchingThreadColors,
+        embroideryThreadColors,
         colorTags,
         shapes,
         styles,
@@ -303,7 +305,8 @@ export default function CreateProduct() {
               />
               {needsStitchingColor && (
                 <ThreadColorSelector
-                  threadColors={threadColors}
+                  stitchingThreadColors={stitchingThreadColors}
+                  embroideryThreadColors={embroideryThreadColors}
                   selectedEmbroideryColor={formState.selectedEmbroideryColor}
                   selectedStitchingColor={formState.selectedStitchingColor}
                   onChange={handleChange}
@@ -315,7 +318,7 @@ export default function CreateProduct() {
             <ShapeSelector
               shapes={shapes}
               styles={styles}
-              threadColors={threadColors}
+              embroideryThreadColors={embroideryThreadColors}
               formState={formState}
               selectedEmbroideryColors={formState.selectedEmbroideryColors}
               onEmbroideryColorChange={(shapeId, color) => {

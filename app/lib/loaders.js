@@ -1,15 +1,16 @@
 import { json } from "@remix-run/node";
 // import { authenticate } from "../shopify.server";
 import { 
-  getLeatherColors, getThreadColors, getFonts, getShapes, getStyles, getProductPrices, getShopifyCollections, getColorTags } from "./dataFetchers";
+  getLeatherColors, getStitchingThreadColors, getEmbroideryThreadColors, getFonts, getShapes, getStyles, getProductPrices, getShopifyCollections, getColorTags } from "./dataFetchers";
 
 export const loader = async ({ request }) => {
 //   const { admin } = await authenticate.admin(request);
   
   try {
-    const [leatherColors, threadColors, colorTags, fonts, shapes, styles, productPrices, shopifyCollections] = await Promise.all([
+    const [leatherColors, stitchingThreadColors, embroideryThreadColors, colorTags, fonts, shapes, styles, productPrices, shopifyCollections] = await Promise.all([
       getLeatherColors(),
-      getThreadColors(),
+      getStitchingThreadColors(),
+      getEmbroideryThreadColors(),
       getColorTags(),
       getFonts(),
       getShapes(),
@@ -17,7 +18,7 @@ export const loader = async ({ request }) => {
       getProductPrices(),
       getShopifyCollections(),
     ]);
-    return json({ leatherColors, threadColors, colorTags, fonts, shapes, styles, productPrices, shopifyCollections });
+    return json({ leatherColors, stitchingThreadColors, embroideryThreadColors, colorTags, fonts, shapes, styles, productPrices, shopifyCollections });
   } catch (error) {
     console.error('Loader error:', error);
     return json({ error: error.message }, { status: 500 });
