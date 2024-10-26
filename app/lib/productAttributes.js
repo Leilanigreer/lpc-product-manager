@@ -1,3 +1,5 @@
+// app/lib/productAttributes.js
+
 import { COLLECTION_TYPES } from "./constants";
 import { getShopifyCollectionType } from "./collectionUtils";
 
@@ -284,7 +286,7 @@ const generateVariants = async (formState, leatherColors, threadColors, shapes, 
   return variants;
 };
 
-export const generateProductData = async (formState, leatherColors, threadColors, shapes, styles, productPrices, shopifyCollections) => {
+export const generateProductData = async (formState, leatherColors, threadColors, colorTags, shapes, styles, productPrices, shopifyCollections) => {
   const title = generateTitle(formState, leatherColors, threadColors, shopifyCollections);
   return {
     title,
@@ -293,7 +295,7 @@ export const generateProductData = async (formState, leatherColors, threadColors
     seoTitle: generateSEOTitle(formState, title, shopifyCollections),
     descriptionHTML: generateDescriptionHTLM(formState, shopifyCollections),
     seoDescription: generateSEODescription(formState, shopifyCollections),
-    tags: generateTags(formState, leatherColors, threadColors),
+    tags: generateTags(formState, leatherColors, threadColors, colorTags),
     variants: await generateVariants(formState, leatherColors, threadColors, shapes, styles, productPrices, shopifyCollections)
   };
 };
@@ -387,6 +389,23 @@ const generateSEODescription = (formState, shopifyCollections) => {
   return "pending SEO description"
 };
 
-const generateTags = (formSate, leatherColors, threadColors ) => {
-  return "Customizable"
+const generateTags = (formState, leatherColors, threadColors, colorTags) => {
+  // Get the selected colors using the existing getColors function
+  const { leatherColor1, leatherColor2, stitchingColor } = getColors(formState, leatherColors, threadColors);
+  
+  // Initialize with Customizable tag
+  const tagSet = new Set(['Customizable']);
+  
+  // Add tags for any leather or thread color that matches the selected colors
+  colorTags.forEach(tag => {
+    const hasLeatherColor1 = leatherColor1 && tag.leatherColors.some(leather => leather.value === leatherColor1.value);
+    const hasLeatherColor2 = leatherColor2 && tag.leatherColors.some(leather => leather.value === leatherColor2.value);
+    const hasStitchingColor = stitchingColor && tag.threadColors.some(thread => thread.value === stitchingColor.value);
+    
+    if (hasLeatherColor1 || hasLeatherColor2 || hasStitchingColor) {
+      tagSet.add(tag.label);
+    }
+  });
+
+  return Array.from(tagSet);
 };
