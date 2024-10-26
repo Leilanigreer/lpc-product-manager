@@ -4,7 +4,8 @@ import React from 'react';
 import { Card, Select, InlineStack, Box } from "@shopify/polaris";
 
 const ThreadColorSelector = ({ 
-  threadColors, 
+  stitchingThreadColors,
+  embroideryThreadColors, 
   selectedEmbroideryColor, 
   selectedStitchingColor, 
   onChange 
@@ -23,7 +24,7 @@ const ThreadColorSelector = ({
         <Box width="50%">
           <Select
             label="Select Embroidery"
-            options={[{ label: "Color of Thread", value: "" }, ...threadColors]}
+            options={[{ label: "Color of Thread", value: "" }, ...embroideryThreadColors]}
             onChange={handleEmbroideryChange}
             value={selectedEmbroideryColor}
           />
@@ -31,7 +32,7 @@ const ThreadColorSelector = ({
         <Box width="50%">
           <Select
             label="Select Stitching"
-            options={[{ label: "Color of Thread", value: "" }, ...threadColors]}
+            options={[{ label: "Color of Thread", value: "" }, ...stitchingThreadColors]}
             onChange={handleStitchingChange}
             value={selectedStitchingColor}
           />

@@ -3,10 +3,11 @@
 import { COLLECTION_TYPES } from "./constants";
 import { getShopifyCollectionType } from "./collectionUtils";
 
-const getColors = (formState, leatherColors, threadColors) => ({
+const getColors = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors) => ({
   leatherColor1: leatherColors.find(color => color.value === formState.selectedLeatherColor1),
   leatherColor2: leatherColors.find(color => color.value === formState.selectedLeatherColor2),
-  stitchingColor: threadColors.find(color => color.value === formState.selectedStitchingColor),
+  stitchingThreadColor: stitchingThreadColors.find(color => color.value === formState.selectedStitchingColor),
+  embroideryThreadColor: embroideryThreadColors.find(color => color.value === formState.selectedEmbroideryColor),
 });
 
 const getCollectionType = (formState, shopifyCollections) => {
@@ -59,12 +60,12 @@ const SHAPE_ORDER = [
   'cm2duhfg300076y585ows'         // Blade
 ];
 
-const generateSKUParts = (collectionType, { leatherColor1, leatherColor2, stitchingColor, shape }) => {
+const generateSKUParts = (collectionType, { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor, shape }) => {
   const baseParts = {
     [COLLECTION_TYPES.QUILTED]: () => [
       "Quilted",
       leatherColor1.abbreviation,
-      stitchingColor.abbreviation,
+      embroideryThreadColor.abbreviation,
       shape.abbreviation
     ],
     
@@ -72,7 +73,7 @@ const generateSKUParts = (collectionType, { leatherColor1, leatherColor2, stitch
       "Argyle",
       leatherColor1.abbreviation,
       leatherColor2?.abbreviation,
-      stitchingColor.abbreviation,
+      stitchingThreadColor.abbreviation,
       shape.abbreviation
     ],
     
@@ -133,13 +134,13 @@ const assignPositions = (variants, shapes) => {
   }));
 };
 
-const generateVariants = async (formState, leatherColors, threadColors, shapes, styles, productPrices, shopifyCollections) => {
-  if (!formState || !leatherColors || !threadColors || !shapes || !productPrices || !shopifyCollections) {
+const generateVariants = async (formState, leatherColors, stitchingThreadColors, embroideryThreadColors, shapes, styles, productPrices, shopifyCollections) => {
+  if (!formState || !leatherColors || !stitchingThreadColors || !embroideryThreadColors || !shapes || !productPrices || !shopifyCollections) {
     console.error("Missing required parameters for variant generation");
     return [];
   }
 
-  const { leatherColor1, leatherColor2, stitchingColor } = getColors(formState, leatherColors, threadColors);
+  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors,);
   const collectionType = getCollectionType(formState, shopifyCollections);
 
   if (!leatherColor1) {
@@ -160,7 +161,8 @@ const generateVariants = async (formState, leatherColors, threadColors, shapes, 
       const skuParts = generateSKUParts(collectionType, {
         leatherColor1,
         leatherColor2,
-        stitchingColor,
+        stitchingThreadColor, 
+        embroideryThreadColor,
         shape
       });
       if (!skuParts) return null;
@@ -286,8 +288,8 @@ const generateVariants = async (formState, leatherColors, threadColors, shapes, 
   return variants;
 };
 
-export const generateProductData = async (formState, leatherColors, threadColors, colorTags, shapes, styles, productPrices, shopifyCollections) => {
-  const title = generateTitle(formState, leatherColors, threadColors, shopifyCollections);
+export const generateProductData = async (formState, leatherColors, stitchingThreadColor, embroideryThreadColor, colorTags, shapes, styles, productPrices, shopifyCollections) => {
+  const title = generateTitle(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shopifyCollections);
   return {
     title,
     mainHandle: generateMainHandle(formState, title, shopifyCollections),
@@ -295,13 +297,13 @@ export const generateProductData = async (formState, leatherColors, threadColors
     seoTitle: generateSEOTitle(formState, title, shopifyCollections),
     descriptionHTML: generateDescriptionHTLM(formState, shopifyCollections),
     seoDescription: generateSEODescription(formState, shopifyCollections),
-    tags: generateTags(formState, leatherColors, threadColors, colorTags),
-    variants: await generateVariants(formState, leatherColors, threadColors, shapes, styles, productPrices, shopifyCollections)
+    tags: generateTags(formState, leatherColors, embroideryThreadColor, stitchingThreadColor, colorTags),
+    variants: await generateVariants(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shapes, styles, productPrices, shopifyCollections)
   };
 };
 
-const generateTitle = (formState, leatherColors, threadColors, shopifyCollections) => {
-  const { leatherColor1, leatherColor2, stitchingColor } = getColors(formState, leatherColors, threadColors);
+const generateTitle = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors, shopifyCollections) => {
+  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor, } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors,);
   const collectionType = getCollectionType(formState, shopifyCollections);
 
   if (!leatherColor1) return "Primary leather color missing";
@@ -315,12 +317,12 @@ const generateTitle = (formState, leatherColors, threadColors, shopifyCollection
   
     case COLLECTION_TYPES.ARGYLE:
       if (!leatherColor2) return "Secondary leather color missing";
-      if (!stitchingColor) return "Stitching color missing";
-      return `${leatherColor1.label} and ${leatherColor2.label} Leather with ${stitchingColor.label} Stitching`;
+      if (!stitchingThreadColor) return "Stitching color missing";
+      return `${leatherColor1.label} and ${leatherColor2.label} Leather with ${stitchingThreadColor.label} Stitching`;
   
     case COLLECTION_TYPES.QUILTED:
-      return !stitchingColor ? "Stitching color missing" :
-        `${leatherColor1.label} Leather Quilted with ${stitchingColor.label} Stitching`;
+      return !embroideryThreadColor ? "Stitching color missing" :
+        `${leatherColor1.label} Leather Quilted with ${embroideryThreadColor.label} Stitching`;
   
     default:
       return "Pending Title";
@@ -389,20 +391,32 @@ const generateSEODescription = (formState, shopifyCollections) => {
   return "pending SEO description"
 };
 
-const generateTags = (formState, leatherColors, threadColors, colorTags) => {
-  // Get the selected colors using the existing getColors function
-  const { leatherColor1, leatherColor2, stitchingColor } = getColors(formState, leatherColors, threadColors);
+const generateTags = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors, colorTags) => {
+  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
   
-  // Initialize with Customizable tag
   const tagSet = new Set(['Customizable']);
   
-  // Add tags for any leather or thread color that matches the selected colors
+  if (!Array.isArray(colorTags)) {
+    console.error('colorTags is not an array:', colorTags);
+    return Array.from(tagSet);
+  }
+  
   colorTags.forEach(tag => {
-    const hasLeatherColor1 = leatherColor1 && tag.leatherColors.some(leather => leather.value === leatherColor1.value);
-    const hasLeatherColor2 = leatherColor2 && tag.leatherColors.some(leather => leather.value === leatherColor2.value);
-    const hasStitchingColor = stitchingColor && tag.threadColors.some(thread => thread.value === stitchingColor.value);
+    if (!tag.leatherColors || !tag.stitchingColors || !tag.embroideryColors) {
+      console.warn('Tag is missing required color arrays:', tag);
+      return;
+    }
     
-    if (hasLeatherColor1 || hasLeatherColor2 || hasStitchingColor) {
+    const hasLeatherColor1 = leatherColor1 && Array.isArray(tag.leatherColors) && 
+      tag.leatherColors.some(leather => leather?.value === leatherColor1.value);
+    const hasLeatherColor2 = leatherColor2 && Array.isArray(tag.leatherColors) && 
+      tag.leatherColors.some(leather => leather?.value === leatherColor2.value);
+    const hasStitchingColor = stitchingThreadColor && Array.isArray(tag.stitchingColors) && 
+      tag.stitchingColors.some(stitchingThread => stitchingThread?.value === stitchingThreadColor.value);
+    const hasEmbroideryColor = embroideryThreadColor && Array.isArray(tag.embroideryColors) && 
+      tag.embroideryColors.some(embroideryThread => embroideryThread?.value === embroideryThreadColor.value);
+    
+    if (hasLeatherColor1 || hasLeatherColor2 || hasStitchingColor || hasEmbroideryColor) {
       tagSet.add(tag.label);
     }
   });
