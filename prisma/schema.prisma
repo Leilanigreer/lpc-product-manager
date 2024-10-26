@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -29,22 +26,23 @@ model Session {
 }
 
 model LeatherColor {
-  id           String     @id @default(cuid())
-  name         String
-  abbreviation String
-  image_url    String?
-  colorTags    ColorTag[] @relation("LeatherColorToTag")
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                      String     @id @default(cuid())
+  name                    String
+  abbreviation            String
+  image_url               String?
+  isLimitedEditionLeather Boolean    @default(false)
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+  colorTags               ColorTag[] @relation("LeatherColorToTag")
 }
 
 model Shape {
   id            String         @id @default(cuid())
   name          String
-  abbreviation  String?
-  productPrices ProductPrice[] // Add this relation field
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  abbreviation  String?
+  productPrices ProductPrice[]
 }
 
 model Style {
@@ -64,37 +62,16 @@ model Font {
   updatedAt DateTime @updatedAt
 }
 
-model Thread {
-  id             String     @id @default(cuid())
-  name           String
-  abbreviation   String
-  colorTags      ColorTag[] @relation("ThreadColorToTag")
-  amann_number   String?
-  isacord_number String?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-}
-
-model ColorTag {
-  id            String         @id @default(cuid())
-  name          String         @unique
-  leatherColors LeatherColor[] @relation("LeatherColorToTag")
-  threadColors  Thread[]       @relation("ThreadColorToTag")
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-}
-
 model ShopifyCollection {
   id                   String         @id @default(cuid())
   shopifyId            String
-  admin_graphql_api_id String
   title                String
-  handle               String
-  productPrices        ProductPrice[]
+  handle               String         @unique
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
+  admin_graphql_api_id String
+  productPrices        ProductPrice[]
 
-  @@unique([handle])
   @@map("ShopifyCollections")
 }
 
@@ -102,10 +79,40 @@ model ProductPrice {
   id                  String             @id @default(cuid())
   shopifyPrice        Decimal            @db.Decimal(10, 2)
   higherPrice         Decimal            @db.Decimal(10, 2)
-  shape               Shape              @relation(fields: [shapeId], references: [id])
   shapeId             String
-  shopifyCollection   ShopifyCollection? @relation(fields: [shopifyCollectionId], references: [id])
-  shopifyCollectionId String?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
+  shopifyCollectionId String?
+  shape               Shape              @relation(fields: [shapeId], references: [id])
+  shopifyCollection   ShopifyCollection? @relation(fields: [shopifyCollectionId], references: [id])
+}
+
+model EmbroideryThread {
+  id             String     @id @default(cuid())
+  name           String
+  abbreviation   String
+  isacord_number String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  colorTags      ColorTag[] @relation("EmbroideryThreadToTag")
+}
+
+model StitchingThread {
+  id           String     @id @default(cuid())
+  name         String
+  abbreviation String
+  amann_number String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  colorTags    ColorTag[] @relation("StitchingThreadToTag")
+}
+
+model ColorTag {
+  id               String             @id @default(cuid())
+  name             String             @unique
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  embroideryColors EmbroideryThread[] @relation("EmbroideryThreadToTag")
+  leatherColors    LeatherColor[]     @relation("LeatherColorToTag")
+  stitchingColors  StitchingThread[]  @relation("StitchingThreadToTag")
 }
