@@ -3,7 +3,7 @@
 client_id = "6f1296c99bc07317bd7d904a9749bee4"
 name = "lpc-product-creation-10-16-24"
 handle = "lpc-product-creation-10-16-24"
-application_url = "https://theories-fraud-ratings-king.trycloudflare.com"
+application_url = "https://soon-soldiers-karl-genius.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_inventory,write_inventory, read_orders,read_products,write_produc
 
 [auth]
 redirect_urls = [
-  "https://theories-fraud-ratings-king.trycloudflare.com/auth/callback",
-  "https://theories-fraud-ratings-king.trycloudflare.com/auth/shopify/callback",
-  "https://theories-fraud-ratings-king.trycloudflare.com/api/auth/callback"
+  "https://soon-soldiers-karl-genius.trycloudflare.com/auth/callback",
+  "https://soon-soldiers-karl-genius.trycloudflare.com/auth/shopify/callback",
+  "https://soon-soldiers-karl-genius.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

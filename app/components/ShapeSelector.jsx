@@ -1,3 +1,5 @@
+// app/components/ShapeSelector.jsx
+
 import React, { useMemo } from "react";
 import { BlockStack, Box, Divider, Text, Select, TextField, Checkbox, InlineStack } from "@shopify/polaris";
 
