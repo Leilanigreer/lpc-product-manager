@@ -125,6 +125,7 @@ export default function CreateProduct() {
     selectedShapes: {},
     selectedStyles: {},
     weights: {},
+    qClassicLeathers: {},
   });
   
 
@@ -176,11 +177,13 @@ export default function CreateProduct() {
       }
     }, [fetcher.data, setFormState]);
 
-  const { 
-    isCollectionAnimalClassicQclassic, 
-    needsSecondaryColor, 
-    needsStitchingColor 
-  } = useCollectionLogic(shopifyCollections, formState.selectedCollection);
+    const { 
+      // isCollectionAnimalClassicQclassic, 
+      needsSecondaryColor, 
+      needsStitchingColor,
+      needsStyle,           // Add new destructured functions
+      needsQClassicField
+    } = useCollectionLogic(shopifyCollections, formState.selectedCollection);
 
   const handleChange = useCallback((field, value) => {
     setFormState(field, value);
@@ -218,6 +221,7 @@ export default function CreateProduct() {
         ...formState,
         weights: validWeights
       };
+      console.log(formState);
 
       const data = await generateProductData(
         updatedFormState,
@@ -318,6 +322,7 @@ export default function CreateProduct() {
             <ShapeSelector
               shapes={shapes}
               styles={styles}
+              leatherColors={leatherColors}
               embroideryThreadColors={embroideryThreadColors}
               formState={formState}
               selectedEmbroideryColors={formState.selectedEmbroideryColors}
@@ -326,8 +331,9 @@ export default function CreateProduct() {
                 handleChange('selectedEmbroideryColors', newColors);
               }}
               handleChange={handleChange}
-              isCollectionAnimalClassicQclassic={isCollectionAnimalClassicQclassic}
-            />
+              needsStyle={needsStyle}
+              needsQClassicField={needsQClassicField}
+              />
           </Card>
           <Card>
             <BlockStack gap="400">

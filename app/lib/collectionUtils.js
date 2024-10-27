@@ -31,3 +31,11 @@ export const needsStitchingColor = (collectionType) => {
 export const isCollectionAnimalClassicQclassic = (collectionType) => {
   return [COLLECTION_TYPES.ANIMAL, COLLECTION_TYPES.CLASSIC, COLLECTION_TYPES.QCLASSIC].includes(collectionType);
 };
+
+export const needsStyle = (collectionType) => {
+  return [COLLECTION_TYPES.ANIMAL, COLLECTION_TYPES.CLASSIC, COLLECTION_TYPES.QCLASSIC].includes(collectionType);
+};
+
+export const needsQClassicField = (collectionType) => {
+  return collectionType === COLLECTION_TYPES.QCLASSIC;
+};
