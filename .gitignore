@@ -13,8 +13,7 @@ database.sqlite
 .env
 .env.*
 
-
-
+.Codecompare.jsx
 
 
 /extensions/*/dist

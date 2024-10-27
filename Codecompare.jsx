@@ -310,16 +310,16 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
           customVariants.push(customVariant);
           processedStyles.add(styleKey);
         }
-      } else if (!shouldHaveStyle) { // Changed from isPutterShape to !shouldHaveStyle
+      } else if (isPutterShape) {
         customVariants.push({
           ...variant,
           sku: `${variant.sku}-Custom`,
-          variantName: `Customize ${variant.shape} +$15`, // Using variant.shape consistently
+          variantName: `Customize ${shape.label} +$15`,
           price: customPrice,
           weight,
           isCustom: true,
           position: nextPosition++,
-          options: { Style: `Customize ${variant.shape}` } // Using variant.shape consistently
+          options: { Style: `Customize ${shape.label}` }
         });
       } else {
         const customVariant = {
@@ -369,7 +369,7 @@ export const generateProductData = async (formState, leatherColors, stitchingThr
 };
 
 const generateTitle = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors, shopifyCollections) => {
-  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor, } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors,);
+  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
   const collectionType = getCollectionType(formState, shopifyCollections);
 
   if (!leatherColor1) return "Primary leather color missing";
@@ -379,113 +379,4 @@ const generateTitle = (formState, leatherColors, stitchingThreadColors, embroide
     case COLLECTION_TYPES.CLASSIC:
     case COLLECTION_TYPES.QCLASSIC:
       return !leatherColor2 ? "Secondary leather color missing" : 
-        `${leatherColor1.label} with ${leatherColor2.label} Leather`;
-  
-    case COLLECTION_TYPES.ARGYLE:
-      if (!leatherColor2) return "Secondary leather color missing";
-      if (!stitchingThreadColor) return "Stitching color missing";
-      return `${leatherColor1.label} and ${leatherColor2.label} Leather with ${stitchingThreadColor.label} Stitching`;
-  
-    case COLLECTION_TYPES.QUILTED:
-      return !embroideryThreadColor ? "Stitching color missing" :
-        `${leatherColor1.label} Leather Quilted with ${embroideryThreadColor.label} Stitching`;
-  
-    default:
-      return "Pending Title";
-  }
-};
-
-const generateMainHandle = (formState, title, shopifyCollections) => {
-  if (!title || title === "Pending Title") return "pending-main-handle";
-
-  const tempMainHandle = title.toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
-
-  const collectionType = getCollectionType(formState, shopifyCollections);
-  
-  switch(collectionType) {
-    case COLLECTION_TYPES.QUILTED:
-    case COLLECTION_TYPES.ANIMAL:
-    case COLLECTION_TYPES.CLASSIC:
-      return `${tempMainHandle}-golf-headcovers`;
-    case COLLECTION_TYPES.ARGYLE:
-      return `${tempMainHandle}-argyle-golf-headcovers`; 
-    case COLLECTION_TYPES.QCLASSIC:
-      return `${tempMainHandle}-quilted-golf-headcovers`;
-    default:
-      return "pending-main-handle";
-  }
-};
-
-const generateProductType = (formState, shopifyCollections) => {
-  const typeMap = {
-    [COLLECTION_TYPES.QUILTED]: "Quilted",
-    [COLLECTION_TYPES.ANIMAL]: "Animal Print",
-    [COLLECTION_TYPES.ARGYLE]: "Argyle",
-    [COLLECTION_TYPES.CLASSIC]: "Classic",
-    [COLLECTION_TYPES.QCLASSIC]: "QClassic"
-  };
-  
-  return typeMap[getCollectionType(formState, shopifyCollections)] || "";
-};
-
-const generateSEOTitle = (formState, title, shopifyCollections) => {
-  if (!title || title === "Pending Title") return "pending-seo-title";
-
-  const collectionType = getCollectionType(formState, shopifyCollections);
-  
-  switch(collectionType) {
-    case COLLECTION_TYPES.QUILTED:
-    case COLLECTION_TYPES.ANIMAL:
-    case COLLECTION_TYPES.CLASSIC:
-      return `${title} Golf Headcovers`;
-    case COLLECTION_TYPES.ARGYLE:
-      return `${title} Argyle Golf Headcovers`; 
-    case COLLECTION_TYPES.QCLASSIC:
-      return `${title} Quilted Golf Headcovers`;
-    default:
-      return "pending-seo-title";
-  }
-};
-
-const generateDescriptionHTLM = (formState, shopifyCollections) => {
-  return "pending description"
-};
-
-const generateSEODescription = (formState, shopifyCollections) => {
-  return "pending SEO description"
-};
-
-const generateTags = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors, colorTags) => {
-  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
-  
-  const tagSet = new Set(['Customizable']);
-  
-  if (!Array.isArray(colorTags)) {
-    console.error('colorTags is not an array:', colorTags);
-    return Array.from(tagSet);
-  }
-  
-  colorTags.forEach(tag => {
-    if (!tag.leatherColors || !tag.stitchingColors || !tag.embroideryColors) {
-      console.warn('Tag is missing required color arrays:', tag);
-      return;
-    }
-    
-    const hasLeatherColor1 = leatherColor1 && Array.isArray(tag.leatherColors) && 
-      tag.leatherColors.some(leather => leather?.value === leatherColor1.value);
-    const hasLeatherColor2 = leatherColor2 && Array.isArray(tag.leatherColors) && 
-      tag.leatherColors.some(leather => leather?.value === leatherColor2.value);
-    const hasStitchingColor = stitchingThreadColor && Array.isArray(tag.stitchingColors) && 
-      tag.stitchingColors.some(stitchingThread => stitchingThread?.value === stitchingThreadColor.value);
-    const hasEmbroideryColor = embroideryThreadColor && Array.isArray(tag.embroideryColors) && 
-      tag.embroideryColors.some(embroideryThread => embroideryThread?.value === embroideryThreadColor.value);
-    
-    if (hasLeatherColor1 || hasLeatherColor2 || hasStitchingColor || hasEmbroideryColor) {
-      tagSet.add(tag.label);
-    }
-  });
-
-  return Array.from(tagSet);
-};
+        `${leatherColor1.label}
