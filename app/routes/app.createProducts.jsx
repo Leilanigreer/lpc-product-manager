@@ -30,27 +30,70 @@ export const action = async ({ request }) => {
   const productData = JSON.parse(formData.get('productData'));
 
   try {
+    // Extract unique shape names from variants
+    const shapeValues = [...new Set(productData.variants.map(variant => ({
+      name: variant.variantName
+    })))];
+
+    // Create the product set input
+    const productSet = {
+      title: productData.title,
+      handle: productData.mainHandle,
+      productType: productData.productType,
+      vendor: 'Little Prince Customs',
+      descriptionHtml: productData.descriptionHTML,
+      tags: productData.tags,
+      category: "gid://shopify/TaxonomyCategory/sg-4-7-7-2",
+      seo: {
+        title: productData.seoTitle,
+        description: productData.seoDescription,
+      },
+      productOptions: [
+        {
+          name: "Shape",
+          position: 1,
+          values: shapeValues
+        }
+      ],
+      variants: productData.variants.map(variant => ({
+        optionValues: [
+          {
+            optionName: "Shape",
+            name: variant.variantName
+          }
+        ],
+        price: parseFloat(variant.price),
+        sku: variant.sku
+      }))
+    };
+
+    // Debug log for productSet input
+    console.log('Product Set Input:', JSON.stringify(productSet, null, 2));
+
+    // Debug log for variants specifically
+    console.log('Variants Data:', JSON.stringify(productSet.variants, null, 2));
+
     const response = await admin.graphql(
       `#graphql
-      mutation populateProduct($input: ProductInput!) {
-        productCreate(input: $input) {
+      mutation createProductAsynchronous($productSet: ProductSetInput!, $synchronous: Boolean!) {
+        productSet(synchronous: $synchronous, input: $productSet) {
           product {
             id
             title
             handle
+            productType
+          }
+          productSetOperation {
+            id
             status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
+            userErrors {
+              code
+              field
+              message
             }
           }
           userErrors {
+            code
             field
             message
           }
@@ -58,34 +101,45 @@ export const action = async ({ request }) => {
       }`,
       {
         variables: {
-          input: {
-            title: productData.title,
-            handle: productData.mainHandle,
-            status: 'ACTIVE',
-            descriptionHtml: productData.descriptionHtml,
-            productType: productData.productType,
-            vendor: 'Little Prince Customs',
-            tags: productData.tags
-          },
+          synchronous: false,
+          productSet
         },
       }
     );
 
+    // Debug log for initial GraphQL response
+    console.log('Raw GraphQL Response:', response);
+
     const responseJson = await response.json();
     
-    if (responseJson.data?.productCreate?.userErrors?.length > 0) {
+    // Debug log for parsed response
+    console.log('Parsed Response:', JSON.stringify(responseJson, null, 2));
+
+    // Check for user errors in both places they might appear
+    const userErrors = [
+      ...(responseJson.data?.productSet?.userErrors || []),
+      ...(responseJson.data?.productSet?.productSetOperation?.userErrors || [])
+    ];
+
+    if (userErrors.length > 0) {
+      console.log('User Errors:', userErrors);
       return json(
-        { errors: responseJson.data.productCreate.userErrors.map(error => `${error.field}: ${error.message}`) },
+        { errors: userErrors },
         { status: 422 }
       );
     }
 
     return json({ 
-      product: responseJson.data.productCreate.product 
+      product: responseJson.data.productSet.product,
+      operation: responseJson.data.productSet.productSetOperation
     });
     
   } catch (error) {
     console.error('GraphQL Error:', error);
+    console.log('Error Details:', {
+      message: error.message,
+      stack: error.stack
+    });
     return json(
       { errors: [error.message || "An unexpected error occurred"] },
       { status: 500 }

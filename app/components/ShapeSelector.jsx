@@ -1,7 +1,6 @@
-// app/components/ShapeSelector.jsx
-
 import React, { useMemo } from "react";
 import { BlockStack, Box, Divider, Text, Select, TextField, Checkbox, InlineStack } from "@shopify/polaris";
+import { isPutter } from "../lib/shapeUtils";
 
 const preventWheelChange = `
   input[type="number"] {
@@ -33,20 +32,30 @@ const ShapeSelector = ({
   const memoizedShapes = useMemo(() => shapes || [], [shapes]);
   const showStyle = needsStyle();
   const showQClassicField = needsQClassicField();
-  
-  const isPutter = (shape) => {
-    return shape?.abbreviation === 'Mallet' || shape?.abbreviation === 'Blade';
-  };
 
   // Create leather options based on the selected colors in formState
   const leatherOptions = useMemo(() => {
-    const primaryColor = leatherColors?.find(color => color.value === formState.selectedLeatherColor1);
-    const secondaryColor = leatherColors?.find(color => color.value === formState.selectedLeatherColor2);
+    const options = [];
     
-    return [
-      { label: primaryColor?.label || "Primary Leather", value: "primary" },
-      { label: secondaryColor?.label || "Secondary Leather", value: "secondary" }
-    ];
+    // Find the leather color objects for the selected colors
+    const leatherColor1 = leatherColors?.find(color => color.value === formState.selectedLeatherColor1);
+    const leatherColor2 = leatherColors?.find(color => color.value === formState.selectedLeatherColor2);
+    
+    if (leatherColor1) {
+      options.push({
+        label: leatherColor1.label,
+        value: formState.selectedLeatherColor1
+      });
+    }
+    
+    if (leatherColor2) {
+      options.push({
+        label: leatherColor2.label,
+        value: formState.selectedLeatherColor2
+      });
+    }
+
+    return options; 
   }, [leatherColors, formState.selectedLeatherColor1, formState.selectedLeatherColor2]);
 
   const handleShapeToggle = (shapeValue, checked) => {
@@ -181,7 +190,7 @@ const ShapeSelector = ({
                         options={leatherOptions}
                         onChange={(value) => handleQClassicLeatherChange(shape.value, value)}
                         value={formState.qClassicLeathers?.[shape.value] || ''}
-                        placeholder="Select leather"
+                        placeholder="Select leather color"
                         disabled={!formState.weights.hasOwnProperty(shape.value)}
                       />
                     </Box>

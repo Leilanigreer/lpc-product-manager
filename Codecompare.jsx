@@ -1,382 +1,706 @@
-// app/lib/productAttributes.js
-
-import { COLLECTION_TYPES } from "./constants";
-import { 
-  getShopifyCollectionType,
-  needsStyle,
-  needsQClassicField,
-  needsStitchingColor,
-  needsSecondaryColor
-} from "./collectionUtils";
-
-const getColors = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors) => ({
-  leatherColor1: leatherColors.find(color => color.value === formState.selectedLeatherColor1),
-  leatherColor2: leatherColors.find(color => color.value === formState.selectedLeatherColor2),
-  stitchingThreadColor: stitchingThreadColors.find(color => color.value === formState.selectedStitchingColor),
-  embroideryThreadColor: embroideryThreadColors.find(color => color.value === formState.selectedEmbroideryColor),
-});
-
-const isPutter = (shape) => {
-  return shape?.abbreviation === 'Mallet' || shape?.abbreviation === 'Blade';
-};
-
-const getCollectionType = (formState, shopifyCollections) => {
-  const collection = shopifyCollections.find(col => col.value === formState.selectedCollection);
-  return collection ? getShopifyCollectionType({ handle: collection.handle }) : 'Unknown';
-};
-
-const getVariantPrice = (shapeId, collectionId, productPrices, shapes) => {
-  const shape = shapes.find(s => s.value === shapeId);
-  
-  if (!shape) {
-    console.warn(`Shape not found for ID: ${shapeId}`);
-    return "140.00";
-  }
-
-  const woodAbbreviations = ['3Wood', '5Wood', '7Wood', 'Fairway'];
-  const isWoodType = woodAbbreviations.includes(shape.abbreviation);
-  
-  let lookupShapeId = shapeId;
-  if (isWoodType) {
-    const fairwayShape = shapes.find(s => s.abbreviation === 'Fairway');
-    if (fairwayShape) {
-      lookupShapeId = fairwayShape.value;
-    } else {
-      console.warn('Fairway shape not found');
-      return "140.00";
+{
+  "errors": [
+    {
+      "message": "Access denied for availablePublicationsCount field. Required access: `read_publications` access scope.",
+      "locations": [
+        {
+          "line": 31,
+          "column": 5
+        }
+      ],
+      "path": [
+        "product",
+        "availablePublicationsCount"
+      ],
+      "extensions": {
+        "code": "ACCESS_DENIED",
+        "documentation": "https://shopify.dev/api/usage/access-scopes",
+        "requiredAccess": "`read_publications` access scope."
+      }
     }
-  }
-
-  const priceData = productPrices.find(
-    price => price.shapeId === lookupShapeId && price.shopifyCollectionId === collectionId
-  );
-
-  if (!priceData) {
-    console.warn(`No price found for shape ${lookupShapeId} in collection ${collectionId}`);
-    return "140.00";
-  }
-
-  return priceData.shopifyPrice.toFixed(2);
-};
-
-const SHAPE_ORDER = [
-  'cm2duhfg000006y58dqulghkm',    // Driver
-  'cm2duhfg300016y58sr14qoxd',    // 3-Wood
-  'cm2duhfg300026y58r1rnkvbc',    // 5-Wood
-  'cm2duhfg300036y583y11',        // 7-Wood
-  'cm2duhfg300046y58o8d',         // Fairway
-  'cm2duhfg300056y58ddfbtcxj',    // Hybrid
-  'cm2duhfg300066y583ii779yr',    // Mallet
-  'cm2duhfg300076y585ows'         // Blade
-];
-
-const generateSKUParts = (collectionType, { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor, shape }) => {
-  const baseParts = {
-    [COLLECTION_TYPES.QUILTED]: () => [
-      "Quilted",
-      leatherColor1.abbreviation,
-      embroideryThreadColor.abbreviation,
-      shape.abbreviation
-    ],
-    
-    [COLLECTION_TYPES.ARGYLE]: () => [
-      "Argyle",
-      leatherColor1.abbreviation,
-      leatherColor2?.abbreviation,
-      stitchingThreadColor.abbreviation,
-      shape.abbreviation
-    ],
-    
-    [COLLECTION_TYPES.ANIMAL]: () => [
-      "Animal",
-      leatherColor1.abbreviation,
-      leatherColor2?.abbreviation,
-      shape.abbreviation
-    ],
-    
-    [COLLECTION_TYPES.CLASSIC]: () => [
-      "Classic",
-      leatherColor1.abbreviation,
-      leatherColor2?.abbreviation,
-      shape.abbreviation
-    ],
-    
-    [COLLECTION_TYPES.QCLASSIC]: () => [
-      "QClassic",
-      leatherColor1.abbreviation,
-      leatherColor2?.abbreviation,
-      shape.abbreviation
-    ]
-  };
-
-  const parts = baseParts[collectionType]?.();
-  if (!parts) {
-    console.error(`Unknown collection type: ${collectionType}`);
-    return null;
-  }
-
-  return parts;
-};
-
-const isWoodType = (shape) => {
-  const woodAbbreviations = ['3Wood', '5Wood', '7Wood', 'Fairway'];
-  return woodAbbreviations.includes(shape.abbreviation);
-};
-
-const assignPositions = (variants, shapes) => {
-  const selectedShapeIds = new Set(variants.map(v => v.shapeId));
-  const orderedSelectedShapeIds = SHAPE_ORDER.filter(id => selectedShapeIds.has(id));
-  
-  console.log('Selected Shapes Order:', {
-    selectedShapes: orderedSelectedShapeIds.map(id => {
-      const shape = shapes.find(s => s.value === id);
-      return {
-        id,
-        name: shape?.label,
-        abbreviation: shape?.abbreviation
-      };
-    })
-  });
-
-  return variants.map(variant => ({
-    ...variant,
-    position: orderedSelectedShapeIds.indexOf(variant.shapeId) + 1
-  }));
-};
-
-const generateVariants = async (formState, leatherColors, stitchingThreadColors, embroideryThreadColors, shapes, styles, productPrices, shopifyCollections) => {
-  if (!formState || !leatherColors || !stitchingThreadColors || !embroideryThreadColors || !shapes || !productPrices || !shopifyCollections) {
-    console.error("Missing required parameters for variant generation");
-    return [];
-  }
-
-  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
-  const collectionType = getCollectionType(formState, shopifyCollections);
-
-  if (!leatherColor1) {
-    console.error("Primary leather color not found");
-    return [];
-  }
-
-  // Validate collection-specific requirements
-  if (needsSecondaryColor(collectionType) && !leatherColor2) {
-    console.error("Secondary leather color required but not found");
-    return [];
-  }
-
-  if (needsStitchingColor(collectionType) && !stitchingThreadColor) {
-    console.error("Stitching thread color required but not found");
-    return [];
-  }
-
-  // Generate regular variants
-  let variants = Object.entries(formState.weights || {})
-    .filter(([_, weight]) => weight !== "")
-    .map(([shapeId, weight]) => {
-      const shape = shapes.find(s => s.value === shapeId);
-      if (!shape) return null;
-
-      const isPutterShape = isPutter(shape);
-      const shouldHaveStyle = !isPutterShape && needsStyle(collectionType);
-      
-      // Only get style if shape should have one
-      const selectedStyleId = shouldHaveStyle ? formState.selectedStyles?.[shapeId] : null;
-      const selectedStyle = shouldHaveStyle && selectedStyleId ? 
-        styles?.find(style => style.value === selectedStyleId) : 
-        null;
-
-      const skuParts = generateSKUParts(collectionType, {
-        leatherColor1,
-        leatherColor2,
-        stitchingThreadColor, 
-        embroideryThreadColor,
-        shape
-      });
-      if (!skuParts) return null;
-
-      const priceShapeId = isWoodType(shape) ? 
-        shapes.find(s => s.abbreviation === 'Fairway')?.value || shapeId : 
-        shapeId;
-      
-      const basePrice = getVariantPrice(
-        priceShapeId,
-        formState.selectedCollection,
-        productPrices,
-        shapes
-      );
-
-      // Generate variant name based on shape type and collection needs
-      const variantName = isPutterShape ? 
-      shape.label :
-      shouldHaveStyle && selectedStyle ? 
-          `${selectedStyle.label} ${shape.label}` : 
-          shape.label;
-
-      const variant = {
-        shapeId,
-        shape: shape.label,
-        styleId: selectedStyleId,
-        style: selectedStyle,
-        sku: skuParts.join('-'),
-        variantName,
-        price: basePrice,
-        weight,
-        isCustom: false,
-        options: {
-          Style: variantName
+  ],
+  "data": {
+    "product": {
+      "title": "Powder Blue with Smooth Marshmallow Leather",
+      "tags": [
+        "Blue",
+        "Customizable",
+        "White"
+      ],
+      "handle": "powder-blue-with-white-leather",
+      "availablePublicationsCount": null,
+      "category": {
+        "id": "gid://shopify/TaxonomyCategory/sg-4-7-7-2",
+        "name": "Golf Club Headcovers",
+        "level": 5,
+        "isLeaf": true
+      },
+      "description": "Durable genuine leather Black velour lining Fits all modern club head sizes, including 460cc driver heads Each piece is hand cut and sewn in San Francisco, CA 5 and 4 Piece set priced at 10% off.",
+      "onlineStoreUrl": null,
+      "compareAtPriceRange": {
+        "maxVariantCompareAtPrice": {
+          "currencyCode": "USD",
+          "amount": "590.0"
+        },
+        "minVariantCompareAtPrice": {
+          "currencyCode": "USD",
+          "amount": "125.0"
         }
-      };
-
-      // Add QClassic specific fields if needed
-      if (needsQClassicField(collectionType)) {
-        variant.qClassicLeather = formState.qClassicLeathers?.[shapeId];
-      }
-
-      return variant;
-    })
-    .filter(item => item !== null);
-
-  // Assign positions to regular variants
-  variants = assignPositions(variants, shapes);
-  
-  console.log('Regular Variants Order:', variants.map(v => ({
-    name: v.variantName,
-    position: v.position
-  })));
-
-  // Generate custom variants
-  let nextPosition = variants.length + 1;
-  const customVariants = [];
-  const processedStyles = new Set();
-
-  variants.forEach(variant => {
-    const customPrice = (parseFloat(variant.price) + 15).toFixed(2);
-    const shape = shapes.find(s => s.label === variant.shape);
-    if (!shape) return;
-
-    const weight = variant.weight;
-    const isPutterShape = isPutter(shape);
-    const shouldHaveStyle = !isPutterShape && needsStyle(collectionType);
-
-    if (!needsStyle(collectionType)) {
-      // Handle Quilted and Argyle collections (no style collections)
-      if (isWoodType(shape)) {
-        if (!customVariants.some(cv => cv.variantName === 'Customize Fairway +$15')) {
-          customVariants.push({
-            ...variant,
-            shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
-            sku: `${variant.sku.split('-').slice(0, -1).join('-')}-Fairway-Custom`,
-            variantName: 'Customize Fairway +$15',
-            price: customPrice,
-            weight,
-            isCustom: true,
-            position: nextPosition++,
-            options: { Style: 'Customize Fairway' }
-          });
-        }
-      } else {
-        customVariants.push({
-          ...variant,
-          sku: `${variant.sku}-Custom`,
-          variantName: `Customize ${variant.variantName} +$15`,
-          price: customPrice,
-          weight,
-          isCustom: true,
-          position: nextPosition++,
-          options: { Style: `Customize ${variant.variantName}` }
-        });
-      }
-    } else {
-      // Handle Animal, Classic, QClassic collections (style collections)
-      if (isWoodType(shape)) {
-        const styleKey = `${variant.style?.label}-${shape.abbreviation}`;
-        if (!processedStyles.has(styleKey)) {
-          const customVariant = {
-            ...variant,
-            shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
-            sku: `${variant.sku.split('-').slice(0, -1).join('-')}-Fairway-${variant.style?.abbreviation}-Custom`,
-            variantName: `Customize ${variant.style?.label} Fairway +$15`,
-            price: customPrice,
-            weight,
-            isCustom: true,
-            position: nextPosition++,
-            options: { Style: `Customize ${variant.style?.label} Fairway` }
-          };
-          
-          if (needsQClassicField(collectionType)) {
-            customVariant.qClassicLeather = variant.qClassicLeather;
+      },
+      "defaultCursor": "eyJsaW1pdCI6MSwib3JkZXIiOiJpZCBhc2MiLCJsYXN0X2lkIjo4MzYxMjQ1NjcxNjIyLCJsYXN0X3ZhbHVlIjo4MzYxMjQ1NjcxNjIyLCJkaXJlY3Rpb24iOiJuZXh0In0=",
+      "featuredImage": {
+        "altText": null,
+        "url": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/Front_f4018a2c-1da5-41ee-9620-a48f870a9ebc.png?v=1730138637"
+      },
+      "hasOnlyDefaultVariant": false,
+      "hasOutOfStockVariants": true,
+      "hasVariantsThatRequiresComponents": false,
+      "requiresSellingPlan": false,
+      "isGiftCard": false,
+      "legacyResourceId": "8361245671622",
+      "images": {
+        "edges": [
+          {
+            "node": {
+              "id": "gid://shopify/ProductImage/38174853038278",
+              "src": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/Front_f4018a2c-1da5-41ee-9620-a48f870a9ebc.png?v=1730138637",
+              "altText": ""
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductImage/38174853071046",
+              "src": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/Driver_f6b9040a-f2a9-4d62-b366-8b331f50e321.png?v=1730138637",
+              "altText": ""
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductImage/38174853103814",
+              "src": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/3Wood_357d6760-bb21-4eb2-b06e-3b537062d12b.png?v=1730138637",
+              "altText": ""
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductImage/38174853169350",
+              "src": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/5Wood_4f2021cf-8b00-4c0a-a9b9-3ce8f64fe565.png?v=1730138637",
+              "altText": ""
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductImage/38174853267654",
+              "src": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/7Wood.png?v=1730138637",
+              "altText": ""
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductImage/38174853333190",
+              "src": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/Hybrid_7a43e008-8f30-456b-b043-d5e45f5631c0.png?v=1730138637",
+              "altText": ""
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductImage/38174853431494",
+              "src": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/Inside_fd4f85c9-4f85-404d-b6e6-42187e89280a.png?v=1730138637",
+              "altText": ""
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductImage/38174853497030",
+              "src": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/Back_ec713666-7208-425c-bd36-455f4bbaf1ba.png?v=1730138637",
+              "altText": ""
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductImage/38174853595334",
+              "src": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/D_3_5_7.png?v=1730138637",
+              "altText": ""
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductImage/38174853660870",
+              "src": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/D_3_5_H.png?v=1730138637",
+              "altText": ""
+            }
           }
-          
-          customVariants.push(customVariant);
-          processedStyles.add(styleKey);
+        ]
+      },
+      "updatedAt": "2024-10-28T18:03:59Z",
+      "variantsCount": {
+        "count": 15,
+        "precision": "EXACT"
+      },
+      "variants": {
+        "edges": [
+          {
+            "node": {
+              "id": "gid://shopify/ProductVariant/44203917181126",
+              "title": "5-Piece Set",
+              "displayName": "Powder Blue with Smooth Marshmallow Leather - 5-Piece Set",
+              "price": "590.00",
+              "compareAtPrice": "590.00",
+              "image": {
+                "id": "gid://shopify/ProductImage/38174853038278",
+                "url": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/Front_f4018a2c-1da5-41ee-9620-a48f870a9ebc.png?v=1730138637"
+              },
+              "inventoryItem": {
+                "countryCodeOfOrigin": null,
+                "id": "gid://shopify/InventoryItem/46307109470406",
+                "createdAt": "2024-10-28T18:03:58Z",
+                "duplicateSkuCount": 0,
+                "harmonizedSystemCode": null,
+                "inventoryHistoryUrl": "https://test-lpc-product.myshopify.com/admin/products/inventory/46307109470406/inventory_history",
+                "inventoryLevel": null,
+                "locationsCount": {
+                  "count": 1,
+                  "precision": "EXACT"
+                },
+                "measurement": {
+                  "id": "gid://shopify/InventoryItemMeasurement/45265426743494",
+                  "weight": {
+                    "unit": "OUNCES",
+                    "value": 19.7
+                  }
+                },
+                "provinceCodeOfOrigin": null,
+                "requiresShipping": true,
+                "sku": "Classic-PBWSML-5Piece",
+                "tracked": true,
+                "unitCost": null,
+                "updatedAt": "2024-10-28T18:03:58Z"
+              },
+              "inventoryPolicy": "CONTINUE",
+              "inventoryQuantity": 0
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductVariant/44203917213894",
+              "title": "4-Piece Set - Driver & 3-Wood & 5-Wood & 7-Wood",
+              "displayName": "Powder Blue with Smooth Marshmallow Leather - 4-Piece Set - Driver & 3-Wood & 5-Wood & 7-Wood",
+              "price": "480.00",
+              "compareAtPrice": "480.00",
+              "image": {
+                "id": "gid://shopify/ProductImage/38174853595334",
+                "url": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/D_3_5_7.png?v=1730138637"
+              },
+              "inventoryItem": {
+                "countryCodeOfOrigin": null,
+                "id": "gid://shopify/InventoryItem/46307109503174",
+                "createdAt": "2024-10-28T18:03:58Z",
+                "duplicateSkuCount": 0,
+                "harmonizedSystemCode": null,
+                "inventoryHistoryUrl": "https://test-lpc-product.myshopify.com/admin/products/inventory/46307109503174/inventory_history",
+                "inventoryLevel": null,
+                "locationsCount": {
+                  "count": 1,
+                  "precision": "EXACT"
+                },
+                "measurement": {
+                  "id": "gid://shopify/InventoryItemMeasurement/45265426776262",
+                  "weight": {
+                    "unit": "OUNCES",
+                    "value": 19.7
+                  }
+                },
+                "provinceCodeOfOrigin": null,
+                "requiresShipping": true,
+                "sku": "Classic-PBWSML-D357",
+                "tracked": true,
+                "unitCost": null,
+                "updatedAt": "2024-10-28T18:03:58Z"
+              },
+              "inventoryPolicy": "CONTINUE",
+              "inventoryQuantity": 0
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductVariant/44203917246662",
+              "title": "4-Piece Set - Driver & 3-Wood & 5-Wood & Hybrid",
+              "displayName": "Powder Blue with Smooth Marshmallow Leather - 4-Piece Set - Driver & 3-Wood & 5-Wood & Hybrid",
+              "price": "475.00",
+              "compareAtPrice": "475.00",
+              "image": {
+                "id": "gid://shopify/ProductImage/38174853660870",
+                "url": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/D_3_5_H.png?v=1730138637"
+              },
+              "inventoryItem": {
+                "countryCodeOfOrigin": null,
+                "id": "gid://shopify/InventoryItem/46307109535942",
+                "createdAt": "2024-10-28T18:03:58Z",
+                "duplicateSkuCount": 0,
+                "harmonizedSystemCode": null,
+                "inventoryHistoryUrl": "https://test-lpc-product.myshopify.com/admin/products/inventory/46307109535942/inventory_history",
+                "inventoryLevel": null,
+                "locationsCount": {
+                  "count": 1,
+                  "precision": "EXACT"
+                },
+                "measurement": {
+                  "id": "gid://shopify/InventoryItemMeasurement/45265426809030",
+                  "weight": {
+                    "unit": "OUNCES",
+                    "value": 19.7
+                  }
+                },
+                "provinceCodeOfOrigin": null,
+                "requiresShipping": true,
+                "sku": "Classic-PBWSML-D35H",
+                "tracked": true,
+                "unitCost": null,
+                "updatedAt": "2024-10-28T18:03:58Z"
+              },
+              "inventoryPolicy": "CONTINUE",
+              "inventoryQuantity": 0
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductVariant/44203917279430",
+              "title": "4-Piece Set - Driver & 3-Wood & 7-Wood & Hybrid",
+              "displayName": "Powder Blue with Smooth Marshmallow Leather - 4-Piece Set - Driver & 3-Wood & 7-Wood & Hybrid",
+              "price": "475.00",
+              "compareAtPrice": "475.00",
+              "image": {
+                "id": "gid://shopify/ProductImage/38174853726406",
+                "url": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/D_3_7_H.png?v=1730138637"
+              },
+              "inventoryItem": {
+                "countryCodeOfOrigin": null,
+                "id": "gid://shopify/InventoryItem/46307109568710",
+                "createdAt": "2024-10-28T18:03:58Z",
+                "duplicateSkuCount": 0,
+                "harmonizedSystemCode": null,
+                "inventoryHistoryUrl": "https://test-lpc-product.myshopify.com/admin/products/inventory/46307109568710/inventory_history",
+                "inventoryLevel": null,
+                "locationsCount": {
+                  "count": 1,
+                  "precision": "EXACT"
+                },
+                "measurement": {
+                  "id": "gid://shopify/InventoryItemMeasurement/45265426841798",
+                  "weight": {
+                    "unit": "OUNCES",
+                    "value": 19.7
+                  }
+                },
+                "provinceCodeOfOrigin": null,
+                "requiresShipping": true,
+                "sku": "Classic-PBWSML-D37H",
+                "tracked": true,
+                "unitCost": null,
+                "updatedAt": "2024-10-28T18:03:58Z"
+              },
+              "inventoryPolicy": "CONTINUE",
+              "inventoryQuantity": 0
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductVariant/44203917312198",
+              "title": "4-Piece Set - Driver & 5-Wood & 7-Wood & Hybrid",
+              "displayName": "Powder Blue with Smooth Marshmallow Leather - 4-Piece Set - Driver & 5-Wood & 7-Wood & Hybrid",
+              "price": "475.00",
+              "compareAtPrice": "475.00",
+              "image": {
+                "id": "gid://shopify/ProductImage/38174853824710",
+                "url": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/D_5_7_H.png?v=1730138637"
+              },
+              "inventoryItem": {
+                "countryCodeOfOrigin": null,
+                "id": "gid://shopify/InventoryItem/46307109601478",
+                "createdAt": "2024-10-28T18:03:58Z",
+                "duplicateSkuCount": 0,
+                "harmonizedSystemCode": null,
+                "inventoryHistoryUrl": "https://test-lpc-product.myshopify.com/admin/products/inventory/46307109601478/inventory_history",
+                "inventoryLevel": null,
+                "locationsCount": {
+                  "count": 1,
+                  "precision": "EXACT"
+                },
+                "measurement": {
+                  "id": "gid://shopify/InventoryItemMeasurement/45265426874566",
+                  "weight": {
+                    "unit": "OUNCES",
+                    "value": 19.7
+                  }
+                },
+                "provinceCodeOfOrigin": null,
+                "requiresShipping": true,
+                "sku": "Classic-PBWSML-D57H",
+                "tracked": true,
+                "unitCost": null,
+                "updatedAt": "2024-10-28T18:03:58Z"
+              },
+              "inventoryPolicy": "CONTINUE",
+              "inventoryQuantity": 0
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductVariant/44203917344966",
+              "title": "50/50 Driver",
+              "displayName": "Powder Blue with Smooth Marshmallow Leather - 50/50 Driver",
+              "price": "140.00",
+              "compareAtPrice": "140.00",
+              "image": {
+                "id": "gid://shopify/ProductImage/38174853071046",
+                "url": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/Driver_f6b9040a-f2a9-4d62-b366-8b331f50e321.png?v=1730138637"
+              },
+              "inventoryItem": {
+                "countryCodeOfOrigin": null,
+                "id": "gid://shopify/InventoryItem/46307109634246",
+                "createdAt": "2024-10-28T18:03:58Z",
+                "duplicateSkuCount": 0,
+                "harmonizedSystemCode": null,
+                "inventoryHistoryUrl": "https://test-lpc-product.myshopify.com/admin/products/inventory/46307109634246/inventory_history",
+                "inventoryLevel": null,
+                "locationsCount": {
+                  "count": 1,
+                  "precision": "EXACT"
+                },
+                "measurement": {
+                  "id": "gid://shopify/InventoryItemMeasurement/45265426907334",
+                  "weight": {
+                    "unit": "OUNCES",
+                    "value": 6.8
+                  }
+                },
+                "provinceCodeOfOrigin": null,
+                "requiresShipping": true,
+                "sku": "Classic-PBWSML-Driver",
+                "tracked": true,
+                "unitCost": null,
+                "updatedAt": "2024-10-28T18:03:58Z"
+              },
+              "inventoryPolicy": "CONTINUE",
+              "inventoryQuantity": 0
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductVariant/44203917377734",
+              "title": "Racing Stripe 3-Wood",
+              "displayName": "Powder Blue with Smooth Marshmallow Leather - Racing Stripe 3-Wood",
+              "price": "130.00",
+              "compareAtPrice": "130.00",
+              "image": {
+                "id": "gid://shopify/ProductImage/38174853103814",
+                "url": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/3Wood_357d6760-bb21-4eb2-b06e-3b537062d12b.png?v=1730138637"
+              },
+              "inventoryItem": {
+                "countryCodeOfOrigin": null,
+                "id": "gid://shopify/InventoryItem/46307109667014",
+                "createdAt": "2024-10-28T18:03:58Z",
+                "duplicateSkuCount": 0,
+                "harmonizedSystemCode": null,
+                "inventoryHistoryUrl": "https://test-lpc-product.myshopify.com/admin/products/inventory/46307109667014/inventory_history",
+                "inventoryLevel": null,
+                "locationsCount": {
+                  "count": 1,
+                  "precision": "EXACT"
+                },
+                "measurement": {
+                  "id": "gid://shopify/InventoryItemMeasurement/45265426940102",
+                  "weight": {
+                    "unit": "OUNCES",
+                    "value": 3.6
+                  }
+                },
+                "provinceCodeOfOrigin": null,
+                "requiresShipping": true,
+                "sku": "Classic-PBWSML-3Wood",
+                "tracked": true,
+                "unitCost": null,
+                "updatedAt": "2024-10-28T18:03:58Z"
+              },
+              "inventoryPolicy": "CONTINUE",
+              "inventoryQuantity": 0
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductVariant/44203917410502",
+              "title": "50/50 Stripe 5-Wood",
+              "displayName": "Powder Blue with Smooth Marshmallow Leather - 50/50 Stripe 5-Wood",
+              "price": "130.00",
+              "compareAtPrice": "130.00",
+              "image": {
+                "id": "gid://shopify/ProductImage/38174853169350",
+                "url": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/5Wood_4f2021cf-8b00-4c0a-a9b9-3ce8f64fe565.png?v=1730138637"
+              },
+              "inventoryItem": {
+                "countryCodeOfOrigin": null,
+                "id": "gid://shopify/InventoryItem/46307109699782",
+                "createdAt": "2024-10-28T18:03:58Z",
+                "duplicateSkuCount": 0,
+                "harmonizedSystemCode": null,
+                "inventoryHistoryUrl": "https://test-lpc-product.myshopify.com/admin/products/inventory/46307109699782/inventory_history",
+                "inventoryLevel": null,
+                "locationsCount": {
+                  "count": 1,
+                  "precision": "EXACT"
+                },
+                "measurement": {
+                  "id": "gid://shopify/InventoryItemMeasurement/45265426972870",
+                  "weight": {
+                    "unit": "OUNCES",
+                    "value": 5.3
+                  }
+                },
+                "provinceCodeOfOrigin": null,
+                "requiresShipping": true,
+                "sku": "Classic-PBWSML-5Wood",
+                "tracked": true,
+                "unitCost": null,
+                "updatedAt": "2024-10-28T18:03:58Z"
+              },
+              "inventoryPolicy": "CONTINUE",
+              "inventoryQuantity": 0
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductVariant/44203917443270",
+              "title": "3 Stripe 7-Wood",
+              "displayName": "Powder Blue with Smooth Marshmallow Leather - 3 Stripe 7-Wood",
+              "price": "130.00",
+              "compareAtPrice": "130.00",
+              "image": {
+                "id": "gid://shopify/ProductImage/38174853267654",
+                "url": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/7Wood.png?v=1730138637"
+              },
+              "inventoryItem": {
+                "countryCodeOfOrigin": null,
+                "id": "gid://shopify/InventoryItem/46307109732550",
+                "createdAt": "2024-10-28T18:03:58Z",
+                "duplicateSkuCount": 0,
+                "harmonizedSystemCode": null,
+                "inventoryHistoryUrl": "https://test-lpc-product.myshopify.com/admin/products/inventory/46307109732550/inventory_history",
+                "inventoryLevel": null,
+                "locationsCount": {
+                  "count": 1,
+                  "precision": "EXACT"
+                },
+                "measurement": {
+                  "id": "gid://shopify/InventoryItemMeasurement/45265427005638",
+                  "weight": {
+                    "unit": "OUNCES",
+                    "value": 19.7
+                  }
+                },
+                "provinceCodeOfOrigin": null,
+                "requiresShipping": true,
+                "sku": "Classic-PBWSML-7Wood",
+                "tracked": true,
+                "unitCost": null,
+                "updatedAt": "2024-10-28T18:03:58Z"
+              },
+              "inventoryPolicy": "CONTINUE",
+              "inventoryQuantity": 0
+            }
+          },
+          {
+            "node": {
+              "id": "gid://shopify/ProductVariant/44203917476038",
+              "title": "2 Stripe Hybrid",
+              "displayName": "Powder Blue with Smooth Marshmallow Leather - 2 Stripe Hybrid",
+              "price": "125.00",
+              "compareAtPrice": "125.00",
+              "image": {
+                "id": "gid://shopify/ProductImage/38174853333190",
+                "url": "https://cdn.shopify.com/s/files/1/0648/5019/8726/files/Hybrid_7a43e008-8f30-456b-b043-d5e45f5631c0.png?v=1730138637"
+              },
+              "inventoryItem": {
+                "countryCodeOfOrigin": null,
+                "id": "gid://shopify/InventoryItem/46307109765318",
+                "createdAt": "2024-10-28T18:03:58Z",
+                "duplicateSkuCount": 0,
+                "harmonizedSystemCode": null,
+                "inventoryHistoryUrl": "https://test-lpc-product.myshopify.com/admin/products/inventory/46307109765318/inventory_history",
+                "inventoryLevel": null,
+                "locationsCount": {
+                  "count": 1,
+                  "precision": "EXACT"
+                },
+                "measurement": {
+                  "id": "gid://shopify/InventoryItemMeasurement/45265427038406",
+                  "weight": {
+                    "unit": "OUNCES",
+                    "value": 4
+                  }
+                },
+                "provinceCodeOfOrigin": null,
+                "requiresShipping": true,
+                "sku": "Classic-PBWSML-Hybrid",
+                "tracked": true,
+                "unitCost": null,
+                "updatedAt": "2024-10-28T18:03:58Z"
+              },
+              "inventoryPolicy": "CONTINUE",
+              "inventoryQuantity": 0
+            }
+          }
+        ]
+      },
+      "options": [
+        {
+          "id": "gid://shopify/ProductOption/10463566135494",
+          "linkedMetafield": null,
+          "name": "Size",
+          "values": [
+            "5-Piece Set",
+            "4-Piece Set - Driver & 3-Wood & 5-Wood & 7-Wood",
+            "4-Piece Set - Driver & 3-Wood & 5-Wood & Hybrid",
+            "4-Piece Set - Driver & 3-Wood & 7-Wood & Hybrid",
+            "4-Piece Set - Driver & 5-Wood & 7-Wood & Hybrid",
+            "50/50 Driver",
+            "Racing Stripe 3-Wood",
+            "50/50 Stripe 5-Wood",
+            "3 Stripe 7-Wood",
+            "2 Stripe Hybrid",
+            "Customize 50/50 Driver",
+            "Customize 3 Stripe Fairway",
+            "Customize Racing Stripe Fairway",
+            "Customize 50/50 Fairway",
+            "Customize 2 Stripe Hybrid"
+          ],
+          "optionValues": [
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118582982",
+              "linkedMetafieldValue": null,
+              "name": "5-Piece Set",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118615750",
+              "linkedMetafieldValue": null,
+              "name": "4-Piece Set - Driver & 3-Wood & 5-Wood & 7-Wood",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118648518",
+              "linkedMetafieldValue": null,
+              "name": "4-Piece Set - Driver & 3-Wood & 5-Wood & Hybrid",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118681286",
+              "linkedMetafieldValue": null,
+              "name": "4-Piece Set - Driver & 3-Wood & 7-Wood & Hybrid",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118714054",
+              "linkedMetafieldValue": null,
+              "name": "4-Piece Set - Driver & 5-Wood & 7-Wood & Hybrid",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118746822",
+              "linkedMetafieldValue": null,
+              "name": "50/50 Driver",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118779590",
+              "linkedMetafieldValue": null,
+              "name": "Racing Stripe 3-Wood",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118812358",
+              "linkedMetafieldValue": null,
+              "name": "50/50 Stripe 5-Wood",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118845126",
+              "linkedMetafieldValue": null,
+              "name": "3 Stripe 7-Wood",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118877894",
+              "linkedMetafieldValue": null,
+              "name": "2 Stripe Hybrid",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118910662",
+              "linkedMetafieldValue": null,
+              "name": "Customize 50/50 Driver",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118943430",
+              "linkedMetafieldValue": null,
+              "name": "Customize 3 Stripe Fairway",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157118976198",
+              "linkedMetafieldValue": null,
+              "name": "Customize Racing Stripe Fairway",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157119008966",
+              "linkedMetafieldValue": null,
+              "name": "Customize 50/50 Fairway",
+              "hasVariants": true,
+              "swatch": null
+            },
+            {
+              "id": "gid://shopify/ProductOptionValue/3157119041734",
+              "linkedMetafieldValue": null,
+              "name": "Customize 2 Stripe Hybrid",
+              "hasVariants": true,
+              "swatch": null
+            }
+          ],
+          "position": 1
         }
-      } else if (isPutterShape) {
-        customVariants.push({
-          ...variant,
-          sku: `${variant.sku}-Custom`,
-          variantName: `Customize ${shape.label} +$15`,
-          price: customPrice,
-          weight,
-          isCustom: true,
-          position: nextPosition++,
-          options: { Style: `Customize ${shape.label}` }
-        });
-      } else {
-        const customVariant = {
-          ...variant,
-          sku: `${variant.sku}-${variant.style?.abbreviation}-Custom`,
-          variantName: `Customize ${variant.style?.label} ${variant.shape} +$15`,
-          price: customPrice,
-          weight,
-          isCustom: true,
-          position: nextPosition++,
-          options: { Style: `Customize ${variant.style?.label} ${variant.shape}` }
-        };
-
-        if (needsQClassicField(collectionType)) {
-          customVariant.qClassicLeather = variant.qClassicLeather;
-        }
-
-        customVariants.push(customVariant);
+      ],
+      "totalInventory": 0,
+      "seo": {
+        "title": "Golf Headcovers in Powder Blue with Smooth Marshmallow Leather",
+        "description": null
+      },
+      "status": "ACTIVE",
+      "vendor": "Little Prince Customs"
+    }
+  },
+  "extensions": {
+    "cost": {
+      "requestedQueryCost": 52,
+      "actualQueryCost": 47,
+      "throttleStatus": {
+        "maximumAvailable": 2000,
+        "currentlyAvailable": 1953,
+        "restoreRate": 100
       }
     }
-  });
-
-  // Combine all variants
-  variants = [...variants, ...customVariants];
-
-  console.log('Final Variant Order:', variants.map(v => ({
-    name: v.variantName,
-    position: v.position,
-    isCustom: v.isCustom
-  })));
-
-  return variants;
-};
-
-export const generateProductData = async (formState, leatherColors, stitchingThreadColor, embroideryThreadColor, colorTags, shapes, styles, productPrices, shopifyCollections) => {
-  const title = generateTitle(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shopifyCollections);
-  return {
-    title,
-    mainHandle: generateMainHandle(formState, title, shopifyCollections),
-    productType: generateProductType(formState, shopifyCollections),
-    seoTitle: generateSEOTitle(formState, title, shopifyCollections),
-    descriptionHTML: generateDescriptionHTLM(formState, shopifyCollections),
-    seoDescription: generateSEODescription(formState, shopifyCollections),
-    tags: generateTags(formState, leatherColors, embroideryThreadColor, stitchingThreadColor, colorTags),
-    variants: await generateVariants(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shapes, styles, productPrices, shopifyCollections)
-  };
-};
-
-const generateTitle = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors, shopifyCollections) => {
-  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
-  const collectionType = getCollectionType(formState, shopifyCollections);
-
-  if (!leatherColor1) return "Primary leather color missing";
-  
-  switch (collectionType) {
-    case COLLECTION_TYPES.ANIMAL:
-    case COLLECTION_TYPES.CLASSIC:
-    case COLLECTION_TYPES.QCLASSIC:
-      return !leatherColor2 ? "Secondary leather color missing" : 
-        `${leatherColor1.label}
+  }
+}
