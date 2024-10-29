@@ -3,7 +3,7 @@
 client_id = "6f1296c99bc07317bd7d904a9749bee4"
 name = "lpc-product-creation-10-16-24"
 handle = "lpc-product-creation-10-16-24"
-application_url = "https://soon-soldiers-karl-genius.trycloudflare.com"
+application_url = "https://priced-side-mistress-emotional.trycloudflare.com"
 embedded = true
 
 [build]
@@ -13,13 +13,13 @@ include_config_on_deploy = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_inventory,write_inventory, read_orders,read_products,write_products, read_fulfillments, write_fulfillments"
+scopes = "read_inventory,write_inventory, read_orders,read_products,write_products, read_fulfillments, write_fulfillments, read_publications"
 
 [auth]
 redirect_urls = [
-  "https://soon-soldiers-karl-genius.trycloudflare.com/auth/callback",
-  "https://soon-soldiers-karl-genius.trycloudflare.com/auth/shopify/callback",
-  "https://soon-soldiers-karl-genius.trycloudflare.com/api/auth/callback"
+  "https://priced-side-mistress-emotional.trycloudflare.com/auth/callback",
+  "https://priced-side-mistress-emotional.trycloudflare.com/auth/shopify/callback",
+  "https://priced-side-mistress-emotional.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
