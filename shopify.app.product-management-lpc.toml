@@ -3,7 +3,7 @@
 client_id = "f0220f45fe6f2251e073a22007fe9fca"
 name = "Product-Management-LPC"
 handle = "product-management-lpc"
-application_url = "https://checked-lecture-lawyer-furnishings.trycloudflare.com"
+application_url = "https://hours-morgan-companies-tax.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_produ
 
 [auth]
 redirect_urls = [
-  "https://checked-lecture-lawyer-furnishings.trycloudflare.com/auth/callback",
-  "https://checked-lecture-lawyer-furnishings.trycloudflare.com/auth/shopify/callback",
-  "https://checked-lecture-lawyer-furnishings.trycloudflare.com/api/auth/callback"
+  "https://hours-morgan-companies-tax.trycloudflare.com/auth/callback",
+  "https://hours-morgan-companies-tax.trycloudflare.com/auth/shopify/callback",
+  "https://hours-morgan-companies-tax.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
