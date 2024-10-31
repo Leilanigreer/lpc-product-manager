@@ -3,7 +3,7 @@
 client_id = "f0220f45fe6f2251e073a22007fe9fca"
 name = "Product-Management-LPC"
 handle = "product-management-lpc"
-application_url = "https://hours-morgan-companies-tax.trycloudflare.com"
+application_url = "https://bind-wash-running-promised.trycloudflare.com"
 embedded = true
 
 [build]
@@ -13,13 +13,13 @@ automatically_update_urls_on_dev = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_products,read_publications,write_fulfillments,write_inventory,write_products"
+scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_products,read_publications,write_fulfillments,write_inventory,write_products, write_publications"
 
 [auth]
 redirect_urls = [
-  "https://hours-morgan-companies-tax.trycloudflare.com/auth/callback",
-  "https://hours-morgan-companies-tax.trycloudflare.com/auth/shopify/callback",
-  "https://hours-morgan-companies-tax.trycloudflare.com/api/auth/callback"
+  "https://bind-wash-running-promised.trycloudflare.com/auth/callback",
+  "https://bind-wash-running-promised.trycloudflare.com/auth/shopify/callback",
+  "https://bind-wash-running-promised.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
