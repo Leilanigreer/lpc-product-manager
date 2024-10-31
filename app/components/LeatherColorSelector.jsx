@@ -10,12 +10,15 @@ const LeatherColorSelector = ({
   onChange, 
   needsSecondaryColor,
 }) => {
+  // Filter out colorTags from the options
+  const sanitizedLeatherColors = leatherColors.map(({ colorTags, ...rest }) => rest);
+
   const renderColorSelector = (label, value, field, index) => (
     <>
       <Box width={needsSecondaryColor ? "25%" : "50%"}>
         <Select
           label={label}
-          options={[{ label: "Select a Leather", value: "" }, ...leatherColors]}
+          options={[{ label: "Select a Leather", value: "" }, ...sanitizedLeatherColors]}
           onChange={(newValue) => onChange(field, newValue)}
           value={value}
         />
