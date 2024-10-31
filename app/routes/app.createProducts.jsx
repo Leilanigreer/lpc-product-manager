@@ -30,7 +30,28 @@ export const action = async ({ request }) => {
   const productData = JSON.parse(formData.get('productData'));
 
   try {
-    // 1. Get location ID
+        // 1. Get Publications
+        const publicationsResponse = await admin.graphql(`#graphql
+          query Publications {
+            publications(first: 15) {
+              edges {
+                node {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        `);
+    
+        const publicationsJson = await publicationsResponse.json();
+        console.log('Publications:', publicationsJson.data.publications.edges);
+    
+        if (!publicationsJson.data?.publications?.edges?.length) {
+          return json({ errors: ["No publications found"] }, { status: 422 });
+        }
+
+    // 2. Get location ID
     const locationResponse = await admin.graphql(`#graphql
       query {
         locations(first: 10) {
@@ -62,7 +83,7 @@ export const action = async ({ request }) => {
     const locationId = location.node.id;
     console.log('Found Location ID:', locationId);
 
-    // 2. Create product with options
+    // 3. Create product with options
     const productResponse = await admin.graphql(`#graphql
       mutation createProductWithOptions($productInput: ProductInput!) {
         productCreate(input: $productInput) {
@@ -147,7 +168,7 @@ export const action = async ({ request }) => {
       return json({ errors: productJson.data.productCreate.userErrors }, { status: 422 });
     }
 
-    // 3. Create variants
+    // 4. Create variants
     const variantsResponse = await admin.graphql(`#graphql
       mutation productVariantsBulkCreate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
         productVariantsBulkCreate(
@@ -259,7 +280,7 @@ export const action = async ({ request }) => {
       return json({ errors: variantsJson.data.productVariantsBulkCreate.userErrors }, { status: 422 });
     }
 
-    // 4. Add default image
+    // 5. Add default image
     const mediaResponse = await admin.graphql(`#graphql
       mutation UpdateProductWithNewMedia($input: ProductInput!, $media: [CreateMediaInput!]) {
         productUpdate(input: $input, media: $media) {
@@ -305,11 +326,62 @@ export const action = async ({ request }) => {
       return json({ errors: mediaJson.data.productUpdate.userErrors }, { status: 422 });
     }
 
-    // Return success response with product, variants, and media
+    // 6. Publish to all publications
+    const publishResults = await Promise.all(
+      publicationsJson.data.publications.edges.map(async ({ node: publication }) => {
+        const publishResponse = await admin.graphql(`#graphql
+          mutation PublishProduct($id: ID!, $publicationId: ID!) {
+            publishablePublish(
+              id: $id
+              input: { publicationId: $publicationId }
+            ) {
+              publishable {
+                ... on Product {
+                  id
+                }
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }`,
+          {
+            variables: {
+              id: productJson.data.productCreate.product.id,
+              publicationId: publication.id
+            }
+          }
+        );
+        
+        const publishJson = await publishResponse.json();
+        console.log(`Published to ${publication.name}:`, publishJson);
+        return {
+          publicationName: publication.name,
+          result: publishJson
+        };
+      })
+    );
+
+    // Check for any publish errors
+    const publishErrors = publishResults
+      .filter(result => result.result.data?.publishablePublish?.userErrors?.length > 0)
+      .map(result => ({
+        publication: result.publicationName,
+        errors: result.result.data.publishablePublish.userErrors
+      }));
+
+    if (publishErrors.length > 0) {
+      console.error('Publishing Errors:', publishErrors);
+      return json({ errors: publishErrors }, { status: 422 });
+    }
+
+    // Return success response with all data
     return json({ 
       product: productJson.data.productCreate.product,
       variants: variantsJson.data.productVariantsBulkCreate.productVariants,
       media: mediaJson.data.productUpdate.product.media,
+      publications: publishResults,
       success: true
     });
 
