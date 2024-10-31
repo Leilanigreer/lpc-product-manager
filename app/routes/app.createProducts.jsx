@@ -259,10 +259,57 @@ export const action = async ({ request }) => {
       return json({ errors: variantsJson.data.productVariantsBulkCreate.userErrors }, { status: 422 });
     }
 
-    // Return success response with both product and variants
+    // 4. Add default image
+    const mediaResponse = await admin.graphql(`#graphql
+      mutation UpdateProductWithNewMedia($input: ProductInput!, $media: [CreateMediaInput!]) {
+        productUpdate(input: $input, media: $media) {
+          product {
+            id
+            media(first: 10) {
+              nodes {
+                alt
+                mediaContentType
+                preview {
+                  status
+                }
+              }
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }`,
+      {
+        variables: {
+          input: {
+            id: productJson.data.productCreate.product.id
+          },
+          media: [
+            {
+              originalSource: "https://cdn.shopify.com/s/files/1/0626/0247/7775/files/Naming_4.png?v=1730408067",
+              alt: "Pictures of new headcovers coming soon.",
+              mediaContentType: "IMAGE"
+            }
+          ]
+        }
+      }
+    );
+
+    const mediaJson = await mediaResponse.json();
+
+    // Check for media update errors
+    if (mediaJson.data?.productUpdate?.userErrors?.length > 0) {
+      console.error('Media Update Errors:', mediaJson.data.productUpdate.userErrors);
+      return json({ errors: mediaJson.data.productUpdate.userErrors }, { status: 422 });
+    }
+
+    // Return success response with product, variants, and media
     return json({ 
       product: productJson.data.productCreate.product,
       variants: variantsJson.data.productVariantsBulkCreate.productVariants,
+      media: mediaJson.data.productUpdate.product.media,
       success: true
     });
 
