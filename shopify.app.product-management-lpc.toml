@@ -1,0 +1,29 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "f0220f45fe6f2251e073a22007fe9fca"
+name = "Product-Management-LPC"
+handle = "product-management-lpc"
+application_url = "https://checked-lecture-lawyer-furnishings.trycloudflare.com"
+embedded = true
+
+[build]
+include_config_on_deploy = true
+dev_store_url = "lpc-product-creation.myshopify.com"
+automatically_update_urls_on_dev = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_products,read_publications,write_fulfillments,write_inventory,write_products"
+
+[auth]
+redirect_urls = [
+  "https://checked-lecture-lawyer-furnishings.trycloudflare.com/auth/callback",
+  "https://checked-lecture-lawyer-furnishings.trycloudflare.com/auth/shopify/callback",
+  "https://checked-lecture-lawyer-furnishings.trycloudflare.com/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2024-10"
+
+[pos]
+embedded = false

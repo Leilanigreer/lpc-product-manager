@@ -107,6 +107,11 @@ export const action = async ({ request }) => {
             descriptionHtml: productData.descriptionHTML,
             tags: productData.tags,
             status: "ACTIVE",
+            category: "gid://shopify/TaxonomyCategory/sg-4-7-7-2",
+            seo: {
+              title: productData.seoTitle,
+              description: productData.seoDescription,
+            },
             productOptions: [
               {
                 name: "Shape",
@@ -159,7 +164,6 @@ export const action = async ({ request }) => {
                   id
                   title
                   price
-                  # sku
                   inventoryItem {
                     id
                     tracked
@@ -195,9 +199,15 @@ export const action = async ({ request }) => {
           strategy: "REMOVE_STANDALONE_VARIANT",
           variants: productData.variants.map(variant => ({
             price: variant.price,
-            // sku: variant.sku,
+            compareAtPrice: variant.price,
             taxable: true,
             inventoryPolicy: "CONTINUE",
+            inventoryQuantities: [
+              {
+                availableQuantity: 5,
+                locationId: locationId
+              }
+            ],
             inventoryItem: {
               cost: variant.price,
               tracked: true,
@@ -229,9 +239,13 @@ export const action = async ({ request }) => {
       console.log('\nVariant Creation Status:');
       variantsJson.data.productVariantsBulkCreate.product.variants.edges.forEach(({ node }) => {
         console.log(`Variant: ${node.title}`);
-        console.log(`  SKU: ${node.sku}`);
         console.log(`  Price: ${node.price}`);
+        if (node.inventoryQuantities) {
+          console.log(`Inventory Quantities: ${node.inventoryQuantities}`)
+        };
         if (node.inventoryItem) {
+          console.log(`  InventoryItemID: ${node.inventoryItem.id}`)
+          console.log(`  SKU: ${node.inventoryItem.sku}`);
           console.log(`  Tracked: ${node.inventoryItem.tracked}`);
           console.log(`  Requires Shipping: ${node.inventoryItem.requiresShipping}`);
         }
