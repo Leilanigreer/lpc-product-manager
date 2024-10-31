@@ -30,70 +30,68 @@ export const action = async ({ request }) => {
   const productData = JSON.parse(formData.get('productData'));
 
   try {
-    // Extract unique shape names from variants
-    const shapeValues = [...new Set(productData.variants.map(variant => ({
-      name: variant.variantName
-    })))];
-
-    // Create the product set input
-    const productSet = {
-      title: productData.title,
-      handle: productData.mainHandle,
-      productType: productData.productType,
-      vendor: 'Little Prince Customs',
-      descriptionHtml: productData.descriptionHTML,
-      tags: productData.tags,
-      category: "gid://shopify/TaxonomyCategory/sg-4-7-7-2",
-      seo: {
-        title: productData.seoTitle,
-        description: productData.seoDescription,
-      },
-      productOptions: [
-        {
-          name: "Shape",
-          position: 1,
-          values: shapeValues
-        }
-      ],
-      variants: productData.variants.map(variant => ({
-        optionValues: [
-          {
-            optionName: "Shape",
-            name: variant.variantName
+    // 1. Get location ID
+    const locationResponse = await admin.graphql(`#graphql
+      query {
+        locations(first: 10) {
+          edges {
+            node {
+              id
+              name
+              address {
+                address1
+                city
+              }
+            }
           }
-        ],
-        price: parseFloat(variant.price),
-        sku: variant.sku
-      }))
-    };
+        }
+      }
+    `);
 
-    // Debug log for productSet input
-    console.log('Product Set Input:', JSON.stringify(productSet, null, 2));
+    const locationJson = await locationResponse.json();
+    const location = locationJson.data.locations.edges.find(
+      ({ node }) => 
+        node.address.address1 === "550 Montgomery Street" &&
+        node.address.city === "San Francisco"
+    );
 
-    // Debug log for variants specifically
-    console.log('Variants Data:', JSON.stringify(productSet.variants, null, 2));
+    if (!location) {
+      return json({ errors: ["Store location not found"] }, { status: 422 });
+    }
 
-    const response = await admin.graphql(
-      `#graphql
-      mutation createProductAsynchronous($productSet: ProductSetInput!, $synchronous: Boolean!) {
-        productSet(synchronous: $synchronous, input: $productSet) {
+    const locationId = location.node.id;
+    console.log('Found Location ID:', locationId);
+
+    // 2. Create product with options
+    const productResponse = await admin.graphql(`#graphql
+      mutation createProductWithOptions($productInput: ProductInput!) {
+        productCreate(input: $productInput) {
           product {
             id
             title
-            handle
-            productType
-          }
-          productSetOperation {
-            id
-            status
-            userErrors {
-              code
-              field
-              message
+            description
+            options {
+              id
+              name
+              position
+              optionValues {
+                id
+                name
+                hasVariants
+              }
+            }
+            variants(first: 250) {
+              edges {
+                node {
+                  id
+                  title
+                  price
+                  sku
+                }
+              }
             }
           }
           userErrors {
-            code
             field
             message
           }
@@ -101,51 +99,170 @@ export const action = async ({ request }) => {
       }`,
       {
         variables: {
-          synchronous: false,
-          productSet
-        },
+          productInput: {
+            title: productData.title,
+            handle: productData.mainHandle,
+            productType: productData.productType,
+            vendor: 'Little Prince Customs',
+            descriptionHtml: productData.descriptionHTML,
+            tags: productData.tags,
+            status: "ACTIVE",
+            productOptions: [
+              {
+                name: "Shape",
+                values: [...new Set(productData.variants.map(variant => variant.variantName))].map(name => ({
+                  name: name
+                }))
+              }
+            ]
+          }
+        }
       }
     );
 
-    // Debug log for initial GraphQL response
-    console.log('Raw GraphQL Response:', response);
-
-    const responseJson = await response.json();
+    const productJson = await productResponse.json();
     
-    // Debug log for parsed response
-    console.log('Parsed Response:', JSON.stringify(responseJson, null, 2));
-
-    // Check for user errors in both places they might appear
-    const userErrors = [
-      ...(responseJson.data?.productSet?.userErrors || []),
-      ...(responseJson.data?.productSet?.productSetOperation?.userErrors || [])
-    ];
-
-    if (userErrors.length > 0) {
-      console.log('User Errors:', userErrors);
-      return json(
-        { errors: userErrors },
-        { status: 422 }
-      );
+    // Log product creation details
+    console.log('Product Creation Response - Options Analysis:');
+    if (productJson.data?.productCreate?.product?.options) {
+      productJson.data.productCreate.product.options.forEach((option, index) => {
+        console.log(`\nOption ${index + 1}: ${option.name}`);
+        console.log('Option Values:');
+        option.optionValues.forEach((value, valueIndex) => {
+          console.log(`  ${valueIndex + 1}. ${value.name}`);
+          console.log(`     hasVariants: ${value.hasVariants}`);
+          console.log(`     id: ${value.id}`);
+        });
+      });
     }
 
+    // Check for product creation errors
+    if (productJson.data?.productCreate?.userErrors?.length > 0) {
+      console.error('Product Creation Errors:', productJson.data.productCreate.userErrors);
+      return json({ errors: productJson.data.productCreate.userErrors }, { status: 422 });
+    }
+
+    // 3. Create variants
+    const variantsResponse = await admin.graphql(`#graphql
+      mutation productVariantsBulkCreate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+        productVariantsBulkCreate(
+          productId: $productId, 
+          strategy: REMOVE_STANDALONE_VARIANT,
+          variants: $variants
+        ) {
+          product {
+            id
+            title
+            variants(first: 250) {
+              edges {
+                node {
+                  id
+                  title
+                  price
+                  # sku
+                  inventoryItem {
+                    id
+                    tracked
+                    requiresShipping
+                    sku
+                  }
+                  selectedOptions {
+                    name
+                    value
+                  }
+                }
+              }
+            }
+          }
+          productVariants {
+            id
+            title
+            price
+            selectedOptions {
+              name
+              value
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }`,
+      {
+        variables: {
+          productId: productJson.data.productCreate.product.id,
+          strategy: "REMOVE_STANDALONE_VARIANT",
+          variants: productData.variants.map(variant => ({
+            price: variant.price,
+            // sku: variant.sku,
+            taxable: true,
+            inventoryPolicy: "CONTINUE",
+            inventoryItem: {
+              cost: variant.price,
+              tracked: true,
+              requiresShipping: true,
+              sku: variant.sku,
+              measurement: {
+                weight: {
+                  unit: "OUNCES",
+                  value: parseFloat(variant.weight)
+                }
+              }
+            },
+            optionValues: [
+              {
+                name: variant.variantName,
+                optionName: "Shape"
+              }
+            ]
+          }))
+        }
+      }
+    );
+
+    // Log variant creation status
+    const variantsJson = await variantsResponse.json();
+    console.log('Variants Creation Response:', JSON.stringify(variantsJson, null, 2));
+
+    if (variantsJson.data?.productVariantsBulkCreate?.product?.variants?.edges) {
+      console.log('\nVariant Creation Status:');
+      variantsJson.data.productVariantsBulkCreate.product.variants.edges.forEach(({ node }) => {
+        console.log(`Variant: ${node.title}`);
+        console.log(`  SKU: ${node.sku}`);
+        console.log(`  Price: ${node.price}`);
+        if (node.inventoryItem) {
+          console.log(`  Tracked: ${node.inventoryItem.tracked}`);
+          console.log(`  Requires Shipping: ${node.inventoryItem.requiresShipping}`);
+        }
+        console.log('-------------------');
+      });
+    }
+
+    // Check for variant creation errors
+    if (variantsJson.data?.productVariantsBulkCreate?.userErrors?.length > 0) {
+      console.error('Variant Creation Errors:', variantsJson.data.productVariantsBulkCreate.userErrors);
+      return json({ errors: variantsJson.data.productVariantsBulkCreate.userErrors }, { status: 422 });
+    }
+
+    // Return success response with both product and variants
     return json({ 
-      product: responseJson.data.productSet.product,
-      operation: responseJson.data.productSet.productSetOperation
+      product: productJson.data.productCreate.product,
+      variants: variantsJson.data.productVariantsBulkCreate.productVariants,
+      success: true
     });
-    
+
   } catch (error) {
-    console.error('GraphQL Error:', error);
-    console.log('Error Details:', {
+    console.error('Detailed Error:', {
       message: error.message,
       stack: error.stack
     });
-    return json(
-      { errors: [error.message || "An unexpected error occurred"] },
-      { status: 500 }
-    );
+    return json({ 
+      errors: [typeof error === 'string' ? error : error.message || "An unexpected error occurred"] 
+    }, { status: 500 });
   }
 };
+
 
 export { loader };
 

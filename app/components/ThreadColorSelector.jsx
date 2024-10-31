@@ -10,6 +10,10 @@ const ThreadColorSelector = ({
   selectedStitchingColor, 
   onChange 
 }) => {
+  // Filter out colorTags from both thread color arrays
+  const sanitizedEmbroideryColors = embroideryThreadColors.map(({ colorTags, ...rest }) => rest);
+  const sanitizedStitchingColors = stitchingThreadColors.map(({ colorTags, ...rest }) => rest);
+
   const handleEmbroideryChange = (value) => {
     onChange('selectedEmbroideryColor', value);
   };
@@ -24,7 +28,7 @@ const ThreadColorSelector = ({
         <Box width="50%">
           <Select
             label="Select Embroidery"
-            options={[{ label: "Color of Thread", value: "" }, ...embroideryThreadColors]}
+            options={[{ label: "Color of Thread", value: "" }, ...sanitizedEmbroideryColors]}
             onChange={handleEmbroideryChange}
             value={selectedEmbroideryColor}
           />
@@ -32,7 +36,7 @@ const ThreadColorSelector = ({
         <Box width="50%">
           <Select
             label="Select Stitching"
-            options={[{ label: "Color of Thread", value: "" }, ...stitchingThreadColors]}
+            options={[{ label: "Color of Thread", value: "" }, ...sanitizedStitchingColors]}
             onChange={handleStitchingChange}
             value={selectedStitchingColor}
           />

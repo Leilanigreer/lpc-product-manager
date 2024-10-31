@@ -527,31 +527,43 @@ const generateSEODescription = (formState, shopifyCollections) => {
 };
 
 const generateTags = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors, colorTags) => {
-  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
+  const { 
+    leatherColor1, 
+    leatherColor2, 
+    stitchingThreadColor, 
+    embroideryThreadColor 
+  } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
   
+  // Start with default tags
   const tagSet = new Set(['Customizable']);
   
+  // Early return if colorTags is invalid
   if (!Array.isArray(colorTags)) {
     console.error('colorTags is not an array:', colorTags);
     return Array.from(tagSet);
   }
   
+  // Helper function to check if a color matches any color in a collection
+  const hasMatchingColor = (selectedColor, colorCollection) => {
+    return selectedColor && Array.isArray(colorCollection) && 
+      colorCollection.some(color => color?.value === selectedColor.value);
+  };
+
+  // Check each tag
   colorTags.forEach(tag => {
     if (!tag.leatherColors || !tag.stitchingColors || !tag.embroideryColors) {
       console.warn('Tag is missing required color arrays:', tag);
       return;
     }
     
-    const hasLeatherColor1 = leatherColor1 && Array.isArray(tag.leatherColors) && 
-      tag.leatherColors.some(leather => leather?.value === leatherColor1.value);
-    const hasLeatherColor2 = leatherColor2 && Array.isArray(tag.leatherColors) && 
-      tag.leatherColors.some(leather => leather?.value === leatherColor2.value);
-    const hasStitchingColor = stitchingThreadColor && Array.isArray(tag.stitchingColors) && 
-      tag.stitchingColors.some(stitchingThread => stitchingThread?.value === stitchingThreadColor.value);
-    const hasEmbroideryColor = embroideryThreadColor && Array.isArray(tag.embroideryColors) && 
-      tag.embroideryColors.some(embroideryThread => embroideryThread?.value === embroideryThreadColor.value);
+    // Check if any selected colors match this tag's colors
+    const matchesTag = 
+      hasMatchingColor(leatherColor1, tag.leatherColors) ||
+      hasMatchingColor(leatherColor2, tag.leatherColors) ||
+      hasMatchingColor(stitchingThreadColor, tag.stitchingColors) ||
+      hasMatchingColor(embroideryThreadColor, tag.embroideryColors);
     
-    if (hasLeatherColor1 || hasLeatherColor2 || hasStitchingColor || hasEmbroideryColor) {
+    if (matchesTag) {
       tagSet.add(tag.label);
     }
   });
