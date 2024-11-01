@@ -23,12 +23,20 @@ const ShapeSelector = ({
   shapes, 
   styles, 
   embroideryThreadColors,
+  isacordNumbers,
   leatherColors,
   formState, 
   handleChange,
   needsStyle,
   needsQClassicField
 }) => {
+  const hasMultipleThreadNumbers = useMemo(() => 
+    (threadId, threadColors) => {
+      const thread = threadColors?.find(t => t.value === threadId);
+      return thread?.isacordNumbers?.length > 1;
+    }, []
+  );
+
   const memoizedShapes = useMemo(() => shapes || [], [shapes]);
   const showStyle = needsStyle();
   const showQClassicField = needsQClassicField();
@@ -110,6 +118,10 @@ const ShapeSelector = ({
       ...formState.selectedEmbroideryColors,
       [shapeValue]: value
     });
+    // Reset isacord number when color changes
+    const newIsacordNumbers = { ...formState.shapeIsacordNumbers };
+    delete newIsacordNumbers[shapeValue];
+    handleChange('shapeIsacordNumbers', newIsacordNumbers);
   };
 
   const handleQClassicLeatherChange = (shapeValue, value) => {
@@ -180,9 +192,29 @@ const ShapeSelector = ({
                       ]}
                       onChange={(value) => handleEmbroideryChange(shape.value, value)}
                       value={formState.selectedEmbroideryColors?.[shape.value] || ''}
-                      placeholder="Select thread color"
+                      // placeholder="Select thread color"
                       disabled={!formState.weights.hasOwnProperty(shape.value)}
                     />
+                    {hasMultipleThreadNumbers(
+                      formState.selectedEmbroideryColors?.[shape.value],
+                      embroideryThreadColors
+                    ) && (
+                      <Select
+                        options={[
+                          { label: "Select Number", value: "" },
+                          ...(embroideryThreadColors
+                            .find(t => t.value === formState.selectedEmbroideryColors?.[shape.value])
+                            ?.isacordNumbers || []
+                          )
+                        ]}
+                        onChange={(value) => handleChange('shapeIsacordNumbers', {
+                          ...formState.shapeIsacordNumbers,
+                          [shape.value]: value
+                        })}
+                        value={formState.shapeIsacordNumbers?.[shape.value] || ''}
+                        disabled={!formState.weights.hasOwnProperty(shape.value)}
+                      />
+                    )}                    
                   </Box>
                   {showQClassicField && (
                     <Box width="200px">
