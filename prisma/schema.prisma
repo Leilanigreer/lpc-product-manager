@@ -88,23 +88,45 @@ model ProductPrice {
 }
 
 model EmbroideryThread {
-  id             String     @id @default(cuid())
+  id             String          @id @default(cuid())
   name           String
   abbreviation   String
-  isacord_number String?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  colorTags      ColorTag[] @relation("EmbroideryThreadToTag")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  colorTags      ColorTag[]      @relation("EmbroideryThreadToTag")
+  isacordNumbers IsacordNumber[]
+}
+
+model IsacordNumber {
+  id        String           @id @default(cuid())
+  number    String
+  threadId  String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  thread    EmbroideryThread @relation(fields: [threadId], references: [id])
+
+  @@index([threadId])
 }
 
 model StitchingThread {
-  id           String     @id @default(cuid())
+  id           String        @id @default(cuid())
   name         String
   abbreviation String
-  amann_number String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  colorTags    ColorTag[] @relation("StitchingThreadToTag")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  colorTags    ColorTag[]    @relation("StitchingThreadToTag")
+  amannNumbers AmannNumber[]
+}
+
+model AmannNumber {
+  id        String          @id @default(cuid())
+  number    String
+  threadId  String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  thread    StitchingThread @relation(fields: [threadId], references: [id])
+
+  @@index([threadId])
 }
 
 model ColorTag {

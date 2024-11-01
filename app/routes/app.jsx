@@ -1,4 +1,3 @@
-// app/app.jsx
 import { json } from "@remix-run/node";
 import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
@@ -22,49 +21,41 @@ export const loader = async ({ request }) => {
 
 export default function App() {
   const { apiKey, host } = useLoaderData();
-  const [isClient, setIsClient] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
+    setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    const originalError = console.error;
-    console.error = (...args) => {
-      const errorMessage = args[0]?.toString() || '';
-      
-      const suppressPatterns = [
-        'Extra attributes from the server',
-        'data-new-gr-c-s-check-loaded',
-        'data-gr-ext-installed',
-        'Hydration failed because',
-        'There was an error while hydrating',
-        'The server could not finish this Suspense boundary'
-      ];
+    if (typeof window !== 'undefined') {
+      const originalError = console.error;
+      console.error = (...args) => {
+        const errorMessage = args[0]?.toString() || '';
+        
+        const suppressPatterns = [
+          'Extra attributes from the server',
+          'data-new-gr-c-s-check-loaded',
+          'data-gr-ext-installed',
+          'Hydration failed because',
+          'There was an error while hydrating',
+          'The server could not finish this Suspense boundary'
+        ];
 
-      if (suppressPatterns.some(pattern => errorMessage.includes(pattern))) {
-        return;
-      }
+        if (suppressPatterns.some(pattern => errorMessage.includes(pattern))) {
+          return;
+        }
 
-      originalError.call(console, ...args);
-    };
+        originalError.call(console, ...args);
+      };
 
-    return () => {
-      console.error = originalError;
-    };
+      return () => {
+        console.error = originalError;
+      };
+    }
   }, []);
 
-  if (!isClient) {
-    return (
-      <AppProvider isEmbeddedApp apiKey={apiKey}>
-        <PolarisProvider i18n={en}>
-          <div className="loading-state">Loading...</div>
-        </PolarisProvider>
-      </AppProvider>
-    );
-  }
-
-  return (
+  const appContent = (
     <AppProvider 
       isEmbeddedApp 
       apiKey={apiKey}
@@ -72,18 +63,34 @@ export default function App() {
       forceRedirect
     >
       <PolarisProvider i18n={en}>
-        <div suppressHydrationWarning>
-          <NavMenu>
-            <Link to="/app" rel="home">
-              Home
-            </Link>
-            <Link to="/app/createProducts">Create a new product</Link>
-          </NavMenu>
-          <Outlet />
-        </div>
+        <NavMenu>
+          <Link to="/app" rel="home">
+            Home
+          </Link>
+          <Link to="/app/createProducts">Create a new product</Link>
+        </NavMenu>
+        <Outlet />
       </PolarisProvider>
     </AppProvider>
   );
+
+  // Server-side rendering
+  if (typeof window === 'undefined') {
+    return appContent;
+  }
+
+  // Client-side rendering
+  if (!isMounted) {
+    return (
+      <AppProvider isEmbeddedApp apiKey={apiKey}>
+        <PolarisProvider i18n={en}>
+          <div style={{ padding: '1rem' }}>Loading...</div>
+        </PolarisProvider>
+      </AppProvider>
+    );
+  }
+
+  return appContent;
 }
 
 export function ErrorBoundary() {

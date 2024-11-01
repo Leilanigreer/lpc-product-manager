@@ -30,35 +30,83 @@ export const getLeatherColors = async () => {
 
 export const getStitchingThreadColors = async () => {
   try {
-    const stitchingThreadColors = await prisma.StitchingThread.findMany({
+    const stitchingThreadColors = await prisma.stitchingThread.findMany({
       include: {
         colorTags: {
           select: {
             id: true,
             name: true
           }
+        },
+        amannNumbers: {
+          select: {
+            id: true,
+            number: true
+          }
         }
       }
     });
-    return stitchingThreadColors.map(({ id, name, abbreviation, colorTags}) => ({
-      value: id, 
-      label: name, 
+    return stitchingThreadColors.map(({ id, name, abbreviation, colorTags, amannNumbers }) => ({
+      value: id,
+      label: name,
       abbreviation,
       colorTags: colorTags.map(tag => ({
         value: tag.id,
         label: tag.name
+      })),
+      amannNumbers: amannNumbers.map(number => ({
+        value: number.id,
+        label: number.number
       }))
     }));
   } catch (error) {
-    console.error("Error fetching stitching thread colors", error);
+    console.error("Error fetching stitching thread colors:", error);
     throw error;
   }
 };
+
 export const getEmbroideryThreadColors = async () => {
   try {
-    const embroideryThreadColors = await prisma.EmbroideryThread.findMany({
+    const embroideryThreadColors = await prisma.embroideryThread.findMany({
       include: {
         colorTags: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        isacordNumbers: {
+          select: {
+            id: true,
+            number: true
+          }
+        }
+      }
+    });
+    return embroideryThreadColors.map(({ id, name, abbreviation, colorTags, isacordNumbers }) => ({
+      value: id,
+      label: name,
+      abbreviation,
+      colorTags: colorTags.map(tag => ({
+        value: tag.id,
+        label: tag.name
+      })),
+      isacordNumbers: isacordNumbers.map(number => ({
+        value: number.id,
+        label: number.number
+      }))
+    }));
+  } catch (error) {
+    console.error("Error fetching embroidery thread colors:", error);
+    throw error;
+  }
+};
+
+export const getIsacordNumbers = async () => {
+  try {
+    const isacordNumbers = await prisma.isacordNumber.findMany({
+      include: {
+        thread: {
           select: {
             id: true,
             name: true
@@ -66,17 +114,42 @@ export const getEmbroideryThreadColors = async () => {
         }
       }
     });
-    return embroideryThreadColors.map(({ id, name, abbreviation, colorTags}) => ({
-      value: id, 
-      label: name, 
-      abbreviation,
-      colorTags: colorTags.map(tag => ({
-        value: tag.id,
-        label: tag.name
-      }))
+    return isacordNumbers.map(({ id, number, thread }) => ({
+      value: id,
+      label: number,
+      thread: {
+        value: thread.id,
+        label: thread.name
+      }
     }));
   } catch (error) {
-    console.error("Error fetching embroidery thread colors", error);
+    console.error("Error fetching Isacord numbers:", error);
+    throw error;
+  }
+};
+
+export const getAmannNumbers = async () => {
+  try {
+    const amannNumbers = await prisma.amannNumber.findMany({
+      include: {
+        thread: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+    return amannNumbers.map(({ id, number, thread }) => ({
+      value: id,
+      label: number,
+      thread: {
+        value: thread.id,
+        label: thread.name
+      }
+    }));
+  } catch (error) {
+    console.error("Error fetching Amann numbers:", error);
     throw error;
   }
 };

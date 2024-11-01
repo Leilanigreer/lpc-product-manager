@@ -404,7 +404,9 @@ export default function CreateProduct() {
     shopifyCollections, 
     leatherColors, 
     stitchingThreadColors,
+    amannNumbers,
     embroideryThreadColors,
+    isacordNumbers,
     colorTags, 
     shapes, 
     styles, 
@@ -424,12 +426,16 @@ export default function CreateProduct() {
     selectedLeatherColor1: "",
     selectedLeatherColor2: "",
     selectedStitchingColor: "",
-    selectedEmbroideryColor: {},
+    selectedEmbroideryColor: "",
+    selectedEmbroideryColors: {},
     selectedFont: "",
     selectedShapes: {},
     selectedStyles: {},
     weights: {},
     qClassicLeathers: {},
+    matchingAmannNumber: "",
+    matchingIsacordNumber: "",
+    shapeIsacordNumbers: {},
   });
   
 
@@ -457,11 +463,16 @@ export default function CreateProduct() {
           selectedLeatherColor1: "",
           selectedLeatherColor2: "",
           selectedStitchingColor: "",
-          selectedEmbroideryColor: {},
+          selectedEmbroideryColor: "",
+          selectedEmbroideryColors: {},
           selectedFont: "",
           selectedShapes: {},
           selectedStyles: {},
           weights: {},
+          qClassicLeathers: {},
+          matchingAmannNumber: "",
+          matchingIsacordNumber: "",
+          shapeIsacordNumbers: {},
         });
         setProductData(null);
   
@@ -531,7 +542,9 @@ export default function CreateProduct() {
         updatedFormState,
         leatherColors,
         stitchingThreadColors,
+        amannNumbers,
         embroideryThreadColors,
+        isacordNumbers,
         colorTags,
         shapes,
         styles,
@@ -614,9 +627,13 @@ export default function CreateProduct() {
               {needsStitchingColor && (
                 <ThreadColorSelector
                   stitchingThreadColors={stitchingThreadColors}
+                  amannNumbers={amannNumbers}
                   embroideryThreadColors={embroideryThreadColors}
-                  selectedEmbroideryColor={formState.selectedEmbroideryColor}
+                  isacordNumbers={isacordNumbers}
                   selectedStitchingColor={formState.selectedStitchingColor}
+                  matchingAmannNumber={formState.matchingAmannNumber}
+                  selectedEmbroideryColor={formState.selectedEmbroideryColor}
+                  matchingIsacordNumber={formState.matchingIsacordNumber}
                   onChange={handleChange}
                 />
               )}
@@ -628,12 +645,14 @@ export default function CreateProduct() {
               styles={styles}
               leatherColors={leatherColors}
               embroideryThreadColors={embroideryThreadColors}
+              isacordNumbers={isacordNumbers}
               formState={formState}
               selectedEmbroideryColors={formState.selectedEmbroideryColors}
               onEmbroideryColorChange={(shapeId, color) => {
                 const newColors = { ...formState.selectedEmbroideryColors, [shapeId]: color };
                 handleChange('selectedEmbroideryColors', newColors);
               }}
+              shapeIsacordNumbers={formState.shapeIsacordNumbers}
               handleChange={handleChange}
               needsStyle={needsStyle}
               needsQClassicField={needsQClassicField}
