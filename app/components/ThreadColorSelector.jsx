@@ -12,7 +12,7 @@ const ThreadColorSelector = ({
   matchingIsacordNumber,
   onChange 
 }) => {
-  // Filter out colorTags and check for multiple numbers
+  // First, sanitize the color arrays
   const sanitizedEmbroideryColors = useMemo(() => 
     embroideryThreadColors.map(({ colorTags, ...rest }) => rest),
     [embroideryThreadColors]
@@ -23,7 +23,7 @@ const ThreadColorSelector = ({
     [stitchingThreadColors]
   );
 
-  // Memoize selected threads
+  // Then find selected threads (removed duplicate declarations)
   const selectedEmbroideryThread = useMemo(() => 
     embroideryThreadColors.find(thread => thread.value === selectedEmbroideryColor),
     [embroideryThreadColors, selectedEmbroideryColor]
@@ -32,6 +32,23 @@ const ThreadColorSelector = ({
   const selectedStitchingThread = useMemo(() => 
     stitchingThreadColors.find(thread => thread.value === selectedStitchingColor),
     [stitchingThreadColors, selectedStitchingColor]
+  );
+
+  // Now sanitize the number arrays using the selected threads
+  const sanitizedAmannNumbers = useMemo(() => 
+    selectedStitchingThread?.amannNumbers?.map(({ label, value }) => ({
+      label,
+      value
+    })) || [],
+    [selectedStitchingThread]
+  );
+
+  const sanitizedIsacordNumbers = useMemo(() => 
+    selectedEmbroideryThread?.isacordNumbers?.map(({ label, value }) => ({
+      label,
+      value
+    })) || [],
+    [selectedEmbroideryThread]
   );
 
   // Memoize the multiple numbers check
@@ -47,14 +64,32 @@ const ThreadColorSelector = ({
 
   const handleEmbroideryChange = (value) => {
     onChange('selectedEmbroideryColor', value);
-    // Reset isacord number when thread changes
-    onChange('matchingIsacordNumber', '');
+    
+    // Find the selected thread
+    const selectedThread = embroideryThreadColors.find(thread => thread.value === value);
+    
+    if (selectedThread?.isacordNumbers?.length === 1) {
+      // If there's exactly one number, set it automatically
+      onChange('matchingIsacordNumber', selectedThread.isacordNumbers[0].value);
+    } else {
+      // Reset if there are multiple options or no options
+      onChange('matchingIsacordNumber', '');
+    }
   };
-
+  
   const handleStitchingChange = (value) => {
     onChange('selectedStitchingColor', value);
-    // Reset amann number when thread changes
-    onChange('matchingAmannNumber', '');
+    
+    // Find the selected thread
+    const selectedThread = stitchingThreadColors.find(thread => thread.value === value);
+    
+    if (selectedThread?.amannNumbers?.length === 1) {
+      // If there's exactly one number, set it automatically
+      onChange('matchingAmannNumber', selectedThread.amannNumbers[0].value);
+    } else {
+      // Reset if there are multiple options or no options
+      onChange('matchingAmannNumber', '');
+    }
   };
 
   return (
@@ -73,7 +108,7 @@ const ThreadColorSelector = ({
                 label="Select Isacord Number"
                 options={[
                   { label: "Select Number", value: "" },
-                  ...selectedEmbroideryThread.isacordNumbers
+                  ...sanitizedIsacordNumbers
                 ]}
                 onChange={(value) => onChange('matchingIsacordNumber', value)}
                 value={matchingIsacordNumber}
@@ -94,7 +129,7 @@ const ThreadColorSelector = ({
                 label="Select Amann Number"
                 options={[
                   { label: "Select Number", value: "" },
-                  ...selectedStitchingThread.amannNumbers
+                  ...sanitizedAmannNumbers
                 ]}
                 onChange={(value) => onChange('matchingAmannNumber', value)}
                 value={matchingAmannNumber}

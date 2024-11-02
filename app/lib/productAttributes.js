@@ -10,15 +10,30 @@ import {
 } from "./collectionUtils";
 import { isPutter, isWoodType } from "./shapeUtils";
 
-const getColors = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors) => ({
-  leatherColor1: leatherColors.find(color => color.value === formState.selectedLeatherColor1),
-  leatherColor2: leatherColors.find(color => color.value === formState.selectedLeatherColor2),
-  stitchingThreadColor: stitchingThreadColors.find(color => color.value === formState.selectedStitchingColor),
-  embroideryThreadColor: embroideryThreadColors.find(color => color.value === formState.selectedEmbroideryColor),
-});
+const getColors = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors) => {
+  console.log("GetColors inputs:", {
+    formState,
+    leatherColors,
+    stitchingThreadColors,
+    embroideryThreadColors
+  });
+  const colors = {
+    leatherColor1: leatherColors.find(color => color.value === formState.selectedLeatherColor1),
+    leatherColor2: leatherColors.find(color => color.value === formState.selectedLeatherColor2),
+    stitchingThreadColor: stitchingThreadColors.find(color => color.value === formState.selectedStitchingColor),
+    embroideryThreadColor: embroideryThreadColors.find(color => color.value === formState.selectedEmbroideryColor),
+  };
+  console.log("Found colors:", colors);
+  return colors;
+};
 
 const getCollectionType = (formState, shopifyCollections) => {
+  console.log("GetCollectionType inputs:", {
+    selectedCollection: formState.selectedCollection,
+    collections: shopifyCollections
+  });
   const collection = shopifyCollections.find(col => col.value === formState.selectedCollection);
+  console.log("Found collection:", collection);
   return collection ? getShopifyCollectionType({ handle: collection.handle }) : 'Unknown';
 };
 
@@ -145,6 +160,12 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
   const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
   const collectionType = getCollectionType(formState, shopifyCollections);
 
+  console.log("GetCollectionType input:", {
+    selectedCollectionId: formState.selectedCollection,
+    availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
+    collections_length: shopifyCollections?.length
+  });
+
   if (!leatherColor1) {
     console.error("Primary leather color not found");
     return [];
@@ -199,8 +220,8 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
 
       // Generate variant name based on shape type and collection needs
       const variantName = isPutterShape ? 
-      shape.label :
-      shouldHaveStyle && selectedStyle ? 
+        shape.label :
+        shouldHaveStyle && selectedStyle ? 
           `${selectedStyle.label} ${shape.label}` : 
           shape.label;
 
@@ -219,7 +240,26 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
         }
       };
 
-      // Add QClassic specific fields if needed
+      // Add thread data based on whether it's global or shape-specific
+      if (formState.threadData?.threadType === 'global') {
+        // Add global thread data
+        if (formState.threadData.globalThreads?.stitching) {
+          variant.stitchingThreadId = formState.threadData.globalThreads.stitching.threadId;
+          variant.amannNumberId = formState.threadData.globalThreads.stitching.numberId;
+        }
+        if (formState.threadData.globalThreads?.embroidery) {
+          variant.embroideryThreadId = formState.threadData.globalThreads.embroidery.threadId;
+          variant.isacordNumberId = formState.threadData.globalThreads.embroidery.numberId;
+        }
+      } else {
+        // Add shape-specific thread data
+        const shapeThreadData = formState.threadData?.shapeThreads?.[shapeId];
+        if (shapeThreadData?.embroideryThread) {
+          variant.embroideryThreadId = shapeThreadData.embroideryThread.threadId;
+          variant.isacordNumberId = shapeThreadData.embroideryThread.numberId;
+        }
+      }
+
       if (needsQClassicField(collectionType)) {
         variant.qClassicLeather = formState.qClassicLeathers?.[shapeId];
       }
@@ -230,158 +270,184 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
 
   // Assign positions to regular variants
   variants = assignPositions(variants, shapes);
-  
-  console.log('Regular Variants Order:', variants.map(v => ({
-    name: v.variantName,
-    position: v.position
-  })));
 
   // Generate custom variants
-// Generate custom variants
-let nextPosition = variants.length + 1;
-const customVariants = [];
-const processedStyles = new Set();
+  const customVariants = [];
+  const processedStyles = new Set();
+  let customPosition = variants.length + 2; // Start after regular variants and "Create my own set"
 
-variants.forEach(variant => {
-  const customPrice = (parseFloat(variant.price) + 15).toFixed(2);
-  const shape = shapes.find(s => s.label === variant.shape);
-  if (!shape) return;
 
-  const weight = variant.weight;
-  const isPutterShape = isPutter(shape);
-  const shouldHaveStyle = !isPutterShape && needsStyle(collectionType);
+  variants.forEach(variant => {
+    const customPrice = (parseFloat(variant.price) + 15).toFixed(2);
+    const shape = shapes.find(s => s.label === variant.shape);
+    if (!shape) return;
 
-  if (!needsStyle(collectionType)) {
-    // Handle Quilted and Argyle collections (no style collections)
-    if (isWoodType(shape)) {
-      if (!customVariants.some(cv => cv.variantName === 'Customize Fairway +$15')) {
+    const baseCustomVariant = {
+      // Copy thread data from original variant
+      stitchingThreadId: variant.stitchingThreadId,
+      amannNumberId: variant.amannNumberId,
+      embroideryThreadId: variant.embroideryThreadId,
+      isacordNumberId: variant.isacordNumberId
+    };
+  
+    const weight = variant.weight;
+    const isPutterShape = isPutter(shape);
+    const shouldHaveStyle = !isPutterShape && needsStyle(collectionType);
+
+    if (!needsStyle(collectionType)) {
+      // Handle Quilted and Argyle collections (no style collections)
+      if (isWoodType(shape)) {
+        if (!customVariants.some(cv => cv.variantName === 'Customize Fairway +$15')) {
+          customVariants.push({
+            ...variant,
+            ...baseCustomVariant,
+            shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
+            sku: `${variant.sku.split('-').slice(0, -1).join('-')}-Fairway-Custom`,
+            variantName: 'Customize Fairway +$15',
+            price: customPrice,
+            weight,
+            isCustom: true,
+            position: customPosition++,
+            options: { Style: 'Customize Fairway' }
+          });
+        }
+      } else {
         customVariants.push({
           ...variant,
-          shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
-          sku: `${variant.sku.split('-').slice(0, -1).join('-')}-Fairway-Custom`,
-          variantName: 'Customize Fairway +$15',
+          ...baseCustomVariant,
+          sku: `${variant.sku}-Custom`,
+          variantName: `Customize ${variant.variantName} +$15`,
           price: customPrice,
           weight,
           isCustom: true,
-          position: nextPosition++,
-          options: { Style: 'Customize Fairway' }
+          position: customPosition++,
+          options: { Style: `Customize ${variant.variantName}` }
         });
       }
     } else {
-      customVariants.push({
-        ...variant,
-        sku: `${variant.sku}-Custom`,
-        variantName: `Customize ${variant.variantName} +$15`,
-        price: customPrice,
-        weight,
-        isCustom: true,
-        position: nextPosition++,
-        options: { Style: `Customize ${variant.variantName}` }
-      });
-    }
-  } else {
-    // Handle Animal, Classic, QClassic collections (style collections)
-    if (isWoodType(shape)) {
-      const styleKey = `${variant.style?.label}-${shape.abbreviation}`;
-      if (!processedStyles.has(styleKey)) {
-        if (collectionType === COLLECTION_TYPES.QCLASSIC) {
-          // Get the qClassicLeather value for this shape
-          const shapeQClassicLeather = formState.qClassicLeathers?.[variant.shapeId];
+      // Handle Animal, Classic, QClassic collections (style collections)
+      if (isWoodType(shape)) {
+        const styleKey = `${variant.style?.label}-${shape.abbreviation}`;
+        if (!processedStyles.has(styleKey)) {
+          if (collectionType === COLLECTION_TYPES.QCLASSIC) {
+            // Get the qClassicLeather value for this shape
+            const shapeQClassicLeather = formState.qClassicLeathers?.[variant.shapeId];
+
+            // Find the leather color object that matches the qClassicLeather ID
+            const qClassicLeatherColor = leatherColors.find(
+              color => color.value === shapeQClassicLeather
+            );
           
-          // Find the leather color object that matches the qClassicLeather ID
-          const qClassicLeatherColor = leatherColors.find(
-            color => color.value === shapeQClassicLeather
-          );
-        
-          // If style is Fat, use the opposite leather color for both SKU and name
-          const useOppositeColor = variant.style?.abbreviation === 'Fat';
-          const leatherAbbreviation = useOppositeColor ? 
-            (shapeQClassicLeather === formState.selectedLeatherColor1 ? 
-              leatherColor2.abbreviation : leatherColor1.abbreviation) :
-            qClassicLeatherColor.abbreviation;
-        
-          // Get the correct leather color label for the name
-          const leatherColorForName = useOppositeColor ?
-            (shapeQClassicLeather === formState.selectedLeatherColor1 ? 
-              leatherColor2 : leatherColor1) :
-            qClassicLeatherColor;
-        
-          // Determine the connecting phrase based on style
-          const stylePhrase = variant.style?.label === "50/50" ? 
-            "leather on left -" : 
-            "leather as";
-        
-          const customVariantName = `Customize ${leatherColorForName.label} ${stylePhrase} ${variant.style?.label} Fairway +$15`;
-        
-          // For wood types, use base SKU parts but replace with Fairway
-          const baseSku = isWoodType(shape) ? 
-            variant.sku.replace(shape.abbreviation, 'Fairway') :
-            variant.sku;
-        
-          const customVariant = {
-            ...variant,
-            shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
-            sku: `${baseSku}-${leatherAbbreviation}-${variant.style?.abbreviation}-Custom`,
-            variantName: customVariantName,
-            price: customPrice,
-            weight,
-            isCustom: true,
-            position: nextPosition++,
-            options: { Style: customVariantName }
-          };
-        
-          customVariants.push(customVariant);
-          processedStyles.add(styleKey);
-        } else {
-          // Keep existing logic for Animal and Classic collections
-          const customVariant = {
-            ...variant,
-            shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
-            sku: `${variant.sku.split('-').slice(0, -1).join('-')}-Fairway-${variant.style?.abbreviation}-Custom`,
-            variantName: `Customize ${variant.style?.label} Fairway +$15`,
-            price: customPrice,
-            weight,
-            isCustom: true,
-            position: nextPosition++,
-            options: { Style: `Customize ${variant.style?.label} Fairway` }
-          };
+            // If style is Fat, use the opposite leather color for both SKU and name
+            const useOppositeColor = variant.style?.abbreviation === 'Fat';
+            const leatherAbbreviation = useOppositeColor ? 
+              (shapeQClassicLeather === formState.selectedLeatherColor1 ? 
+                leatherColor2.abbreviation : leatherColor1.abbreviation) :
+              qClassicLeatherColor.abbreviation;
           
-          customVariants.push(customVariant);
-          processedStyles.add(styleKey);
+            // Get the correct leather color label for the name
+            const leatherColorForName = useOppositeColor ?
+              (shapeQClassicLeather === formState.selectedLeatherColor1 ? 
+                leatherColor2 : leatherColor1) :
+              qClassicLeatherColor;
+
+            // Determine the connecting phrase based on style
+            const stylePhrase = variant.style?.label === "50/50" ? 
+              "leather on left -" : 
+              "leather as";
+          
+            const customVariantName = `Customize ${leatherColorForName.label} ${stylePhrase} ${variant.style?.label} Fairway +$15`;
+          
+            // For wood types, use base SKU parts but replace with Fairway
+            const baseSku = isWoodType(shape) ? 
+              variant.sku.replace(shape.abbreviation, 'Fairway') :
+              variant.sku;
+          
+            const customVariant = {
+              ...variant,
+              ...baseCustomVariant,
+              shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
+              sku: `${baseSku}-${leatherAbbreviation}-${variant.style?.abbreviation}-Custom`,
+              variantName: customVariantName,
+              price: customPrice,
+              weight,
+              isCustom: true,
+              position: customPosition++,
+              options: { Style: customVariantName }
+            };
+          
+            customVariants.push(customVariant);
+            processedStyles.add(styleKey);
+          } else {
+            // Keep existing logic for Animal and Classic collections
+            const customVariant = {
+              ...variant,
+              ...baseCustomVariant,
+              shapeId: shapes.find(s => s.abbreviation === 'Fairway')?.value,
+              sku: `${variant.sku.split('-').slice(0, -1).join('-')}-Fairway-${variant.style?.abbreviation}-Custom`,
+              variantName: `Customize ${variant.style?.label} Fairway +$15`,
+              price: customPrice,
+              weight,
+              isCustom: true,
+              position: customPosition++,
+              options: { Style: `Customize ${variant.style?.label} Fairway` }
+            };
+            
+            customVariants.push(customVariant);
+            processedStyles.add(styleKey);
+          }
         }
+      } else if (!shouldHaveStyle) {
+        // Handles putters and other non-style shapes
+        customVariants.push({
+          ...variant,
+          ...baseCustomVariant,
+          sku: `${variant.sku}-Custom`,
+          variantName: `Customize ${variant.shape} +$15`,
+          price: customPrice,
+          weight,
+          isCustom: true,
+          position: customPosition++,
+          options: { Style: `Customize ${variant.shape}` }
+        });
+      } else {
+        // Keep existing logic for other cases
+        const customVariant = {
+          ...variant,
+          ...baseCustomVariant,
+          sku: `${variant.sku}-${variant.style?.abbreviation}-Custom`,
+          variantName: `Customize ${variant.style?.label} ${variant.shape} +$15`,
+          price: customPrice,
+          weight,
+          isCustom: true,
+          position: customPosition++,
+          options: { Style: `Customize ${variant.style?.label} ${variant.shape}` }
+        };
+
+        customVariants.push(customVariant);
       }
-    } else if (!shouldHaveStyle) { // Handles putters and other non-style shapes
-      // Keep existing logic for non-style shapes
-      customVariants.push({
-        ...variant,
-        sku: `${variant.sku}-Custom`,
-        variantName: `Customize ${variant.shape} +$15`,
-        price: customPrice,
-        weight,
-        isCustom: true,
-        position: nextPosition++,
-        options: { Style: `Customize ${variant.shape}` }
-      });
-    } else {
-      // Keep existing logic for other cases
-      const customVariant = {
-        ...variant,
-        sku: `${variant.sku}-${variant.style?.abbreviation}-Custom`,
-        variantName: `Customize ${variant.style?.label} ${variant.shape} +$15`,
-        price: customPrice,
-        weight,
-        isCustom: true,
-        position: nextPosition++,
-        options: { Style: `Customize ${variant.style?.label} ${variant.shape}` }
-      };
-
-      customVariants.push(customVariant);
     }
-  }
-});
+  });
 
-  // Combine all variants
-  variants = [...variants, ...customVariants];
+    // Static "Create my own set" variant
+    const createOwnSetVariant = {
+      // sku: null,
+      variantName: "Create my own set",
+      price: 0,
+      weight: 0,
+      isCustom: true,
+      position: variants.length + 1,
+      options: {
+        Style: "Create my own set"
+      }
+    };
+
+  // Combine all variants in the correct order
+  const allVariants = [
+    ...variants,            // Regular variants
+    createOwnSetVariant,    // Static variant
+    ...customVariants       // Custom variants
+  ];
 
   console.log('Final Variant Order:', variants.map(v => ({
     name: v.variantName,
@@ -389,10 +455,10 @@ variants.forEach(variant => {
     isCustom: v.isCustom
   })));
 
-  return variants;
+  return allVariants;
 };
 
-export const generateProductData = async (formState, leatherColors, stitchingThreadColor, embroideryThreadColor, colorTags, shapes, styles, productPrices, shopifyCollections) => {
+export const generateProductData = async (formState, leatherColors, stitchingThreadColor, embroideryThreadColor, colorTags, shapes, styles, productPrices, shopifyCollections, amannNumbers, isacordNumbers) => {
   const title = generateTitle(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shopifyCollections);
   return {
     title,
@@ -402,13 +468,36 @@ export const generateProductData = async (formState, leatherColors, stitchingThr
     descriptionHTML: generateDescriptionHTML(formState, shopifyCollections),
     seoDescription: generateSEODescription(formState, shopifyCollections),
     tags: generateTags(formState, leatherColors, embroideryThreadColor, stitchingThreadColor, colorTags),
-    variants: await generateVariants(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shapes, styles, productPrices, shopifyCollections)
+    variants: await generateVariants(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shapes, styles, productPrices, shopifyCollections, amannNumbers, isacordNumbers)
   };
 };
 
 const generateTitle = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors, shopifyCollections) => {
-  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor, } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors,);
+  console.log("GenerateTitle inputs:", {
+    formState,
+    leatherColors,
+    stitchingThreadColors,
+    embroideryThreadColors,
+    shopifyCollections
+  });
+  
+  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = 
+    getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
   const collectionType = getCollectionType(formState, shopifyCollections);
+
+  console.log("GetCollectionType input:", {
+    selectedCollectionId: formState.selectedCollection,
+    availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
+    collections_length: shopifyCollections?.length
+  });
+
+  console.log("Title generation data:", {
+    collectionType,
+    leatherColor1,
+    leatherColor2,
+    stitchingThreadColor,
+    embroideryThreadColor
+  });
 
   if (!leatherColor1) return "Primary leather color missing";
   
@@ -441,6 +530,11 @@ const generateMainHandle = (formState, title, shopifyCollections) => {
     .replace(/[^a-z0-9-]/g, '');
 
   const collectionType = getCollectionType(formState, shopifyCollections);
+  console.log("GetCollectionType input:", {
+    selectedCollectionId: formState.selectedCollection,
+    availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
+    collections_length: shopifyCollections?.length
+  });
   
   switch(collectionType) {
     case COLLECTION_TYPES.QUILTED:
@@ -472,6 +566,11 @@ const generateSEOTitle = (formState, title, shopifyCollections) => {
   if (!title || title === "Pending Title") return "pending-seo-title";
 
   const collectionType = getCollectionType(formState, shopifyCollections);
+  console.log("GetCollectionType input:", {
+    selectedCollectionId: formState.selectedCollection,
+    availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
+    collections_length: shopifyCollections?.length
+  });
   
   switch(collectionType) {
     case COLLECTION_TYPES.QUILTED:
@@ -489,6 +588,11 @@ const generateSEOTitle = (formState, title, shopifyCollections) => {
 
 const generateDescriptionHTML = (formState, shopifyCollections) => {
   const collectionType = getCollectionType(formState, shopifyCollections);
+  console.log("GetCollectionType input:", {
+    selectedCollectionId: formState.selectedCollection,
+    availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
+    collections_length: shopifyCollections?.length
+  });
 
   const leatherDescription = "<div><div><div>We use 100% top grain genuine cowhide from the finest tanneries in Italy, Argentina, and Austria, ensuring exceptional quality, luxurious feel, and unmatched durability. Every piece is hand cut by an artisan leather craftsman in the heart of downtown San Francisco, CA. If you don't see your ideal color combination, <a href='https://lpcgolf.com/pages/contact' target='_blank' title='Contact LPC golf' rel='noopener'>please contact us</a> about creating a custom, one-of-a-kind set.</div></div></div>";
 

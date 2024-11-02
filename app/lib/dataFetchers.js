@@ -299,7 +299,184 @@ export const getShopifyCollections = async () => {
   }
 };
 
+export const getProductDataLPC = async () => {
+  try {
+    const productData = await prisma.productDataLPC.findMany({
+      include: {
+        collection: {
+          select: {
+            id: true,
+            title: true,
+            handle: true,
+            shopifyId: true
+          }
+        },
+        font: {
+          select: {
+            id: true,
+            name: true,
+            image_url: true
+          }
+        },
+        shape: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true
+          }
+        },
+        leatherColor1: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true,
+            image_url: true
+          }
+        },
+        leatherColor2: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true,
+            image_url: true
+          }
+        },
+        amann: {
+          select: {
+            id: true,
+            number: true,
+            thread: {
+              select: {
+                name: true,
+                abbreviation: true
+              }
+            }
+          }
+        },
+        isacord: {
+          select: {
+            id: true,
+            number: true,
+            thread: {
+              select: {
+                name: true,
+                abbreviation: true
+              }
+            }
+          }
+        },
+        style: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true,
+            image_url: true
+          }
+        },
+        quiltedLeatherColor: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true,
+            image_url: true
+          }
+        }
+      }
+    });
 
+    return productData.map(({
+      id,
+      shopifyProductId,
+      shopifyVariantId,
+      shopifyInventoryId,
+      SKU,
+      collection,
+      productType,
+      font,
+      shape,
+      weight,
+      leatherColor1,
+      leatherColor2,
+      amann,
+      isacord,
+      style,
+      quiltedLeatherColor,
+      mainHandle,
+      createdAt,
+      updatedAt
+    }) => ({
+      value: id,
+      shopifyProductId,
+      shopifyVariantId,
+      shopifyInventoryId,
+      SKU,
+      collection: {
+        value: collection.id,
+        label: collection.title,
+        handle: collection.handle,
+        shopifyId: collection.shopifyId
+      },
+      productType,
+      font: {
+        value: font.id,
+        label: font.name,
+        image_url: font.image_url
+      },
+      shape: {
+        value: shape.id,
+        label: shape.name,
+        abbreviation: shape.abbreviation
+      },
+      weight: parseFloat(weight),
+      leatherColor1: {
+        value: leatherColor1.id,
+        label: leatherColor1.name,
+        abbreviation: leatherColor1.abbreviation,
+        image_url: leatherColor1.image_url
+      },
+      leatherColor2: leatherColor2 ? {
+        value: leatherColor2.id,
+        label: leatherColor2.name,
+        abbreviation: leatherColor2.abbreviation,
+        image_url: leatherColor2.image_url
+      } : null,
+      amann: amann ? {
+        value: amann.id,
+        label: amann.number,
+        thread: {
+          label: amann.thread.name,
+          abbreviation: amann.thread.abbreviation
+        }
+      } : null,
+      isacord: {
+        value: isacord.id,
+        label: isacord.number,
+        thread: {
+          label: isacord.thread.name,
+          abbreviation: isacord.thread.abbreviation
+        }
+      },
+      style: style ? {
+        value: style.id,
+        label: style.name,
+        abbreviation: style.abbreviation,
+        image_url: style.image_url
+      } : null,
+      quiltedLeatherColor: quiltedLeatherColor ? {
+        value: quiltedLeatherColor.id,
+        label: quiltedLeatherColor.name,
+        abbreviation: quiltedLeatherColor.abbreviation,
+        image_url: quiltedLeatherColor.image_url
+      } : null,
+      mainHandle,
+      createdAt,
+      updatedAt
+    }));
+  } catch (error) {
+    console.error("Error fetching ProductDataLPC:", error);
+    throw error;
+  }
+};
 
 
 // export const getCollections = async (admin) => {
