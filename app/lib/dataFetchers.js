@@ -301,7 +301,7 @@ export const getShopifyCollections = async () => {
 
 export const getProductDataLPC = async () => {
   try {
-    const productData = await prisma.productDataLPC.findMany({
+    const productDataLPC = await prisma.productDataLPC.findMany({
       include: {
         collection: {
           select: {
@@ -381,17 +381,20 @@ export const getProductDataLPC = async () => {
             image_url: true
           }
         }
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
 
-    return productData.map(({
+    return productDataLPC.map(({
       id,
       shopifyProductId,
       shopifyVariantId,
       shopifyInventoryId,
       SKU,
       collection,
-      productType,
+      offeringType,
       font,
       shape,
       weight,
@@ -416,7 +419,7 @@ export const getProductDataLPC = async () => {
         handle: collection.handle,
         shopifyId: collection.shopifyId
       },
-      productType,
+      offeringType,
       font: {
         value: font.id,
         label: font.name,

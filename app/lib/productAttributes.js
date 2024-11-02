@@ -11,29 +11,29 @@ import {
 import { isPutter, isWoodType } from "./shapeUtils";
 
 const getColors = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors) => {
-  console.log("GetColors inputs:", {
-    formState,
-    leatherColors,
-    stitchingThreadColors,
-    embroideryThreadColors
-  });
+  // console.log("GetColors inputs:", {
+  //   formState,
+  //   leatherColors,
+  //   stitchingThreadColors,
+  //   embroideryThreadColors
+  // });
   const colors = {
     leatherColor1: leatherColors.find(color => color.value === formState.selectedLeatherColor1),
     leatherColor2: leatherColors.find(color => color.value === formState.selectedLeatherColor2),
     stitchingThreadColor: stitchingThreadColors.find(color => color.value === formState.selectedStitchingColor),
     embroideryThreadColor: embroideryThreadColors.find(color => color.value === formState.selectedEmbroideryColor),
   };
-  console.log("Found colors:", colors);
+  // console.log("Found colors:", colors);
   return colors;
 };
 
 const getCollectionType = (formState, shopifyCollections) => {
-  console.log("GetCollectionType inputs:", {
-    selectedCollection: formState.selectedCollection,
-    collections: shopifyCollections
-  });
+  // console.log("GetCollectionType inputs:", {
+  //   selectedCollection: formState.selectedCollection,
+  //   collections: shopifyCollections
+  // });
   const collection = shopifyCollections.find(col => col.value === formState.selectedCollection);
-  console.log("Found collection:", collection);
+  // console.log("Found collection:", collection);
   return collection ? getShopifyCollectionType({ handle: collection.handle }) : 'Unknown';
 };
 
@@ -160,11 +160,11 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
   const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
   const collectionType = getCollectionType(formState, shopifyCollections);
 
-  console.log("GetCollectionType input:", {
-    selectedCollectionId: formState.selectedCollection,
-    availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
-    collections_length: shopifyCollections?.length
-  });
+  // console.log("GetCollectionType input:", {
+  //   selectedCollectionId: formState.selectedCollection,
+  //   availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
+  //   collections_length: shopifyCollections?.length
+  // });
 
   if (!leatherColor1) {
     console.error("Primary leather color not found");
@@ -449,11 +449,11 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
     ...customVariants       // Custom variants
   ];
 
-  console.log('Final Variant Order:', variants.map(v => ({
-    name: v.variantName,
-    position: v.position,
-    isCustom: v.isCustom
-  })));
+  // console.log('Final Variant Order:', variants.map(v => ({
+  //   name: v.variantName,
+  //   position: v.position,
+  //   isCustom: v.isCustom
+  // })));
 
   return allVariants;
 };
@@ -468,36 +468,51 @@ export const generateProductData = async (formState, leatherColors, stitchingThr
     descriptionHTML: generateDescriptionHTML(formState, shopifyCollections),
     seoDescription: generateSEODescription(formState, shopifyCollections),
     tags: generateTags(formState, leatherColors, embroideryThreadColor, stitchingThreadColor, colorTags),
-    variants: await generateVariants(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shapes, styles, productPrices, shopifyCollections, amannNumbers, isacordNumbers)
+    variants: await generateVariants(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shapes, styles, productPrices, shopifyCollections, amannNumbers, isacordNumbers),
+
+    // New fields for database consistency
+    collectionId: formState.selectedCollection,
+    selectedFont: formState.selectedFont,
+    offeringType: formState.selectedOfferingType,
+    limitedEditionQuantity: formState.limitedEditionQuantity || null,
+    
+    // Additional metadata that might be useful
+    selectedLeatherColor1: formState.selectedLeatherColor1,
+    selectedLeatherColor2: formState.selectedLeatherColor2,
+    selectedStitchingColor: formState.selectedStitchingColor,
+    selectedEmbroideryColor: formState.selectedEmbroideryColor,
+    
+    // Include timestamps for database records
+    createdAt: new Date().toISOString(),
   };
 };
 
 const generateTitle = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors, shopifyCollections) => {
-  console.log("GenerateTitle inputs:", {
-    formState,
-    leatherColors,
-    stitchingThreadColors,
-    embroideryThreadColors,
-    shopifyCollections
-  });
+  // console.log("GenerateTitle inputs:", {
+  //   formState,
+  //   leatherColors,
+  //   stitchingThreadColors,
+  //   embroideryThreadColors,
+  //   shopifyCollections
+  // });
   
   const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = 
     getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
   const collectionType = getCollectionType(formState, shopifyCollections);
 
-  console.log("GetCollectionType input:", {
-    selectedCollectionId: formState.selectedCollection,
-    availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
-    collections_length: shopifyCollections?.length
-  });
+  // console.log("GetCollectionType input:", {
+  //   selectedCollectionId: formState.selectedCollection,
+  //   availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
+  //   collections_length: shopifyCollections?.length
+  // });
 
-  console.log("Title generation data:", {
-    collectionType,
-    leatherColor1,
-    leatherColor2,
-    stitchingThreadColor,
-    embroideryThreadColor
-  });
+  // console.log("Title generation data:", {
+  //   collectionType,
+  //   leatherColor1,
+  //   leatherColor2,
+  //   stitchingThreadColor,
+  //   embroideryThreadColor
+  // });
 
   if (!leatherColor1) return "Primary leather color missing";
   
@@ -530,11 +545,11 @@ const generateMainHandle = (formState, title, shopifyCollections) => {
     .replace(/[^a-z0-9-]/g, '');
 
   const collectionType = getCollectionType(formState, shopifyCollections);
-  console.log("GetCollectionType input:", {
-    selectedCollectionId: formState.selectedCollection,
-    availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
-    collections_length: shopifyCollections?.length
-  });
+  // console.log("GetCollectionType input:", {
+  //   selectedCollectionId: formState.selectedCollection,
+  //   availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
+  //   collections_length: shopifyCollections?.length
+  // });
   
   switch(collectionType) {
     case COLLECTION_TYPES.QUILTED:
@@ -566,11 +581,11 @@ const generateSEOTitle = (formState, title, shopifyCollections) => {
   if (!title || title === "Pending Title") return "pending-seo-title";
 
   const collectionType = getCollectionType(formState, shopifyCollections);
-  console.log("GetCollectionType input:", {
-    selectedCollectionId: formState.selectedCollection,
-    availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
-    collections_length: shopifyCollections?.length
-  });
+  // console.log("GetCollectionType input:", {
+  //   selectedCollectionId: formState.selectedCollection,
+  //   availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
+  //   collections_length: shopifyCollections?.length
+  // });
   
   switch(collectionType) {
     case COLLECTION_TYPES.QUILTED:
@@ -588,11 +603,11 @@ const generateSEOTitle = (formState, title, shopifyCollections) => {
 
 const generateDescriptionHTML = (formState, shopifyCollections) => {
   const collectionType = getCollectionType(formState, shopifyCollections);
-  console.log("GetCollectionType input:", {
-    selectedCollectionId: formState.selectedCollection,
-    availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
-    collections_length: shopifyCollections?.length
-  });
+  // console.log("GetCollectionType input:", {
+  //   selectedCollectionId: formState.selectedCollection,
+  //   availableCollections: shopifyCollections?.slice(0, 2), // First 2 for clarity
+  //   collections_length: shopifyCollections?.length
+  // });
 
   const leatherDescription = "<div><div><div>We use 100% top grain genuine cowhide from the finest tanneries in Italy, Argentina, and Austria, ensuring exceptional quality, luxurious feel, and unmatched durability. Every piece is hand cut by an artisan leather craftsman in the heart of downtown San Francisco, CA. If you don't see your ideal color combination, <a href='https://lpcgolf.com/pages/contact' target='_blank' title='Contact LPC golf' rel='noopener'>please contact us</a> about creating a custom, one-of-a-kind set.</div></div></div>";
 

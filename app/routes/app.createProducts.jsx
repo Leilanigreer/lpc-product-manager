@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
-import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { TitleBar } from "@shopify/app-bridge-react";
 import { useFormState } from "../hooks/useFormState.js";
 import { loader } from "../lib/loaders.js";
 import { generateProductData } from "../lib/productAttributes.js";
@@ -14,6 +14,7 @@ import ThreadColorSelector from "../components/ThreadColorSelector.jsx";
 import ShapeSelector from "../components/ShapeSelector.jsx";
 import ProductVariantCheck from "../components/ProductVariantCheck.jsx";
 import ProductTypeSelector from "../components/ProductTypeSelector.jsx";
+import { saveProductToDatabase } from "../lib/productOperations.server";
 import {
   Page,
   Layout,
@@ -252,23 +253,26 @@ export const action = async ({ request }) => {
       }
     );
 
-    // Log variant creation status
+    // Log variant creation status with inventory information
     const variantsJson = await variantsResponse.json();
     console.log('Variants Creation Response:', JSON.stringify(variantsJson, null, 2));
 
     if (variantsJson.data?.productVariantsBulkCreate?.product?.variants?.edges) {
-      console.log('\nVariant Creation Status:');
+      console.log('\nVariant Creation Status with Inventory Details:');
       variantsJson.data.productVariantsBulkCreate.product.variants.edges.forEach(({ node }) => {
+        console.log(`Variant id: ${node.id}`)
         console.log(`Variant: ${node.title}`);
-        console.log(`  Price: ${node.price}`);
-        if (node.inventoryQuantities) {
-          console.log(`Inventory Quantities: ${node.inventoryQuantities}`)
-        };
+        console.log(`Price: ${node.price}`);
+        console.log('Inventory Details:');
         if (node.inventoryItem) {
-          console.log(`  InventoryItemID: ${node.inventoryItem.id}`)
+          console.log(`  Inventory Item ID: ${node.inventoryItem.id}`);
           console.log(`  SKU: ${node.inventoryItem.sku}`);
           console.log(`  Tracked: ${node.inventoryItem.tracked}`);
-          console.log(`  Requires Shipping: ${node.inventoryItem.requiresShipping}`);
+          if (node.inventoryItem.inventoryLevels?.edges?.[0]) {
+            const level = node.inventoryItem.inventoryLevels.edges[0].node;
+            console.log(`  Available Quantity: ${level.available}`);
+            console.log(`  Location: ${level.location.name}`);
+          }
         }
         console.log('-------------------');
       });
@@ -376,12 +380,32 @@ export const action = async ({ request }) => {
       return json({ errors: publishErrors }, { status: 422 });
     }
 
+    const dbSaveResult = await saveProductToDatabase(
+      productData,
+      {
+        product: productJson.data.productCreate.product,
+        variants: variantsJson.data.productVariantsBulkCreate.product.variants.edges.map(({node}) => ({
+          id: node.id,
+          title: node.title,
+          price: node.price,
+          sku: node.sku,
+          inventoryItem: {
+            id: node.inventoryItem?.id || "",
+            tracked: node.inventoryItem?.tracked || false,
+            sku: node.inventoryItem?.sku || ""
+          },
+          selectedOptions: node.selectedOptions
+        }))
+      }
+    );
+
     // Return success response with all data
     return json({ 
       product: productJson.data.productCreate.product,
       variants: variantsJson.data.productVariantsBulkCreate.productVariants,
       media: mediaJson.data.productUpdate.product.media,
       publications: publishResults,
+      databaseSave: dbSaveResult,
       success: true
     });
 
@@ -415,14 +439,8 @@ export default function CreateProduct() {
     error 
   } = useLoaderData();
 
-  console.log("Data received in component:", {
-    shopifyCollections: shopifyCollections?.slice(0, 2), // Just show first 2 for clarity
-    collections_length: shopifyCollections?.length,
-    first_collection_handle: shopifyCollections?.[0]?.handle
-  });
-
   const fetcher = useFetcher();
-  const app = useAppBridge();
+  // const app = useAppBridge();
   
 
   const [formState, setFormState] = useFormState({
