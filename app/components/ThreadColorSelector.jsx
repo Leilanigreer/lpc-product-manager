@@ -3,9 +3,7 @@ import { Card, Select, InlineStack, Box, BlockStack } from "@shopify/polaris";
 
 const ThreadColorSelector = ({ 
   stitchingThreadColors,
-  amannNumbers,
   embroideryThreadColors,
-  isacordNumbers, 
   selectedEmbroideryColor, 
   selectedStitchingColor, 
   matchingAmannNumber,
@@ -14,16 +12,22 @@ const ThreadColorSelector = ({
 }) => {
   // First, sanitize the color arrays
   const sanitizedEmbroideryColors = useMemo(() => 
-    embroideryThreadColors.map(({ colorTags, ...rest }) => rest),
+    embroideryThreadColors.map(({ label, value }) => ({
+      label: String(label),
+      value: String(value)
+    })),
     [embroideryThreadColors]
   );
   
   const sanitizedStitchingColors = useMemo(() => 
-    stitchingThreadColors.map(({ colorTags, ...rest }) => rest),
+    stitchingThreadColors.map(({ label, value }) => ({
+      label: String(label),
+      value: String(value)
+    })),
     [stitchingThreadColors]
   );
 
-  // Then find selected threads (removed duplicate declarations)
+  // Then find selected threads
   const selectedEmbroideryThread = useMemo(() => 
     embroideryThreadColors.find(thread => thread.value === selectedEmbroideryColor),
     [embroideryThreadColors, selectedEmbroideryColor]
@@ -37,16 +41,16 @@ const ThreadColorSelector = ({
   // Now sanitize the number arrays using the selected threads
   const sanitizedAmannNumbers = useMemo(() => 
     selectedStitchingThread?.amannNumbers?.map(({ label, value }) => ({
-      label,
-      value
+      label: String(label),
+      value: String(value)
     })) || [],
     [selectedStitchingThread]
   );
 
   const sanitizedIsacordNumbers = useMemo(() => 
     selectedEmbroideryThread?.isacordNumbers?.map(({ label, value }) => ({
-      label,
-      value
+      label: String(label),
+      value: String(value)
     })) || [],
     [selectedEmbroideryThread]
   );
@@ -99,7 +103,10 @@ const ThreadColorSelector = ({
           <BlockStack gap="400">
             <Select
               label="Select Embroidery"
-              options={[{ label: "Color of Thread", value: "" }, ...sanitizedEmbroideryColors]}
+              options={[
+                { label: "Color of Thread", value: "" }, 
+                ...sanitizedEmbroideryColors
+              ]}
               onChange={handleEmbroideryChange}
               value={selectedEmbroideryColor}
             />
@@ -108,7 +115,10 @@ const ThreadColorSelector = ({
                 label="Select Isacord Number"
                 options={[
                   { label: "Select Number", value: "" },
-                  ...sanitizedIsacordNumbers
+                  ...sanitizedIsacordNumbers.map(({ label, value }) => ({
+                    label,
+                    value
+                  }))
                 ]}
                 onChange={(value) => onChange('matchingIsacordNumber', value)}
                 value={matchingIsacordNumber}
@@ -120,7 +130,10 @@ const ThreadColorSelector = ({
           <BlockStack gap="400">
             <Select
               label="Select Stitching"
-              options={[{ label: "Color of Thread", value: "" }, ...sanitizedStitchingColors]}
+              options={[
+                { label: "Color of Thread", value: "" }, 
+                ...sanitizedStitchingColors
+              ]}
               onChange={handleStitchingChange}
               value={selectedStitchingColor}
             />
@@ -129,7 +142,10 @@ const ThreadColorSelector = ({
                 label="Select Amann Number"
                 options={[
                   { label: "Select Number", value: "" },
-                  ...sanitizedAmannNumbers
+                  ...sanitizedAmannNumbers.map(({ label, value }) => ({
+                    label,
+                    value
+                  }))
                 ]}
                 onChange={(value) => onChange('matchingAmannNumber', value)}
                 value={matchingAmannNumber}

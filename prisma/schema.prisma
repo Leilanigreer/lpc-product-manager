@@ -156,7 +156,7 @@ model ProductDataLPC {
   SKU                   String
   collectionId          String
   collection            ShopifyCollection @relation(fields: [collectionId], references: [id])
-  productType           String
+  offeringType          String
   fontId                String
   font                  Font              @relation(fields: [fontId], references: [id])
   shapeId               String

@@ -1,13 +1,36 @@
 import { json } from "@remix-run/node";
 // import { authenticate } from "../shopify.server";
 import { 
-  getLeatherColors, getStitchingThreadColors, getEmbroideryThreadColors, getFonts, getShapes, getStyles, getProductPrices, getShopifyCollections, getColorTags, getIsacordNumbers, getAmannNumbers } from "./dataFetchers";
+  getLeatherColors, 
+  getStitchingThreadColors, 
+  getEmbroideryThreadColors, 
+  getColorTags, 
+  getFonts, 
+  getShapes, 
+  getStyles, 
+  getProductPrices, 
+  getShopifyCollections, 
+  getIsacordNumbers, 
+  getAmannNumbers,
+  getProductDataLPC 
+} from "./dataFetchers";
 
-export const loader = async ({ request }) => {
-//   const { admin } = await authenticate.admin(request);
-  
+export const loader = async () => {  
   try {
-    const [leatherColors, stitchingThreadColors, embroideryThreadColors, colorTags, fonts, shapes, styles, productPrices, shopifyCollections, isacordNumbers, amannNumbers] = await Promise.all([
+    const [
+      leatherColors, 
+      stitchingThreadColors, 
+      embroideryThreadColors, 
+      colorTags, 
+      fonts, 
+      shapes, 
+      styles, 
+      productPrices, 
+      shopifyCollections, 
+      isacordNumbers, 
+      amannNumbers,
+      productDataLPC,
+    ] = await Promise.all([
       getLeatherColors(),
       getStitchingThreadColors(),
       getEmbroideryThreadColors(),
@@ -19,10 +42,43 @@ export const loader = async ({ request }) => {
       getShopifyCollections(),
       getIsacordNumbers(),
       getAmannNumbers(),
+      getProductDataLPC()
     ]);
-    return json({ leatherColors, stitchingThreadColors, embroideryThreadColors, colorTags, fonts, shapes, styles, productPrices, shopifyCollections, isacordNumbers, amannNumbers });
+
+    return json({
+      shopifyCollections,
+      leatherColors,
+      stitchingThreadColors,
+      embroideryThreadColors,
+      amannNumbers,
+      isacordNumbers,
+      colorTags,
+      shapes,
+      styles,
+      fonts,
+      productPrices,
+      productDataLPC,
+      error: null
+    });
   } catch (error) {
-    console.error('Loader error:', error);
-    return json({ error: error.message }, { status: 500 });
+    console.error("Loader Error:", error);
+    return json(
+      {
+        shopifyCollections: [],
+        leatherColors: [],
+        stitchingThreadColors: [],
+        embroideryThreadColors: [],
+        amannNumbers: [],
+        isacordNumbers: [],
+        colorTags: [],
+        shapes: [],
+        styles: [],
+        fonts: [],
+        productPrices: [],
+        productDataLPC: [],
+        error: error.message
+      }, 
+      { status: 500 }
+    );
   }
 };
