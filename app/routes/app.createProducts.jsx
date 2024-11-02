@@ -415,6 +415,12 @@ export default function CreateProduct() {
     error 
   } = useLoaderData();
 
+  console.log("Data received in component:", {
+    shopifyCollections: shopifyCollections?.slice(0, 2), // Just show first 2 for clarity
+    collections_length: shopifyCollections?.length,
+    first_collection_handle: shopifyCollections?.[0]?.handle
+  });
+
   const fetcher = useFetcher();
   const app = useAppBridge();
   
@@ -493,10 +499,9 @@ export default function CreateProduct() {
     }, [fetcher.data, setFormState]);
 
     const { 
-      // isCollectionAnimalClassicQclassic, 
       needsSecondaryColor, 
       needsStitchingColor,
-      needsStyle,           // Add new destructured functions
+      needsStyle,           
       needsQClassicField
     } = useCollectionLogic(shopifyCollections, formState.selectedCollection);
 
@@ -520,11 +525,80 @@ export default function CreateProduct() {
            hasShapeData;
   }, [formState, needsSecondaryColor, needsStitchingColor]);
 
+  const prepareThreadData = useCallback((formState, needsStitchingColor) => {
+    if (needsStitchingColor) {
+      // Return global thread data when ThreadColorSelector is used
+      return {
+        threadType: 'global',
+        globalThreads: {
+          stitching: formState.selectedStitchingColor ? {
+            threadId: formState.selectedStitchingColor,
+            numberId: formState.matchingAmannNumber
+          } : null,
+          embroidery: formState.selectedEmbroideryColor ? {
+            threadId: formState.selectedEmbroideryColor,
+            numberId: formState.matchingIsacordNumber
+          } : null
+        }
+      };
+    } else {
+      // Return shape-specific thread data when using ShapeSelector
+      return {
+        threadType: 'shape-specific',
+        shapeThreads: Object.keys(formState.selectedEmbroideryColors).reduce((acc, shapeId) => {
+          if (formState.selectedEmbroideryColors[shapeId]) {
+            acc[shapeId] = {
+              embroideryThread: {
+                threadId: formState.selectedEmbroideryColors[shapeId],
+                numberId: formState.shapeIsacordNumbers[shapeId] || null
+              }
+            };
+          }
+          return acc;
+        }, {})
+      };
+    }
+  }, []);
+
+  const validateThreadData = useCallback((formState, needsStitchingColor) => {
+    const errors = [];
+  
+    if (needsStitchingColor) {
+      // Validate both stitching and embroidery in ThreadColorSelector
+      if (formState.selectedStitchingColor && !formState.matchingAmannNumber) {
+        errors.push("Please select an Amann number for the stitching thread");
+      }
+      if (formState.selectedEmbroideryColor && !formState.matchingIsacordNumber) {
+        errors.push("Please select an Isacord number for the embroidery thread");
+      }
+    } else {
+      // We're in the needsStyle case (since they're mutually exclusive)
+      // Only validate shape-specific embroidery
+      Object.entries(formState.weights).forEach(([shapeId, weight]) => {
+        // Only validate shapes that are selected (have a weight)
+        if (weight && weight !== "") {
+          const threadId = formState.selectedEmbroideryColors[shapeId];
+          // Only validate if a thread color is selected
+          if (threadId && !formState.shapeIsacordNumbers[shapeId]) {
+            errors.push(`Please select an Isacord number for the selected shape`);
+          }
+        }
+      });
+    }
+  
+    return errors;
+  }, []);
+
   const handleGenerateData = async () => {
     setIsGenerating(true);
     setGenerationError(null);
-    
+
     try {
+      const validationErrors = validateThreadData(formState, needsStitchingColor);
+      if (validationErrors.length > 0) {
+        throw new Error(validationErrors.join('\n'));
+      }
+
       const validWeights = Object.entries(formState.weights)
         .filter(([_, weight]) => weight && weight !== "")
         .reduce((acc, [key, value]) => {
@@ -538,18 +612,23 @@ export default function CreateProduct() {
       };
       console.log(formState);
 
+      const threadData = prepareThreadData(updatedFormState, needsStitchingColor);
+      
       const data = await generateProductData(
-        updatedFormState,
+        {
+          ...updatedFormState,
+          threadData
+        },
         leatherColors,
         stitchingThreadColors,
-        amannNumbers,
         embroideryThreadColors,
-        isacordNumbers,
         colorTags,
         shapes,
         styles,
         productPrices,
         shopifyCollections,
+        amannNumbers,
+        isacordNumbers
       );
 
       console.log('Generated Product Data:', data);

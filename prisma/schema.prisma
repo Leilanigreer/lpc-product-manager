@@ -26,51 +26,58 @@ model Session {
 }
 
 model LeatherColor {
-  id                      String     @id @default(cuid())
+  id                      String           @id @default(cuid())
   name                    String
   abbreviation            String
   image_url               String?
-  isLimitedEditionLeather Boolean    @default(false)
-  createdAt               DateTime   @default(now())
-  updatedAt               DateTime   @updatedAt
-  colorTags               ColorTag[] @relation("LeatherColorToTag")
+  isLimitedEditionLeather Boolean          @default(false)
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  colorTags               ColorTag[]       @relation("LeatherColorToTag")
+  first_leather_color     ProductDataLPC[] @relation("PrimaryLeatherColor")
+  second_leather_color    ProductDataLPC[] @relation("SecondaryLeatherColor")
+  quilted_leather_color   ProductDataLPC[] @relation("QuiltedLeatherColor")
 }
 
 model Shape {
-  id            String         @id @default(cuid())
-  name          String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  abbreviation  String?
-  productPrices ProductPrice[]
+  id             String           @id @default(cuid())
+  name           String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  abbreviation   String?
+  productPrices  ProductPrice[]
+  ProductDataLPC ProductDataLPC[]
 }
 
 model Style {
-  id           String   @id @default(cuid())
-  name         String
-  abbreviation String
-  image_url    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String           @id @default(cuid())
+  name           String
+  abbreviation   String
+  image_url      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  ProductDataLPC ProductDataLPC[]
 }
 
 model Font {
-  id        String   @id @default(cuid())
-  name      String
-  image_url String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String           @id @default(cuid())
+  name           String
+  image_url      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  ProductDataLPC ProductDataLPC[]
 }
 
 model ShopifyCollection {
-  id                   String         @id @default(cuid())
+  id                   String           @id @default(cuid())
   shopifyId            String
   title                String
-  handle               String         @unique
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  handle               String           @unique
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
   admin_graphql_api_id String
   productPrices        ProductPrice[]
+  ProductDataLPC       ProductDataLPC[]
 
   @@map("ShopifyCollections")
 }
@@ -98,12 +105,13 @@ model EmbroideryThread {
 }
 
 model IsacordNumber {
-  id        String           @id @default(cuid())
-  number    String
-  threadId  String
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  thread    EmbroideryThread @relation(fields: [threadId], references: [id])
+  id             String           @id @default(cuid())
+  number         String
+  threadId       String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  thread         EmbroideryThread @relation(fields: [threadId], references: [id])
+  ProductDataLPC ProductDataLPC[]
 
   @@index([threadId])
 }
@@ -119,12 +127,13 @@ model StitchingThread {
 }
 
 model AmannNumber {
-  id        String          @id @default(cuid())
-  number    String
-  threadId  String
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  thread    StitchingThread @relation(fields: [threadId], references: [id])
+  id             String           @id @default(cuid())
+  number         String
+  threadId       String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  thread         StitchingThread  @relation(fields: [threadId], references: [id])
+  ProductDataLPC ProductDataLPC[]
 
   @@index([threadId])
 }
@@ -137,4 +146,45 @@ model ColorTag {
   embroideryColors EmbroideryThread[] @relation("EmbroideryThreadToTag")
   leatherColors    LeatherColor[]     @relation("LeatherColorToTag")
   stitchingColors  StitchingThread[]  @relation("StitchingThreadToTag")
+}
+
+model ProductDataLPC {
+  id                    String            @id @default(cuid())
+  shopifyProductId      String
+  shopifyVariantId      String
+  shopifyInventoryId    String
+  SKU                   String
+  collectionId          String
+  collection            ShopifyCollection @relation(fields: [collectionId], references: [id])
+  productType           String
+  fontId                String
+  font                  Font              @relation(fields: [fontId], references: [id])
+  shapeId               String
+  shape                 Shape             @relation(fields: [shapeId], references: [id])
+  weight                Decimal           @db.Decimal(10, 2)
+  leatherColor1Id       String
+  leatherColor1         LeatherColor      @relation("PrimaryLeatherColor", fields: [leatherColor1Id], references: [id])
+  leatherColor2Id       String?
+  leatherColor2         LeatherColor?     @relation("SecondaryLeatherColor", fields: [leatherColor2Id], references: [id])
+  amannId               String?
+  amann                 AmannNumber?      @relation(fields: [amannId], references: [id])
+  isacordId             String
+  isacord               IsacordNumber     @relation(fields: [isacordId], references: [id])
+  styleId               String?
+  style                 Style?            @relation(fields: [styleId], references: [id])
+  quiltedLeatherColorId String?
+  quiltedLeatherColor   LeatherColor?     @relation("QuiltedLeatherColor", fields: [quiltedLeatherColorId], references: [id])
+  mainHandle            String
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([collectionId])
+  @@index([fontId])
+  @@index([shapeId])
+  @@index([leatherColor1Id])
+  @@index([leatherColor2Id])
+  @@index([amannId])
+  @@index([isacordId])
+  @@index([styleId])
+  @@index([quiltedLeatherColorId])
 }

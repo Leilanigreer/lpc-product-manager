@@ -37,6 +37,11 @@ const ShapeSelector = ({
     }, []
   );
 
+  const sanitizedEmbroideryColors = useMemo(() => 
+    embroideryThreadColors?.map(({ colorTags, ...rest }) => rest) || [],
+    [embroideryThreadColors]
+  );
+
   const memoizedShapes = useMemo(() => shapes || [], [shapes]);
   const showStyle = needsStyle();
   const showQClassicField = needsQClassicField();
@@ -118,10 +123,22 @@ const ShapeSelector = ({
       ...formState.selectedEmbroideryColors,
       [shapeValue]: value
     });
-    // Reset isacord number when color changes
-    const newIsacordNumbers = { ...formState.shapeIsacordNumbers };
-    delete newIsacordNumbers[shapeValue];
-    handleChange('shapeIsacordNumbers', newIsacordNumbers);
+  
+    // Find the selected thread color and its Isacord numbers
+    const selectedThread = embroideryThreadColors?.find(t => t.value === value);
+    
+    if (selectedThread?.isacordNumbers?.length === 1) {
+      // If there's exactly one Isacord number, set it automatically
+      handleChange('shapeIsacordNumbers', {
+        ...formState.shapeIsacordNumbers,
+        [shapeValue]: selectedThread.isacordNumbers[0].value
+      });
+    } else {
+      // Reset if there are multiple options or no options
+      const newIsacordNumbers = { ...formState.shapeIsacordNumbers };
+      delete newIsacordNumbers[shapeValue];
+      handleChange('shapeIsacordNumbers', newIsacordNumbers);
+    }
   };
 
   const handleQClassicLeatherChange = (shapeValue, value) => {
@@ -188,7 +205,7 @@ const ShapeSelector = ({
                     <Select
                       options={[
                         { label: "Color of Thread", value: "", key: "default-thread-color" },
-                        ...(embroideryThreadColors || [])
+                        ...(sanitizedEmbroideryColors || [])
                       ]}
                       onChange={(value) => handleEmbroideryChange(shape.value, value)}
                       value={formState.selectedEmbroideryColors?.[shape.value] || ''}
@@ -197,12 +214,12 @@ const ShapeSelector = ({
                     />
                     {hasMultipleThreadNumbers(
                       formState.selectedEmbroideryColors?.[shape.value],
-                      embroideryThreadColors
+                      sanitizedEmbroideryColors
                     ) && (
                       <Select
                         options={[
                           { label: "Select Number", value: "" },
-                          ...(embroideryThreadColors
+                          ...(sanitizedEmbroideryColors
                             .find(t => t.value === formState.selectedEmbroideryColors?.[shape.value])
                             ?.isacordNumbers || []
                           )
