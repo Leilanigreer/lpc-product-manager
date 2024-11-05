@@ -1,12 +1,12 @@
 {
-  "buildCommand": "prisma generate && remix build",
+  "buildCommand": "prisma generate && remix vite:build",
   "framework": "remix",
   "installCommand": "npm install",
-  "devCommand": "shopify app dev",
-  "outputDirectory": "public",
   "functions": {
-    "app/**/*": {
-      "memory": 1024
+    "build/server/**/*.js": {
+      "memory": 1024,
+      "maxDuration": 30
     }
-  }
+  },
+  "outputDirectory": "build/client"
 }

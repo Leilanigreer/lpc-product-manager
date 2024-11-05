@@ -15,6 +15,14 @@ module.exports = {
   ignoredRouteFiles: ["**/.*"],
   appDirectory: "app",
   serverModuleFormat: "cjs",
+  serverBuildPath: "build/server/index.js",
+  assetsBuildDirectory: "build/client",
+  publicPath: "/build/",
   dev: { port: process.env.HMR_SERVER_PORT || 8002 },
-  future: {},
+  future: {
+    v2_errorBoundary: true,
+    v2_meta: true,
+    v2_normalizeFormMethod: true,
+    v2_routeConvention: true,
+  },
 };
