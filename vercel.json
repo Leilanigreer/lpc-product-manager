@@ -1,0 +1,12 @@
+{
+  "buildCommand": "prisma generate && remix build",
+  "framework": "remix",
+  "installCommand": "npm install",
+  "devCommand": "shopify app dev",
+  "outputDirectory": "public",
+  "functions": {
+    "app/**/*": {
+      "memory": 1024
+    }
+  }
+}

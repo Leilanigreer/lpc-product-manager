@@ -2,24 +2,19 @@
 
 client_id = "f0220f45fe6f2251e073a22007fe9fca"
 name = "Product Management LPC"
-handle = "product-management-lpc"
-application_url = "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app"
+handle = "product-management-lpc-2024"
+application_url = "https://utc-minor-antibodies-gs.trycloudflare.com"
 embedded = true
-
-[build]
-automatically_update_urls_on_dev = true
-dev_store_url = "lpc-product-creation.myshopify.com"
-include_config_on_deploy = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_products,read_publications,write_fulfillments,write_inventory,write_products,write_publications"
+scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_products,read_publications,write_fulfillments,write_inventory,write_products"
 
 [auth]
 redirect_urls = [
-  "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app/auth/callback",
-  "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app/auth/shopify/callback",
-  "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app/api/auth/callback"
+  "https://utc-minor-antibodies-gs.trycloudflare.com/auth/callback",
+  "https://utc-minor-antibodies-gs.trycloudflare.com/auth/shopify/callback",
+  "https://utc-minor-antibodies-gs.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
@@ -43,3 +38,7 @@ api_version = "2024-10"
 
 [pos]
 embedded = false
+
+[build]
+dev_store_url = "lpc-product-creation.myshopify.com"
+automatically_update_urls_on_dev = true
