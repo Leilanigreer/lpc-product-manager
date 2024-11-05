@@ -3,7 +3,7 @@
   "framework": "remix",
   "installCommand": "npm install",
   "functions": {
-    "build/server/**/*.js": {
+    "api/**/*.js": {
       "memory": 1024,
       "maxDuration": 30
     }
