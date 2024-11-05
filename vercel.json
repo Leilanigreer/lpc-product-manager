@@ -1,6 +1,6 @@
 {
-  "buildCommand": "prisma generate && npm run build",
+  "buildCommand": "npm run build",
   "framework": "remix",
-  "installCommand": "npm install && prisma generate",
+  "installCommand": "npm install",
   "outputDirectory": "build/client"
 }
