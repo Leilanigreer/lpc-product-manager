@@ -2,11 +2,5 @@
   "buildCommand": "prisma generate && remix vite:build",
   "framework": "remix",
   "installCommand": "npm install",
-  "functions": {
-    "app/**/*": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  },
   "outputDirectory": "build/client"
 }
