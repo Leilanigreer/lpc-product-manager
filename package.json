@@ -2,7 +2,7 @@
   "name": "lpc-product-creation-10-16-24",
   "private": true,
   "scripts": {
-    "build": "npx prisma generate && remix vite:build",
+    "build": "remix vite:build",
     "dev": "shopify app dev",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@remix-run/eslint-config": "^2.7.1",
+    "@remix-run/vercel": "^1.19.3",
     "@shopify/api-codegen-preset": "^1.1.1",
     "@types/eslint": "^8.40.0",
     "@types/node": "^22.2.0",
