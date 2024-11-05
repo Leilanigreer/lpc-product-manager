@@ -16,8 +16,7 @@
     "generate": "shopify app generate",
     "deploy": "shopify app deploy",
     "config:use": "shopify app config use",
-    "env": "shopify app env",
-    "docker-start": "npm run setup && npm run start"
+    "env": "shopify app env"
   },
   "type": "module",
   "engines": {
@@ -35,7 +34,6 @@
     "@shopify/shopify-app-remix": "^3.3.2",
     "@shopify/shopify-app-session-storage-prisma": "^5.0.2",
     "@shopify/storefront-api-client": "^1.0.2",
-    "@vercel/postgres": "^0.10.0",
     "dotenv": "^16.4.5",
     "isbot": "^5.1.0",
     "prisma": "^5.22.0",
@@ -45,13 +43,11 @@
   },
   "devDependencies": {
     "@remix-run/eslint-config": "^2.7.1",
-    "@remix-run/vercel": "^1.19.3",
     "@shopify/api-codegen-preset": "^1.1.1",
     "@types/eslint": "^8.40.0",
     "@types/node": "^22.2.0",
     "@types/react": "^18.2.31",
     "@types/react-dom": "^18.2.14",
-    "@vercel/node": "^2.15.10",
     "eslint": "^8.42.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.2.4",

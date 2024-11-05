@@ -1,6 +1,0 @@
-{
-  "buildCommand": "npm run build",
-  "framework": "remix",
-  "installCommand": "npm install",
-  "outputDirectory": "build/client"
-}
