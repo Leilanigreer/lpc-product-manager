@@ -2,20 +2,5 @@
   "buildCommand": "prisma generate && npm run build",
   "framework": "remix",
   "installCommand": "npm install",
-  "outputDirectory": "build/client",
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "ALLOW-FROM https://*.shopify.com"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://*.myshopify.com https://*.shopify.com"
-        }
-      ]
-    }
-  ]
+  "outputDirectory": "build/client"
 }
