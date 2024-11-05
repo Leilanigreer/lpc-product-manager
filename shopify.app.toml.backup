@@ -1,9 +1,9 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "f0220f45fe6f2251e073a22007fe9fca"
-name = "Product Management LPC"
-handle = "product-management-lpc"
-application_url = "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app"
+client_id = "6f1296c99bc07317bd7d904a9749bee4"
+name = "lpc-product-creation-10-16-24"
+handle = "lpc-product-creation-10-16-24"
+application_url = "https://product-management-lpc.fly.dev"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_produ
 
 [auth]
 redirect_urls = [
-  "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app/auth/callback",
-  "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app/auth/shopify/callback",
-  "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app/api/auth/callback"
+  "https://product-management-lpc.fly.dev/auth/callback",
+  "https://product-management-lpc.fly.dev/auth/shopify/callback",
+  "https://product-management-lpc.fly.dev/api/auth/callback"
 ]
 
 [webhooks]

@@ -36,6 +36,7 @@ if (host === "localhost") {
 
 export default defineConfig({
   server: {
+    host: '0.0.0.0', // Add this line to listen on all interfaces
     port: Number(process.env.PORT || 3000),
     hmr: hmrConfig,
     fs: {
