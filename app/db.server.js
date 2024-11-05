@@ -2,23 +2,18 @@ import { PrismaClient } from "@prisma/client";
 
 let prisma;
 
+// This is needed because in development we don't want to restart
+// the server with every change, but we want to make sure we don't
+// create a new connection to the DB with every change either.
 if (process.env.NODE_ENV === "production") {
   prisma = new PrismaClient();
 } else {
-  // In development, prevent multiple instances of Prisma Client
   if (!global.__db) {
     global.__db = new PrismaClient({
-      log: ['query', 'info', 'warn', 'error'], // Helpful for debugging in development
+      log: ['query', 'info', 'warn', 'error'],
     });
   }
   prisma = global.__db;
 }
 
-// Add error handling for database connection
-prisma.$connect()
-  .catch((error) => {
-    console.error('Failed to connect to database:', error);
-    process.exit(1);
-});
-
-export default prisma;
+export { prisma };
