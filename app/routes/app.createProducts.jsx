@@ -132,7 +132,7 @@ export const action = async ({ request }) => {
             category: "gid://shopify/TaxonomyCategory/sg-4-7-7-2",
             seo: {
               title: productData.seoTitle,
-              description: productData.seoDescription,
+              description: productData.descriptionHTML,
             },
             productOptions: [
               {
@@ -313,7 +313,7 @@ export const action = async ({ request }) => {
           },
           media: [
             {
-              originalSource: "https://cdn.shopify.com/s/files/1/0626/0247/7775/files/Naming_4.png?v=1730408067",
+              originalSource: "https://cdn.shopify.com/s/files/1/0690/4414/2359/files/Placeholder_new_product.png?v=1730926173",
               alt: "Pictures of new headcovers coming soon.",
               mediaContentType: "IMAGE"
             }
@@ -332,7 +332,9 @@ export const action = async ({ request }) => {
 
     // 6. Publish to all publications
     const publishResults = await Promise.all(
-      publicationsJson.data.publications.edges.map(async ({ node: publication }) => {
+      publicationsJson.data.publications.edges
+      .filter(({ node }) => node.name !== 'Shopify GraphiQL App') // Filter out GraphiQL App
+      .map(async ({ node: publication }) => {
         const publishResponse = await admin.graphql(`#graphql
           mutation PublishProduct($id: ID!, $publicationId: ID!) {
             publishablePublish(

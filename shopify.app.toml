@@ -3,7 +3,7 @@
 client_id = "f0220f45fe6f2251e073a22007fe9fca"
 name = "Product Management LPC"
 handle = "product-management-lpc"
-application_url = "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app"
+application_url = "https://victor-oral-jd-yarn.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_produ
 
 [auth]
 redirect_urls = [
-  "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app/auth/callback",
-  "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app/auth/shopify/callback",
-  "https://product-management-30vojo9pq-leilanigreers-projects.vercel.app/api/auth/callback"
+  "https://victor-oral-jd-yarn.trycloudflare.com/auth/callback",
+  "https://victor-oral-jd-yarn.trycloudflare.com/auth/shopify/callback",
+  "https://victor-oral-jd-yarn.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

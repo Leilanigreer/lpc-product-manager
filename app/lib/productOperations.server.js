@@ -1,3 +1,6 @@
+// /Users/leilanigreer/Documents/GitHub/Shopify/lpc-product-creation-10-16-24/app/lib/productOperations.server.js
+
+
 import prisma from "../db.server";
 import { getShopifyCollectionType, needsQClassicField, needsStyle, needsStitchingColor, needsSecondaryColor } from "./collectionUtils";
 
