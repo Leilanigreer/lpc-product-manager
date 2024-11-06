@@ -1191,3 +1191,4 @@ REVOKE USAGE ON SCHEMA public FROM PUBLIC;
 -- PostgreSQL database dump complete
 --
 
+-- pg_restore -U postgres -h postgres.railway.internal -p 5432 -W -F t -d railway > full_backup_11_3_24.sql
