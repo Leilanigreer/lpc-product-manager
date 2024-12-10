@@ -2,13 +2,10 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install all required dependencies for Prisma
+# Install dependencies for Prisma and SSL
 RUN apk add --no-cache \
   libc6-compat \
-  openssl \
-  openssl-dev \
-  openssl-libs-static \
-  ca-certificates
+  openssl
 
 # Copy package files AND prisma schema first
 COPY package*.json ./
@@ -17,8 +14,7 @@ COPY prisma ./prisma/
 # Install all dependencies (don't omit dev since we need them for build)
 RUN npm ci
 
-# Generate Prisma Client with explicit OpenSSL configuration
-ENV PRISMA_QUERY_ENGINE_LIBRARY=/usr/lib/libquery_engine.so
+# Generate Prisma Client
 RUN npx prisma generate
 
 # Copy the rest of the application
