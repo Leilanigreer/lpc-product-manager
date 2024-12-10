@@ -13,5 +13,4 @@ if (process.env.NODE_ENV === "production") {
   prisma = global.__db;
 }
 
-// Change this line to use default export
 export default prisma;
