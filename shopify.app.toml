@@ -1,25 +1,25 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "f0220f45fe6f2251e073a22007fe9fca"
-name = "Product Management LPC"
-handle = "product-management-lpc"
-application_url = "https://victor-oral-jd-yarn.trycloudflare.com"
+client_id = "b9b5b06e5fa81de95c5e6b0467701f0d"  # Your new development app's client ID
+name = "LPC Product Management - Dev"  # Updated name to indicate development version
+handle = "product-management-lpc-dev"  # Added -dev to distinguish from production
+application_url = "https://lpc-product-management-development.up.railway.app"  # Your Railway development URL
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "lpc-product-creation.myshopify.com"
+dev_store_url = "lpc-product-creation.myshopify.com"  # Your development store
 include_config_on_deploy = true
 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+# Keeping the same scopes as production to ensure feature parity
 scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_products,read_publications,write_fulfillments,write_inventory,write_products,write_publications"
 
 [auth]
 redirect_urls = [
-  "https://victor-oral-jd-yarn.trycloudflare.com/auth/callback",
-  "https://victor-oral-jd-yarn.trycloudflare.com/auth/shopify/callback",
-  "https://victor-oral-jd-yarn.trycloudflare.com/api/auth/callback"
+  "https://lpc-product-management-development.up.railway.app/auth/callback",
+  "https://lpc-product-management-development.up.railway.app/auth/shopify/callback",
+  "https://lpc-product-management-development.up.railway.app/api/auth/callback"
 ]
 
 [webhooks]
