@@ -168,8 +168,8 @@ model ProductDataLPC {
   leatherColor2         LeatherColor?     @relation("SecondaryLeatherColor", fields: [leatherColor2Id], references: [id])
   amannId               String?
   amann                 AmannNumber?      @relation(fields: [amannId], references: [id])
-  isacordId             String
-  isacord               IsacordNumber     @relation(fields: [isacordId], references: [id])
+  isacordId             String?
+  isacord               IsacordNumber?    @relation(fields: [isacordId], references: [id])
   styleId               String?
   style                 Style?            @relation(fields: [styleId], references: [id])
   quiltedLeatherColorId String?

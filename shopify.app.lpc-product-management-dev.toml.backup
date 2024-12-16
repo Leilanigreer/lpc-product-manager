@@ -1,0 +1,28 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "df58a5b13484ffc9b63eb3e420dca6f9"
+name = "LPC Product Management - Dev"
+handle = "lpc-product-management-dev-1"
+application_url = "https://tumor-contracting-vegetables-mask.trycloudflare.com"
+embedded = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = ""
+
+[auth]
+redirect_urls = [
+  "https://tumor-contracting-vegetables-mask.trycloudflare.com/auth/callback",
+  "https://tumor-contracting-vegetables-mask.trycloudflare.com/auth/shopify/callback",
+  "https://tumor-contracting-vegetables-mask.trycloudflare.com/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2024-10"
+
+[pos]
+embedded = false
+
+[build]
+dev_store_url = "lpc-product-management-dev.myshopify.com"
+automatically_update_urls_on_dev = true
