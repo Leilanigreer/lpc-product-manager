@@ -12,18 +12,6 @@ import { getShopifyCollectionType, needsQClassicField, needsStyle, needsStitchin
  */
 export const saveProductToDatabase = async (productData, shopifyResponse) => {
   try {
-    console.log('Received variant data:', {
-      productDataVariants: productData.variants.map(v => ({
-        sku: v.sku,
-        variantName: v.variantName
-      })),
-      shopifyVariants: shopifyResponse.variants.map(v => ({
-        sku: v.sku,
-        inventoryItemSku: v?.inventoryItem?.sku,
-        title: v.title
-      }))
-    });
-
     console.log('Starting database save with product data:', {
       collectionId: productData.collectionId,
       offeringType: productData.offeringType,
@@ -81,7 +69,6 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
         fontId: productData.selectedFont,
         shapeId: variant.shapeId,
         leatherColor1Id: productData.selectedLeatherColor1,
-        isacordId: variant.isacordNumberId || productData.matchingIsacordNumber
       };
     
       // Validate that all required fields are present
@@ -123,13 +110,16 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
             id: requiredFields.leatherColor1Id
           }
         },
-        isacord: {
-          connect: {
-            id: requiredFields.isacordId
-          }
-        },
     
         // Optional relations based on collection type
+        ...(variant.isacordNumberId || productData.matchingIsacordNumber ? {
+          isacord: {
+            connect: {
+              id: variant.isacordNumberId || productData.matchingIsacordNumber
+            }
+          }
+        } : {}),
+
         ...(needsSecondaryColor(collectionType) && productData.selectedLeatherColor2 && {
           leatherColor2: {
             connect: {
@@ -163,35 +153,6 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
         })
       };
     
-      console.log('Creating product record:', {
-        SKU: productRecord.SKU,
-        collectionType,
-        shopifyVariantId: productRecord.shopifyVariantId,
-        shopifyInventoryId: productRecord.shopifyInventoryId,
-        required: {
-          offeringType: productRecord.offeringType,
-          shape: variant.shape || variant.variantName,
-          isacordId: requiredFields.isacordId,
-        },
-        optional: {
-          leatherColor2: needsSecondaryColor(collectionType) ? 
-            (productData.selectedLeatherColor2 || 'not set') : 'not applicable',
-          amann: needsStitchingColor(collectionType) ? 
-            (variant.amannNumberId || productData.matchingAmannNumber || 'not set') : 'not applicable',
-          style: needsStyle(collectionType) ? 
-            (variant.styleId || 'not set') : 'not applicable',
-          quiltedLeatherColor: needsQClassicField(collectionType) ? 
-            (variant.qClassicLeather || 'not set') : 'not applicable',
-          collectionTypeInfo: {
-            type: collectionType,
-            needsSecondaryColor: needsSecondaryColor(collectionType),
-            needsStitchingColor: needsStitchingColor(collectionType),
-            needsStyle: needsStyle(collectionType),
-            needsQClassicField: needsQClassicField(collectionType),
-          }
-        }
-      });
-    
       return prisma.productDataLPC.create({
         data: productRecord,
         include: {
@@ -211,11 +172,6 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
     // Find Shopify variant data for the base variant
     const mainShopifyVariant = shopifyResponse.variants.find(variant => {
       const matches = variant.inventoryItem?.sku === baseVariant.sku;
-      console.log('Matching attempt:', {
-        lookingFor: baseVariant.sku,
-        checking: variant.inventoryItem?.sku,
-        matches
-      });
       return matches;
     });
 
@@ -236,11 +192,6 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
     const variantPromises = filteredVariants.slice(1).map(async (variant) => {
       const matchingShopifyVariant = shopifyResponse.variants.find(v => {
         const matches = v.inventoryItem?.sku === variant.sku;
-        console.log('Additional variant matching attempt:', {
-          lookingFor: variant.sku,
-          checking: v.inventoryItem?.sku,
-          matches
-        });
         return matches;
       });
       
