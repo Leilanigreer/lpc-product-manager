@@ -3,7 +3,7 @@
 client_id = "df58a5b13484ffc9b63eb3e420dca6f9"
 name = "LPC Product Management - Dev"
 handle = "lpc-product-management-dev-1"
-application_url = "https://contracting-template-asp-imperial.trycloudflare.com"
+application_url = "https://democratic-focus-census-deutschland.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_produ
 
 [auth]
 redirect_urls = [
-  "https://contracting-template-asp-imperial.trycloudflare.com/auth/callback",
-  "https://contracting-template-asp-imperial.trycloudflare.com/auth/shopify/callback",
-  "https://contracting-template-asp-imperial.trycloudflare.com/api/auth/callback"
+  "https://democratic-focus-census-deutschland.trycloudflare.com/auth/callback",
+  "https://democratic-focus-census-deutschland.trycloudflare.com/auth/shopify/callback",
+  "https://democratic-focus-census-deutschland.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
