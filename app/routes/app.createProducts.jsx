@@ -46,7 +46,6 @@ export const action = async ({ request }) => {
         `);
     
         const publicationsJson = await publicationsResponse.json();
-        console.log('Publications:', publicationsJson.data.publications.edges);
     
         if (!publicationsJson.data?.publications?.edges?.length) {
           return json({ errors: ["No publications found"] }, { status: 422 });
@@ -82,7 +81,6 @@ export const action = async ({ request }) => {
     }
 
     const locationId = location.node.id;
-    console.log('Found Location ID:', locationId);
 
     // 3. Create product with options
     const productResponse = await admin.graphql(`#graphql
@@ -148,20 +146,6 @@ export const action = async ({ request }) => {
     );
 
     const productJson = await productResponse.json();
-    
-    // Log product creation details
-    console.log('Product Creation Response - Options Analysis:');
-    if (productJson.data?.productCreate?.product?.options) {
-      productJson.data.productCreate.product.options.forEach((option, index) => {
-        console.log(`\nOption ${index + 1}: ${option.name}`);
-        console.log('Option Values:');
-        option.optionValues.forEach((value, valueIndex) => {
-          console.log(`  ${valueIndex + 1}. ${value.name}`);
-          console.log(`     hasVariants: ${value.hasVariants}`);
-          console.log(`     id: ${value.id}`);
-        });
-      });
-    }
 
     // Check for product creation errors
     if (productJson.data?.productCreate?.userErrors?.length > 0) {
@@ -255,28 +239,6 @@ export const action = async ({ request }) => {
 
     // Log variant creation status with inventory information
     const variantsJson = await variantsResponse.json();
-    console.log('Variants Creation Response:', JSON.stringify(variantsJson, null, 2));
-
-    if (variantsJson.data?.productVariantsBulkCreate?.product?.variants?.edges) {
-      console.log('\nVariant Creation Status with Inventory Details:');
-      variantsJson.data.productVariantsBulkCreate.product.variants.edges.forEach(({ node }) => {
-        console.log(`Variant id: ${node.id}`)
-        console.log(`Variant: ${node.title}`);
-        console.log(`Price: ${node.price}`);
-        console.log('Inventory Details:');
-        if (node.inventoryItem) {
-          console.log(`  Inventory Item ID: ${node.inventoryItem.id}`);
-          console.log(`  SKU: ${node.inventoryItem.sku}`);
-          console.log(`  Tracked: ${node.inventoryItem.tracked}`);
-          if (node.inventoryItem.inventoryLevels?.edges?.[0]) {
-            const level = node.inventoryItem.inventoryLevels.edges[0].node;
-            console.log(`  Available Quantity: ${level.available}`);
-            console.log(`  Location: ${level.location.name}`);
-          }
-        }
-        console.log('-------------------');
-      });
-    }
 
     // Check for variant creation errors
     if (variantsJson.data?.productVariantsBulkCreate?.userErrors?.length > 0) {
@@ -335,8 +297,6 @@ export const action = async ({ request }) => {
 
     const publishResults = [];
     const filteredPublications = publicationsJson.data.publications.edges
-      // .filter(({ node }) => node.name !== 'Shopify GraphiQL App');
-
     for (const { node: publication } of filteredPublications) {
       try {
         // Add a small delay between each publish operation
@@ -368,13 +328,6 @@ export const action = async ({ request }) => {
         );
         
         const publishJson = await publishResponse.json();
-        console.log(`Published to ${publication.name}:`, JSON.stringify(publishJson, null, 2));
-        
-        // Check for errors for this specific publication
-        if (publishJson.data?.publishablePublish?.userErrors?.length > 0) {
-          console.log(`Warning: Publication to ${publication.name} had errors:`, 
-            JSON.stringify(publishJson.data.publishablePublish.userErrors, null, 2));
-        }
 
         publishResults.push({
           publicationName: publication.name,
@@ -464,9 +417,7 @@ export default function CreateProduct() {
     error 
   } = useLoaderData();
 
-  const fetcher = useFetcher();
-  // const app = useAppBridge();
-  
+  const fetcher = useFetcher();  
 
   const [formState, setFormState] = useFormState({
     selectedCollection: "",
@@ -653,7 +604,6 @@ export default function CreateProduct() {
         ...formState,
         weights: validWeights
       };
-      console.log(formState);
 
       const threadData = prepareThreadData(updatedFormState, needsStitchingColor);
       
@@ -674,7 +624,6 @@ export default function CreateProduct() {
         isacordNumbers
       );
 
-      console.log('Generated Product Data:', data);
       setProductData(data);
     } catch (error) {
       console.error("Error generating product data:", error);

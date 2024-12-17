@@ -407,74 +407,82 @@ export const getProductDataLPC = async () => {
       mainHandle,
       createdAt,
       updatedAt
-    }) => ({
-      value: id,
-      shopifyProductId,
-      shopifyVariantId,
-      shopifyInventoryId,
-      SKU,
-      collection: {
-        value: collection.id,
-        label: collection.title,
-        handle: collection.handle,
-        shopifyId: collection.shopifyId
-      },
-      offeringType,
-      font: {
-        value: font.id,
-        label: font.name,
-        image_url: font.image_url
-      },
-      shape: {
-        value: shape.id,
-        label: shape.name,
-        abbreviation: shape.abbreviation
-      },
-      weight: parseFloat(weight),
-      leatherColor1: {
-        value: leatherColor1.id,
-        label: leatherColor1.name,
-        abbreviation: leatherColor1.abbreviation,
-        image_url: leatherColor1.image_url
-      },
-      leatherColor2: leatherColor2 ? {
-        value: leatherColor2.id,
-        label: leatherColor2.name,
-        abbreviation: leatherColor2.abbreviation,
-        image_url: leatherColor2.image_url
-      } : null,
-      amann: amann ? {
-        value: amann.id,
-        label: amann.number,
-        thread: {
-          label: amann.thread.name,
-          abbreviation: amann.thread.abbreviation
-        }
-      } : null,
-      isacord: {
-        value: isacord.id,
-        label: isacord.number,
-        thread: {
-          label: isacord.thread.name,
-          abbreviation: isacord.thread.abbreviation
-        }
-      },
-      style: style ? {
-        value: style.id,
-        label: style.name,
-        abbreviation: style.abbreviation,
-        image_url: style.image_url
-      } : null,
-      quiltedLeatherColor: quiltedLeatherColor ? {
-        value: quiltedLeatherColor.id,
-        label: quiltedLeatherColor.name,
-        abbreviation: quiltedLeatherColor.abbreviation,
-        image_url: quiltedLeatherColor.image_url
-      } : null,
-      mainHandle,
-      createdAt,
-      updatedAt
-    }));
+    }) => {
+      // Validate required fields
+      if (!collection || !font || !shape || !leatherColor1 || !isacord) {
+        console.warn(`Missing required fields for ProductDataLPC ID: ${id}`);
+        return null;
+      }
+
+      return {
+        value: id,
+        shopifyProductId,
+        shopifyVariantId,
+        shopifyInventoryId,
+        SKU,
+        collection: {
+          value: collection.id,
+          label: collection.title,
+          handle: collection.handle || '',  
+          shopifyId: collection.shopifyId
+        },
+        offeringType,
+        font: {
+          value: font.id,
+          label: font.name,
+          image_url: font.image_url
+        },
+        shape: {
+          value: shape.id,
+          label: shape.name,
+          abbreviation: shape.abbreviation
+        },
+        weight: weight ? parseFloat(weight) : null,
+        leatherColor1: {
+          value: leatherColor1.id,
+          label: leatherColor1.name,
+          abbreviation: leatherColor1.abbreviation,
+          image_url: leatherColor1.image_url
+        },
+        leatherColor2: leatherColor2 ? {
+          value: leatherColor2.id,
+          label: leatherColor2.name,
+          abbreviation: leatherColor2.abbreviation,
+          image_url: leatherColor2.image_url
+        } : null,
+        amann: amann ? {
+          value: amann.id,
+          label: amann.number,
+          thread: {
+            label: amann.thread.name,
+            abbreviation: amann.thread.abbreviation
+          }
+        } : null,
+        isacord: {
+          value: isacord.id,
+          label: isacord.number,
+          thread: {
+            label: isacord.thread?.name,
+            abbreviation: isacord.thread?.abbreviation
+          }
+        },
+        style: style ? {
+          value: style.id,
+          label: style.name,
+          abbreviation: style.abbreviation,
+          image_url: style.image_url
+        } : null,
+        quiltedLeatherColor: quiltedLeatherColor ? {
+          value: quiltedLeatherColor.id,
+          label: quiltedLeatherColor.name,
+          abbreviation: quiltedLeatherColor.abbreviation,
+          image_url: quiltedLeatherColor.image_url
+        } : null,
+        mainHandle,
+        createdAt,
+        updatedAt
+      };
+    }).filter(Boolean); // Remove any null entries from the mapping
   } catch (error) {
     console.error("Error fetching ProductDataLPC:", error);
     throw error;
