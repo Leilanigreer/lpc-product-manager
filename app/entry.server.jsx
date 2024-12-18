@@ -13,41 +13,83 @@ export default async function handleRequest(
   responseHeaders,
   remixContext,
 ) {
-  addDocumentResponseHeaders(request, responseHeaders);
-  const userAgent = request.headers.get("user-agent");
-  const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
+  // Ensure we have valid headers object
+  if (!responseHeaders) {
+    responseHeaders = new Headers();
+  }
 
-  return new Promise((resolve, reject) => {
-    const { pipe, abort } = renderToPipeableStream(
-      <RemixServer
-        context={remixContext}
-        url={request.url}
-        abortDelay={ABORT_DELAY}
-      />,
-      {
-        [callbackName]: () => {
-          const body = new PassThrough();
-          const stream = createReadableStreamFromReadable(body);
+  try {
+    console.log('Server Request:', {
+      url: request.url,
+      method: request.method,
+      headers: Object.fromEntries(request.headers.entries())
+    });
 
-          responseHeaders.set("Content-Type", "text/html");
-          resolve(
-            new Response(stream, {
-              headers: responseHeaders,
-              status: responseStatusCode,
-            }),
-          );
-          pipe(body);
-        },
-        onShellError(error) {
-          reject(error);
-        },
-        onError(error) {
-          responseStatusCode = 500;
-          console.error(error);
-        },
-      },
-    );
+    // Add headers with error handling
+    try {
+      responseHeaders = addDocumentResponseHeaders(request, responseHeaders) || responseHeaders;
+    } catch (headerError) {
+      console.error('Error adding document headers:', headerError);
+    }
 
-    setTimeout(abort, ABORT_DELAY);
-  });
+    const userAgent = request.headers.get("user-agent");
+    const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
+
+    return new Promise((resolve, reject) => {
+      let didError = false;
+
+      const { pipe, abort } = renderToPipeableStream(
+        <RemixServer
+          context={remixContext}
+          url={request.url}
+          abortDelay={ABORT_DELAY}
+        />,
+        {
+          [callbackName]: () => {
+            const body = new PassThrough();
+            const stream = createReadableStreamFromReadable(body);
+
+            // Ensure Content-Type is set
+            if (!responseHeaders.has("Content-Type")) {
+              responseHeaders.set("Content-Type", "text/html");
+            }
+
+            resolve(
+              new Response(stream, {
+                headers: responseHeaders,
+                status: didError ? 500 : responseStatusCode,
+              }),
+            );
+            pipe(body);
+          },
+          onShellError(error) {
+            console.error('Shell Error:', error);
+            didError = true;
+            reject(error);
+          },
+          onError(error) {
+            didError = true;
+            console.error('Streaming Error:', error);
+            responseStatusCode = 500;
+          },
+        },
+      );
+
+      setTimeout(() => {
+        abort();
+        if (!didError) {
+          console.error('Request timed out');
+        }
+      }, ABORT_DELAY);
+    });
+  } catch (error) {
+    console.error('Top-level server error:', {
+      message: error.message,
+      stack: error.stack
+    });
+    return new Response('Internal Server Error', { 
+      status: 500,
+      headers: responseHeaders
+    });
+  }
 }
