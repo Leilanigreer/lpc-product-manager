@@ -1,7 +1,9 @@
+// app/components/CollectionSelector.jsx
+
 import React from 'react';
 import { Select } from "@shopify/polaris";
 
-const CollectionSelector = ({ shopifyCollections, selectedCollection, onChange }) => {
+const CollectionSelector = ({ shopifyCollections, selectedCollection, onChange, onCollectionChange }) => {
   const options = [    
     { label: 'Select a collection...', value: '' }, 
     ...(shopifyCollections ? shopifyCollections.map(collection => ({
@@ -12,6 +14,7 @@ const CollectionSelector = ({ shopifyCollections, selectedCollection, onChange }
 
   const handleChange = (value) => {
     onChange('selectedCollection', value);
+    onCollectionChange(value);
   };
 
   return (
