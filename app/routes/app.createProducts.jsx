@@ -14,16 +14,15 @@ import ThreadColorSelector from "../components/ThreadColorSelector.jsx";
 import ShapeSelector from "../components/ShapeSelector.jsx";
 import ProductVariantCheck from "../components/ProductVariantCheck.jsx";
 import ProductTypeSelector from "../components/ProductTypeSelector.jsx";
-import SuccessModal from "../components/SuccessModal.jsx";
+import { ProductSuccessBanner } from "../components/ProductSuccessBanner.jsx";
 import { saveProductToDatabase } from "../lib/productOperations.server";
 import {
   Page,
   Layout,
-  Text,
   Card,
   BlockStack,
   Button,
-  Banner
+  Banner, 
 } from "@shopify/polaris";
 
 export const action = async ({ request }) => {
@@ -468,11 +467,7 @@ export default function CreateProduct() {
   const [generationError, setGenerationError] = useState(null);
   const [submissionError, setSubmissionError] = useState(null);
   const [notification, setNotification] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [createdProductId, setCreatedProductId] = useState(null);
-  const [shopDomain, setShopDomain] = useState(null);
-  const [host, setHost] = useState(null);
-  const [productHandle, setProductHandle] = useState(null);
+  const [successDetails, setSuccessDetails] = useState(null);
 
   const handleChange = useCallback((field, value) => {
     setFormState(field, value);
@@ -495,11 +490,17 @@ export default function CreateProduct() {
         console.log('Fetcher data:', fetcher.data);  
         
         if (productId && shopDomain && host && productHandle) {
-          setCreatedProductId(productId);
-          setShopDomain(shopDomain);
-          setHost(host);
-          setProductHandle(productHandle);
-          setIsModalOpen(true);
+          setSuccessDetails({
+            productId,
+            shopDomain,
+            host,
+            productHandle
+          });
+
+          window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          });
         
         handleChange('selectedCollection', '');
         handleChange('selectedOfferingType', '');
@@ -699,6 +700,18 @@ export default function CreateProduct() {
     <Page>
       <TitleBar title="Create a new product" />
       <Layout>
+      {successDetails && (
+        <Layout.Section>
+          <ProductSuccessBanner
+            onDismiss={() => setSuccessDetails(null)}
+            productId={successDetails.productId}
+            shopDomain={successDetails.shopDomain}
+            host={successDetails.host}
+            productHandle={successDetails.productHandle}
+          />
+        </Layout.Section>
+      )}
+
         {notification && (
           <Layout.Section>
             <Banner
@@ -712,7 +725,6 @@ export default function CreateProduct() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">Create Product Page</Text>
               <CollectionSelector
                 shopifyCollections={shopifyCollections}
                 selectedCollection={formState.selectedCollection}
@@ -809,14 +821,6 @@ export default function CreateProduct() {
           </Card>
         </Layout.Section>
       </Layout>
-        <SuccessModal
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        productId={createdProductId}
-        shopDomain={shopDomain}
-        host={host}
-        productHandle={productHandle}
-      />
     </Page>
   );
 }
