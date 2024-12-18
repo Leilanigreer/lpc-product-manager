@@ -27,6 +27,11 @@ const shopify = shopifyApp({
     },
     beforeAuth: async (request) => {
       console.log("Starting auth for request:", request.url);
+      console.log("ENV variables:", {
+        API_KEY: process.env.SHOPIFY_API_KEY?.substring(0, 4) + '...',
+        APP_URL: process.env.SHOPIFY_APP_URL,
+        SCOPES: process.env.SCOPES
+      });
     }
   },
   isEmbeddedApp: true,
@@ -37,30 +42,21 @@ const shopify = shopifyApp({
 
 const customAddDocumentResponseHeaders = (request, headers) => {
   console.log('Adding headers for request:', request.url);
-  
-  // Apply Shopify's default headers
-  shopify.addDocumentResponseHeaders(request, headers);
-  
-  // Log final headers
+  console.log('Initial headers:', Object.fromEntries(headers.entries()));
+
+  try {
+    // Apply Shopify's default headers
+    shopify.addDocumentResponseHeaders(request, headers);
+  } catch (error) {
+    console.error('Error adding headers:', error);
+  }
+
   console.log('Final headers:', Object.fromEntries(headers.entries()));
-  
   return headers;
 };
 
-
-// export default shopify;
-// export const apiVersion = ApiVersion.October24;
-// export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;
-// export const authenticate = shopify.authenticate;
-// export const unauthenticated = shopify.unauthenticated;
-// export const login = shopify.login;
-// export const registerWebhooks = shopify.registerWebhooks;
-// export const sessionStorage = shopify.sessionStorage;
-
-
 export default shopify;
 export const apiVersion = ApiVersion.October24;
-// Export our custom headers function instead of the default one
 export const addDocumentResponseHeaders = customAddDocumentResponseHeaders;
 export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;
