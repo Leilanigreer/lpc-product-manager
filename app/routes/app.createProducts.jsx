@@ -14,6 +14,7 @@ import ThreadColorSelector from "../components/ThreadColorSelector.jsx";
 import ShapeSelector from "../components/ShapeSelector.jsx";
 import ProductVariantCheck from "../components/ProductVariantCheck.jsx";
 import ProductTypeSelector from "../components/ProductTypeSelector.jsx";
+import SuccessModal from "../components/SuccessModal.jsx";
 import { saveProductToDatabase } from "../lib/productOperations.server";
 import {
   Page,
@@ -31,25 +32,47 @@ export const action = async ({ request }) => {
   const productData = JSON.parse(formData.get('productData'));
 
   try {
-        // 1. Get Publications
-        const publicationsResponse = await admin.graphql(`#graphql
-          query Publications {
-            publications(first: 15) {
-              edges {
-                node {
-                  id
-                  name
-                }
-              }
+    const shopResponce = await admin.graphql(`
+      query {
+        shop {
+          myshopifyDomain
+          primaryDomain {
+            host
+          }
+        }
+      }
+    `);
+    
+    const shopJson = await shopResponce.json();
+    
+    if (!shopJson.data?.shop) { 
+      return json({ errors: ["No shop data found"]}, {status: 422});
+    }
+    
+    const shopData = {
+      myshopifyDomain: shopJson.data.shop.myshopifyDomain,
+      host: shopJson.data.shop.primaryDomain.host
+    };
+
+    // 1. Get Publications
+    const publicationsResponse = await admin.graphql(`#graphql
+      query Publications {
+        publications(first: 15) {
+          edges {
+            node {
+              id
+              name
             }
           }
-        `);
-    
-        const publicationsJson = await publicationsResponse.json();
-    
-        if (!publicationsJson.data?.publications?.edges?.length) {
-          return json({ errors: ["No publications found"] }, { status: 422 });
         }
+      }
+    `);
+
+    const publicationsJson = await publicationsResponse.json();
+
+    if (!publicationsJson.data?.publications?.edges?.length) {
+      return json({ errors: ["No publications found"] }, { status: 422 });
+    }
 
     // 2. Get location ID
     const locationResponse = await admin.graphql(`#graphql
@@ -384,6 +407,7 @@ export const action = async ({ request }) => {
       media: mediaJson.data.productUpdate.product.media,
       publications: publishResults,
       databaseSave: dbSaveResult,
+      shop: shopData, 
       success: true
     });
 
@@ -444,53 +468,75 @@ export default function CreateProduct() {
   const [generationError, setGenerationError] = useState(null);
   const [submissionError, setSubmissionError] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [createdProductId, setCreatedProductId] = useState(null);
+  const [shopDomain, setShopDomain] = useState(null);
+  const [host, setHost] = useState(null);
+  const [productHandle, setProductHandle] = useState(null);
+
+  const handleChange = useCallback((field, value) => {
+    setFormState(field, value);
+    setProductData(null);
+    setSubmissionError(null);
+    setGenerationError(null);
+  }, [setFormState]);
 
   const isSubmitting = 
     ["loading", "submitting"].includes(fetcher.state) && 
     fetcher.formMethod === "POST";
 
     useEffect(() => {
-      if (fetcher.data?.product) {
-        setNotification({
-          message: "Product created successfully",
-          status: "success"
-        });
+      if (fetcher.data?.product && fetcher.data?.shop && fetcher.data?.databaseSave?.mainProduct) {  
+        const productId = fetcher.data.product.id.replace('gid://shopify/Product/', '');
+        const shopDomain = fetcher.data.shop?.myshopifyDomain?.replace('.myshopify.com', '');
+        const host = fetcher.data.shop?.host;
+        const productHandle = fetcher.data.databaseSave.mainProduct.mainHandle;
+
+        console.log('Fetcher data:', fetcher.data);  
         
-        setFormState({
-          selectedCollection: "",
-          selectedOfferingType: "",
-          limitedEditionQuantity: "",
-          selectedLeatherColor1: "",
-          selectedLeatherColor2: "",
-          selectedStitchingColor: "",
-          selectedEmbroideryColor: "",
-          selectedEmbroideryColors: {},
-          selectedFont: "",
-          selectedShapes: {},
-          selectedStyles: {},
-          weights: {},
-          qClassicLeathers: {},
-          matchingAmannNumber: "",
-          matchingIsacordNumber: "",
-          shapeIsacordNumbers: {},
-        });
+        if (productId && shopDomain && host && productHandle) {
+          setCreatedProductId(productId);
+          setShopDomain(shopDomain);
+          setHost(host);
+          setProductHandle(productHandle);
+          setIsModalOpen(true);
+        
+        handleChange('selectedCollection', '');
+        handleChange('selectedOfferingType', '');
+        handleChange('selectedCollection', '');
+        handleChange('selectedOfferingType', '');
+        handleChange('limitedEditionQuantity', '');
+        handleChange('selectedLeatherColor1', '');
+        handleChange('selectedLeatherColor2', '');
+        handleChange('selectedStitchingColor', '');
+        handleChange('selectedEmbroideryColor', '');
+        handleChange('selectedEmbroideryColors', {});
+        handleChange('selectedFont', '');
+        handleChange('selectedShapes', {});
+        handleChange('selectedStyles', {});
+        handleChange('weights', {});
+        handleChange('qClassicLeathers', {});
+        handleChange('matchingAmannNumber', '');
+        handleChange('matchingIsacordNumber', '');
+        handleChange('shapeIsacordNumbers', {});
+
         setProductData(null);
-  
-        // Clear notification after 5 seconds
-        const timer = setTimeout(() => {
-          setNotification(null);
-        }, 5000);
-  
-        return () => clearTimeout(timer);
-      } else if (fetcher.data?.errors) {
-        const errorMessage = fetcher.data.errors.join(', ');
-        setSubmissionError(errorMessage);
+      } else {
+        console.error('Missing required data:', { productId, shopDomain, host, productHandle });
         setNotification({
-          message: errorMessage,
-          status: "critical"
+          message: "Product created but some data is missing",
+          status: "warning"
         });
       }
-    }, [fetcher.data, setFormState]);
+    } else if (fetcher.data?.errors) {
+      const errorMessage = fetcher.data.errors.join(', ');
+      setSubmissionError(errorMessage);
+      setNotification({
+        message: errorMessage,
+        status: "critical"
+      });
+    }
+  }, [fetcher.data, handleChange, productData]);
 
     const { 
       needsSecondaryColor, 
@@ -499,12 +545,6 @@ export default function CreateProduct() {
       needsQClassicField
     } = useCollectionLogic(shopifyCollections, formState.selectedCollection);
 
-  const handleChange = useCallback((field, value) => {
-    setFormState(field, value);
-    setProductData(null);
-    setSubmissionError(null);
-    setGenerationError(null);
-  }, [setFormState]);
 
   const shouldGenerateProductData = useMemo(() => {
     const hasRequiredColors = needsSecondaryColor 
@@ -769,6 +809,14 @@ export default function CreateProduct() {
           </Card>
         </Layout.Section>
       </Layout>
+        <SuccessModal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        productId={createdProductId}
+        shopDomain={shopDomain}
+        host={host}
+        productHandle={productHandle}
+      />
     </Page>
   );
 }
