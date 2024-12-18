@@ -24,14 +24,21 @@ const shopify = shopifyApp({
   hooks: {
     afterAuth: async (session) => {
       console.log("Auth completed for shop:", session.shop);
+      console.log("Session details:", {
+        accessToken: session.accessToken ? 'Present' : 'Missing',
+        isOnline: session.isOnline,
+      });
     },
     beforeAuth: async (request) => {
       console.log("Starting auth for request:", request.url);
-      console.log("ENV variables:", {
-        API_KEY: process.env.SHOPIFY_API_KEY?.substring(0, 4) + '...',
-        APP_URL: process.env.SHOPIFY_APP_URL,
-        SCOPES: process.env.SCOPES
+      console.log("Request details:", {
+        method: request.method,
+        headers: Object.fromEntries(request.headers.entries()),
+        shop: request.url.searchParams?.get('shop')
       });
+    },
+    afterAuthFailed: async (error) => {
+      console.error("Auth failed:", error);
     }
   },
   isEmbeddedApp: true,
@@ -54,6 +61,11 @@ const customAddDocumentResponseHeaders = (request, headers) => {
   console.log('Final headers:', Object.fromEntries(headers.entries()));
   return headers;
 };
+
+shopify.app.use((err, req, res, next) => {
+  console.error('App error:', err);
+  next(err);
+});
 
 export default shopify;
 export const apiVersion = ApiVersion.October24;
