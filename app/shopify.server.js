@@ -23,15 +23,11 @@ const shopify = shopifyApp({
   },
   hooks: {
     afterAuth: async (session) => {
-      try {
-        console.log("Auth completed for shop:", session.shop);
-        console.log("Session details:", {
-          accessToken: session.accessToken ? 'Present' : 'Missing',
-          isOnline: session.isOnline,
-        });
-      } catch (error) {
-        console.error("Error in afterAuth:", error);
-      }
+      console.log("Auth completed for shop:", session.shop);
+      console.log("Session details:", {
+        accessToken: session.accessToken ? 'Present' : 'Missing',
+        isOnline: session.isOnline,
+      });
     },
     beforeAuth: async (request) => {
       console.log("Starting auth for request:", request.url);
@@ -52,34 +48,18 @@ const shopify = shopifyApp({
 });
 
 const customAddDocumentResponseHeaders = (request, headers) => {
-  if (!headers || typeof headers.set !== 'function') {
-    console.error('Invalid headers object received');
-    return new Headers();
-  }
+  console.log('Adding headers for request:', request.url);
+  console.log('Initial headers:', Object.fromEntries(headers.entries()));
 
   try {
-    // Add security headers directly instead of relying on shopify.addDocumentResponseHeaders
-    headers.set('Content-Security-Policy',
-      "frame-ancestors https://*.myshopify.com https://admin.shopify.com;");
-    headers.set('X-Frame-Options', 'ALLOW-FROM https://*.myshopify.com');
-
-    // Add CORS headers
-    headers.set('Access-Control-Allow-Origin', '*');
-    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-    headers.set('Access-Control-Allow-Headers', 'Content-Type');
-
-    // Add security headers
-    headers.set('X-Content-Type-Options', 'nosniff');
-    headers.set('X-XSS-Protection', '1; mode=block');
-
-    // Log headers for debugging
-    console.log('Headers after customization:', Object.fromEntries(headers.entries()));
-
-    return headers;
+    // Apply Shopify's default headers
+    shopify.addDocumentResponseHeaders(request, headers);
   } catch (error) {
-    console.error('Error in customAddDocumentResponseHeaders:', error);
-    return headers;
+    console.error('Error adding headers:', error);
   }
+
+  console.log('Final headers:', Object.fromEntries(headers.entries()));
+  return headers;
 };
 
 export default shopify;
