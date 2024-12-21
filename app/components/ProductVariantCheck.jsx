@@ -2,6 +2,7 @@
 
 import React, { memo } from 'react';
 import { Text, BlockStack } from '@shopify/polaris';
+import { isDevelopment } from '~/lib/environment';
 
 const VariantRow = memo(({ variant, index }) => (
   <BlockStack gap="100">
@@ -13,9 +14,11 @@ const VariantRow = memo(({ variant, index }) => (
     }}>
       <BlockStack gap="100">
         <Text variant="bodyMd">{variant.variantName}</Text>
+        {isDevelopment() && (
         <Text variant="bodySm" color="subdued">
           SKU: {variant.sku}
         </Text>
+        )}
         {variant.weight && (
           <Text variant="bodySm" color="subdued">
             Weight: {variant.weight}oz
@@ -56,20 +59,24 @@ const ProductVariantCheck = ({ productData }) => {
 
   return (
     <BlockStack gap="400">
+      {productType && (
+        <Text variant="bodyMd">Collection: {productType}</Text>
+      )}
       {title && (
-        <Text variant="bodyMd">Generated Title: {title}</Text>
+        <Text variant="bodyMd">Listing Title: {title}</Text>
       )}
       {seoTitle && (
-        <Text variant="bodyMd">Generated SEO Title: {seoTitle}</Text>
+        <Text variant="bodyMd">Listing SEO Title: {seoTitle}</Text>
       )}
-      {mainHandle && (
-        <Text variant="bodyMd">Generated Main Handle: {mainHandle}</Text>
-      )}
-      {productType && (
-        <Text variant="bodyMd">Generated Product Type: {productType}</Text>
-      )}
-      {tags && (
-        <Text variant="bodyMd">Generated tags: {tags}</Text>
+      {isDevelopment() && (
+        <>
+          {mainHandle && (
+            <Text variant="bodyMd">Generated Main Handle: {mainHandle}</Text>
+          )}
+          {tags && (
+            <Text variant="bodyMd">Generated tags: {tags}</Text>
+          )}
+        </>
       )}
 
       {variants && variants.length > 0 && (
