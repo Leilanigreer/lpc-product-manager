@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react';
 import { Text, BlockStack } from '@shopify/polaris';
-import { isDevelopment } from '~/lib/environment';
+import { isDevelopment } from '../lib/environment';
 
 const VariantRow = memo(({ variant, index }) => (
   <BlockStack gap="100">
