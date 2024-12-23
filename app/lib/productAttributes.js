@@ -67,42 +67,37 @@ const SHAPE_ORDER = [
   'cm2duhfg300076y585ows'         // Blade
 ];
 
-const generateSKUParts = (collectionType, { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor, shape }) => {
+const generateSKUParts = (collectionType, { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor, shape, existingProducts }) => {
   const baseParts = {
     [COLLECTION_TYPES.QUILTED]: () => [
       "Quilted",
       leatherColor1.abbreviation,
-      embroideryThreadColor.abbreviation,
-      shape.abbreviation
+      embroideryThreadColor.abbreviation
     ],
     
     [COLLECTION_TYPES.ARGYLE]: () => [
       "Argyle",
       leatherColor1.abbreviation,
       leatherColor2?.abbreviation,
-      stitchingThreadColor.abbreviation,
-      shape.abbreviation
+      stitchingThreadColor.abbreviation
     ],
     
     [COLLECTION_TYPES.ANIMAL]: () => [
       "Animal",
       leatherColor1.abbreviation,
-      leatherColor2?.abbreviation,
-      shape.abbreviation
+      leatherColor2?.abbreviation
     ],
     
     [COLLECTION_TYPES.CLASSIC]: () => [
       "Classic",
       leatherColor1.abbreviation,
-      leatherColor2?.abbreviation,
-      shape.abbreviation
+      leatherColor2?.abbreviation
     ],
     
     [COLLECTION_TYPES.QCLASSIC]: () => [
       "QClassic",
       leatherColor1.abbreviation,
-      leatherColor2?.abbreviation,
-      shape.abbreviation
+      leatherColor2?.abbreviation
     ]
   };
 
@@ -111,7 +106,42 @@ const generateSKUParts = (collectionType, { leatherColor1, leatherColor2, stitch
     return null;
   }
 
-  return parts;
+  const baseSKU = parts.join('-');
+
+  console.log(`Existing Products: ${existingProducts}  `)
+  if (existingProducts?.length) {
+    // Find any product that starts with this baseSKU (including iterations)
+    const matchingProduct = existingProducts.find(product => 
+      product.baseSKU === baseSKU || product.baseSKU.startsWith(`${baseSKU}-`)
+    );
+
+    if (matchingProduct) {
+      // Extract iteration number if it exists
+      const regex = /^.*?(?:-(\d+))?$/;
+      const match = matchingProduct.baseSKU.match(regex);
+      const currentIteration = match?.[1] ? parseInt(match[1]) : 0;
+      
+      // Create new SKU with next iteration
+      const nextIteration = currentIteration + 1;
+      const iteratedBaseSKU = `${baseSKU}-${nextIteration}`;
+      const iteratedFullSKU = `${iteratedBaseSKU}-${shape.abbreviation}`;
+
+      return {
+        baseSKU: iteratedBaseSKU,
+        fullSKU: iteratedFullSKU,
+        parts
+      };
+    }
+  }
+
+  // If no existing SKU found, return original
+  const fullSKU = `${baseSKU}-${shape.abbreviation}`;
+
+  return {
+    baseSKU,
+    fullSKU,
+    parts
+  };
 };
 
 const assignPositions = (variants, shapes) => {
@@ -163,14 +193,15 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
         styles?.find(style => style.value === selectedStyleId) : 
         null;
 
-      const skuParts = generateSKUParts(collectionType, {
+      const skuInfo = generateSKUParts(collectionType, {
         leatherColor1,
         leatherColor2,
         stitchingThreadColor, 
         embroideryThreadColor,
         shape
       });
-      if (!skuParts) return null;
+
+      if (!skuInfo) return null;
 
       const priceShapeId = isWoodType(shape) ? 
         shapes.find(s => s.abbreviation === 'Fairway')?.value || shapeId : 
@@ -183,7 +214,6 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
         shapes
       );
 
-      // Generate variant name based on shape type and collection needs
       const variantName = isPutterShape ? 
         shape.label :
         shouldHaveStyle && selectedStyle ? 
@@ -195,7 +225,8 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
         shape: shape.label,
         styleId: selectedStyleId,
         style: selectedStyle,
-        sku: skuParts.join('-'),
+        sku: skuInfo.fullSKU,
+        baseSKU: skuInfo.baseSKU,
         variantName,
         price: basePrice,
         weight,
@@ -415,7 +446,7 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
   return allVariants;
 };
 
-export const generateProductData = async (formState, leatherColors, stitchingThreadColor, embroideryThreadColor, colorTags, shapes, styles, productPrices, shopifyCollections, amannNumbers, isacordNumbers) => {
+export const generateProductData = async (formState, leatherColors, stitchingThreadColor, embroideryThreadColor, colorTags, shapes, styles, productPrices, shopifyCollections, amannNumbers, isacordNumbers, existingProducts) => {
   const title = generateTitle(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shopifyCollections);
   return {
     title,
@@ -425,7 +456,7 @@ export const generateProductData = async (formState, leatherColors, stitchingThr
     descriptionHTML: generateDescriptionHTML(formState, shopifyCollections),
     seoDescription: generateSEODescription(formState, shopifyCollections),
     tags: generateTags(formState, leatherColors, embroideryThreadColor, stitchingThreadColor, colorTags),
-    variants: await generateVariants(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shapes, styles, productPrices, shopifyCollections, amannNumbers, isacordNumbers),
+    variants: await generateVariants(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shapes, styles, productPrices, shopifyCollections, amannNumbers, isacordNumbers, existingProducts),
 
     // New fields for database consistency
     collectionId: formState.selectedCollection,
