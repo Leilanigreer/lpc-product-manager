@@ -74,7 +74,8 @@ export default function CreateProduct() {
     shapes, 
     styles, 
     fonts, 
-    productPrices, 
+    productPrices,
+    productDataLPC, 
     error 
   } = useLoaderData();
 
@@ -261,6 +262,7 @@ export default function CreateProduct() {
       };
 
       const threadData = prepareThreadData(updatedFormState, needsStitchingColor);
+
       
       const data = await generateProductData(
         {
@@ -276,7 +278,8 @@ export default function CreateProduct() {
         productPrices,
         shopifyCollections,
         amannNumbers,
-        isacordNumbers
+        isacordNumbers,
+        productDataLPC
       );
 
       setProductData(data);
