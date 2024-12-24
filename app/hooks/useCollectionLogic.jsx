@@ -17,7 +17,7 @@ export const useCollectionLogic = (shopifyCollections, selectedCollection) => {
 
   const collectionType = useMemo(() => {
     if (!fullCollection?.handle) {
-      console.warn('Selected collection is missing handle:', fullCollection);
+      //console.warn('Selected collection is missing handle:', fullCollection);
       return 'Unknown';
     }
     return getShopifyCollectionType({ handle: fullCollection.handle });

@@ -198,7 +198,8 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
         leatherColor2,
         stitchingThreadColor, 
         embroideryThreadColor,
-        shape
+        shape, 
+        existingProducts: formState.existingProducts
       });
 
       if (!skuInfo) return null;
@@ -446,7 +447,21 @@ const generateVariants = async (formState, leatherColors, stitchingThreadColors,
   return allVariants;
 };
 
-export const generateProductData = async (formState, leatherColors, stitchingThreadColor, embroideryThreadColor, colorTags, shapes, styles, productPrices, shopifyCollections, amannNumbers, isacordNumbers, existingProducts) => {
+export const generateProductData = async (
+  formState, 
+  leatherColors, 
+  stitchingThreadColor, 
+  embroideryThreadColor, 
+  colorTags, 
+  shapes, 
+  styles, 
+  productPrices, 
+  shopifyCollections, 
+  amannNumbers, 
+  isacordNumbers, 
+  productDataLPC
+) => {
+  console.log('generateProductData received existingProducts:', formState.existingProducts);
   const title = generateTitle(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shopifyCollections);
   return {
     title,
@@ -456,7 +471,7 @@ export const generateProductData = async (formState, leatherColors, stitchingThr
     descriptionHTML: generateDescriptionHTML(formState, shopifyCollections),
     seoDescription: generateSEODescription(formState, shopifyCollections),
     tags: generateTags(formState, leatherColors, embroideryThreadColor, stitchingThreadColor, colorTags),
-    variants: await generateVariants(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shapes, styles, productPrices, shopifyCollections, amannNumbers, isacordNumbers, existingProducts),
+    variants: await generateVariants(formState, leatherColors, stitchingThreadColor, embroideryThreadColor, shapes, styles, productPrices, shopifyCollections, amannNumbers, isacordNumbers, productDataLPC),
 
     // New fields for database consistency
     collectionId: formState.selectedCollection,
