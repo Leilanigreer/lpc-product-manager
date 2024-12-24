@@ -4,7 +4,7 @@ import { COLLECTION_TYPES, COLLECTION_HANDLE_MAP } from './constants';
 
 export const getShopifyCollectionType = ({ handle }) => {
   if (!handle) {
-    console.warn('Missing collection handle');
+    //console.warn('Missing collection handle');
     return 'Unknown';
   }
   
@@ -13,7 +13,7 @@ export const getShopifyCollectionType = ({ handle }) => {
   const collectionType = COLLECTION_HANDLE_MAP[normalizedHandle];
   
   if (!collectionType) {
-    console.warn(`Unknown collection handle: ${handle}`);
+    //console.warn(`Unknown collection handle: ${handle}`);
     return 'Unknown';
   }
   
