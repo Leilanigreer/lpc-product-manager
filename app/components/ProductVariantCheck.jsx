@@ -15,9 +15,14 @@ const VariantRow = memo(({ variant, index }) => (
       <BlockStack gap="100">
         <Text variant="bodyMd">{variant.variantName}</Text>
         {isDevelopment() && (
-        <Text variant="bodySm" color="subdued">
-          SKU: {variant.sku}
-        </Text>
+          <>
+            <Text variant="bodySm" color="subdued">
+              SKU: {variant.sku}
+            </Text>
+            <Text variant='bodySm' color='subdued'>
+              BaseSKU: {variant.baseSKU}
+            </Text>
+          </>
         )}
         {variant.weight && (
           <Text variant="bodySm" color="subdued">
