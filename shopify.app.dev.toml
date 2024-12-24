@@ -3,7 +3,7 @@
 client_id = "df58a5b13484ffc9b63eb3e420dca6f9"
 name = "LPC Product Management - Dev"
 handle = "lpc-product-management-dev-1"
-application_url = "https://directories-sport-successfully-rejected.trycloudflare.com"
+application_url = "https://fat-up-almost-mix.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_produ
 
 [auth]
 redirect_urls = [
-  "https://directories-sport-successfully-rejected.trycloudflare.com/auth/callback",
-  "https://directories-sport-successfully-rejected.trycloudflare.com/auth/shopify/callback",
-  "https://directories-sport-successfully-rejected.trycloudflare.com/api/auth/callback"
+  "https://fat-up-almost-mix.trycloudflare.com/auth/callback",
+  "https://fat-up-almost-mix.trycloudflare.com/auth/shopify/callback",
+  "https://fat-up-almost-mix.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
+import _ from 'lodash';
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { useFormState } from "../hooks/useFormState.js";
@@ -19,6 +20,7 @@ import ShapeSelector from "../components/ShapeSelector.jsx";
 import ProductVariantCheck from "../components/ProductVariantCheck.jsx";
 import ProductTypeSelector from "../components/ProductTypeSelector.jsx";
 import { ProductSuccessBanner } from "../components/ProductSuccessBanner.jsx";
+
 
 import {
   Page,
@@ -239,6 +241,44 @@ export default function CreateProduct() {
     return errors;
   }, []);
 
+  const extractExistingProducts = (productDataLPC) => {
+    console.log('Starting extraction with:', productDataLPC?.length, 'items');
+    
+    if (!productDataLPC || !Array.isArray(productDataLPC)) {
+      console.log('No valid productDataLPC array found');
+      return [];
+    }
+    
+    const products = productDataLPC.map(product => {
+      console.log('Processing product:', {
+        baseSKU: product.baseSKU,
+        collectionId: product.collection?.value 
+      });
+      
+      return {
+        baseSKU: product.baseSKU,
+        collectionId: product.collection?.value 
+      };
+    }).filter(product => product.baseSKU);
+  
+    console.log('Products after mapping:', products.length, 'items');
+    
+    const uniqueProducts = _.uniqBy(products, 'baseSKU');
+    console.log('Unique products:', uniqueProducts.length, 'items');
+    
+    return uniqueProducts;
+  };
+  
+  // Filter SKUs by collection
+  const filterSKUsByCollection = (existingProducts, collectionId) => {
+    console.log('Filtering products for collection ID:', collectionId);
+    return existingProducts.filter(product => {
+      const match = product.collectionId === collectionId;
+      console.log(`Comparing product collection ${product.collectionId} with ${collectionId}: ${match}`);
+      return match;
+    });
+  };
+
   const handleGenerateData = async () => {
     setIsGenerating(true);
     setGenerationError(null);
@@ -248,7 +288,7 @@ export default function CreateProduct() {
       if (validationErrors.length > 0) {
         throw new Error(validationErrors.join('\n'));
       }
-
+      
       const validWeights = Object.entries(formState.weights)
         .filter(([_, weight]) => weight && weight !== "")
         .reduce((acc, [key, value]) => {
@@ -261,13 +301,27 @@ export default function CreateProduct() {
         weights: validWeights
       };
 
+      console.log('Updated Form State (Object):', {...updatedFormState});
+      console.log('Updated Form State (String):', JSON.stringify(updatedFormState, null, 2));
+      
+      console.log('Raw productDataLPC:', productDataLPC);
+
       const threadData = prepareThreadData(updatedFormState, needsStitchingColor);
 
+      const uniqueExistingProducts = extractExistingProducts(productDataLPC);
+      console.log('After extraction:', uniqueExistingProducts); 
+
+      const collectionId = formState.selectedCollection; 
+      console.log('Selected Collection ID:', collectionId);
+
+      const filteredProducts = filterSKUsByCollection(uniqueExistingProducts, collectionId);
+      console.log('Filtered Products:', filteredProducts);
       
       const data = await generateProductData(
         {
           ...updatedFormState,
-          threadData
+          threadData,
+          existingProducts: filteredProducts
         },
         leatherColors,
         stitchingThreadColors,
