@@ -154,6 +154,7 @@ model ProductDataLPC {
   shopifyVariantId      String
   shopifyInventoryId    String
   SKU                   String
+  baseSKU               String?
   collectionId          String
   collection            ShopifyCollection @relation(fields: [collectionId], references: [id])
   offeringType          String

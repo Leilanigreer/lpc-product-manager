@@ -11,12 +11,12 @@ import { getShopifyCollectionType, needsQClassicField, needsStyle, needsStitchin
  */
 export const saveProductToDatabase = async (productData, shopifyResponse) => {
   try {
-    console.log('Starting database save with product data:', {
-      collectionId: productData.collectionId,
-      offeringType: productData.offeringType,
-      selectedFont: productData.selectedFont,
-      variantsCount: productData.variants.length
-    });
+    // console.log('Starting database save with product data:', {
+    //   collectionId: productData.collectionId,
+    //   offeringType: productData.offeringType,
+    //   selectedFont: productData.selectedFont,
+    //   variantsCount: productData.variants.length
+    // });
 
     // Filter out "Create my own set" variant
     const filteredVariants = productData.variants.filter(
@@ -41,11 +41,11 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
       throw new Error(`Collection not found for ID: ${productData.collectionId}`);
     }
 
-    console.log('Found collection:', {
-      id: collection.id,
-      title: collection.title,
-      handle: collection.handle
-    });
+    // console.log('Found collection:', {
+    //   id: collection.id,
+    //   title: collection.title,
+    //   handle: collection.handle
+    // });
 
     const collectionType = getShopifyCollectionType({ handle: collection.handle });
 
@@ -61,6 +61,7 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
         shopifyVariantId: shopifyVariant.id,
         shopifyInventoryId: shopifyVariant.inventoryItem?.id,
         SKU: variant.sku,
+        baseSKU: variant.baseSKU,
         offeringType: productData.offeringType,
         weight: variant.weight,
         mainHandle: productData.mainHandle,
@@ -73,99 +74,104 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
       // Validate that all required fields are present
       Object.entries(requiredFields).forEach(([key, value]) => {
         if (!value) {
-          throw new Error(`Missing required field: ${key}`);
+          throw new Error(`Missing required field: ${key} for variant with SKU: ${variant.sku}`);
         }
       });
     
       // Build the product record
-      const productRecord = {
-        // Required fields
-        shopifyProductId: requiredFields.shopifyProductId,
-        shopifyVariantId: requiredFields.shopifyVariantId,
-        shopifyInventoryId: requiredFields.shopifyInventoryId,
-        SKU: requiredFields.SKU,
-        offeringType: requiredFields.offeringType,
-        weight: parseFloat(requiredFields.weight),
-        mainHandle: requiredFields.mainHandle,
-    
-        // Required relations
-        collection: {
-          connect: {
-            id: requiredFields.collectionId
-          }
-        },
-        font: {
-          connect: {
-            id: requiredFields.fontId
-          }
-        },
-        shape: {
-          connect: {
-            id: requiredFields.shapeId
-          }
-        },
-        leatherColor1: {
-          connect: {
-            id: requiredFields.leatherColor1Id
-          }
-        },
-    
-        // Optional relations based on collection type
-        ...(variant.isacordNumberId || productData.matchingIsacordNumber ? {
-          isacord: {
+      try {
+        const productRecord = {
+          // Required fields
+          shopifyProductId: requiredFields.shopifyProductId,
+          shopifyVariantId: requiredFields.shopifyVariantId,
+          shopifyInventoryId: requiredFields.shopifyInventoryId,
+          SKU: requiredFields.SKU,
+          baseSKU: requiredFields.baseSKU,
+          offeringType: requiredFields.offeringType,
+          weight: parseFloat(requiredFields.weight),
+          mainHandle: requiredFields.mainHandle,
+      
+          // Required relations
+          collection: {
             connect: {
-              id: variant.isacordNumberId || productData.matchingIsacordNumber
+              id: requiredFields.collectionId
             }
-          }
-        } : {}),
+          },
+          font: {
+            connect: {
+              id: requiredFields.fontId
+            }
+          },
+          shape: {
+            connect: {
+              id: requiredFields.shapeId
+            }
+          },
+          leatherColor1: {
+            connect: {
+              id: requiredFields.leatherColor1Id
+            }
+          },
+      
+          // Optional relations based on collection type
+          ...(variant.isacordNumberId || productData.matchingIsacordNumber ? {
+            isacord: {
+              connect: {
+                id: variant.isacordNumberId || productData.matchingIsacordNumber
+              }
+            }
+          } : {}),
 
-        ...(needsSecondaryColor(collectionType) && productData.selectedLeatherColor2 && {
-          leatherColor2: {
-            connect: {
-              id: productData.selectedLeatherColor2
+          ...(needsSecondaryColor(collectionType) && productData.selectedLeatherColor2 && {
+            leatherColor2: {
+              connect: {
+                id: productData.selectedLeatherColor2
+              }
             }
-          }
-        }),
-    
-        ...(needsStitchingColor(collectionType) && (variant.amannNumberId || productData.matchingAmannNumber) && {
-          amann: {
-            connect: {
-              id: variant.amannNumberId || productData.matchingAmannNumber
+          }),
+      
+          ...(needsStitchingColor(collectionType) && (variant.amannNumberId || productData.matchingAmannNumber) && {
+            amann: {
+              connect: {
+                id: variant.amannNumberId || productData.matchingAmannNumber
+              }
             }
-          }
-        }),
-    
-        ...(needsStyle(collectionType) && variant.styleId && {
-          style: {
-            connect: {
-              id: variant.styleId
+          }),
+      
+          ...(needsStyle(collectionType) && variant.styleId && {
+            style: {
+              connect: {
+                id: variant.styleId
+              }
             }
-          }
-        }),
-    
-        ...(needsQClassicField(collectionType) && variant.qClassicLeather && {
-          quiltedLeatherColor: {
-            connect: {
-              id: variant.qClassicLeather
+          }),
+      
+          ...(needsQClassicField(collectionType) && variant.qClassicLeather && {
+            quiltedLeatherColor: {
+              connect: {
+                id: variant.qClassicLeather
+              }
             }
+          })
+        };
+      
+        return prisma.productDataLPC.create({
+          data: productRecord,
+          include: {
+            collection: true,
+            font: true,
+            shape: true,
+            leatherColor1: true,
+            leatherColor2: true,
+            amann: true,
+            isacord: true,
+            style: true,
+            quiltedLeatherColor: true,
           }
-        })
-      };
-    
-      return prisma.productDataLPC.create({
-        data: productRecord,
-        include: {
-          collection: true,
-          font: true,
-          shape: true,
-          leatherColor1: true,
-          leatherColor2: true,
-          amann: true,
-          isacord: true,
-          style: true,
-          quiltedLeatherColor: true,
-        }
-      });
+        });
+      } catch (error) {
+        throw new Error (`Failed to create product record: ${error.message}`);
+      }
     };
 
     // Find Shopify variant data for the base variant
