@@ -30,3 +30,22 @@ export const generateTitle = (formState, leatherColors, stitchingThreadColors, e
       return "Pending Title";
   }
 };
+
+export const generateSEOTitle = (formState, title, shopifyCollections) => {
+  if (!title || title === "Pending Title") return "pending-seo-title";
+
+  const collectionType = getCollectionType(formState, shopifyCollections);
+  
+  switch(collectionType) {
+    case COLLECTION_TYPES.QUILTED:
+    case COLLECTION_TYPES.ANIMAL:
+    case COLLECTION_TYPES.CLASSIC:
+      return `${title} Golf Headcovers`;
+    case COLLECTION_TYPES.ARGYLE:
+      return `${title} Argyle Golf Headcovers`; 
+    case COLLECTION_TYPES.QCLASSIC:
+      return `${title} Quilted Golf Headcovers`;
+    default:
+      return "pending-seo-title";
+  }
+};
