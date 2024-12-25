@@ -13,7 +13,7 @@ import {
   getIsacordNumbers, 
   getAmannNumbers,
   getProductDataLPC 
-} from "../dataFetchers";
+} from "../utils/dataFetchers";
 
 export const loader = async () => {  
   try {
