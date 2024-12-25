@@ -2,15 +2,16 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import _ from 'lodash';
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { useFormState } from "../hooks/useFormState.js";
-import { loader } from "../lib/loaders.js";
-import { generateProductData } from "../lib/productAttributes.js";
-import { useCollectionLogic } from "../hooks/useCollectionLogic.jsx";
 import { json } from "@remix-run/node";
+
+import { useFormState } from "../hooks/useFormState";
+import { loader } from "../lib/loaders";
+import { generateProductData } from "../lib/generators";
+import { useCollectionLogic } from "../hooks/useCollectionLogic.jsx";
 import { authenticate } from "../shopify.server";
-import { createShopifyProduct } from "../lib/shopifyOperations.server.js";
-import { saveProductToDatabase } from "../lib/productOperations.server";
-import { initialFormState } from "../lib/formState.js";
+import { createShopifyProduct } from "../lib/server/shopifyOperations.server.js";
+import { saveProductToDatabase } from "../lib/server/productOperations.server.js";
+import { initialFormState } from "../lib/forms/formState";
 
 import CollectionSelector from "../components/CollectionSelector.jsx";
 import LeatherColorSelector from "../components/LeatherColorSelector.jsx";
@@ -84,6 +85,7 @@ export default function CreateProduct() {
   const fetcher = useFetcher();  
 
   const [formState, setFormState] = useFormState(initialFormState);
+
   const [productData, setProductData] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
@@ -366,6 +368,8 @@ export default function CreateProduct() {
   if (error) {
     return <div>Error: {error}</div>;
   }
+
+  console.log('Component mounted, formState:', formState);
 
   return (
     <Page>
