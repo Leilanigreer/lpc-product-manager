@@ -1,8 +1,8 @@
 // app/lib/dataFetchers.js
-
-import prisma from "../db.server";
+import prisma from "../../db.server.js";
 
 export const getLeatherColors = async () => {
+  console.log('getLeatherColors called');
   try {
     const leatherColors = await prisma.LeatherColor.findMany({
       include: {
@@ -25,7 +25,7 @@ export const getLeatherColors = async () => {
       }))
     }));
   } catch (error) {
-    //console.error("Error fetching leather colors:", error);
+    console.error("Error fetching leather colors:", error);
     throw error;
   }
 };
@@ -62,7 +62,7 @@ export const getStitchingThreadColors = async () => {
       }))
     }));
   } catch (error) {
-   //console.error("Error fetching stitching thread colors:", error);
+   console.error("Error fetching stitching thread colors:", error);
     throw error;
   }
 };
@@ -99,7 +99,7 @@ export const getEmbroideryThreadColors = async () => {
       }))
     }));
   } catch (error) {
-    //console.error("Error fetching embroidery thread colors:", error);
+    console.error("Error fetching embroidery thread colors:", error);
     throw error;
   }
 };
@@ -125,7 +125,7 @@ export const getIsacordNumbers = async () => {
       }
     }));
   } catch (error) {
-    //console.error("Error fetching Isacord numbers:", error);
+    console.error("Error fetching Isacord numbers:", error);
     throw error;
   }
 };
@@ -151,7 +151,7 @@ export const getAmannNumbers = async () => {
       }
     }));
   } catch (error) {
-    //console.error("Error fetching Amann numbers:", error);
+    console.error("Error fetching Amann numbers:", error);
     throw error;
   }
 };
@@ -205,7 +205,7 @@ export const getColorTags = async () => {
       }))
     }));
   } catch (error) {
-    //console.error("Error fetching color tags:", error);
+    console.error("Error fetching color tags:", error);
     throw error;
   }
 };
@@ -219,7 +219,7 @@ export const getFonts = async () => {
       image_url 
     }));
   } catch (error) {
-    //console.error("Error fetching fonts:", error);
+    console.error("Error fetching fonts:", error);
     throw error;
   }
 }
@@ -233,7 +233,7 @@ export const getShapes = async () => {
       abbreviation,
     }));
   } catch (error) {
-    //console.error("Error fetching shapes:", error);
+    console.error("Error fetching shapes:", error);
     throw error;
   }
 }
@@ -247,7 +247,7 @@ export const getStyles = async () => {
       abbreviation,
     }));
   } catch (error) {
-    //console.error("Error fetching styles:", error);
+    console.error("Error fetching styles:", error);
     throw error;
   }
 }
@@ -272,7 +272,7 @@ export const getProductPrices = async () => {
       shopifyCollectionId,
     }));
   } catch (error) {
-    //console.error("Error fetching product prices:", error);
+    console.error("Error fetching product prices:", error);
     throw error;
   }
 };
@@ -296,7 +296,7 @@ export const getShopifyCollections = async () => {
       handle, 
     }));
   } catch (error) {
-    // console.error("Error Fetching Shopify Collections from Prisma", error);
+    console.error("Error Fetching Shopify Collections from Prisma", error);
     throw error;
   }
 };
