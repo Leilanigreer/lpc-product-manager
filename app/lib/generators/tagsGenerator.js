@@ -1,6 +1,6 @@
 // app/lib/generators/tagsGenerator.js
 
-import { getColors } from "../utils/colorUtils";
+import { getColors } from "../utils";
 
 /**
  * Helper function to check if a color matches any color in a collection

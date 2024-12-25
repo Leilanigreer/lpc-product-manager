@@ -1,6 +1,6 @@
 // app/lib/generators/skuGenerator.js
 
-import { COLLECTION_TYPES } from "../constants/collectionTypes";
+import { COLLECTION_TYPES } from "../constants";
 
 const generateBaseParts = (collectionType, { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor }) => {
   const partsMap = {
