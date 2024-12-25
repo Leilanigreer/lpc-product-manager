@@ -8,7 +8,7 @@ import {
   isCollectionAnimalClassicQclassic,
   needsStyle,          // Add new imports
   needsQClassicField
-} from '../lib/collectionUtils';
+} from '../lib/utils/collectionUtils';
 
 export const useCollectionLogic = (shopifyCollections, selectedCollection) => {
   const fullCollection = useMemo(() => {
