@@ -1,6 +1,8 @@
+// app/components/ShapeSelector.jsx
+
 import React, { useMemo } from "react";
 import { BlockStack, Box, Divider, Text, Select, TextField, Checkbox, InlineStack } from "@shopify/polaris";
-import { isPutter } from "../lib/shapeUtils";
+import { isPutter } from "../lib/utils";
 
 const preventWheelChange = `
   input[type="number"] {
