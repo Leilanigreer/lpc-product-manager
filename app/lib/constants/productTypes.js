@@ -1,7 +1,7 @@
 // app/lib/constants/productTypes.js
 
-import { COLLECTION_TYPES } from "./constants";
-import { getCollectionType } from "../utils/collectionUtils";
+import { COLLECTION_TYPES } from "./collectionTypes";
+import { getCollectionType } from "../utils";
 
 export const PRODUCT_TYPE_MAP = {
   [COLLECTION_TYPES.QUILTED]: "Quilted",
