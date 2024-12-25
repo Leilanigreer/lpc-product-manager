@@ -1,7 +1,7 @@
 // app/lib/productOperations.server.js
 
-import prisma from "../db.server";
-import { getShopifyCollectionType, needsQClassicField, needsStyle, needsStitchingColor, needsSecondaryColor } from "./utils/collectionUtils";
+import prisma from "../../db.server.js";
+import { getShopifyCollectionType, needsQClassicField, needsStyle, needsStitchingColor, needsSecondaryColor } from "../utils";
 
 /**
  * Maps and saves product data to the productDataLPC table
@@ -11,13 +11,6 @@ import { getShopifyCollectionType, needsQClassicField, needsStyle, needsStitchin
  */
 export const saveProductToDatabase = async (productData, shopifyResponse) => {
   try {
-    // console.log('Starting database save with product data:', {
-    //   collectionId: productData.collectionId,
-    //   offeringType: productData.offeringType,
-    //   selectedFont: productData.selectedFont,
-    //   variantsCount: productData.variants.length
-    // });
-
     // Filter out "Create my own set" variant
     const filteredVariants = productData.variants.filter(
       variant => variant.variantName !== "Create my own set"
@@ -40,12 +33,6 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
     if (!collection) {
       throw new Error(`Collection not found for ID: ${productData.collectionId}`);
     }
-
-    // console.log('Found collection:', {
-    //   id: collection.id,
-    //   title: collection.title,
-    //   handle: collection.handle
-    // });
 
     const collectionType = getShopifyCollectionType({ handle: collection.handle });
 
