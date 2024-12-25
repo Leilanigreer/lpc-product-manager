@@ -4,20 +4,22 @@ import { COLLECTION_TYPES, COLLECTION_HANDLE_MAP } from '../constants/collection
 
 export const getShopifyCollectionType = ({ handle }) => {
   if (!handle) {
-    //console.warn('Missing collection handle');
     return 'Unknown';
   }
   
-  // Normalize the handle to lowercase for consistent comparison
   const normalizedHandle = handle.toLowerCase();
   const collectionType = COLLECTION_HANDLE_MAP[normalizedHandle];
   
   if (!collectionType) {
-    //console.warn(`Unknown collection handle: ${handle}`);
     return 'Unknown';
   }
   
   return collectionType;
+};
+
+export const getCollectionType = (formState, shopifyCollections) => {
+  const collection = shopifyCollections.find(col => col.value === formState.selectedCollection);
+  return collection ? getShopifyCollectionType({ handle: collection.handle }) : 'Unknown';
 };
 
 export const needsSecondaryColor = (collectionType) => {
