@@ -1,6 +1,6 @@
-// app/lib/collectionUtils.js
+// app/lib/utils/collectionUtils.js
 
-import { COLLECTION_TYPES, COLLECTION_HANDLE_MAP } from '../constants/collectionTypes';
+import { COLLECTION_TYPES, COLLECTION_HANDLE_MAP } from '../constants';
 
 export const getShopifyCollectionType = ({ handle }) => {
   if (!handle) {
