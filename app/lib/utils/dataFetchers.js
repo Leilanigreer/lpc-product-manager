@@ -2,7 +2,6 @@
 import prisma from "../../db.server.js";
 
 export const getLeatherColors = async () => {
-  console.log('getLeatherColors called');
   try {
     const leatherColors = await prisma.LeatherColor.findMany({
       include: {
