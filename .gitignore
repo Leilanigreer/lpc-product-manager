@@ -14,7 +14,7 @@ database.sqlite
 .env.*
 
 .compare
-
+.file-structure
 
 /extensions/*/dist
 
