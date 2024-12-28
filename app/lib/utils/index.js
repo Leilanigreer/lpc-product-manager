@@ -4,3 +4,5 @@ export * from './collectionUtils';
 export * from './colorUtils';
 export * from './priceUtils';
 export * from './shapeUtils';
+export * from './versionUtils';
+export * from './skuUtils';

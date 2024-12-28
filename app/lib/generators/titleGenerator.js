@@ -80,16 +80,16 @@ export const generateSEOTitle = (formState, title, shopifyCollections) => {
  * @param {Object} formState - Current form state
  * @param {string} title - Base product title
  * @param {Array} shopifyCollections - Available Shopify collections
+ * @param {number} version - Optional version number for the handle
  * @returns {string} URL-safe handle
  */
-
 const sanitizeHandle = (title) => {
   return title.toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
 };
 
-export const generateMainHandle = (formState, title, shopifyCollections) => {
+export const generateMainHandle = (formState, title, shopifyCollections, version) => {
   if (!formState || !shopifyCollections) {
     console.warn('Missing required parameters for handle generation');
     return DEFAULT_HANDLE;
@@ -98,19 +98,27 @@ export const generateMainHandle = (formState, title, shopifyCollections) => {
   if (!title || title === DEFAULT_TITLE) return DEFAULT_HANDLE;
 
   const tempMainHandle = sanitizeHandle(title);
-
   const collectionType = getCollectionType(formState, shopifyCollections);
   
+  let handle;
   switch(collectionType) {
     case COLLECTION_TYPES.QUILTED:
     case COLLECTION_TYPES.ANIMAL:
     case COLLECTION_TYPES.CLASSIC:
-      return `${tempMainHandle}-golf-headcovers`;
+      handle = `${tempMainHandle}-golf-headcovers`;
+      break;
     case COLLECTION_TYPES.ARGYLE:
-      return `${tempMainHandle}-argyle-golf-headcovers`; 
+      handle = `${tempMainHandle}-argyle-golf-headcovers`; 
+      break;
     case COLLECTION_TYPES.QCLASSIC:
-      return `${tempMainHandle}-quilted-golf-headcovers`;
+      handle = `${tempMainHandle}-quilted-golf-headcovers`;
+      break;
     default:
-      return DEFAULT_TITLE;
+      return DEFAULT_HANDLE;
   }
+
+  if (version) {
+    handle = `${handle}-v${version}`;
+  }
+  return handle;
 };

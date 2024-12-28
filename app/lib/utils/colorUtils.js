@@ -9,6 +9,3 @@ export const getColors = (formState, leatherColors, stitchingThreadColors, embro
   };
   return colors;
 };
-
-
-// Used in generateVariants, generateTitle, & generateTags
