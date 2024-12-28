@@ -2,33 +2,41 @@
 
 import { getColors } from "../utils";
 
+const DEFAULT_TAGS = ['Customizable'];
+
 /**
  * Helper function to check if a color matches any color in a collection
  * @param {Object} selectedColor - The selected color object
  * @param {Array} colorCollection - Array of color objects to check against
  * @returns {boolean}
  */
-const hasMatchingColor = (selectedColor, colorCollection) => {
-  if (!selectedColor || !Array.isArray(colorCollection)) {
-    return false;
-  }
-  
-  return colorCollection.some(color => 
-    color?.value === selectedColor.value
-  );
-};
+const hasMatchingColor = (selectedColor, colorCollection) => 
+  selectedColor && 
+  Array.isArray(colorCollection) &&
+  colorCollection.some(color => color?.value === selectedColor.value);
 
 /**
- * Validates the color tag structure
+ * Validates the color tag structure has required arrays
  * @param {Object} tag - The tag object to validate
  * @returns {boolean}
  */
 const isValidColorTag = (tag) => {
-  return tag && 
-    Array.isArray(tag.leatherColors) && 
-    Array.isArray(tag.stitchingColors) && 
-    Array.isArray(tag.embroideryColors);
+  const requiredArrays = ['leatherColors', 'stitchingColors', 'embroideryColors'];
+  return tag && requiredArrays.every(key => Array.isArray(tag[key]));
 };
+
+/**
+ * Gets all possible color matches for a tag
+ * @param {Object} colors - Object containing all color selections
+ * @param {Object} tag - Tag configuration to check against
+ * @returns {Array} Array of color and collection pairs to check
+ */
+const getColorMatches = (colors, tag) => [
+  [colors.leatherColor1, tag.leatherColors],
+  [colors.leatherColor2, tag.leatherColors], 
+  [colors.stitchingThreadColor, tag.stitchingColors],
+  [colors.embroideryThreadColor, tag.embroideryColors]
+];
 
 /**
  * Generates tags based on selected colors and color tags
@@ -47,24 +55,24 @@ export const generateTags = (
   colorTags
 ) => {
   // Initialize with default tags
-  const tagSet = new Set(['Customizable']);
+  const tagSet = new Set(DEFAULT_TAGS);
 
   // Early validation
   if (!formState || !Array.isArray(colorTags)) {
-    console.error('Invalid input parameters:', { 
-      hasFormState: !!formState, 
-      colorTagsType: typeof colorTags 
+    console.error('Invalid input parameters:', {
+      hasFormState: !!formState,
+      colorTagsType: typeof colorTags
     });
     return Array.from(tagSet);
   }
 
   // Get color selections
-  const { 
-    leatherColor1, 
-    leatherColor2, 
-    stitchingThreadColor, 
-    embroideryThreadColor 
-  } = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
+  const colors = getColors(
+    formState,
+    leatherColors,
+    stitchingThreadColors,
+    embroideryThreadColors
+  );
 
   // Process each color tag
   colorTags.forEach(tag => {
@@ -73,14 +81,10 @@ export const generateTags = (
       return;
     }
 
-    const matchesTag = [
-      [leatherColor1, tag.leatherColors],
-      [leatherColor2, tag.leatherColors],
-      [stitchingThreadColor, tag.stitchingColors],
-      [embroideryThreadColor, tag.embroideryColors]
-    ].some(([color, collection]) => hasMatchingColor(color, collection));
+    const hasMatch = getColorMatches(colors, tag)
+      .some(([color, collection]) => hasMatchingColor(color, collection));
 
-    if (matchesTag) {
+    if (hasMatch) {
       tagSet.add(tag.label);
     }
   });
