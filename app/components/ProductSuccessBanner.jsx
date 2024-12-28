@@ -2,13 +2,13 @@
 import { Banner, Text, BlockStack, InlineStack, Box, Button } from '@shopify/polaris';
 import { ExternalSmallIcon } from '@shopify/polaris-icons';
 
-export function ProductSuccessBanner({ 
+const ProductSuccessBanner = ({ 
   onDismiss, 
   productId, 
   shopDomain, 
   host, 
   productHandle 
-}) {
+}) => {
   return (
     <Box paddingBlock="400">
       <Banner
@@ -50,3 +50,7 @@ export function ProductSuccessBanner({
     </Box>
   );
 }
+
+ProductSuccessBanner.displayName = 'ProductSuccessBanner';
+
+export default ProductSuccessBanner;

@@ -13,15 +13,7 @@ import { createShopifyProduct } from "../lib/server/shopifyOperations.server.js"
 import { saveProductToDatabase } from "../lib/server/productOperations.server.js";
 import { initialFormState } from "../lib/forms/formState";
 
-import CollectionSelector from "../components/CollectionSelector.jsx";
-import LeatherColorSelector from "../components/LeatherColorSelector.jsx";
-import FontSelector from "../components/FontSelector.jsx";
-import ThreadColorSelector from "../components/ThreadColorSelector.jsx";
-import ShapeSelector from "../components/ShapeSelector.jsx";
-import ProductVariantCheck from "../components/ProductVariantCheck.jsx";
-import ProductTypeSelector from "../components/ProductTypeSelector.jsx";
-import { ProductSuccessBanner } from "../components/ProductSuccessBanner.jsx";
-
+import {CollectionSelector, LeatherColorSelector, FontSelector, ThreadColorSelector, ShapeSelector, ProductVariantCheck, ProductTypeSelector, ProductSuccessBanner } from "../components"
 
 import {
   Page,
