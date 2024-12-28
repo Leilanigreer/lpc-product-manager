@@ -332,10 +332,7 @@ export default function CreateProduct() {
         shapes,
         styles,
         productPrices,
-        shopifyCollections,
-        amannNumbers,
-        isacordNumbers,
-        productDataLPC
+        shopifyCollections
       );
 
       setProductData(data);
