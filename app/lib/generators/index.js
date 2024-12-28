@@ -25,10 +25,7 @@ export const generateProductData = async (
   shapes,
   styles,
   productPrices,
-  shopifyCollections,
-  amannNumbers,
-  isacordNumbers,
-  productDataLPC
+  shopifyCollections
 ) => {
   const colors = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
   const collectionType = getCollectionType(formState, shopifyCollections);
@@ -56,9 +53,6 @@ export const generateProductData = async (
     styles,
     productPrices,
     shopifyCollections,
-    // amannNumbers,
-    // isacordNumbers,
-    // productDataLPC,
     skuInfo
   );
 
