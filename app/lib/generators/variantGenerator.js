@@ -2,6 +2,7 @@
 import { getCollectionType, needsSecondaryColor, needsQClassicField, needsStyle, needsStitchingColor, isWoodType, isPutter, getVariantPrice, getColors, formatSKU } from "../utils";
 import { COLLECTION_TYPES, assignPositions } from "../constants";
 
+
 export const generateVariants = async (
   formState, 
   leatherColors, 
@@ -91,9 +92,6 @@ export const generateVariants = async (
         price: basePrice,
         weight,
         isCustom: false,
-        options: {
-          Style: variantName
-        }
       };
 
       // Add thread data
@@ -170,7 +168,6 @@ export const generateVariants = async (
             weight,
             isCustom: true,
             position: customPosition++,
-            options: { Style: 'Customize Fairway' }
           });
         }
       } else {
@@ -191,7 +188,6 @@ export const generateVariants = async (
           weight,
           isCustom: true,
           position: customPosition++,
-          options: { Style: `Customize ${variant.variantName}` }
         });
       }
     } else {
@@ -247,7 +243,6 @@ export const generateVariants = async (
               weight,
               isCustom: true,
               position: customPosition++,
-              options: { Style: customVariantName }
             };
           
             customVariants.push(customVariant);
@@ -275,7 +270,6 @@ export const generateVariants = async (
               weight,
               isCustom: true,
               position: customPosition++,
-              options: { Style: `Customize ${variant.style?.label} Fairway` }
             };
             
             customVariants.push(customVariant);
@@ -301,7 +295,6 @@ export const generateVariants = async (
           weight,
           isCustom: true,
           position: customPosition++,
-          options: { Style: `Customize ${variant.shape}` }
         });
       } else {
         // Other cases with styles
@@ -325,7 +318,6 @@ export const generateVariants = async (
           weight,
           isCustom: true,
           position: customPosition++,
-          options: { Style: `Customize ${variant.style?.label} ${variant.shape}` }
         };
 
         customVariants.push(customVariant);
@@ -340,9 +332,6 @@ export const generateVariants = async (
       weight: 0,
       isCustom: true,
       position: variants.length + 1,
-      options: {
-        Style: "Create my own set"
-      }
     };
 
   // Combine all variants in the correct order
