@@ -22,3 +22,5 @@ database.sqlite
 .shopify/*
 .shopify.lock
 .vercel
+
+/shopify.app.dev.toml
