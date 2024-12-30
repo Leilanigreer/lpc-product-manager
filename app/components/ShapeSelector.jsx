@@ -30,8 +30,17 @@ const ShapeSelector = ({
   formState, 
   handleChange,
   needsStyle,
-  needsQClassicField
+  needsQClassicField,
+  currentCollection
 }) => {
+  const filteredStyles = useMemo(() => {
+    if (!styles || !currentCollection) return [];
+    
+    return styles.filter(style => 
+      style.availableInCollections.includes(currentCollection.handle)
+    );
+  }, [styles, currentCollection]);
+
   const hasMultipleThreadNumbers = useMemo(() => 
     (threadId, threadColors) => {
       const thread = threadColors?.find(t => t.value === threadId);
@@ -196,7 +205,7 @@ const ShapeSelector = ({
                 <>
                   <Box width="200px">
                     <Select
-                      options={styles || []}
+                      options={filteredStyles || []}
                       onChange={(value) => handleStyleChange(shape.value, value)}
                       value={formState.selectedStyles?.[shape.value] || ''}
                       placeholder="Select style"

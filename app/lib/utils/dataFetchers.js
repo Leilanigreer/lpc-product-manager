@@ -239,11 +239,25 @@ export const getShapes = async () => {
 
 export const getStyles = async () => {
   try {
-    const styles = await prisma.Style.findMany();
-    return styles.map(({ id, name, abbreviation}) => ({
+    const styles = await prisma.Style.findMany({
+      include: {
+        collections: {
+          include: {
+            collection: {
+              select: {
+                handle: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return styles.map(({ id, name, abbreviation, collections }) => ({
       value: id, 
       label: name,
       abbreviation,
+      availableInCollections: collections.map(sc => sc.collection.handle)
     }));
   } catch (error) {
     console.error("Error fetching styles:", error);
