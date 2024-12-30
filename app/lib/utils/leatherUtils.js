@@ -20,4 +20,4 @@ export const determineLeatherColor = ({
 };
 
 export const getStylePhrase = (styleLabel) => 
-  styleLabel === "50/50" ? "leather on left -" : "leather as";
+  styleLabel === "50/50" ? "leather on left" : "leather as";
