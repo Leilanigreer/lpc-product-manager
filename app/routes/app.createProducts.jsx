@@ -444,6 +444,7 @@ export default function CreateProduct() {
               handleChange={handleChange}
               needsStyle={needsStyle}
               needsQClassicField={needsQClassicField}
+              currentCollection={shopifyCollections.find(col => col.value === formState.selectedCollection)}
               />
           </Card>
           <Card>
