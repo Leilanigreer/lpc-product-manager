@@ -1,87 +1,77 @@
-import { formatSKU, isWoodType } from '../../../utils';
+// app/lib/generators/variants/custom/qClassicVariants.js
+
+import { formatSKU, determineLeatherColor, getStylePhrase } from '../../../utils';
 
 /**
- * Determines leather color based on style and selections
+ * Gets leather details for QClassic variants
  */
-const determineLeatherColor = ({
+const getQClassicLeatherDetails = ({
   variant,
-  shapeQClassicLeather,
   formState,
+  leatherColors,
   leatherColor1,
-  leatherColor2,
-  qClassicLeatherColor
+  leatherColor2
 }) => {
-  const useOppositeColor = variant.style?.abbreviation === 'Fat';
-  
-  if (useOppositeColor) {
-    return shapeQClassicLeather === formState.selectedLeatherColor1 
-      ? leatherColor2 
-      : leatherColor1;
+  const shapeQClassicLeather = formState.qClassicLeathers[variant.shapeId];
+  const qClassicLeatherColor = leatherColors.find(
+    color => color.value === shapeQClassicLeather
+  );
+
+  if (!qClassicLeatherColor) {
+    throw new Error('QClassic leather color not found');
   }
-  
-  return qClassicLeatherColor;
+
+  const selectedLeatherColor = determineLeatherColor({
+    variant,
+    shapeQClassicLeather,
+    formState,
+    leatherColor1,
+    leatherColor2,
+    qClassicLeatherColor
+  });
+
+  // The leatherAbbreviation should come from the selected leather color
+  const leatherAbbreviation = selectedLeatherColor.abbreviation;
+
+  return {
+    selectedLeatherColor,
+    leatherAbbreviation
+  };
 };
 
 /**
- * Generates style phrase for variant name
+ * Creates QClassic variant for non-wood shapes
  */
-const getStylePhrase = (styleLabel) => 
-  styleLabel === "50/50" ? "leather on left -" : "leather as";
-
-/**
- * Creates QClassic variant
- */
-export const createQClassicVariant = ({
+export const createQClassicNonWoodVariant = ({
   variant,
   shape,
   formState,
   baseCustomVariant,
+  customPrice,
+  weight,
   skuInfo,
   leatherColors,
   leatherColor1,
-  leatherColor2,
-  fairwayShape
+  leatherColor2
 }) => {
-  // Validation
   if (!variant?.shapeId || !formState?.qClassicLeathers || !skuInfo?.parts) {
     console.error('Missing required parameters for QClassic variant');
     return null;
   }
 
   try {
-    // Get QClassic leather color
-    const shapeQClassicLeather = formState.qClassicLeathers[variant.shapeId];
-    const qClassicLeatherColor = leatherColors.find(
-      color => color.value === shapeQClassicLeather
-    );
-
-    if (!qClassicLeatherColor) {
-      console.error('QClassic leather color not found');
-      return null;
-    }
-
-    // Determine leather colors and styling
-    const selectedLeatherColor = determineLeatherColor({
+    const { selectedLeatherColor, leatherAbbreviation } = getQClassicLeatherDetails({
       variant,
-      shapeQClassicLeather,
       formState,
+      leatherColors,
       leatherColor1,
-      leatherColor2,
-      qClassicLeatherColor
+      leatherColor2
     });
 
-    const useOppositeColor = variant.style?.abbreviation === 'Fat';
-    const leatherAbbreviation = useOppositeColor 
-      ? (shapeQClassicLeather === formState.selectedLeatherColor1 
-          ? leatherColor2.abbreviation 
-          : leatherColor1.abbreviation)
-      : qClassicLeatherColor.abbreviation;
-
-    // Generate SKU
     const customSKU = formatSKU(
       skuInfo.parts,
       skuInfo.version,
-      isWoodType(shape) ? fairwayShape : shape,
+      shape,
       { 
         isCustom: true,
         style: variant.style,
@@ -94,18 +84,18 @@ export const createQClassicVariant = ({
       return null;
     }
 
-    // Build variant name
     const stylePhrase = getStylePhrase(variant.style?.label);
-    const shapeName = isWoodType(shape) ? 'Fairway' : shape.label;
-    const variantName = `Customize ${selectedLeatherColor.label} ${stylePhrase} ${variant.style?.label} ${shapeName} +$15`;
+    const variantName = `Customize ${selectedLeatherColor.label} ${stylePhrase} ${variant.style?.label} ${shape.label} +$15`;
 
     return {
       ...variant,
       ...baseCustomVariant,
-      shapeId: isWoodType(shape) ? fairwayShape.value : shape.value,
       sku: customSKU.fullSKU,
       baseSKU: customSKU.baseSKU,
       variantName,
+      price: customPrice,
+      weight,
+      isCustom: true,
     };
 
   } catch (error) {

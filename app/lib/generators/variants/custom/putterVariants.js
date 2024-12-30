@@ -21,6 +21,17 @@ export const createPutterCustomVariant = ({
   weight,
   skuInfo
 }) => {
+  // Add price validation
+  if (isNaN(parseFloat(customPrice))) {
+    console.error('Invalid custom price:', customPrice);
+    return null;
+  }
+
+  // Add weight validation
+  if (isNaN(parseFloat(weight))) {
+    console.error('Invalid weight:', weight);
+    return null;
+  }
   // Input validation
   if (!variant || !shape || !skuInfo?.parts) {
     console.error('Missing required parameters for putter variant creation');

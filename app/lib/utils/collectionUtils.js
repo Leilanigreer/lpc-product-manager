@@ -2,8 +2,20 @@
 
 import { COLLECTION_TYPES, COLLECTION_HANDLE_MAP } from '../constants';
 
+/**
+ * @typedef {Object} Collection
+ * @property {string} value - Collection ID
+ * @property {string} handle - Collection handle
+ */
+
+/**
+ * @param {Object} params
+ * @param {string} params.handle - Collection handle
+ * @returns {string} Collection type or 'Unknown'
+ */
 export const getShopifyCollectionType = ({ handle }) => {
   if (!handle) {
+    console.warn('No handle provided to getShopifyCollectionType');
     return 'Unknown';
   }
   
@@ -11,13 +23,24 @@ export const getShopifyCollectionType = ({ handle }) => {
   const collectionType = COLLECTION_HANDLE_MAP[normalizedHandle];
   
   if (!collectionType) {
+    console.warn(`Unknown collection handle: ${handle}`);
     return 'Unknown';
   }
   
   return collectionType;
 };
 
+/**
+ * @param {Object} formState - Current form state
+ * @param {Array<Collection>} shopifyCollections - Available collections
+ * @returns {string} Collection type or 'Unknown'
+ */
 export const getCollectionType = (formState, shopifyCollections) => {
+  if (!formState?.selectedCollection || !Array.isArray(shopifyCollections)) {
+    console.warn('Invalid inputs to getCollectionType');
+    return 'Unknown';
+  }
+  
   const collection = shopifyCollections.find(col => col.value === formState.selectedCollection);
   return collection ? getShopifyCollectionType({ handle: collection.handle }) : 'Unknown';
 };

@@ -1,5 +1,10 @@
 // app/lib/generators/variants/regular/index.js
 
-export { createRegularVariants } from './createRegular';
-export { createBaseVariant } from './baseVariant';
-export { createThreadData } from './threadData';
+/**
+ * @typedef {import('../index').Variant} Variant
+ * @typedef {import('../index').SkuInfo} SkuInfo
+ */
+
+export * from './createRegular';
+export * from './baseVariant';
+export * from './threadData';

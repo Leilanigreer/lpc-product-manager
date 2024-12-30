@@ -2,6 +2,7 @@
 
 import { formatSKU, isWoodType } from '../../../utils';
 import { COLLECTION_TYPES } from '../../../constants';
+import { createWoodCustomVariant } from './woodVariants';
 
 /**
  * Creates custom variant for styled shapes (Classic/Animal collections)
@@ -20,7 +21,9 @@ export const createStyledCustomVariant = ({
   baseCustomVariant,
   customPrice,
   weight,
-  skuInfo
+  skuInfo,
+  shapes,
+  collectionType
 }) => {
   // Input validation
   if (!variant?.style?.label || !shape || !skuInfo?.parts) {
@@ -66,66 +69,6 @@ export const createStyledCustomVariant = ({
 };
 
 /**
- * Creates wood variant for styled collections
- * @param {Object} params Configuration object
- * @param {Object} params.variant - Original variant object
- * @param {Object} params.baseCustomVariant - Base custom variant properties
- * @param {string} params.customPrice - Price for custom variant
- * @param {number} params.weight - Weight in ounces
- * @param {Object} params.skuInfo - SKU generation information
- * @param {Array} params.shapes - Available shapes array
- * @returns {Object|null} Custom wood variant for styled collection
- */
-export const createStyledWoodVariant = ({
-  variant,
-  baseCustomVariant,
-  customPrice,
-  weight,
-  skuInfo,
-  shapes
-}) => {
-  const fairwayShape = shapes.find(s => s.abbreviation === 'Fairway');
-  if (!fairwayShape || !variant?.style?.label) {
-    console.error('Missing fairway shape or style for wood variant');
-    return null;
-  }
-
-  try {
-    const customSKU = formatSKU(
-      skuInfo.parts,
-      skuInfo.version,
-      fairwayShape,
-      { 
-        isCustom: true,
-        style: variant.style
-      }
-    );
-
-    if (!customSKU?.fullSKU) {
-      console.error('Failed to generate SKU for styled wood variant');
-      return null;
-    }
-
-    return {
-      ...variant,
-      ...baseCustomVariant,
-      shapeId: fairwayShape.value,
-      sku: customSKU.fullSKU,
-      baseSKU: customSKU.baseSKU,
-      variantName: `Customize ${variant.style.label} Fairway +$15`,
-      price: customPrice,
-      weight,
-      isCustom: true,
-      options: { Style: `Customize ${variant.style.label} Fairway` }
-    };
-
-  } catch (error) {
-    console.error('Error creating styled wood variant:', error);
-    return null;
-  }
-};
-
-/**
  * Checks if variant should use styled variant generation
  * @param {string} collectionType Type of collection
  * @param {boolean} needsStyle Whether collection needs style
@@ -145,4 +88,58 @@ export const shouldUseStyledVariant = (collectionType, needsStyle) => {
  */
 export const getStyleTrackingKey = (variant) => {
   return `${variant.style?.label}-${variant.shape?.abbreviation}`;
+};
+
+/**
+ * Process a styled variant, handling both wood and non-wood cases
+ * @param {Object} params Configuration object
+ * @returns {Object|null} Processed styled variant
+ */
+export const processStyledVariant = ({
+  variant,
+  shape,
+  baseCustomVariant,
+  customPrice,
+  weight,
+  skuInfo,
+  shapes,
+  collectionType,
+  processedStyles
+}) => {
+  if (!shape) return null;
+
+  // Check if this style has been processed (for wood variants)
+  const styleKey = getStyleTrackingKey(variant);
+  if (processedStyles.has(styleKey)) return null;
+
+  // Handle wood variants using centralized logic
+  if (isWoodType(shape)) {
+    const woodVariant = createWoodCustomVariant({
+      variant,
+      baseCustomVariant,
+      customPrice,
+      weight,
+      skuInfo,
+      shapes,
+      collectionType
+    });
+
+    if (woodVariant) {
+      processedStyles.add(styleKey);
+    }
+
+    return woodVariant;
+  }
+
+  // Handle non-wood variants
+  return createStyledCustomVariant({
+    variant,
+    shape,
+    baseCustomVariant,
+    customPrice,
+    weight,
+    skuInfo,
+    shapes,
+    collectionType
+  });
 };
