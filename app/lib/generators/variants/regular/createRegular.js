@@ -38,6 +38,14 @@ export const createRegularVariants = (
   collectionType,
   skuInfo
 ) => {
+  if (!formState?.weights || !Array.isArray(shapes) || !Array.isArray(productPrices)) {
+    console.error('Invalid inputs to createRegularVariants:', {
+      hasWeights: Boolean(formState?.weights),
+      hasShapes: Array.isArray(shapes),
+      hasPrices: Array.isArray(productPrices)
+    });
+    return [];
+  }
   return Object.entries(formState.weights || {})
     .filter(([_, weight]) => weight !== "")
     .map(([shapeId, weight]) => {

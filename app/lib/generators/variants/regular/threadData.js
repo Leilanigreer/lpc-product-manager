@@ -19,7 +19,17 @@
  * }
  */
 export const createThreadData = (formState, shapeId) => {
+  if (!formState || !shapeId) {
+    console.warn('Missing required parameters in createThreadData');
+    return {};
+  }
+
   const threadData = {};
+  
+  if (!['global', 'shape-specific'].includes(formState.threadData?.threadType)) {
+    console.warn(`Invalid thread type: ${formState.threadData?.threadType}`);
+    return threadData;
+  }
   
   // Handle global thread settings
   if (formState.threadData?.threadType === 'global') {

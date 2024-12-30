@@ -2,6 +2,7 @@
 
 import { formatSKU, isWoodType } from '../../../utils';
 import { COLLECTION_TYPES } from '../../../constants';
+import { createWoodCustomVariant, isWoodVariantProcessed } from './woodVariants';
 
 /**
  * Creates custom variant for non-styled shapes (Quilted/Argyle collections)
@@ -85,6 +86,8 @@ export const shouldUseNonStyledVariant = (collectionType, needsStyle) => {
  * @param {number} params.weight - Weight in ounces
  * @param {Object} params.skuInfo - SKU generation information
  * @param {Array} params.shapes - Available shapes array
+ * @param {Array} params.customVariants - Existing custom variants
+ * @param {string} params.collectionType - Type of collection
  * @returns {Object|null} Custom wood variant for non-styled collection
  */
 export const createNonStyledWoodVariant = ({
@@ -94,43 +97,27 @@ export const createNonStyledWoodVariant = ({
   customPrice,
   weight,
   skuInfo,
-  shapes
+  shapes,
+  customVariants,
+  collectionType
 }) => {
   if (!isWoodType(shape)) {
     return null;
   }
 
-  const fairwayShape = shapes.find(s => s.abbreviation === 'Fairway');
-  if (!fairwayShape) {
-    console.error('Fairway shape not found for wood variant');
-    return null;
-  }
-
   try {
-    const customSKU = formatSKU(
-      skuInfo.parts,
-      skuInfo.version,
-      fairwayShape,
-      { isCustom: true }
-    );
-
-    if (!customSKU?.fullSKU) {
-      console.error('Failed to generate SKU for non-styled wood variant');
-      return null;
+    if (!isWoodVariantProcessed(customVariants, 'Customize Fairway +$15')) {
+      return createWoodCustomVariant({
+        variant,
+        baseCustomVariant,
+        customPrice,
+        weight,
+        skuInfo,
+        shapes,
+        collectionType
+      });
     }
-
-    return {
-      ...variant,
-      ...baseCustomVariant,
-      shapeId: fairwayShape.value,
-      sku: customSKU.fullSKU,
-      baseSKU: customSKU.baseSKU,
-      variantName: 'Customize Fairway +$15',
-      price: customPrice,
-      weight,
-      isCustom: true,
-    };
-
+    return null;
   } catch (error) {
     console.error('Error creating non-styled wood variant:', error);
     return null;
