@@ -31,57 +31,69 @@ export const createBaseVariant = ({
   collectionType,
   skuInfo
 }) => {
-  // Generate SKU
-  const variantSKU = formatSKU(
-    skuInfo.parts,
-    skuInfo.version,
-    shape,
-    { isCustom: false }
-  );
+  try {
+    if (!shape?.value || !weight || !formState?.selectedCollection) {
+      throw new Error('Missing required fields');
+    }
+    // Generate SKU
+    const variantSKU = formatSKU(
+      skuInfo.parts,
+      skuInfo.version,
+      shape,
+      { isCustom: false }
+    );
 
-  if (!variantSKU.fullSKU) {
-    console.error('Failed to generate SKU for variant:', { shape, skuInfo });
+    if (!variantSKU.fullSKU) {
+      console.error('Failed to generate SKU for variant:', { shape, skuInfo });
+      return null;
+    }
+
+    // Determine style information
+    const isPutterShape = isPutter(shape);
+    const shouldHaveStyle = !isPutterShape && needsStyle(collectionType);
+    const selectedStyleId = shouldHaveStyle ? formState.selectedStyles?.[shape.value] : null;
+    const selectedStyle = shouldHaveStyle && selectedStyleId ? 
+      styles?.find(style => style.value === selectedStyleId) : 
+      null;
+
+    // Calculate price
+    const priceShapeId = isWoodType(shape) ? 
+      shapes.find(s => s.abbreviation === 'Fairway')?.value || shape.value : 
+      shape.value;
+
+    const basePrice = getVariantPrice(
+      priceShapeId,
+      formState.selectedCollection,
+      productPrices,
+      shapes
+    );
+
+    // Determine variant name
+    const variantName = isPutterShape ? 
+      shape.label :
+      shouldHaveStyle && selectedStyle ? 
+        `${shape.label} - ${selectedStyle.label}` : 
+        shape.label;
+
+    // Create and return base variant
+    return {
+      shapeId: shape.value,
+      shape: shape.label,
+      styleId: selectedStyleId,
+      style: selectedStyle,
+      sku: variantSKU.fullSKU,
+      baseSKU: variantSKU.baseSKU,
+      variantName,
+      price: basePrice,
+      weight,
+      isCustom: false,
+    };
+  } catch (error) {
+    console.error('Error creating base variant:', error, {
+      shape,
+      weight,
+      collectionType
+    });
     return null;
   }
-
-  // Determine style information
-  const isPutterShape = isPutter(shape);
-  const shouldHaveStyle = !isPutterShape && needsStyle(collectionType);
-  const selectedStyleId = shouldHaveStyle ? formState.selectedStyles?.[shape.value] : null;
-  const selectedStyle = shouldHaveStyle && selectedStyleId ? 
-    styles?.find(style => style.value === selectedStyleId) : 
-    null;
-
-  // Calculate price
-  const priceShapeId = isWoodType(shape) ? 
-    shapes.find(s => s.abbreviation === 'Fairway')?.value || shape.value : 
-    shape.value;
-
-  const basePrice = getVariantPrice(
-    priceShapeId,
-    formState.selectedCollection,
-    productPrices,
-    shapes
-  );
-
-  // Determine variant name
-  const variantName = isPutterShape ? 
-    shape.label :
-    shouldHaveStyle && selectedStyle ? 
-      `${shape.label} - ${selectedStyle.label}` : 
-      shape.label;
-
-  // Create and return base variant
-  return {
-    shapeId: shape.value,
-    shape: shape.label,
-    styleId: selectedStyleId,
-    style: selectedStyle,
-    sku: variantSKU.fullSKU,
-    baseSKU: variantSKU.baseSKU,
-    variantName,
-    price: basePrice,
-    weight,
-    isCustom: false,
-  };
 };
