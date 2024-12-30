@@ -8,6 +8,18 @@ import { COLLECTION_TYPES } from '../../../constants';
  * @param {Object} params Configuration parameters
  * @returns {string} Formatted variant name
  */
+
+const formatQClassicWoodVariantName = ({
+  leatherColorForName,
+  style,
+  stylePhrase
+}) => {
+  if (style?.label === "50/50") {
+    return `Customize Fairway - 50/50 with ${leatherColorForName.label} ${stylePhrase} +$15`;
+  }
+  return `Customize Fairway - ${leatherColorForName.label} ${stylePhrase} ${style?.label} +$15`;
+};
+
 const getWoodVariantName = ({
   collectionType,
   variant,
@@ -20,7 +32,11 @@ const getWoodVariantName = ({
   return 'Customize Fairway +$15'; // Fallback
 }
   if (collectionType === COLLECTION_TYPES.QCLASSIC) {
-    return `Customize ${leatherColorForName.label} ${stylePhrase} ${variant.style?.label} Fairway +$15`;
+    return formatQClassicWoodVariantName({
+      leatherColorForName,
+      style: variant.style,
+      stylePhrase
+    });
   } else if ([COLLECTION_TYPES.CLASSIC, COLLECTION_TYPES.ANIMAL].includes(collectionType)) {
     return `Customize Fairway - ${variant.style?.label} +$15`;
   }
