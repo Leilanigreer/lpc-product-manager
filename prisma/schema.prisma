@@ -50,13 +50,28 @@ model Shape {
 }
 
 model Style {
-  id             String           @id @default(cuid())
+  id             String            @id @default(cuid())
   name           String
   abbreviation   String
   image_url      String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
   ProductDataLPC ProductDataLPC[]
+  collections    StyleCollection[]
+}
+
+model StyleCollection {
+  id           String            @id @default(cuid())
+  styleId      String
+  collectionId String
+  style        Style             @relation(fields: [styleId], references: [id])
+  collection   ShopifyCollection @relation(fields: [collectionId], references: [id])
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([styleId, collectionId])
+  @@index([styleId])
+  @@index([collectionId])
 }
 
 model Font {
@@ -69,15 +84,16 @@ model Font {
 }
 
 model ShopifyCollection {
-  id                   String           @id @default(cuid())
+  id                   String            @id @default(cuid())
   shopifyId            String
   title                String
-  handle               String           @unique
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  handle               String            @unique
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
   admin_graphql_api_id String
   productPrices        ProductPrice[]
   ProductDataLPC       ProductDataLPC[]
+  styles               StyleCollection[]
 
   @@map("ShopifyCollections")
 }

@@ -39,6 +39,18 @@ const getQClassicLeatherDetails = ({
   };
 };
 
+const formatQClassicVariantName = ({
+  shape,
+  selectedLeatherColor,
+  style,
+  stylePhrase
+}) => {
+  if (style?.label === "50/50") {
+    return `Customize ${shape.label} - ${style?.label} with ${selectedLeatherColor.label} ${stylePhrase} +$15`;
+  }
+  return `Customize ${shape.label} - ${selectedLeatherColor.label} ${stylePhrase} ${style?.label} +$15`;
+};
+
 /**
  * Creates QClassic variant for non-wood shapes
  */
@@ -85,7 +97,12 @@ export const createQClassicNonWoodVariant = ({
     }
 
     const stylePhrase = getStylePhrase(variant.style?.label);
-    const variantName = `Customize ${selectedLeatherColor.label} ${stylePhrase} ${variant.style?.label} ${shape.label} +$15`;
+    const variantName = formatQClassicVariantName({
+      shape,
+      selectedLeatherColor,
+      style: variant.style,
+      stylePhrase
+    });
 
     return {
       ...variant,

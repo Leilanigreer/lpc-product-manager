@@ -31,9 +31,12 @@ export const generateTitle = (formState, leatherColors, stitchingThreadColors, e
   switch (collectionType) {
     case COLLECTION_TYPES.ANIMAL:
     case COLLECTION_TYPES.CLASSIC:
-    case COLLECTION_TYPES.QCLASSIC:
       return !leatherColor2 ? ERROR_MESSAGES.SECONDARY_COLOR : 
         `${leatherColor1.label} with ${leatherColor2.label} Leather`;
+
+    case COLLECTION_TYPES.QCLASSIC:
+      return !leatherColor2 ? ERROR_MESSAGES.SECONDARY_COLOR : 
+        `${leatherColor1.label} and ${leatherColor2.label} Leather Quilted`;
   
     case COLLECTION_TYPES.ARGYLE:
       if (!leatherColor2) return ERROR_MESSAGES.SECONDARY_COLOR;
