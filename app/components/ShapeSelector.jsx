@@ -1,9 +1,26 @@
 // app/components/ShapeSelector.jsx
 
-import React, { useMemo } from "react";
-import { BlockStack, Box, Divider, Text, Select, TextField, Checkbox, InlineStack } from "@shopify/polaris";
+import React, { useMemo, useState, useCallback } from "react";
+import { 
+  BlockStack, 
+  Box, 
+  Divider, 
+  Text, 
+  Select, 
+  TextField, 
+  Checkbox, 
+  InlineStack,
+  Combobox,
+  Listbox,
+  Icon 
+} from "@shopify/polaris";
+import { SearchIcon } from '@shopify/polaris-icons';
 import { isPutter } from "../lib/utils";
 
+/**
+ * CSS to prevent unwanted wheel behavior on number inputs
+ * @constant {string}
+ */
 const preventWheelChange = `
   input[type="number"] {
     -moz-appearance: textfield !important;
@@ -21,6 +38,62 @@ const preventWheelChange = `
   }
 `;
 
+/**
+ * @typedef {Object} Shape
+ * @property {string} value - Unique identifier for the shape
+ * @property {string} label - Display name for the shape
+ * @property {string} abbreviation - Short form code for the shape
+ */
+
+/**
+ * @typedef {Object} Style
+ * @property {string} value - Unique identifier for the style
+ * @property {string} label - Display name for the style
+ */
+
+/**
+ * @typedef {Object} ThreadNumber
+ * @property {string} label - Display name for the thread number
+ * @property {string} value - Unique identifier for the thread number
+ */
+
+/**
+ * @typedef {Object} ThreadColor
+ * @property {string} value - Unique identifier for the thread color
+ * @property {string} label - Display name for the thread color
+ * @property {Array<ThreadNumber>} isacordNumbers - Associated thread numbers
+ */
+
+/**
+ * @typedef {Object} LeatherColor
+ * @property {string} value - Unique identifier for the leather color
+ * @property {string} label - Display name for the leather color
+ */
+
+/**
+ * @typedef {Object} FormState
+ * @property {Object.<string, string>} weights - Map of shape IDs to their weights
+ * @property {Object.<string, string>} selectedStyles - Map of shape IDs to selected style IDs
+ * @property {Object.<string, string>} selectedEmbroideryColors - Map of shape IDs to selected thread colors
+ * @property {Object.<string, string>} shapeIsacordNumbers - Map of shape IDs to selected thread numbers
+ * @property {Object.<string, string>} qClassicLeathers - Map of shape IDs to selected leather colors
+ */
+
+/**
+ * Shape Selector component for managing shapes and their associated properties
+ * @component
+ * @param {Object} props - Component props
+ * @param {Array<Shape>} props.shapes - Available shapes
+ * @param {Array<Style>} props.styles - Available styles
+ * @param {Array<ThreadColor>} props.embroideryThreadColors - Available embroidery thread colors
+ * @param {Array<ThreadNumber>} props.isacordNumbers - Available thread numbers
+ * @param {Array<LeatherColor>} props.leatherColors - Available leather colors
+ * @param {FormState} props.formState - Current form state
+ * @param {Function} props.handleChange - Callback for form state changes
+ * @param {Function} props.needsStyle - Function to determine if style selection is needed
+ * @param {Function} props.needsQClassicField - Function to determine if quilted leather selection is needed
+ * @returns {React.ReactElement} Rendered component
+ */
 const ShapeSelector = ({ 
   shapes, 
   styles, 
@@ -32,27 +105,144 @@ const ShapeSelector = ({
   needsStyle,
   needsQClassicField
 }) => {
-  const hasMultipleThreadNumbers = useMemo(() => 
-    (threadId, threadColors) => {
-      const thread = threadColors?.find(t => t.value === threadId);
-      return thread?.isacordNumbers?.length > 1;
-    }, []
-  );
+  // Track search input values for each shape's thread selection
+  const [threadSearchValues, setThreadSearchValues] = useState({});
+  const [editingShapeIds, setEditingShapeIds] = useState({});
 
+  // Remove colorTags from thread colors for internal use
   const sanitizedEmbroideryColors = useMemo(() => 
     embroideryThreadColors?.map(({ colorTags, ...rest }) => rest) || [],
     [embroideryThreadColors]
   );
 
+  /**
+   * Generate combined options list with "None" and all thread numbers
+   * @type {Array<Object>}
+   */
+  const threadNumberOptions = useMemo(() => {
+    const options = [{ label: "None", value: "none" }];
+    
+    sanitizedEmbroideryColors.forEach(thread => {
+      if (thread.isacordNumbers) {
+        thread.isacordNumbers.forEach(number => {
+          options.push({
+            label: number.label,
+            value: number.value,
+            threadId: thread.value
+          });
+        });
+      }
+    });
+    
+    return options;
+  }, [sanitizedEmbroideryColors]);
+
+  /**
+   * Filter thread options based on search input
+   * @param {string} shapeId - ID of the shape being filtered for
+   * @returns {Array<Object>} Filtered options
+   */
+  const getFilteredOptions = useCallback((shapeId) => {
+    const searchValue = threadSearchValues[shapeId] || '';
+    if (searchValue === '') return threadNumberOptions;
+    
+    return threadNumberOptions.filter(option => 
+      option.value === 'none' || 
+      option.label.includes(searchValue.replace(/[^0-9]/g, ''))
+    );
+  }, [threadNumberOptions, threadSearchValues]);
+
+  /**
+   * Handle changes to the thread number search input
+   * @param {string} shapeId - ID of the shape being searched for
+   * @param {string} value - New search input value
+   */
+  const handleSearchChange = useCallback((shapeId, value) => {
+    // Mark this shape as being edited
+    setEditingShapeIds(prev => ({
+      ...prev,
+      [shapeId]: true
+    }));
+    
+    setThreadSearchValues(prev => ({
+      ...prev,
+      [shapeId]: value.replace(/[^0-9]/g, '')
+    }));
+  }, []);
+
+  const handleSearchBlur = useCallback((shapeId) => {
+    // Clear editing state when field loses focus
+    setEditingShapeIds(prev => ({
+      ...prev,
+      [shapeId]: false
+    }));
+    
+    // Clear search value if no selection was made
+    setThreadSearchValues(prev => ({
+      ...prev,
+      [shapeId]: ''
+    }));
+  }, []);
+
+  const handleSearchFocus = useCallback((shapeId) => {
+    // Set editing state when field gains focus
+    setEditingShapeIds(prev => ({
+      ...prev,
+      [shapeId]: true
+    }));
+  }, []);
+
+  /**
+   * Handle selection of a thread number
+   * @param {string} shapeId - ID of the shape being updated
+   * @param {string} value - Selected thread number value
+   */
+  const handleThreadSelect = useCallback((shapeId, value) => {
+    if (value === 'none') {
+      // Clear both color and number
+      const newEmbroideryColors = { ...formState.selectedEmbroideryColors };
+      const newIsacordNumbers = { ...formState.shapeIsacordNumbers };
+      delete newEmbroideryColors[shapeId];
+      delete newIsacordNumbers[shapeId];
+      
+      handleChange('selectedEmbroideryColors', newEmbroideryColors);
+      handleChange('shapeIsacordNumbers', newIsacordNumbers);
+    } else {
+      const selectedOption = threadNumberOptions.find(opt => opt.value === value);
+      if (selectedOption) {
+        // Update both color and number together
+        handleChange('selectedEmbroideryColors', {
+          ...formState.selectedEmbroideryColors,
+          [shapeId]: selectedOption.threadId
+        });
+        handleChange('shapeIsacordNumbers', {
+          ...formState.shapeIsacordNumbers,
+          [shapeId]: value
+        });
+      }
+    }
+    
+    setEditingShapeIds(prev => ({
+      ...prev,
+      [shapeId]: false
+    }));
+    setThreadSearchValues(prev => ({
+      ...prev,
+      [shapeId]: ''
+    }));
+  }, [handleChange, threadNumberOptions, formState]);
+
   const memoizedShapes = useMemo(() => shapes || [], [shapes]);
   const showStyle = needsStyle();
   const showQClassicField = needsQClassicField();
 
-  // Create leather options based on the selected colors in formState
+  /**
+   * Generate leather color options based on selected colors
+   * @type {Array<Object>}
+   */
   const leatherOptions = useMemo(() => {
     const options = [];
     
-    // Find the leather color objects for the selected colors
     const leatherColor1 = leatherColors?.find(color => color.value === formState.selectedLeatherColor1);
     const leatherColor2 = leatherColors?.find(color => color.value === formState.selectedLeatherColor2);
     
@@ -73,6 +263,11 @@ const ShapeSelector = ({
     return options; 
   }, [leatherColors, formState.selectedLeatherColor1, formState.selectedLeatherColor2]);
 
+  /**
+   * Handle toggling of shape selection
+   * @param {string} shapeValue - ID of the shape being toggled
+   * @param {boolean} checked - New checked state
+   */
   const handleShapeToggle = (shapeValue, checked) => {
     if (!checked) {
       const newWeights = { ...formState.weights };
@@ -103,6 +298,11 @@ const ShapeSelector = ({
     }
   };
 
+  /**
+   * Handle changes to shape weight
+   * @param {string} shapeValue - ID of the shape being updated
+   * @param {string} value - New weight value
+   */
   const handleWeightChange = (shapeValue, value) => {
     const newWeights = { ...formState.weights };
     if (value === '') {
@@ -113,6 +313,11 @@ const ShapeSelector = ({
     handleChange('weights', newWeights);
   };
 
+  /**
+   * Handle changes to shape style
+   * @param {string} shapeValue - ID of the shape being updated
+   * @param {string} value - New style value
+   */
   const handleStyleChange = (shapeValue, value) => {
     handleChange('selectedStyles', {
       ...formState.selectedStyles,
@@ -120,35 +325,78 @@ const ShapeSelector = ({
     });
   };
 
-  const handleEmbroideryChange = (shapeValue, value) => {
-    handleChange('selectedEmbroideryColors', {
-      ...formState.selectedEmbroideryColors,
-      [shapeValue]: value
-    });
-  
-    // Find the selected thread color and its Isacord numbers
-    const selectedThread = embroideryThreadColors?.find(t => t.value === value);
-    
-    if (selectedThread?.isacordNumbers?.length === 1) {
-      // If there's exactly one Isacord number, set it automatically
-      handleChange('shapeIsacordNumbers', {
-        ...formState.shapeIsacordNumbers,
-        [shapeValue]: selectedThread.isacordNumbers[0].value
-      });
-    } else {
-      // Reset if there are multiple options or no options
-      const newIsacordNumbers = { ...formState.shapeIsacordNumbers };
-      delete newIsacordNumbers[shapeValue];
-      handleChange('shapeIsacordNumbers', newIsacordNumbers);
-    }
-  };
-
+  /**
+   * Handle changes to quilted leather selection
+   * @param {string} shapeValue - ID of the shape being updated
+   * @param {string} value - New leather color value
+   */
   const handleQClassicLeatherChange = (shapeValue, value) => {
     handleChange('qClassicLeathers', {
       ...formState.qClassicLeathers,
       [shapeValue]: value
     });
   };
+
+  /**
+   * Render the listbox for thread number selection
+   * @component
+   */
+  const ComboboxList = ({ options, selectedValue, onSelect }) => (
+    options.length > 0 && (
+      <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
+        <Listbox onSelect={onSelect}>
+          {options.map((option) => (
+            <Listbox.Option
+              key={option.value}
+              value={option.value}
+              selected={option.value === selectedValue}
+            >
+              {option.label}
+            </Listbox.Option>
+          ))}
+        </Listbox>
+      </div>
+    )
+  );
+
+  /**
+   * Render the thread number selector combobox
+   * @param {Object} shape - Shape object to render selector for
+   * @returns {React.ReactElement} Rendered selector
+   */
+  const renderThreadSelector = (shape) => (
+    <Combobox
+      activator={
+        <Combobox.TextField
+          prefix={<Icon source={SearchIcon} />}
+          onChange={(value) => handleSearchChange(shape.value, value)}
+          onBlur={() => handleSearchBlur(shape.value)}
+          onFocus={() => handleSearchFocus(shape.value)}
+          value={editingShapeIds[shape.value] 
+            ? (threadSearchValues[shape.value] || '')
+            : getSelectedThreadNumberLabel(shape.value)}
+          autoComplete="off"
+          disabled={!formState.weights.hasOwnProperty(shape.value)}
+        />
+      }
+    >
+      <ComboboxList 
+        options={getFilteredOptions(shape.value)}
+        selectedValue={formState.shapeIsacordNumbers?.[shape.value]}
+        onSelect={(value) => handleThreadSelect(shape.value, value)}
+      />
+    </Combobox>
+  );
+
+  const getSelectedThreadNumberLabel = useCallback((shapeId) => {
+    const selectedNumberValue = formState.shapeIsacordNumbers?.[shapeId];
+    if (!selectedNumberValue || selectedNumberValue === 'none') {
+      return 'None';
+    }
+    
+    const selectedOption = threadNumberOptions.find(opt => opt.value === selectedNumberValue);
+    return selectedOption?.label || '';
+  }, [formState.shapeIsacordNumbers, threadNumberOptions]);
 
   return (
     <BlockStack gap="400">
@@ -204,36 +452,7 @@ const ShapeSelector = ({
                     />
                   </Box>
                   <Box width="200px">
-                    <Select
-                      options={[
-                        { label: "Color of Thread", value: "", key: "default-thread-color" },
-                        ...(sanitizedEmbroideryColors || [])
-                      ]}
-                      onChange={(value) => handleEmbroideryChange(shape.value, value)}
-                      value={formState.selectedEmbroideryColors?.[shape.value] || ''}
-                      // placeholder="Select thread color"
-                      disabled={!formState.weights.hasOwnProperty(shape.value)}
-                    />
-                    {hasMultipleThreadNumbers(
-                      formState.selectedEmbroideryColors?.[shape.value],
-                      sanitizedEmbroideryColors
-                    ) && (
-                      <Select
-                        options={[
-                          { label: "Select Number", value: "" },
-                          ...(sanitizedEmbroideryColors
-                            .find(t => t.value === formState.selectedEmbroideryColors?.[shape.value])
-                            ?.isacordNumbers || []
-                          )
-                        ]}
-                        onChange={(value) => handleChange('shapeIsacordNumbers', {
-                          ...formState.shapeIsacordNumbers,
-                          [shape.value]: value
-                        })}
-                        value={formState.shapeIsacordNumbers?.[shape.value] || ''}
-                        disabled={!formState.weights.hasOwnProperty(shape.value)}
-                      />
-                    )}                    
+                    {renderThreadSelector(shape)}
                   </Box>
                   {showQClassicField && (
                     <Box width="200px">
