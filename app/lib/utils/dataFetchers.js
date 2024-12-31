@@ -245,19 +245,32 @@ export const getStyles = async () => {
           include: {
             collection: {
               select: {
-                handle: true
+                handle: true,
+                needsSecondaryLeather: true,
+                needsStitchingColor: true, 
+                needsQClassicField: true
               }
-            }
+            },
+            overrideSecondaryLeather: true,
+            overrideStitchingColor: true,
+            overrideQClassicField: true
           }
         }
       }
     });
 
-    return styles.map(({ id, name, abbreviation, collections }) => ({
-      value: id, 
+    return styles.map(({ id, name, abbreviation, image_url, stylePerShape, collections }) => ({
+      value: id,
       label: name,
       abbreviation,
-      availableInCollections: collections.map(sc => sc.collection.handle)
+      image_url,
+      stylePerShape,
+      collections: collections.map(sc => ({
+        handle: sc.collection.handle,
+        needsSecondaryLeather: sc.overrideSecondaryLeather ?? sc.collection.needsSecondaryLeather,
+        needsStitchingColor: sc.overrideStitchingColor ?? sc.collection.needsStitchingColor,
+        needsQClassicField: sc.overrideQClassicField ?? sc.collection.needsQClassicField
+      }))
     }));
   } catch (error) {
     console.error("Error fetching styles:", error);
@@ -293,20 +306,51 @@ export const getProductPrices = async () => {
 export const getShopifyCollections = async () => {
   try {
     const shopifyCollections = await prisma.ShopifyCollection.findMany({
-      select: {
-        id: true, 
-        shopifyId: true, 
-        admin_graphql_api_id: true, 
-        title: true, 
-        handle: true, 
+      include: {
+        styles: {
+          include: {
+            style: {
+              select: {
+                id: true,
+                name: true,
+                abbreviation: true
+              }
+            },
+            overrideSecondaryLeather: true,
+            overrideStitchingColor: true,
+            overrideQClassicField: true
+          }
+        }
       }
     });
-    return shopifyCollections.map(({ id, shopifyId, admin_graphql_api_id, title, handle}) => ({
-      value: id, 
+
+    return shopifyCollections.map(({ 
+      id, 
       shopifyId, 
       admin_graphql_api_id, 
+      title,
+      handle,
+      needsSecondaryLeather,
+      needsStitchingColor,
+      needsQClassicField,
+      showInDropdown,
+      styles 
+    }) => ({
+      value: id,
+      shopifyId,
+      admin_graphql_api_id,
       label: title,
-      handle, 
+      handle,
+      needsSecondaryLeather,
+      needsStitchingColor,
+      needsQClassicField,
+      showInDropdown,
+      styles: styles.map(sc => ({
+        ...sc.style,
+        overrideSecondaryLeather: sc.overrideSecondaryLeather,
+        overrideStitchingColor: sc.overrideStitchingColor,
+        overrideQClassicField: sc.overrideQClassicField
+      }))
     }));
   } catch (error) {
     console.error("Error Fetching Shopify Collections from Prisma", error);
