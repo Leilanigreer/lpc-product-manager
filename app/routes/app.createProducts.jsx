@@ -358,7 +358,7 @@ export default function CreateProduct() {
     return <div>Error: {error}</div>;
   }
 
-  console.log('Component mounted, formState:', formState);
+  // console.log('Component mounted, formState:', formState);
 
   return (
     <Page>
