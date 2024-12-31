@@ -50,14 +50,18 @@ model Shape {
 }
 
 model Style {
-  id             String            @id @default(cuid())
-  name           String
-  abbreviation   String
-  image_url      String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  ProductDataLPC ProductDataLPC[]
-  collections    StyleCollection[]
+  id                    String            @id @default(cuid())
+  name                  String
+  abbreviation          String
+  image_url             String?
+  needsSecondaryLeather Boolean           @default(false)
+  needsStitchingColor   Boolean           @default(false)
+  needsQClassicField    Boolean           @default(false)
+  stylePerShape         Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  ProductDataLPC        ProductDataLPC[]
+  collections           StyleCollection[]
 }
 
 model StyleCollection {
