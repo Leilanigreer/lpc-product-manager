@@ -1,4 +1,4 @@
-// app/lib/constants/constants.js
+// app/lib/constants/collectionTypes.js
 
 export const COLLECTION_TYPES = {
   QUILTED: 'Quilted',

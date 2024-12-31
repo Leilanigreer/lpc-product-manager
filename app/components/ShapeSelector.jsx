@@ -103,7 +103,8 @@ const ShapeSelector = ({
   formState, 
   handleChange,
   needsStyle,
-  needsQClassicField
+  needsQClassicField,
+  currentCollection
 }) => {
   // Track search input values for each shape's thread selection
   const [threadSearchValues, setThreadSearchValues] = useState({});
@@ -444,7 +445,7 @@ const ShapeSelector = ({
                 <>
                   <Box width="200px">
                     <Select
-                      options={styles || []}
+                      options={filteredStyles || []}
                       onChange={(value) => handleStyleChange(shape.value, value)}
                       value={formState.selectedStyles?.[shape.value] || ''}
                       placeholder="Select style"
