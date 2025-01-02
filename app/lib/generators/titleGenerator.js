@@ -1,127 +1,201 @@
 // app/lib/generators/titleGenerator.js
-import { COLLECTION_TYPES } from "../constants";
-import { getCollectionType, getColors } from "../utils";
+
+import { getColors } from "../utils";
 
 const DEFAULT_HANDLE = "pending-main-handle";
 const DEFAULT_SEO_TITLE = "pending-seo-title";
 const DEFAULT_TITLE = "Pending Title";
 
-const ERROR_MESSAGES = {
-  PRIMARY_COLOR: "Primary leather color missing",
-  SECONDARY_COLOR: "Secondary leather color missing",
-  STITCHING_COLOR: "Stitching color missing"
+/**
+ * Gets the appropriate template and validation for a collection/style combination
+ */
+const getTemplateAndValidation = (collection, styleId, templateType) => {
+  // Check for style-specific override first
+  const style = collection.styles?.find(s => s.id === styleId);
+  const styleTemplate = style?.[templateType];
+  const styleValidation = style?.validation;
+
+  // Fall back to collection-level template if no style override
+  const collectionTemplate = collection.titleFormat?.[templateType];
+  const collectionValidation = collection.titleFormat?.validation;
+
+  return {
+    template: styleTemplate || collectionTemplate,
+    validation: styleValidation || collectionValidation
+  };
 };
 
 /**
- * Generates the main product title based on form state and collection type
- * @param {Object} formState - Current form state with color selections
- * @param {Array} leatherColors - Available leather color options
- * @param {Array} stitchingThreadColors - Available stitching thread colors
- * @param {Array} embroideryThreadColors - Available embroidery thread colors
- * @param {Array} shopifyCollections - Available Shopify collections
- * @returns {string} Generated product title
+ * Validates colors based on validation requirements
  */
-export const generateTitle = (formState, leatherColors, stitchingThreadColors, embroideryThreadColors, shopifyCollections) => {  
-  const { leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = 
-    getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
-  const collectionType = getCollectionType(formState, shopifyCollections);
+const validateColors = (colors, validation) => {
+  if (!validation?.required) return null;
 
-  if (!leatherColor1) return ERROR_MESSAGES.PRIMARY_COLOR;
-  
-  switch (collectionType) {
-    case COLLECTION_TYPES.ANIMAL:
-    case COLLECTION_TYPES.CLASSIC:
-      return !leatherColor2 ? ERROR_MESSAGES.SECONDARY_COLOR : 
-        `${leatherColor1.label} with ${leatherColor2.label} Leather`;
+  for (const requiredField of validation.required) {
+    const hasValue = colors[requiredField];
+    if (!hasValue) {
+      return validation.errorMessages?.[requiredField];
+    }
+  }
 
-    case COLLECTION_TYPES.QCLASSIC:
-      return !leatherColor2 ? ERROR_MESSAGES.SECONDARY_COLOR : 
-        `${leatherColor1.label} and ${leatherColor2.label} Leather Quilted`;
-  
-    case COLLECTION_TYPES.ARGYLE:
-      if (!leatherColor2) return ERROR_MESSAGES.SECONDARY_COLOR;
-      if (!stitchingThreadColor) return ERROR_MESSAGES.STITCHING_COLOR;
-      return `${leatherColor1.label} and ${leatherColor2.label} Leather with ${stitchingThreadColor.label} Stitching`;
-  
-    case COLLECTION_TYPES.QUILTED:
-      return !embroideryThreadColor ? ERROR_MESSAGES.STITCHING_COLOR :
-        `${leatherColor1.label} Leather Quilted with ${embroideryThreadColor.label} Stitching`;
-  
-    default:
+  return null;
+};
+
+/**
+ * Replaces template placeholders with actual values
+ */
+const replacePlaceholders = (template, colors, tempMainHandle = '') => {
+  if (!template) return '';
+
+  return template
+    .replace(/{leatherColor1\.label}/g, colors.leatherColor1?.label || '')
+    .replace(/{leatherColor2\.label}/g, colors.leatherColor2?.label || '')
+    .replace(/{stitchingThreadColor\.label}/g, colors.stitchingThreadColor?.label || '')
+    .replace(/{embroideryThreadColor\.label}/g, colors.embroideryThreadColor?.label || '')
+    .replace(/{tempMainHandle}/g, tempMainHandle)
+    .replace(/{title}/g, template);
+};
+
+/**
+ * Sanitizes text for URL handles
+ */
+const sanitizeHandle = (text) => {
+  return text?.toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    || '';
+};
+
+/**
+ * Generates the main product title
+ */
+export const generateTitle = async (
+  formState,
+  leatherColors,
+  stitchingThreadColors,
+  embroideryThreadColors,
+  shopifyCollections
+) => {
+  try {
+    const colors = getColors(
+      formState,
+      leatherColors,
+      stitchingThreadColors,
+      embroideryThreadColors
+    );
+
+    const collection = shopifyCollections.find(
+      col => col.value === formState.selectedCollection
+    );
+
+    if (!collection) {
+      console.error('Collection not found');
       return DEFAULT_TITLE;
+    }
+
+    // Get template and validation rules
+    const { template, validation } = getTemplateAndValidation(
+      collection,
+      formState.selectedStyle,
+      'titleTemplate'
+    );
+
+    if (!template) {
+      console.error('Title template not found for collection:', collection.value);
+      return DEFAULT_TITLE;
+    }
+
+    // Validate colors
+    const validationError = validateColors(colors, validation);
+    if (validationError) {
+      return validationError;
+    }
+
+    // Generate title using template
+    return replacePlaceholders(template, colors) || DEFAULT_TITLE;
+
+  } catch (error) {
+    console.error('Error generating title:', error);
+    return DEFAULT_TITLE;
   }
 };
 
 /**
- * Generates SEO-friendly title based on product title and collection type
- * @param {Object} formState - Current form state
- * @param {string} title - Base product title
- * @param {Array} shopifyCollections - Available Shopify collections
- * @returns {string} SEO-optimized title
+ * Generates SEO-friendly title
  */
-export const generateSEOTitle = (formState, title, shopifyCollections) => {
+export const generateSEOTitle = async (
+  formState,
+  title,
+  shopifyCollections
+) => {
   if (!title || title === DEFAULT_TITLE) return DEFAULT_SEO_TITLE;
 
-  const collectionType = getCollectionType(formState, shopifyCollections);
-  
-  switch(collectionType) {
-    case COLLECTION_TYPES.QUILTED:
-    case COLLECTION_TYPES.ANIMAL:
-    case COLLECTION_TYPES.CLASSIC:
-      return `${title} Golf Headcovers`;
-    case COLLECTION_TYPES.ARGYLE:
-      return `${title} Argyle Golf Headcovers`; 
-    case COLLECTION_TYPES.QCLASSIC:
-      return `${title} Quilted Golf Headcovers`;
-    default:
-      return DEFAULT_SEO_TITLE;
+  try {
+    const collection = shopifyCollections.find(
+      col => col.value === formState.selectedCollection
+    );
+    
+    if (!collection) return DEFAULT_SEO_TITLE;
+
+    const { template } = getTemplateAndValidation(
+      collection,
+      formState.selectedStyle,
+      'seoTemplate'
+    );
+
+    if (!template) return DEFAULT_SEO_TITLE;
+
+    return replacePlaceholders(template, {}, '', title) || DEFAULT_SEO_TITLE;
+
+  } catch (error) {
+    console.error('Error generating SEO title:', error);
+    return DEFAULT_SEO_TITLE;
   }
 };
 
 /**
- * Generates URL-friendly handle from title and collection type
- * @param {Object} formState - Current form state
- * @param {string} title - Base product title
- * @param {Array} shopifyCollections - Available Shopify collections
- * @param {number} version - Optional version number for the handle
- * @returns {string} URL-safe handle
+ * Generates URL-friendly handle
  */
-const sanitizeHandle = (title) => {
-  return title.toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
-};
-
-export const generateMainHandle = (formState, title, shopifyCollections, version) => {
-  if (!formState || !shopifyCollections) {
-    console.warn('Missing required parameters for handle generation');
+export const generateMainHandle = async (
+  formState,
+  title,
+  shopifyCollections,
+  version
+) => {
+  if (!formState || !shopifyCollections || !title || title === DEFAULT_TITLE) {
     return DEFAULT_HANDLE;
   }
 
-  if (!title || title === DEFAULT_TITLE) return DEFAULT_HANDLE;
+  try {
+    const collection = shopifyCollections.find(
+      col => col.value === formState.selectedCollection
+    );
+    
+    if (!collection) return DEFAULT_HANDLE;
 
-  const tempMainHandle = sanitizeHandle(title);
-  const collectionType = getCollectionType(formState, shopifyCollections);
-  
-  let handle;
-  switch(collectionType) {
-    case COLLECTION_TYPES.QUILTED:
-    case COLLECTION_TYPES.ANIMAL:
-    case COLLECTION_TYPES.CLASSIC:
-      handle = `${tempMainHandle}-golf-headcovers`;
-      break;
-    case COLLECTION_TYPES.ARGYLE:
-      handle = `${tempMainHandle}-argyle-golf-headcovers`; 
-      break;
-    case COLLECTION_TYPES.QCLASSIC:
-      handle = `${tempMainHandle}-quilted-golf-headcovers`;
-      break;
-    default:
-      return DEFAULT_HANDLE;
-  }
+    const { template } = getTemplateAndValidation(
+      collection,
+      formState.selectedStyle,
+      'handleTemplate'
+    );
 
-  if (version) {
-    handle = `${handle}-v${version}`;
+    if (!template) return DEFAULT_HANDLE;
+
+    // Generate temporary handle for template
+    const tempMainHandle = sanitizeHandle(title);
+
+    // Process handle template
+    let handle = replacePlaceholders(template, {}, tempMainHandle);
+
+    // Add version if provided
+    if (version) {
+      handle = `${handle}-v${version}`;
+    }
+
+    return handle || DEFAULT_HANDLE;
+
+  } catch (error) {
+    console.error('Error generating handle:', error);
+    return DEFAULT_HANDLE;
   }
-  return handle;
 };
