@@ -1,16 +1,22 @@
 // app/lib/constants/productTypes.js
 
-import { COLLECTION_TYPES } from "./collectionTypes";
-import { getCollectionType } from "../utils";
-
-export const PRODUCT_TYPE_MAP = {
-  [COLLECTION_TYPES.QUILTED]: "Quilted",
-  [COLLECTION_TYPES.ANIMAL]: "Animal Print",
-  [COLLECTION_TYPES.ARGYLE]: "Argyle",
-  [COLLECTION_TYPES.CLASSIC]: "Classic",
-  [COLLECTION_TYPES.QCLASSIC]: "QClassic"
-};
-
+/**
+ * Generates product type string based on collection data
+ * @param {Object} formState - Current form state containing collection information
+ * @param {Array} shopifyCollections - Available Shopify collections 
+ * @returns {string} Generated product type
+ */
 export const generateProductType = (formState, shopifyCollections) => {
-  return PRODUCT_TYPE_MAP[getCollectionType(formState, shopifyCollections)] || "";
+  if (!formState?.selectedCollection || !Array.isArray(shopifyCollections)) {
+    console.warn('Invalid inputs to generateProductType');
+    return '';
+  }
+
+  const collection = shopifyCollections.find(col => col.value === formState.selectedCollection);
+  if (!collection) {
+    console.warn('Collection not found:', formState.selectedCollection);
+    return '';
+  }
+
+  return collection.title || '';
 };
