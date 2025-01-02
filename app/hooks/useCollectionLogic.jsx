@@ -1,55 +1,39 @@
 // app/hooks/useCollectionLogic.jsx
 
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { 
-  getShopifyCollectionType, 
   needsSecondaryColor, 
   needsStitchingColor,
-  isCollectionAnimalClassicQclassic,
-  needsStyle,          // Add new imports
+  needsStyle,
   needsQClassicField
-} from '../lib/utils/collectionUtils';
+} from '../lib/utils';
 
-export const useCollectionLogic = (shopifyCollections, selectedCollection) => {
+export const useCollectionLogic = (formState, shopifyCollections) => {
   const fullCollection = useMemo(() => {
-    return shopifyCollections?.find(col => col.value === selectedCollection);
-  }, [shopifyCollections, selectedCollection]);
-
-  const collectionType = useMemo(() => {
-    if (!fullCollection?.handle) {
-      //console.warn('Selected collection is missing handle:', fullCollection);
-      return 'Unknown';
-    }
-    return getShopifyCollectionType({ handle: fullCollection.handle });
-  }, [fullCollection]);
-
-  const memoizedIsCollectionAnimalClassicQclassic = useCallback(() => {
-    return isCollectionAnimalClassicQclassic(collectionType);
-  }, [collectionType]);
+    return shopifyCollections?.find(col => col.value === formState?.selectedCollection);
+  }, [shopifyCollections, formState?.selectedCollection]);
 
   const memoizedNeedsSecondaryColor = useMemo(() => {
-    return needsSecondaryColor(collectionType);
-  }, [collectionType]);
+    return needsSecondaryColor(formState, shopifyCollections);
+  }, [formState, shopifyCollections]);
 
   const memoizedNeedsStitchingColor = useMemo(() => {
-    return needsStitchingColor(collectionType);
-  }, [collectionType]);
+    return needsStitchingColor(formState, shopifyCollections);
+  }, [formState, shopifyCollections]);
 
-  // Add new memoized functions
-  const memoizedNeedsStyle = useCallback(() => {
-    return needsStyle(collectionType);
-  }, [collectionType]);
+  const memoizedNeedsStyle = useMemo(() => {
+    return needsStyle(formState, shopifyCollections);
+  }, [formState, shopifyCollections]);
 
-  const memoizedNeedsQClassicField = useCallback(() => {
-    return needsQClassicField(collectionType);
-  }, [collectionType]);
+  const memoizedNeedsQClassicField = useMemo(() => {
+    return needsQClassicField(formState, shopifyCollections);
+  }, [formState, shopifyCollections]);
 
   return {
-    collectionType,
-    isCollectionAnimalClassicQclassic: memoizedIsCollectionAnimalClassicQclassic,
+    collection: fullCollection,
     needsSecondaryColor: memoizedNeedsSecondaryColor,
     needsStitchingColor: memoizedNeedsStitchingColor,
-    needsStyle: memoizedNeedsStyle,                    // Add new returns
+    needsStyle: memoizedNeedsStyle,
     needsQClassicField: memoizedNeedsQClassicField
   };
 };
