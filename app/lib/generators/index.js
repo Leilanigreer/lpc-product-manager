@@ -6,7 +6,7 @@ import { generateDescriptionHTML } from './htmlDescription';
 import { generateSEODescription } from './seoDescription';
 import { generateTags } from './tagsGenerator';
 import { generateVariants } from './variants'; 
-import { generateBaseParts, calculateVersionFormParts, getColors, getCollectionType } from '../utils';
+import { generateBaseParts, calculateVersionFormParts, getColors } from '../utils';
 
 /**
  * @typedef {Object} ProductData
@@ -22,16 +22,6 @@ import { generateBaseParts, calculateVersionFormParts, getColors, getCollectionT
 
 /**
  * Generates complete product data by coordinating all generators
- * @param {Object} formState - Current form state
- * @param {Array} leatherColors - Available leather colors
- * @param {Array} stitchingThreadColors - Available stitching thread colors
- * @param {Array} embroideryThreadColors - Available embroidery thread colors
- * @param {Array} colorTags - Available color tags
- * @param {Array} shapes - Available shapes
- * @param {Array} styles - Available styles
- * @param {Array} productPrices - Product price configurations
- * @param {Array} shopifyCollections - Available Shopify collections
- * @returns {Promise<ProductData>} Complete product data object
  */
 export const generateProductData = async (
   formState,
@@ -42,7 +32,8 @@ export const generateProductData = async (
   shapes,
   styles,
   productPrices,
-  shopifyCollections
+  shopifyCollections,
+  commonDescription
 ) => {
   try {
     // Input validation
@@ -50,11 +41,19 @@ export const generateProductData = async (
       throw new Error('Missing required parameters for product generation');
     }
 
+    // Get selected collection with its formatting templates
+    const selectedCollection = shopifyCollections.find(
+      col => col.value === formState.selectedCollection
+    );
+    
+    if (!selectedCollection) {
+      throw new Error('Selected collection not found');
+    }
+
     const colors = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
-    const collectionType = getCollectionType(formState, shopifyCollections);
     
     // Generate SKU parts and version
-    const skuParts = generateBaseParts(collectionType, colors);
+    const skuParts = generateBaseParts(selectedCollection, colors);
     if (!Array.isArray(skuParts) || skuParts.length === 0) {
       throw new Error('Failed to generate SKU parts');
     }
@@ -66,7 +65,13 @@ export const generateProductData = async (
 
     // Generate all product components
     const [title, variants] = await Promise.all([
-      generateTitle(formState, leatherColors, stitchingThreadColors, embroideryThreadColors, shopifyCollections),
+      generateTitle(
+        formState,
+        leatherColors,
+        stitchingThreadColors,
+        embroideryThreadColors,
+        shopifyCollections
+      ),
       generateVariants(
         formState,
         leatherColors,
@@ -86,10 +91,10 @@ export const generateProductData = async (
 
     return {
       title,
-      mainHandle: generateMainHandle(formState, title, shopifyCollections, version),
+      mainHandle: await generateMainHandle(formState, title, shopifyCollections, version),
       productType: generateProductType(formState, shopifyCollections),
-      seoTitle: generateSEOTitle(formState, title, shopifyCollections),
-      descriptionHTML: generateDescriptionHTML(formState, shopifyCollections),
+      seoTitle: await generateSEOTitle(formState, title, shopifyCollections),
+      descriptionHTML: generateDescriptionHTML(formState, shopifyCollections, commonDescription),
       seoDescription: generateSEODescription(formState, shopifyCollections),
       tags: generateTags(formState, leatherColors, embroideryThreadColors, stitchingThreadColors, colorTags),
       variants,
@@ -120,4 +125,4 @@ export * from './htmlDescription';
 export * from './seoDescription';
 export * from './tagsGenerator';
 export * from './titleGenerator';
-export * from './variants'; 
+export * from './variants';
