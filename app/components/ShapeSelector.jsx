@@ -49,6 +49,25 @@ const preventWheelChange = `
  * @typedef {Object} Style
  * @property {string} value - Unique identifier for the style
  * @property {string} label - Display name for the style
+ * @property {boolean} stylePerShape - Whether style applies per shape
+ * @property {Array<StyleCollection>} collections - Associated collections
+ */
+
+/**
+ * @typedef {Object} StyleCollection
+ * @property {string} handle - Collection handle
+ * @property {boolean} needsSecondaryLeather - Whether secondary leather is required
+ * @property {boolean} needsStitchingColor - Whether stitching color is required
+ * @property {boolean} needsQClassicField - Whether quilted leather field is required
+ */
+
+/**
+ * @typedef {Object} CurrentCollection
+ * @property {string} handle - Collection handle
+ * @property {boolean} needsSecondaryLeather - Whether secondary leather is required
+ * @property {boolean} needsStitchingColor - Whether stitching color is required
+ * @property {boolean} needsQClassicField - Whether quilted leather field is required
+ * @property {boolean} needsStyle - Whether style selection is required
  */
 
 /**
@@ -84,7 +103,7 @@ const preventWheelChange = `
  * @component
  * @param {Object} props - Component props
  * @param {Array<Shape>} props.shapes - Available shapes
- * @param {Array<Style>} props.styles - Available styles
+ * @param {Array<Style>} props.styles - Available styles with collection relationships
  * @param {Array<ThreadColor>} props.embroideryThreadColors - Available embroidery thread colors
  * @param {Array<ThreadNumber>} props.isacordNumbers - Available thread numbers
  * @param {Array<LeatherColor>} props.leatherColors - Available leather colors
@@ -92,23 +111,48 @@ const preventWheelChange = `
  * @param {Function} props.handleChange - Callback for form state changes
  * @param {Function} props.needsStyle - Function to determine if style selection is needed
  * @param {Function} props.needsQClassicField - Function to determine if quilted leather selection is needed
+ * @param {CurrentCollection} props.currentCollection - Currently selected collection with its configuration
  * @returns {React.ReactElement} Rendered component
  */
 const ShapeSelector = ({ 
   shapes, 
   styles, 
+  leatherColors,
   embroideryThreadColors,
   isacordNumbers,
-  leatherColors,
   formState, 
   handleChange,
   needsStyle,
   needsQClassicField,
-  currentCollection
+  currentCollection,
 }) => {
-  // Track search input values for each shape's thread selection
+  console.log('ShapeSelector Props:', {
+    shapesCount: shapes?.length,
+    stylesCount: styles?.length,
+    formState,
+    currentCollection,
+  });
+
   const [threadSearchValues, setThreadSearchValues] = useState({});
   const [editingShapeIds, setEditingShapeIds] = useState({});
+
+  const filteredStyles = useMemo(() => {
+    if (!currentCollection?.handle || !styles?.length) {
+      return [];
+    }
+    
+    return styles
+      .filter(style => 
+        style.collections?.some(sc => 
+          sc.handle === currentCollection.handle
+        )
+      )
+      .map(style => ({
+        label: style.label,
+        value: style.value,
+        stylePerShape: style.stylePerShape
+      }));
+  }, [currentCollection, styles]);
 
   // Remove colorTags from thread colors for internal use
   const sanitizedEmbroideryColors = useMemo(() => 
@@ -234,8 +278,10 @@ const ShapeSelector = ({
   }, [handleChange, threadNumberOptions, formState]);
 
   const memoizedShapes = useMemo(() => shapes || [], [shapes]);
-  const showStyle = needsStyle();
-  const showQClassicField = needsQClassicField();
+  const showStyle = needsStyle;
+  console.log('showStyle result:', showStyle);
+
+  const showQClassicField = needsQClassicField;
 
   /**
    * Generate leather color options based on selected colors
