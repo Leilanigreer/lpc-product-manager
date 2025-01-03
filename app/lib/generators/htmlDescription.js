@@ -43,10 +43,15 @@ export const generateDescriptionHTML = (formState, shopifyCollections, commonDes
       return '';
     }
 
+    // Extract active common description content
+    const commonContent = Array.isArray(commonDescription)
+    ? commonDescription.find(desc => desc.isActive)?.content
+    : null;
+
     return wrapDescription(
       collection.description, 
       collection.commonDescription,
-      commonDescription
+      commonContent
     ).replace(/\s+/g, " ").trim();
 
   } catch (error) {
