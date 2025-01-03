@@ -96,9 +96,9 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
           },
       
           // Optional relations based on collection configuration
-          ...(variant.isacordNumberId || productData.matchingIsacordNumber ? {
+          ...(variant.isacordNumberId || (productData.selectedEmbroideryColor?.id) ? {
             isacord: {
-              connect: { id: variant.isacordNumberId || productData.matchingIsacordNumber }
+              connect: { id: variant.isacordNumberId || productData.selectedEmbroideryColor?.number }
             }
           } : {}),
     
