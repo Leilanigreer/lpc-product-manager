@@ -1,7 +1,6 @@
 // app/lib/generators/variants/custom/nonStyledVariants.js
 
 import { formatSKU, isWoodType } from '../../../utils';
-import { COLLECTION_TYPES } from '../../../constants';
 import { createWoodCustomVariant, isWoodVariantProcessed } from './woodVariants';
 
 /**
@@ -16,51 +15,48 @@ import { createWoodCustomVariant, isWoodVariantProcessed } from './woodVariants'
  * @returns {Object|null} Custom non-styled variant or null if generation fails
  */
 export const createNonStyledCustomVariant = ({
-  variant,
-  shape,
-  baseCustomVariant,
-  customPrice,
-  weight,
-  skuInfo
+ variant,
+ shape,
+ baseCustomVariant,
+ customPrice,
+ weight,
+ skuInfo
 }) => {
-  // Input validation
-  if (!variant || !shape || !skuInfo?.parts) {
-    console.error('Missing required parameters for non-styled variant creation');
-    return null;
-  }
+ if (!variant || !shape || !skuInfo?.parts) {
+   console.error('Missing required parameters for non-styled variant creation');
+   return null;
+ }
 
-  try {
-    // Generate custom SKU
-    const customSKU = formatSKU(
-      skuInfo.parts,
-      skuInfo.version,
-      shape,
-      { isCustom: true }
-    );
+ try {
+   const customSKU = formatSKU(
+     skuInfo.parts,
+     skuInfo.version,
+     shape,
+     { isCustom: true }
+   );
 
-    if (!customSKU?.fullSKU) {
-      console.error('Failed to generate SKU for non-styled variant');
-      return null;
-    }
+   if (!customSKU?.fullSKU) {
+     console.error('Failed to generate SKU for non-styled variant');
+     return null;
+   }
 
-    // Create variant name
-    const variantName = `Customize ${variant.variantName} +$15`;
+   const variantName = `Customize ${variant.variantName} +$15`;
 
-    return {
-      ...variant,
-      ...baseCustomVariant,
-      sku: customSKU.fullSKU,
-      baseSKU: customSKU.baseSKU,
-      variantName,
-      price: customPrice,
-      weight,
-      isCustom: true,
-    };
+   return {
+     ...variant,
+     ...baseCustomVariant,
+     sku: customSKU.fullSKU,
+     baseSKU: customSKU.baseSKU,
+     variantName,
+     price: customPrice,
+     weight,
+     isCustom: true,
+   };
 
-  } catch (error) {
-    console.error('Error creating non-styled variant:', error);
-    return null;
-  }
+ } catch (error) {
+   console.error('Error creating non-styled variant:', error);
+   return null;
+ }
 };
 
 /**
@@ -69,12 +65,9 @@ export const createNonStyledCustomVariant = ({
  * @param {boolean} needsStyle Whether collection needs style
  * @returns {boolean} True if should use non-styled generation
  */
-export const shouldUseNonStyledVariant = (collectionType, needsStyle) => {
-  return !needsStyle && [
-    COLLECTION_TYPES.QUILTED,
-    COLLECTION_TYPES.ARGYLE
-  ].includes(collectionType);
-};
+export const shouldUseNonStyledVariant = (collection) => {
+  return !collection.needsStyle;
+ };
 
 /**
  * Processes wood variants for non-styled collections (creates single Fairway variant)
@@ -91,35 +84,33 @@ export const shouldUseNonStyledVariant = (collectionType, needsStyle) => {
  * @returns {Object|null} Custom wood variant for non-styled collection
  */
 export const createNonStyledWoodVariant = ({
-  variant,
-  shape,
-  baseCustomVariant,
-  customPrice,
-  weight,
-  skuInfo,
-  shapes,
-  customVariants,
-  collectionType
+ variant,
+ shape,
+ baseCustomVariant,
+ customPrice,
+ weight,
+ skuInfo,
+ shapes,
+ customVariants,
+ collection
 }) => {
-  if (!isWoodType(shape)) {
-    return null;
-  }
+ if (!isWoodType(shape)) return null;
 
-  try {
-    if (!isWoodVariantProcessed(customVariants, 'Customize Fairway +$15')) {
-      return createWoodCustomVariant({
-        variant,
-        baseCustomVariant,
-        customPrice,
-        weight,
-        skuInfo,
-        shapes,
-        collectionType
-      });
-    }
-    return null;
-  } catch (error) {
-    console.error('Error creating non-styled wood variant:', error);
-    return null;
-  }
+ try {
+   if (!isWoodVariantProcessed(customVariants, 'Customize Fairway +$15')) {
+     return createWoodCustomVariant({
+       variant,
+       baseCustomVariant,
+       customPrice,
+       weight,
+       skuInfo,
+       shapes,
+       collection
+     });
+   }
+   return null;
+ } catch (error) {
+   console.error('Error creating non-styled wood variant:', error);
+   return null;
+ }
 };

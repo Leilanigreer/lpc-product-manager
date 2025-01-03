@@ -1,7 +1,6 @@
-// app/lib/productOperations.server.js
+// app/lib/server/productOperations.server.js
 
 import prisma from "../../db.server.js";
-import { getShopifyCollectionType, needsQClassicField, needsStyle, needsStitchingColor, needsSecondaryColor } from "../utils";
 
 /**
  * Maps and saves product data to the productDataLPC table
@@ -23,18 +22,14 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
     // Extract variant data from the first filtered variant as a base
     const baseVariant = filteredVariants[0];
 
-    // Validate collection exists
+    // Validate and fetch collection with its configuration
     const collection = await prisma.shopifyCollection.findUnique({
-      where: {
-        id: productData.collectionId
-      }
+      where: { id: productData.collectionId }
     });
-
+  
     if (!collection) {
       throw new Error(`Collection not found for ID: ${productData.collectionId}`);
     }
-
-    const collectionType = getShopifyCollectionType({ handle: collection.handle });
 
     // Map the data to match your productDataLPC schema
     const createProductRecord = async (variant, shopifyVariant) => {
@@ -100,44 +95,35 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
             }
           },
       
-          // Optional relations based on collection type
+          // Optional relations based on collection configuration
           ...(variant.isacordNumberId || productData.matchingIsacordNumber ? {
             isacord: {
-              connect: {
-                id: variant.isacordNumberId || productData.matchingIsacordNumber
-              }
+              connect: { id: variant.isacordNumberId || productData.matchingIsacordNumber }
             }
           } : {}),
-
-          ...(needsSecondaryColor(collectionType) && productData.selectedLeatherColor2 && {
+    
+          ...(collection.needsSecondaryLeather && productData.selectedLeatherColor2 && {
             leatherColor2: {
-              connect: {
-                id: productData.selectedLeatherColor2
-              }
+              connect: { id: productData.selectedLeatherColor2 }
             }
           }),
-      
-          ...(needsStitchingColor(collectionType) && (variant.amannNumberId || productData.matchingAmannNumber) && {
-            amann: {
-              connect: {
-                id: variant.amannNumberId || productData.matchingAmannNumber
+    
+          ...(collection.needsStitchingColor && 
+            (variant.amannNumberId || productData.matchingAmannNumber) && {
+              amann: {
+                connect: { id: variant.amannNumberId || productData.matchingAmannNumber }
               }
-            }
           }),
-      
-          ...(needsStyle(collectionType) && variant.styleId && {
+    
+          ...(collection.needsStyle && variant.styleId && {
             style: {
-              connect: {
-                id: variant.styleId
-              }
+              connect: { id: variant.styleId }
             }
           }),
-      
-          ...(needsQClassicField(collectionType) && variant.qClassicLeather && {
+    
+          ...(collection.needsQClassicField && variant.qClassicLeather && {
             quiltedLeatherColor: {
-              connect: {
-                id: variant.qClassicLeather
-              }
+              connect: { id: variant.qClassicLeather }
             }
           })
         };
@@ -157,7 +143,7 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
           }
         });
       } catch (error) {
-        throw new Error (`Failed to create product record: ${error.message}`);
+        throw new Error(`Failed to create product record: ${error.message}`);
       }
     };
 

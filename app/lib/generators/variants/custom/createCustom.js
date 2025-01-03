@@ -1,7 +1,6 @@
 // app/lib/generators/variants/custom/createCustom.js
 
-import { COLLECTION_TYPES } from '../../../constants';
-import { isWoodType, isPutter, needsStyle } from '../../../utils';
+import { isWoodType, isPutter } from '../../../utils';
 import { createWoodCustomVariant } from './woodVariants';
 import { createQClassicNonWoodVariant } from './qClassicVariants';
 import { createPutterCustomVariant } from './putterVariants';
@@ -14,7 +13,7 @@ export const createCustomVariants = ({
   formState,
   shapes,
   leatherColors,
-  collectionType,
+  collection,
   baseCustomVariant,
   customPrice,
   weight,
@@ -23,11 +22,11 @@ export const createCustomVariants = ({
   leatherColor2,
   processedStyles = new Set()
 }) => {
-  if (!variant || !shapes?.length || !collectionType) {
+  if (!variant || !shapes?.length || !collection) {
     console.error('Missing required parameters:', {
       hasVariant: !!variant,
       hasShapes: !!shapes?.length,
-      collectionType
+      hasCollection: !!collection
     });
     return null;
   }
@@ -43,7 +42,7 @@ export const createCustomVariants = ({
     }
 
     // For non-styled collections, use specific wood variant handler
-    if (shouldUseNonStyledVariant(collectionType, needsStyle(collectionType))) {
+    if (shouldUseNonStyledVariant(collection)) {
       const fairwayShape = shapes.find(s => s.abbreviation === 'Fairway');
       if (!fairwayShape) {
         console.error('Fairway shape not found');
@@ -58,12 +57,12 @@ export const createCustomVariants = ({
         weight,
         skuInfo,
         shapes,
-        collectionType
+        collection
       });
     }
 
     let leatherData;
-        if (collectionType === COLLECTION_TYPES.QCLASSIC) {
+        if (collection.needsQClassicField) {
           const shapeQClassicLeather = formState.qClassicLeathers?.[variant.shapeId];
           const qClassicLeatherColor = leatherColors.find(
             color => color.value === shapeQClassicLeather
@@ -83,12 +82,10 @@ export const createCustomVariants = ({
             qClassicLeatherColor
           });
     
-          const stylePhrase = getStylePhrase(variant.style?.label);
-    
           leatherData = {
             leatherAbbreviation: selectedLeatherColor.abbreviation,
             leatherColorForName: selectedLeatherColor,
-            stylePhrase
+            stylePhrase: getStylePhrase(variant.style?.label)
           };
         }
 
@@ -100,13 +97,11 @@ export const createCustomVariants = ({
       weight,
       skuInfo,
       shapes,
-      collectionType,
+      collection,
       leatherData
     });
 
-    if (woodVariant) {
-      processedStyles.add(styleKey);
-    }
+    if (woodVariant) processedStyles.add(styleKey);
     return woodVariant;
   }
 
@@ -123,7 +118,7 @@ export const createCustomVariants = ({
   }
 
   // Handle QClassic non-wood variants
-  if (collectionType === COLLECTION_TYPES.QCLASSIC) {
+  if (collection.needsQClassicField) {
     return createQClassicNonWoodVariant({
       variant,
       shape,
@@ -138,8 +133,7 @@ export const createCustomVariants = ({
     });
   }
 
-  // Handle non-styled variants
-  if (!needsStyle(collectionType)) {
+  if (!collection.needsStyle) {
     return createNonStyledCustomVariant({
       variant,
       shape,

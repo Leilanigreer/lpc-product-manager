@@ -1,7 +1,7 @@
 // app/components/CollectionSelector.jsx
 
 import React from 'react';
-import { Select } from "@shopify/polaris";
+import { Select, Card } from "@shopify/polaris";
 
 const CollectionSelector = ({ shopifyCollections, selectedCollection, onChange, onCollectionChange }) => {
   const options = [    
@@ -18,12 +18,14 @@ const CollectionSelector = ({ shopifyCollections, selectedCollection, onChange, 
   };
 
   return (
-    <Select
-      label="Select a collection"
-      options={options}
-      onChange={handleChange}
-      value={selectedCollection || ''}
-    />
+    <Card>
+      <Select
+        label="Select a collection"
+        options={options}
+        onChange={handleChange}
+        value={selectedCollection || ''}
+      />
+    </Card>
   );
 };
 

@@ -226,10 +226,12 @@ export const getFonts = async () => {
 export const getShapes = async () => {
   try {
     const shapes = await prisma.Shape.findMany();
-    return shapes.map(({ id, name, abbreviation}) =>({
+    return shapes.map(({ id, name, displayOrder, abbreviation, shapeType}) =>({
       value: id, 
       label: name,
+      displayOrder,
       abbreviation,
+      shapeType,
     }));
   } catch (error) {
     console.error("Error fetching shapes:", error);
@@ -242,7 +244,10 @@ export const getStyles = async () => {
     const styles = await prisma.Style.findMany({
       include: {
         collections: {
-          include: {
+          select: {
+            overrideSecondaryLeather: true,
+            overrideStitchingColor: true,
+            overrideQClassicField: true,
             collection: {
               select: {
                 handle: true,
@@ -250,10 +255,7 @@ export const getStyles = async () => {
                 needsStitchingColor: true, 
                 needsQClassicField: true
               }
-            },
-            overrideSecondaryLeather: true,
-            overrideStitchingColor: true,
-            overrideQClassicField: true
+            }
           }
         }
       }
@@ -269,7 +271,11 @@ export const getStyles = async () => {
         handle: sc.collection.handle,
         needsSecondaryLeather: sc.overrideSecondaryLeather ?? sc.collection.needsSecondaryLeather,
         needsStitchingColor: sc.overrideStitchingColor ?? sc.collection.needsStitchingColor,
-        needsQClassicField: sc.overrideQClassicField ?? sc.collection.needsQClassicField
+        needsQClassicField: sc.overrideQClassicField ?? sc.collection.needsQClassicField,
+        titleTemplate: sc.titleTemplate,
+        seoTemplate: sc.seoTemplate,
+        handleTemplate: sc.handleTemplate,
+        validation: sc.validation
       }))
     }));
   } catch (error) {
@@ -277,6 +283,189 @@ export const getStyles = async () => {
     throw error;
   }
 }
+
+export const getShopifyCollections = async () => {
+  try {
+    const shopifyCollections = await prisma.ShopifyCollection.findMany({
+      include: {
+        styles: {
+          select: {
+            styleId: true,
+            overrideSecondaryLeather: true,
+            overrideStitchingColor: true,
+            overrideQClassicField: true,
+            titleTemplate: true,
+            seoTemplate: true,
+            handleTemplate: true,
+            validation: true,
+            style: {
+              select: {
+                id: true,
+                name: true,
+                abbreviation: true
+              }
+            }
+          }
+        },
+        titleFormat: {
+          select: {
+            titleTemplate: true,
+            seoTemplate: true,
+            handleTemplate: true,
+            validation: true
+          }
+        }
+      }
+    });
+
+    return shopifyCollections.map(({ 
+      id, 
+      shopifyId, 
+      admin_graphql_api_id, 
+      title,
+      handle,
+      skuPrefix,
+      threadType,
+      description,
+      commonDescription,
+      needsSecondaryLeather,
+      needsStitchingColor,
+      needsQClassicField,
+      needsStyle,
+      showInDropdown,
+      styles,
+      titleFormat
+    }) => ({
+      value: id,
+      shopifyId,
+      admin_graphql_api_id,
+      label: title,
+      handle,
+      skuPrefix,
+      threadType,
+      description,
+      commonDescription,
+      needsSecondaryLeather,
+      needsStitchingColor,
+      needsQClassicField,
+      needsStyle,
+      showInDropdown,
+      styles: styles.map(sc => ({
+        id: sc.style.id,
+        label: sc.style.name,
+        abbreviation: sc.style.abbreviation,
+        overrideSecondaryLeather: sc.overrideSecondaryLeather,
+        overrideStitchingColor: sc.overrideStitchingColor,
+        overrideQClassicField: sc.overrideQClassicField,
+        // Include style-specific format overrides
+        titleTemplate: sc.titleTemplate,
+        seoTemplate: sc.seoTemplate,
+        handleTemplate: sc.handleTemplate,
+        validation: sc.validation
+      })),
+      // Collection-level title format
+      titleFormat: titleFormat ? {
+        titleTemplate: titleFormat.titleTemplate,
+        seoTemplate: titleFormat.seoTemplate,
+        handleTemplate: titleFormat.handleTemplate,
+        validation: titleFormat.validation
+      } : null
+    }));
+  } catch (error) {
+    console.error("Error Fetching Shopify Collections from Prisma", error);
+    throw error;
+  }
+};
+
+export const getCommonDescription = async () => {
+  try {
+    const commonDescription = await prisma.CommonDescription.findMany({
+      select: {
+        id: true,
+        name: true,
+        content: true,
+        isActive: true
+      }
+    });
+    return commonDescription.map(({ id, name, content, isActive, updatedAt}) => 
+    ({
+      value: id,
+      name, 
+      content,
+      isActive,
+      updatedAt
+    }));
+  } catch (error) {
+    console.error("Error fetching Common Description:", error);
+    throw error;
+  }
+};
+
+// This fetcher is now optional since the data is included in getShopifyCollections
+// Keep it if you need a separate endpoint for title formats
+export const getCollectionTitleFormats = async () => {
+  try {
+    const titleFormats = await prisma.CollectionTitleFormat.findMany({
+      include: {
+        collection: {
+          select: {
+            id: true,
+            title: true,
+            handle: true,
+            styles: {
+              select: {
+                titleTemplate: true,
+                seoTemplate: true,
+                handleTemplate: true,
+                validation: true,
+                style: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return titleFormats.map(({ 
+      id, 
+      titleTemplate, 
+      seoTemplate, 
+      handleTemplate, 
+      validation,
+      collection 
+    }) => ({
+      value: id,
+      titleTemplate,
+      seoTemplate,
+      handleTemplate,
+      validation,
+      collection: {
+        value: collection.id,
+        label: collection.title,
+        handle: collection.handle,
+        styleOverrides: collection.styles.reduce((acc, style) => {
+          if (style.titleTemplate || style.seoTemplate || style.handleTemplate || style.validation) {
+            acc[style.style.id] = {
+              titleTemplate: style.titleTemplate,
+              seoTemplate: style.seoTemplate,
+              handleTemplate: style.handleTemplate,
+              validation: style.validation
+            };
+          }
+          return acc;
+        }, {})
+      }
+    }));
+  } catch (error) {
+    console.error("Error fetching collection title formats:", error);
+    throw error;
+  }
+};
 
 export const getProductPrices = async () => {
   try {
@@ -299,61 +488,6 @@ export const getProductPrices = async () => {
     }));
   } catch (error) {
     console.error("Error fetching product prices:", error);
-    throw error;
-  }
-};
-
-export const getShopifyCollections = async () => {
-  try {
-    const shopifyCollections = await prisma.ShopifyCollection.findMany({
-      include: {
-        styles: {
-          include: {
-            style: {
-              select: {
-                id: true,
-                name: true,
-                abbreviation: true
-              }
-            },
-            overrideSecondaryLeather: true,
-            overrideStitchingColor: true,
-            overrideQClassicField: true
-          }
-        }
-      }
-    });
-
-    return shopifyCollections.map(({ 
-      id, 
-      shopifyId, 
-      admin_graphql_api_id, 
-      title,
-      handle,
-      needsSecondaryLeather,
-      needsStitchingColor,
-      needsQClassicField,
-      showInDropdown,
-      styles 
-    }) => ({
-      value: id,
-      shopifyId,
-      admin_graphql_api_id,
-      label: title,
-      handle,
-      needsSecondaryLeather,
-      needsStitchingColor,
-      needsQClassicField,
-      showInDropdown,
-      styles: styles.map(sc => ({
-        ...sc.style,
-        overrideSecondaryLeather: sc.overrideSecondaryLeather,
-        overrideStitchingColor: sc.overrideStitchingColor,
-        overrideQClassicField: sc.overrideQClassicField
-      }))
-    }));
-  } catch (error) {
-    console.error("Error Fetching Shopify Collections from Prisma", error);
     throw error;
   }
 };

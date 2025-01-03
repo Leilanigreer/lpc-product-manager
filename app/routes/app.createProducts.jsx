@@ -1,3 +1,5 @@
+// app/routes/app.createProducts.jsx
+
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import _ from 'lodash';
 import { useLoaderData, useFetcher } from "@remix-run/react";
@@ -30,45 +32,38 @@ export const action = async ({ request }) => {
   const productData = JSON.parse(formData.get('productData'));
 
   try {
-    // Create product in Shopify
     const shopifyResponse = await createShopifyProduct(admin, productData);
-
-    // Save product data to database
     const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse);
 
-    // Return success response with all data
     return json({
       ...shopifyResponse,
       databaseSave: dbSaveResult,
       success: true
     });
-
   } catch (error) {
-    console.error('Detailed Error:', {
-      message: error.message,
-      stack: error.stack
-    });
+    console.error('Detailed Error:', error);
     return json({
       errors: [typeof error === 'string' ? error : error.message || "An unexpected error occurred"]
     }, { status: 500 });
   }
 };
 
-
 export { loader };
 
 export default function CreateProduct() {
   const { 
-    shopifyCollections, 
     leatherColors, 
     stitchingThreadColors,
-    amannNumbers,
     embroideryThreadColors,
     isacordNumbers,
+    amannNumbers,
     colorTags, 
+    fonts, 
     shapes, 
     styles, 
-    fonts, 
+    shopifyCollections, 
+    commonDescription,
+    collectionTitleFormats,
     productPrices,
     productDataLPC, 
     error 
@@ -77,6 +72,22 @@ export default function CreateProduct() {
   const fetcher = useFetcher();  
 
   const [formState, setFormState] = useFormState(initialFormState);
+
+  const { 
+    needsSecondaryColor, 
+    needsStitchingColor,
+    needsStyle,           
+    needsQClassicField
+  } = useCollectionLogic(formState, shopifyCollections);
+
+  const currentCollection = useMemo(() => {
+    const collection = shopifyCollections?.find(col => col.value === formState?.selectedCollection);
+    console.log('Current collection:', {
+      selectedId: formState?.selectedCollection,
+      found: collection
+    });
+    return collection;
+  }, [shopifyCollections, formState?.selectedCollection]);
 
   const [productData, setProductData] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -149,14 +160,6 @@ export default function CreateProduct() {
         });
       }
     }, [fetcher.data, handleChange]);
-
-    const { 
-      needsSecondaryColor, 
-      needsStitchingColor,
-      needsStyle,           
-      needsQClassicField
-    } = useCollectionLogic(shopifyCollections, formState.selectedCollection);
-
 
   const shouldGenerateProductData = useMemo(() => {
     const hasRequiredColors = needsSecondaryColor 
@@ -324,7 +327,8 @@ export default function CreateProduct() {
         shapes,
         styles,
         productPrices,
-        shopifyCollections
+        shopifyCollections,
+        commonDescription
       );
 
       setProductData(data);
@@ -389,16 +393,16 @@ export default function CreateProduct() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
+              <ProductTypeSelector
+                selectedType={formState.selectedOfferingType}
+                quantity={formState.limitedEditionQuantity}
+                onChange={handleChange}
+              />
               <CollectionSelector
                 shopifyCollections={shopifyCollections}
                 selectedCollection={formState.selectedCollection}
                 onChange={handleChange}
                 onCollectionChange={handleCollectionChange}
-              />
-              <ProductTypeSelector
-                selectedType={formState.selectedOfferingType}
-                quantity={formState.limitedEditionQuantity}
-                onChange={handleChange}
               />
               <LeatherColorSelector
                 leatherColors={leatherColors}
@@ -428,24 +432,18 @@ export default function CreateProduct() {
             </BlockStack>
           </Card>
           <Card>
-            <ShapeSelector
-              shapes={shapes}
-              styles={styles}
-              leatherColors={leatherColors}
-              embroideryThreadColors={embroideryThreadColors}
-              isacordNumbers={isacordNumbers}
-              formState={formState}
-              selectedEmbroideryColors={formState.selectedEmbroideryColors}
-              onEmbroideryColorChange={(shapeId, color) => {
-                const newColors = { ...formState.selectedEmbroideryColors, [shapeId]: color };
-                handleChange('selectedEmbroideryColors', newColors);
-              }}
-              shapeIsacordNumbers={formState.shapeIsacordNumbers}
-              handleChange={handleChange}
-              needsStyle={needsStyle}
-              needsQClassicField={needsQClassicField}
-              currentCollection={shopifyCollections.find(col => col.value === formState.selectedCollection)}
-              />
+          <ShapeSelector
+            shapes={shapes}
+            styles={styles}
+            leatherColors={leatherColors}
+            embroideryThreadColors={embroideryThreadColors}
+            isacordNumbers={isacordNumbers}
+            formState={formState}
+            handleChange={handleChange}
+            needsStyle={needsStyle}
+            needsQClassicField={needsQClassicField}
+            currentCollection={currentCollection}
+          />
           </Card>
           <Card>
             <BlockStack gap="400">
