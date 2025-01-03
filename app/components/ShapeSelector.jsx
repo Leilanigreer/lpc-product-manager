@@ -166,19 +166,21 @@ const ShapeSelector = ({
    */
   const threadNumberOptions = useMemo(() => {
     const options = [{ label: "None", value: "none" }];
-    
+  
     sanitizedEmbroideryColors.forEach(thread => {
       if (thread.isacordNumbers) {
         thread.isacordNumbers.forEach(number => {
           options.push({
             label: number.label,
             value: number.value,
-            threadId: thread.value
+            threadId: thread.value,
+            threadName: thread.label,
+            displayText: `${number.label} - ${thread.label}`
           });
         });
       }
     });
-    
+  
     return options;
   }, [sanitizedEmbroideryColors]);
 
@@ -191,9 +193,10 @@ const ShapeSelector = ({
     const searchValue = threadSearchValues[shapeId] || '';
     if (searchValue === '') return threadNumberOptions;
     
+    const searchTerm = searchValue.toLowerCase();
     return threadNumberOptions.filter(option => 
       option.value === 'none' || 
-      option.label.includes(searchValue.replace(/[^0-9]/g, ''))
+      option.displayText?.toLowerCase().includes(searchTerm)
     );
   }, [threadNumberOptions, threadSearchValues]);
 
@@ -211,7 +214,7 @@ const ShapeSelector = ({
     
     setThreadSearchValues(prev => ({
       ...prev,
-      [shapeId]: value.replace(/[^0-9]/g, '')
+      [shapeId]: value
     }));
   }, []);
 
@@ -255,10 +258,14 @@ const ShapeSelector = ({
     } else {
       const selectedOption = threadNumberOptions.find(opt => opt.value === value);
       if (selectedOption) {
-        // Update both color and number together
+        // Update with enhanced data
         handleChange('selectedEmbroideryColors', {
           ...formState.selectedEmbroideryColors,
-          [shapeId]: selectedOption.threadId
+          [shapeId]: {
+            id: selectedOption.threadId,
+            name: selectedOption.threadName,
+            number: selectedOption.label
+          }
         });
         handleChange('shapeIsacordNumbers', {
           ...formState.shapeIsacordNumbers,
@@ -398,7 +405,7 @@ const ShapeSelector = ({
               value={option.value}
               selected={option.value === selectedValue}
             >
-              {option.label}
+              {option.value === 'none' ? option.label : option.displayText }
             </Listbox.Option>
           ))}
         </Listbox>
@@ -442,7 +449,7 @@ const ShapeSelector = ({
     }
     
     const selectedOption = threadNumberOptions.find(opt => opt.value === selectedNumberValue);
-    return selectedOption?.label || '';
+    return selectedOption?.displayText || '';
   }, [formState.shapeIsacordNumbers, threadNumberOptions]);
 
   return (
