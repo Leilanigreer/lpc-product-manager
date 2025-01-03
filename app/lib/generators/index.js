@@ -109,9 +109,27 @@ export const generateProductData = async (
       // Metadata
       selectedLeatherColor1: formState.selectedLeatherColor1,
       selectedLeatherColor2: formState.selectedLeatherColor2,
-      selectedStitchingColor: formState.selectedStitchingColor,
-      selectedEmbroideryColor: formState.selectedEmbroideryColor,
-      
+      selectedStitchingColor: formState.selectedStitchingColor?.id || formState.selectedStitchingColor,
+      selectedEmbroideryColor: formState.selectedEmbroideryColor?.id || formState.selectedEmbroideryColor,
+    
+      // Add thread metadata to track both number and color
+      threadMetadata: {
+        stitching: formState.selectedStitchingColor
+          ? {
+            id: formState.selectedStitchingColor.id,
+            name: formState.selectedStitchingColor.name,
+            number: formState.selectedStitchingColor.number
+          }
+          : null,
+        embroidery: formState.selectedEmbroideryColor
+          ? {
+            id: formState.selectedEmbroideryColor.id,
+            name: formState.selectedEmbroideryColor.name,
+            number: formState.selectedEmbroideryColor.number
+          }
+          : null
+      },
+    
       createdAt: new Date().toISOString(),
     };
 
