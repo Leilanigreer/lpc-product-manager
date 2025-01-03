@@ -1,7 +1,6 @@
 // app/lib/generators/variants/custom/woodVariants.js
 
 import { formatSKU } from '../../../utils';
-import { COLLECTION_TYPES } from '../../../constants';
 
 /**
  * Generates the variant name for a wood custom variant based on collection type and style
@@ -21,23 +20,24 @@ const formatQClassicWoodVariantName = ({
 };
 
 const getWoodVariantName = ({
-  collectionType,
+  collection,
   variant,
   leatherColorForName,
   stylePhrase
 }) => {
-  if (collectionType === COLLECTION_TYPES.QCLASSIC && 
+  if (collection.needsQClassicField && 
     (!leatherColorForName?.label || !stylePhrase)) {
-  console.warn('Missing required fields for QClassic wood variant name');
-  return 'Customize Fairway +$15'; // Fallback
-}
-  if (collectionType === COLLECTION_TYPES.QCLASSIC) {
+    console.warn('Missing required fields for QClassic wood variant name');
+    return 'Customize Fairway +$15';
+  }
+
+  if (collection.needsQClassicField) {
     return formatQClassicWoodVariantName({
       leatherColorForName,
       style: variant.style,
       stylePhrase
     });
-  } else if ([COLLECTION_TYPES.CLASSIC, COLLECTION_TYPES.ANIMAL].includes(collectionType)) {
+  } else if (collection.needsStyle) {
     return `Customize Fairway - ${variant.style?.label} +$15`;
   }
   return 'Customize Fairway +$15';
@@ -49,19 +49,19 @@ const getWoodVariantName = ({
  * @returns {Object} SKU options
  */
 const getSKUOptions = ({
-  collectionType,
+  collection,
   variant,
   leatherAbbreviation
 }) => {
   const baseOptions = { isCustom: true };
 
-  if (collectionType === COLLECTION_TYPES.QCLASSIC) {
+  if (collection.needsQClassicField) {
     return {
       ...baseOptions,
       style: variant.style,
       qClassicLeatherAbbreviation: leatherAbbreviation
     };
-  } else if ([COLLECTION_TYPES.CLASSIC, COLLECTION_TYPES.ANIMAL].includes(collectionType)) {
+  } else if (collection.needsStyle) {
     return {
       ...baseOptions,
       style: variant.style
@@ -83,14 +83,15 @@ export const createWoodCustomVariant = ({
   weight,
   skuInfo,
   shapes,
-  collectionType = 'Unknown',
+  collection,
   leatherData = {}  // Optional: Used for QClassic variants
 }) => {
-  if (collectionType === COLLECTION_TYPES.QCLASSIC && 
+  if (collection.needsQClassicField && 
     (!leatherData?.leatherAbbreviation || !leatherData?.leatherColorForName)) {
-  console.error('Missing required leather data for QClassic variant');
-  return null;
-}
+    console.error('Missing required leather data for QClassic variant');
+    return null;
+  }
+  
   // Input validation
   if (!variant || !skuInfo?.parts || !shapes?.length) {
     console.error('Missing required parameters for wood variant creation');
@@ -107,7 +108,7 @@ export const createWoodCustomVariant = ({
   try {
     // Get SKU options based on collection type
     const skuOptions = getSKUOptions({
-      collectionType,
+      collection,
       variant,
       leatherAbbreviation: leatherData.leatherAbbreviation
     });
@@ -127,7 +128,7 @@ export const createWoodCustomVariant = ({
 
     // Generate variant name
     const variantName = getWoodVariantName({
-      collectionType,
+      collection,
       variant,
       leatherColorForName: leatherData.leatherColorForName,
       stylePhrase: leatherData.stylePhrase

@@ -54,6 +54,7 @@ export const generateProductData = async (
     
     // Generate SKU parts and version
     const skuParts = generateBaseParts(selectedCollection, colors);
+    
     if (!Array.isArray(skuParts) || skuParts.length === 0) {
       throw new Error('Failed to generate SKU parts');
     }

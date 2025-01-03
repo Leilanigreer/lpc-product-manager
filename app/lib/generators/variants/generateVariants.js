@@ -1,10 +1,151 @@
 // app/lib/generators/variants/generateVariants.js
 
-import { getColors, getCollectionType, needsSecondaryColor, needsStitchingColor } from "../../utils";
-import { assignPositions } from "../../constants/shapeOrder";
+import { getColors } from "../../utils";
+import { assignPositions } from "../../constants";
 import { createRegularVariants } from './regular';
 import { createCustomVariants } from './custom';
 
+/**
+ * Validates requirements based on validation rules from database
+ * @param {Object} validationRules - Rules from database (JSON parsed)
+ * @param {Object} formState - Current form state
+ * @param {Object} colors - Selected colors
+ * @returns {Object} Validation result {isValid: boolean, errors: string[]}
+ */
+const validateRules = (validationRules, formState, colors) => {
+  if (!validationRules) return { isValid: true, errors: [] };
+
+  try {
+    const rules = typeof validationRules === 'string' 
+      ? JSON.parse(validationRules) 
+      : validationRules;
+
+    const errors = [];
+    
+    if (rules.required) {
+      for (const field of rules.required) {
+        let isFieldValid = false;
+
+        switch (field) {
+          case 'leatherColor1':
+            isFieldValid = !!colors.leatherColor1;
+            break;
+          case 'leatherColor2':
+            isFieldValid = !!colors.leatherColor2;
+            break;
+          case 'stitchingThread':
+            isFieldValid = !!colors.stitchingThreadColor;
+            break;
+          case 'embroideryThread':
+            isFieldValid = !!colors.embroideryThreadColor;
+            break;
+          default:
+            console.warn(`Unknown validation field: ${field}`);
+            continue;
+        }
+
+        if (!isFieldValid) {
+          errors.push(rules.errorMessages?.[field] || `${field} is required`);
+        }
+      }
+    }
+
+    return { isValid: errors.length === 0, errors };
+  } catch (error) {
+    console.error('Error parsing validation rules:', error);
+    return { isValid: false, errors: ['Invalid validation rules'] };
+  }
+};
+
+/**
+ * Validates style-specific requirements
+ * @param {Object} collection - Database collection object
+ * @param {Object} style - Selected style object
+ * @param {Object} colors - Color selections
+ * @param {Object} formState - Current form state
+ * @returns {Object} Validation result {isValid: boolean, errors: string[]}
+ */
+const validateStyleRequirements = (collection, style, colors, formState) => {
+  if (!style) return { isValid: true, errors: [] };
+
+  const styleOverride = collection.styles?.find(s => s.id === style.value);
+  if (!styleOverride) return { isValid: true, errors: [] };
+
+  const styleValidation = validateRules(styleOverride.validation, formState, colors);
+  if (!styleValidation.isValid) return styleValidation;
+
+  const errors = [];
+  
+  if (styleOverride.overrideSecondaryLeather && !colors.leatherColor2) {
+    errors.push(`Secondary leather required for ${style.label} style`);
+  }
+  
+  if (styleOverride.overrideStitchingColor && !colors.stitchingThreadColor) {
+    errors.push(`Stitching color required for ${style.label} style`);
+  }
+
+  if (styleOverride.overrideQClassicField && !formState.qClassicLeathers?.[style.value]) {
+    errors.push(`Quilted leather selection required for ${style.label} style`);
+  }
+
+  return { isValid: errors.length === 0, errors };
+};
+
+/**
+ * Validates collection-specific requirements
+ * @param {Object} collection - Database collection object
+ * @param {Object} colors - Selected colors object
+ * @param {Object} formState - Current form state
+ * @returns {Object} Validation result {isValid: boolean, errors: string[]}
+ */
+const validateCollectionRequirements = (collection, colors, formState) => {
+  const errors = [];
+
+  const collectionValidation = validateRules(collection.titleFormat?.validation, formState, colors);
+  if (!collectionValidation.isValid) {
+    errors.push(...collectionValidation.errors);
+  }
+
+  if (collection.needsSecondaryLeather && !colors.leatherColor2) {
+    errors.push('Secondary leather color required for this collection');
+  }
+
+  if (collection.needsStitchingColor && !colors.stitchingThreadColor) {
+    errors.push('Stitching color required for this collection');
+  }
+
+  if (collection.needsStyle) {
+    const selectedStyles = Object.values(formState.selectedStyles || {});
+    
+    if (selectedStyles.length === 0) {
+      errors.push('Style selection required for this collection');
+    } else {
+      for (const styleId of selectedStyles) {
+        const style = collection.styles?.find(s => s.id === styleId);
+        if (style) {
+          const styleValidation = validateStyleRequirements(collection, style, colors, formState);
+          errors.push(...styleValidation.errors);
+        }
+      }
+    }
+  }
+
+  return { isValid: errors.length === 0, errors };
+};
+
+/**
+ * Main function to generate variants for a product
+ * @param {Object} formState - Current form state
+ * @param {Array} leatherColors - Available leather colors
+ * @param {Array} stitchingThreadColors - Available stitching thread colors
+ * @param {Array} embroideryThreadColors - Available embroidery thread colors
+ * @param {Array} shapes - Available shapes
+ * @param {Array} styles - Available styles
+ * @param {Array} productPrices - Product price configurations
+ * @param {Array} shopifyCollections - Available Shopify collections
+ * @param {Object} skuInfo - SKU generation information
+ * @returns {Promise<Array>} Generated variants
+ */
 export const generateVariants = async (
   formState, 
   leatherColors, 
@@ -17,54 +158,47 @@ export const generateVariants = async (
   skuInfo
 ) => {
   try {
-    // Initial validation
-    if (!formState || !leatherColors || !stitchingThreadColors || !embroideryThreadColors || 
-        !shapes || !productPrices || !shopifyCollections) {
+    if (!formState?.selectedCollection || !Array.isArray(shopifyCollections)) {
+      console.error("Missing form state or collections");
       return [];
     }
 
-    const colors = getColors(
-      formState,
-      leatherColors,
-      stitchingThreadColors,
-      embroideryThreadColors
+    const selectedCollection = shopifyCollections.find(
+      col => col.value === formState.selectedCollection
     );
     
-    const collectionType = getCollectionType(formState, shopifyCollections);
-
-    // Validate collection-specific requirements
-    if (!colors.leatherColor1) return [];
-    if (needsSecondaryColor(collectionType) && !colors.leatherColor2) {
-      console.error("Secondary leather color required but not found");
-      return [];
-    }
-    if (needsStitchingColor(collectionType) && !colors.stitchingThreadColor) {
-      console.error("Stitching thread color required but not found");
+    if (!selectedCollection) {
+      console.error("Selected collection not found");
       return [];
     }
 
-    // Generate regular variants
+    const colors = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
+    const validation = validateCollectionRequirements(selectedCollection, colors, formState);
+
+    if (!validation.isValid) {
+      console.error('Validation failed:', validation.errors);
+      return [];
+    }
+
     let regularVariants = createRegularVariants(
       formState, 
       shapes, 
       styles, 
       productPrices, 
-      collectionType, 
+      selectedCollection,
       skuInfo
     );
 
-    // Assign positions to regular variants
     regularVariants = assignPositions(regularVariants, shapes);
-
-    // Create custom variants
     const processedStyles = new Set();
+
     const customVariants = (await Promise.all(regularVariants.map(async (variant) => 
       createCustomVariants({
         variant,
         formState,
         shapes,
         leatherColors,
-        collectionType,
+        collection: selectedCollection,
         baseCustomVariant: {
           stitchingThreadId: variant.stitchingThreadId,
           amannNumberId: variant.amannNumberId,
@@ -76,11 +210,10 @@ export const generateVariants = async (
         skuInfo,
         leatherColor1: colors.leatherColor1,
         leatherColor2: colors.leatherColor2,
-        processedStyles
+        processedStyles,
       })
     ))).filter(Boolean);
 
-    // Create static variant
     const createOwnSetVariant = {
       variantName: "Create my own set",
       price: "0.00",
@@ -90,8 +223,7 @@ export const generateVariants = async (
       options: { Style: "Create my own set" }
     };
 
-    // Combine all variants
-    const allVariants = [
+    return [
       ...regularVariants,
       createOwnSetVariant,
       ...customVariants.map((variant, index) => ({
@@ -99,8 +231,6 @@ export const generateVariants = async (
         position: regularVariants.length + 2 + index
       }))
     ];
-
-    return allVariants;
 
   } catch (error) {
     console.error('Error generating variants:', error);

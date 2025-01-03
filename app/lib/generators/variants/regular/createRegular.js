@@ -35,7 +35,7 @@ export const createRegularVariants = (
   shapes,
   styles,
   productPrices,
-  collectionType,
+  collection,
   skuInfo
 ) => {
   if (!formState?.weights || !Array.isArray(shapes) || !Array.isArray(productPrices)) {
@@ -60,7 +60,7 @@ export const createRegularVariants = (
         styles,
         shapes,
         productPrices,
-        collectionType,
+        collection,
         skuInfo
       });
 
