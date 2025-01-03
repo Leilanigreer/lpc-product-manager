@@ -399,17 +399,19 @@ export default function CreateProduct() {
         )}
         <Layout.Section>
           <Card>
+            <CollectionSelector
+              shopifyCollections={shopifyCollections}
+              selectedCollection={formState.selectedCollection}
+              selectedStyle={formState.selectedStyle}
+              onChange={handleChange}
+              onCollectionChange={handleCollectionChange}
+              needsStyle={needsStyle}
+            />
             <BlockStack gap="400">
               <ProductTypeSelector
                 selectedType={formState.selectedOfferingType}
                 quantity={formState.limitedEditionQuantity}
                 onChange={handleChange}
-              />
-              <CollectionSelector
-                shopifyCollections={shopifyCollections}
-                selectedCollection={formState.selectedCollection}
-                onChange={handleChange}
-                onCollectionChange={handleCollectionChange}
               />
               <LeatherColorSelector
                 leatherColors={leatherColors}
@@ -423,19 +425,16 @@ export default function CreateProduct() {
                 selectedFont={formState.selectedFont}
                 onChange={handleChange}
               />
-              {needsStitchingColor && (
-                <ThreadColorSelector
-                  stitchingThreadColors={stitchingThreadColors}
-                  amannNumbers={amannNumbers}
-                  embroideryThreadColors={embroideryThreadColors}
-                  isacordNumbers={isacordNumbers}
-                  selectedStitchingColor={formState.selectedStitchingColor}
-                  matchingAmannNumber={formState.matchingAmannNumber}
-                  selectedEmbroideryColor={formState.selectedEmbroideryColor}
-                  matchingIsacordNumber={formState.matchingIsacordNumber}
-                  onChange={handleChange}
-                />
-              )}
+              <ThreadColorSelector
+                stitchingThreadColors={stitchingThreadColors}
+                embroideryThreadColors={embroideryThreadColors}
+                selectedStitchingColors={formState.selectedStitchingColors || []}
+                matchingAmannNumbers={formState.matchingAmannNumbers || []}
+                selectedEmbroideryColor={formState.selectedEmbroideryColor}
+                matchingIsacordNumber={formState.matchingIsacordNumber}
+                onChange={handleChange}
+                threadType={currentCollection?.threadType}
+              />
             </BlockStack>
           </Card>
           <Card>

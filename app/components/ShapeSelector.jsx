@@ -126,22 +126,17 @@ const ShapeSelector = ({
   needsQClassicField,
   currentCollection,
 }) => {
-  console.log('ShapeSelector Props:', {
-    shapesCount: shapes?.length,
-    stylesCount: styles?.length,
-    formState,
-    currentCollection,
-  });
-
   const [threadSearchValues, setThreadSearchValues] = useState({});
   const [editingShapeIds, setEditingShapeIds] = useState({});
 
   const filteredStyles = useMemo(() => {
     if (!currentCollection?.handle || !styles?.length) {
-      return [];
+      return [{ label: 'Select a style...', value: '' }];
     }
     
-    return styles
+    const options = [{ label: 'Select a style...', value: '' }];
+    
+    const filteredOptions = styles
       .filter(style => 
         style.collections?.some(sc => 
           sc.handle === currentCollection.handle
@@ -152,6 +147,8 @@ const ShapeSelector = ({
         value: style.value,
         stylePerShape: style.stylePerShape
       }));
+  
+    return [...options, ...filteredOptions];
   }, [currentCollection, styles]);
 
   // Remove colorTags from thread colors for internal use
@@ -219,13 +216,11 @@ const ShapeSelector = ({
   }, []);
 
   const handleSearchBlur = useCallback((shapeId) => {
-    // Clear editing state when field loses focus
     setEditingShapeIds(prev => ({
       ...prev,
       [shapeId]: false
     }));
     
-    // Clear search value if no selection was made
     setThreadSearchValues(prev => ({
       ...prev,
       [shapeId]: ''
@@ -233,7 +228,6 @@ const ShapeSelector = ({
   }, []);
 
   const handleSearchFocus = useCallback((shapeId) => {
-    // Set editing state when field gains focus
     setEditingShapeIds(prev => ({
       ...prev,
       [shapeId]: true
@@ -258,7 +252,6 @@ const ShapeSelector = ({
     } else {
       const selectedOption = threadNumberOptions.find(opt => opt.value === value);
       if (selectedOption) {
-        // Update with enhanced data
         handleChange('selectedEmbroideryColors', {
           ...formState.selectedEmbroideryColors,
           [shapeId]: {
@@ -373,10 +366,12 @@ const ShapeSelector = ({
    * @param {string} value - New style value
    */
   const handleStyleChange = (shapeValue, value) => {
-    handleChange('selectedStyles', {
-      ...formState.selectedStyles,
-      [shapeValue]: value
-    });
+    if (formState.selectedStyle === 'independent') {
+      handleChange('selectedStyles', {
+        ...formState.selectedStyles,
+        [shapeValue]: value
+      });
+    }
   };
 
   /**
@@ -412,6 +407,34 @@ const ShapeSelector = ({
       </div>
     )
   );
+
+  const renderEmbroideryColumn = (shape) => {
+    // If there's a global thread color selected, show it as read-only
+    if (formState.selectedEmbroideryColor && formState.matchingIsacordNumber !== 'independent') {
+      return (
+        <TextField
+          value={`${formState.selectedEmbroideryColor.number} - ${formState.selectedEmbroideryColor.name}`}
+          disabled={true}
+          readOnly
+        />
+      );
+    }
+  
+    // If "Independent for each shape" is selected, show the thread selector
+    if (formState.matchingIsacordNumber === 'independent') {
+      return renderThreadSelector(shape);
+    }
+  
+    // If nothing is selected yet, show disabled field
+    return (
+      <TextField
+        value="Select thread color above"
+        disabled={true}
+        readOnly
+      />
+    );
+  };
+
 
   /**
    * Render the thread number selector combobox
@@ -451,6 +474,11 @@ const ShapeSelector = ({
     const selectedOption = threadNumberOptions.find(opt => opt.value === selectedNumberValue);
     return selectedOption?.displayText || '';
   }, [formState.shapeIsacordNumbers, threadNumberOptions]);
+
+  //  const getStyleLabel = useCallback((styleId) => {
+  //    const style = filteredStyles.find(s => s.value === styleId);
+  //    return style?.label || '';
+  //  }, [filteredStyles]);
 
   return (
     <BlockStack gap="400">
@@ -496,17 +524,26 @@ const ShapeSelector = ({
               </Box>
               {showStyle && !isShapePutter && (
                 <>
-                  <Box width="200px">
-                    <Select
-                      options={filteredStyles || []}
-                      onChange={(value) => handleStyleChange(shape.value, value)}
-                      value={formState.selectedStyles?.[shape.value] || ''}
-                      placeholder="Select style"
-                      disabled={!formState.weights.hasOwnProperty(shape.value)}
-                    />
+                 <Box width="200px">
+                   {formState.selectedStyle === 'independent' ? (
+                     <Select
+                       options={filteredStyles}
+                       onChange={(value) => handleStyleChange(shape.value, value)}
+                       value={formState.selectedStyles?.[shape.value] || ''}
+                       placeholder="Select style"
+                       disabled={!formState.weights.hasOwnProperty(shape.value)}
+                     />
+                   ) : (
+                     <Select 
+                       value={formState.selectedStyle}
+                       onChange={() => {}}
+                       options={filteredStyles}
+                       disabled={true}
+                     />
+                   )}
                   </Box>
                   <Box width="200px">
-                    {renderThreadSelector(shape)}
+                    {renderEmbroideryColumn(shape)}
                   </Box>
                   {showQClassicField && (
                     <Box width="200px">
