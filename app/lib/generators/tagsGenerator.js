@@ -10,10 +10,13 @@ const DEFAULT_TAGS = ['Customizable'];
  * @param {Array} colorCollection - Array of color objects to check against
  * @returns {boolean}
  */
-const hasMatchingColor = (selectedColor, colorCollection) => 
-  selectedColor && 
-  Array.isArray(colorCollection) &&
-  colorCollection.some(color => color?.value === selectedColor.value);
+const hasMatchingColor = (selectedColor, colorCollection) => {
+  if (!selectedColor || !Array.isArray(colorCollection)) return false;
+
+  // Handle new thread data structure
+  const colorId = selectedColor.id || selectedColor.value;
+  return colorCollection.some(color => color?.value === colorId);
+};
 
 /**
  * Validates the color tag structure has required arrays
@@ -48,16 +51,14 @@ const getColorMatches = (colors, tag) => [
  * @returns {Array} Array of generated tags
  */
 export const generateTags = (
-  formState, 
-  leatherColors, 
-  stitchingThreadColors, 
-  embroideryThreadColors, 
+  formState,
+  leatherColors,
+  stitchingThreadColors,
+  embroideryThreadColors,
   colorTags
 ) => {
-  // Initialize with default tags
   const tagSet = new Set(DEFAULT_TAGS);
 
-  // Early validation
   if (!formState || !Array.isArray(colorTags)) {
     console.error('Invalid input parameters:', {
       hasFormState: !!formState,
@@ -66,7 +67,6 @@ export const generateTags = (
     return Array.from(tagSet);
   }
 
-  // Get color selections
   const colors = getColors(
     formState,
     leatherColors,
@@ -74,19 +74,23 @@ export const generateTags = (
     embroideryThreadColors
   );
 
-  // Process each color tag
   colorTags.forEach(tag => {
     if (!isValidColorTag(tag)) {
       console.warn('Invalid tag structure:', tag);
       return;
     }
 
-    const hasMatch = getColorMatches(colors, tag)
-      .some(([color, collection]) => hasMatchingColor(color, collection));
+    const matches = getColorMatches(colors, tag);
+    const hasMatch = matches.some(([color, collection]) => {
+      // Log matching attempts for debugging
+      console.log('Checking color match:', {
+        selectedColor: color?.id || color?.value,
+        collection: collection?.map(c => c.value)
+      });
+      return hasMatchingColor(color, collection);
+    });
 
-    if (hasMatch) {
-      tagSet.add(tag.label);
-    }
+    if (hasMatch) tagSet.add(tag.label);
   });
 
   return Array.from(tagSet);
