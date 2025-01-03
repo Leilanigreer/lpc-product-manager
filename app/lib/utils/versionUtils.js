@@ -6,9 +6,7 @@
  * @param {Object} colors - Color selections for the product
  * @returns {Array<string>} Array of SKU parts
  */
-export const generateBaseParts = (selectedCollection, colors) => { 
-  console.log('selectedCollection:', selectedCollection);
-
+export const generateBaseParts = (selectedCollection, colors) => {
   if (!selectedCollection?.value || !colors) {
     console.warn('Missing required data for SKU parts generation:', {
       hasCollectionId: !!selectedCollection?.value,
@@ -18,34 +16,35 @@ export const generateBaseParts = (selectedCollection, colors) => {
   }
 
   const {
-    leatherColor1, 
-    leatherColor2, 
-    stitchingThreadColor, 
-    embroideryThreadColor 
+    leatherColor1,
+    leatherColor2,
+    stitchingThreadColor,
+    embroideryThreadColor
   } = colors;
 
   if (!selectedCollection.skuPrefix) {
-    console.error('Collection is missing SKU prefix:', selectedCollection.value);
+    console.error('Collection missing SKU prefix:', selectedCollection.value);
     return [];
   }
 
   const baseParts = [selectedCollection.skuPrefix];
 
-  // Add leather colors
   baseParts.push(leatherColor1?.abbreviation);
-  
+
   if (selectedCollection.needsSecondaryLeather) {
     baseParts.push(leatherColor2?.abbreviation);
   }
 
-  // Add thread colors based on collection's thread type
   if (selectedCollection.needsStitchingColor) {
-    switch(selectedCollection.threadType) {
+    switch (selectedCollection.threadType) {
       case 'EMBROIDERY':
-        baseParts.push(embroideryThreadColor?.abbreviation);
+        // Use number from new thread data structure
+        const embroideryAbbrev = embroideryThreadColor?.number || embroideryThreadColor?.abbreviation;
+        baseParts.push(embroideryAbbrev);
         break;
       case 'STITCHING':
-        baseParts.push(stitchingThreadColor?.abbreviation);
+        const stitchingAbbrev = stitchingThreadColor?.number || stitchingThreadColor?.abbreviation;
+        baseParts.push(stitchingAbbrev);
         break;
     }
   }
