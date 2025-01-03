@@ -4,38 +4,11 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { Card, Combobox, Listbox, Icon, Box, InlineStack, BlockStack } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
 
-/**
- * @typedef {Object} ThreadNumber
- * @property {string} label - Display label for the thread number
- * @property {string} value - Unique identifier for the thread number
- */
-
-/**
- * @typedef {Object} ThreadColor
- * @property {string} value - Unique identifier for the thread color
- * @property {string} label - Display name of the thread color
- * @property {Array<ThreadNumber>} isacordNumbers - Associated Isacord numbers (for embroidery threads)
- * @property {Array<ThreadNumber>} amannNumbers - Associated Amann numbers (for stitching threads)
- */
-
-/**
- * A component for selecting thread colors and their associated numbers
- * @component
- * @param {Object} props - Component props
- * @param {Array<ThreadColor>} props.stitchingThreadColors - Available stitching thread colors
- * @param {Array<ThreadColor>} props.embroideryThreadColors - Available embroidery thread colors
- * @param {string} props.selectedEmbroideryColor - Currently selected embroidery color ID
- * @param {string} props.selectedStitchingColor - Currently selected stitching color ID
- * @param {string} props.matchingAmannNumber - Selected Amann number ID
- * @param {string} props.matchingIsacordNumber - Selected Isacord number ID
- * @param {Function} props.onChange - Callback function for selection changes
- * @returns {React.ReactElement} Rendered component
- */
 const ThreadColorSelector = ({ 
   stitchingThreadColors,
   embroideryThreadColors,
   selectedEmbroideryColor, 
-  selectedStitchingColor, 
+  selectedStitchingColor,
   matchingAmannNumber,
   matchingIsacordNumber,
   onChange 
@@ -43,13 +16,16 @@ const ThreadColorSelector = ({
   const [isacordInputValue, setIsacordInputValue] = useState('');
   const [amannInputValue, setAmannInputValue] = useState('');
 
-  // Sanitize and memoize options
+  // Enhanced option structure that maintains color context
   const isacordOptions = useMemo(() => 
     embroideryThreadColors.flatMap(thread => 
       (thread.isacordNumbers || []).map(number => ({
-        label: String(number.label),
-        value: String(number.value),
-        threadId: String(thread.value)
+        label: number.label,
+        value: number.value,
+        threadId: thread.value,
+        threadName: thread.label, // Store the thread name
+        displayText: `${number.label} - ${thread.label}`, // Combined display
+        searchText: `${number.label} ${thread.label}`.toLowerCase() // For searching
       }))
     ),
     [embroideryThreadColors]
@@ -58,80 +34,76 @@ const ThreadColorSelector = ({
   const amannOptions = useMemo(() => 
     stitchingThreadColors.flatMap(thread => 
       (thread.amannNumbers || []).map(number => ({
-        label: String(number.label),
-        value: String(number.value),
-        threadId: String(thread.value)
+        label: number.label,
+        value: number.value,
+        threadId: thread.value,
+        threadName: thread.label,
+        displayText: `${number.label} - ${thread.label}`,
+        searchText: `${number.label} ${thread.label}`.toLowerCase()
       }))
     ),
     [stitchingThreadColors]
   );
 
-  /**
-   * Updates the Isacord search input value
-   * @param {string} value - New input value
-   */
   const updateIsacordOptions = useCallback((value) => {
-    setIsacordInputValue(value.replace(/[^0-9]/g, ''));
+    setIsacordInputValue(value);
   }, []);
 
-  /**
-   * Updates the Amann search input value
-   * @param {string} value - New input value
-   */
   const updateAmannOptions = useCallback((value) => {
-    setAmannInputValue(value.replace(/[^0-9]/g, ''));
+    setAmannInputValue(value);
   }, []);
 
-  /**
-   * Handles selection of an Isacord number
-   * @param {string} value - Selected Isacord number ID
-   */
   const handleIsacordSelect = useCallback((value) => {
     const selectedOption = isacordOptions.find(option => option.value === value);
     if (selectedOption) {
-      onChange('selectedEmbroideryColor', selectedOption.threadId);
+      onChange('selectedEmbroideryColor', {
+        id: selectedOption.threadId,
+        name: selectedOption.threadName,
+        number: selectedOption.label
+      });
       onChange('matchingIsacordNumber', selectedOption.value);
-      setIsacordInputValue(selectedOption.label);
+      setIsacordInputValue('');
     }
   }, [isacordOptions, onChange]);
 
-  /**
-   * Handles selection of an Amann number
-   * @param {string} value - Selected Amann number ID
-   */
   const handleAmannSelect = useCallback((value) => {
     const selectedOption = amannOptions.find(option => option.value === value);
     if (selectedOption) {
-      onChange('selectedStitchingColor', selectedOption.threadId);
+      onChange('selectedStitchingColor', {
+        id: selectedOption.threadId,
+        name: selectedOption.threadName,
+        number: selectedOption.label
+      });
       onChange('matchingAmannNumber', selectedOption.value);
-      setAmannInputValue(selectedOption.label);
+      setAmannInputValue('');
     }
   }, [amannOptions, onChange]);
 
-  // Filtered options based on search input
-  const filteredIsacordOptions = useMemo(() => 
-    isacordInputValue === '' 
+  // Search now checks both number and color name
+  const filteredIsacordOptions = useMemo(() => {
+    const searchTerm = isacordInputValue.toLowerCase();
+    return searchTerm === '' 
       ? isacordOptions 
-      : isacordOptions.filter(option => option.label.includes(isacordInputValue)),
-    [isacordOptions, isacordInputValue]
-  );
+      : isacordOptions.filter(option => 
+          option.searchText.includes(searchTerm)
+        );
+  }, [isacordOptions, isacordInputValue]);
 
-  const filteredAmannOptions = useMemo(() => 
-    amannInputValue === '' 
+  const filteredAmannOptions = useMemo(() => {
+    const searchTerm = amannInputValue.toLowerCase();
+    return searchTerm === '' 
       ? amannOptions 
-      : amannOptions.filter(option => option.label.includes(amannInputValue)),
-    [amannOptions, amannInputValue]
-  );
+      : amannOptions.filter(option => 
+          option.searchText.includes(searchTerm)
+        );
+  }, [amannOptions, amannInputValue]);
 
-  /**
-   * Renders the dropdown list for a Combobox
-   * @component
-   * @param {Object} props - Component props
-   * @param {Array<{label: string, value: string}>} props.options - List options
-   * @param {string} props.selectedValue - Currently selected value
-   * @param {Function} props.onSelect - Selection handler
-   * @returns {React.ReactElement|null} Rendered list or null if no options
-   */
+  // Enhanced display for selected values
+  const getSelectedDisplayText = useCallback((options, selectedValue) => {
+    const option = options.find(opt => opt.value === selectedValue);
+    return option ? option.displayText : '';
+  }, []);
+
   const ComboboxList = ({ options, selectedValue, onSelect }) => (
     options.length > 0 && (
       <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
@@ -142,7 +114,7 @@ const ThreadColorSelector = ({
               value={option.value}
               selected={option.value === selectedValue}
             >
-              {option.label}
+              {option.displayText || option.label}
             </Listbox.Option>
           ))}
         </Listbox>
@@ -162,6 +134,9 @@ const ThreadColorSelector = ({
                   onChange={updateIsacordOptions}
                   label="Select Isacord Number"
                   value={isacordInputValue}
+                  placeholder={matchingIsacordNumber ? 
+                    getSelectedDisplayText(isacordOptions, matchingIsacordNumber) : 
+                    "Search by number or color name"}
                   autoComplete="off"
                 />
               }
@@ -184,6 +159,9 @@ const ThreadColorSelector = ({
                   onChange={updateAmannOptions}
                   label="Select Amann Number"
                   value={amannInputValue}
+                  placeholder={matchingAmannNumber ? 
+                    getSelectedDisplayText(amannOptions, matchingAmannNumber) : 
+                    "Search by number or color name"}
                   autoComplete="off"
                 />
               }
