@@ -1,35 +1,42 @@
 // app/components/ThreadColorSelector.jsx
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { Card, Combobox, Listbox, Icon, Box, InlineStack, BlockStack } from "@shopify/polaris";
-import { SearchIcon } from '@shopify/polaris-icons';
+import { Card, Combobox, Listbox, Icon, Box, InlineStack, BlockStack, Text, Tag } from "@shopify/polaris";
+import { SearchIcon} from '@shopify/polaris-icons';
 
 const ThreadColorSelector = ({ 
   stitchingThreadColors,
   embroideryThreadColors,
   selectedEmbroideryColor, 
-  selectedStitchingColor,
-  matchingAmannNumber,
+  selectedStitchingColors = [],
+  matchingAmannNumbers = [], 
   matchingIsacordNumber,
-  onChange 
+  onChange,
+  threadType
 }) => {
   const [isacordInputValue, setIsacordInputValue] = useState('');
   const [amannInputValue, setAmannInputValue] = useState('');
 
-  // Enhanced option structure that maintains color context
-  const isacordOptions = useMemo(() => 
-    embroideryThreadColors.flatMap(thread => 
+  const isSingleStitchingMode = threadType === 'STITCHING';
+
+  const isacordOptions = useMemo(() => [
+    {
+      label: "Independent for each shape",
+      value: "independent",
+      displayText: "Independent for each shape",
+      searchText: "independent shape"
+    },
+    ...embroideryThreadColors.flatMap(thread => 
       (thread.isacordNumbers || []).map(number => ({
         label: number.label,
         value: number.value,
         threadId: thread.value,
-        threadName: thread.label, // Store the thread name
-        displayText: `${number.label} - ${thread.label}`, // Combined display
-        searchText: `${number.label} ${thread.label}`.toLowerCase() // For searching
+        threadName: thread.label,
+        displayText: `${number.label} - ${thread.label}`,
+        searchText: `${number.label} ${thread.label}`.toLowerCase()
       }))
-    ),
-    [embroideryThreadColors]
-  );
+    )
+  ], [embroideryThreadColors]);
 
   const amannOptions = useMemo(() => 
     stitchingThreadColors.flatMap(thread => 
@@ -54,30 +61,60 @@ const ThreadColorSelector = ({
   }, []);
 
   const handleIsacordSelect = useCallback((value) => {
-    const selectedOption = isacordOptions.find(option => option.value === value);
-    if (selectedOption) {
-      onChange('selectedEmbroideryColor', {
-        id: selectedOption.threadId,
-        name: selectedOption.threadName,
-        number: selectedOption.label
-      });
-      onChange('matchingIsacordNumber', selectedOption.value);
-      setIsacordInputValue('');
+    if (value === 'independent') {
+      onChange('selectedEmbroideryColor', null);
+      onChange('matchingIsacordNumber', 'independent');
+    } else {
+      const selectedOption = isacordOptions.find(option => option.value === value);
+      if (selectedOption) {
+        onChange('selectedEmbroideryColor', {
+          id: selectedOption.threadId,
+          name: selectedOption.threadName,
+          number: selectedOption.label
+        });
+        onChange('matchingIsacordNumber', selectedOption.value);
+      }
     }
+    setIsacordInputValue('');
   }, [isacordOptions, onChange]);
 
   const handleAmannSelect = useCallback((value) => {
     const selectedOption = amannOptions.find(option => option.value === value);
     if (selectedOption) {
-      onChange('selectedStitchingColor', {
-        id: selectedOption.threadId,
-        name: selectedOption.threadName,
-        number: selectedOption.label
-      });
-      onChange('matchingAmannNumber', selectedOption.value);
+      if (isSingleStitchingMode) {
+        onChange('selectedStitchingColors', [{
+          id: selectedOption.threadId,
+          name: selectedOption.threadName,
+          number: selectedOption.label
+        }]);
+        onChange('matchingAmannNumbers', [selectedOption.value]);
+      } else {
+        const newStitchingColors = [...selectedStitchingColors, {
+          id: selectedOption.threadId,
+          name: selectedOption.threadName,
+          number: selectedOption.label
+        }];
+        const newAmannNumbers = [...matchingAmannNumbers, selectedOption.value];
+        
+        onChange('selectedStitchingColors', newStitchingColors);
+        onChange('matchingAmannNumbers', newAmannNumbers);
+      }
       setAmannInputValue('');
     }
-  }, [amannOptions, onChange]);
+  }, [amannOptions, onChange, selectedStitchingColors, matchingAmannNumbers, isSingleStitchingMode]);
+
+  const handleRemoveStitchingColor = useCallback((index) => {
+    if (isSingleStitchingMode) {
+      onChange('selectedStitchingColors', []);
+      onChange('matchingAmannNumbers', []);
+    } else {
+      const newStitchingColors = selectedStitchingColors.filter((_, i) => i !== index);
+      const newAmannNumbers = matchingAmannNumbers.filter((_, i) => i !== index);
+      
+      onChange('selectedStitchingColors', newStitchingColors);
+      onChange('matchingAmannNumbers', newAmannNumbers);
+    }
+  }, [selectedStitchingColors, matchingAmannNumbers, onChange, isSingleStitchingMode]);
 
   // Search now checks both number and color name
   const filteredIsacordOptions = useMemo(() => {
@@ -98,8 +135,8 @@ const ThreadColorSelector = ({
         );
   }, [amannOptions, amannInputValue]);
 
-  // Enhanced display for selected values
   const getSelectedDisplayText = useCallback((options, selectedValue) => {
+    if (selectedValue === 'independent') return 'Independent for each shape';
     const option = options.find(opt => opt.value === selectedValue);
     return option ? option.displayText : '';
   }, []);
@@ -123,60 +160,71 @@ const ThreadColorSelector = ({
   );
 
   return (
-    <Card>
-      <InlineStack gap="400" align="start" wrap={false}>
-        <Box width="50%">
-          <BlockStack gap="400">
-            <Combobox
-              activator={
-                <Combobox.TextField
-                  prefix={<Icon source={SearchIcon} />}
-                  onChange={updateIsacordOptions}
-                  label="Select Isacord Number"
-                  value={isacordInputValue}
-                  placeholder={matchingIsacordNumber ? 
-                    getSelectedDisplayText(isacordOptions, matchingIsacordNumber) : 
-                    "Search by number or color name"}
-                  autoComplete="off"
+      <Card>
+        <BlockStack gap="400">
+          <BlockStack gap="300">
+            <Text variant="headingMd">Embroidery Thread</Text>
+            <Box width="100%">
+              <Combobox
+                activator={
+                  <Combobox.TextField
+                    prefix={<Icon source={SearchIcon} />}
+                    onChange={updateIsacordOptions}
+                    label="Select Isacord Number"
+                    value={isacordInputValue}
+                    placeholder={matchingIsacordNumber ? 
+                      getSelectedDisplayText(isacordOptions, matchingIsacordNumber) : 
+                      "Search by number or color name"}
+                    autoComplete="off"
+                  />
+                }
+              >
+                <ComboboxList 
+                  options={filteredIsacordOptions}
+                  selectedValue={matchingIsacordNumber}
+                  onSelect={handleIsacordSelect}
                 />
-              }
-            >
-              <ComboboxList 
-                options={filteredIsacordOptions}
-                selectedValue={matchingIsacordNumber}
-                onSelect={handleIsacordSelect}
-              />
-            </Combobox>
+              </Combobox>
+            </Box>
           </BlockStack>
-        </Box>
-
-        <Box width="50%">
-          <BlockStack gap="400">
-            <Combobox
-              activator={
-                <Combobox.TextField
-                  prefix={<Icon source={SearchIcon} />}
-                  onChange={updateAmannOptions}
-                  label="Select Amann Number"
-                  value={amannInputValue}
-                  placeholder={matchingAmannNumber ? 
-                    getSelectedDisplayText(amannOptions, matchingAmannNumber) : 
-                    "Search by number or color name"}
-                  autoComplete="off"
+  
+          <BlockStack gap="300">
+            <Text variant="headingMd">
+              Stitching Thread {isSingleStitchingMode && "(Single Selection)"}
+            </Text>
+            <Box width="100%">
+              <Combobox
+                activator={
+                  <Combobox.TextField
+                    prefix={<Icon source={SearchIcon} />}
+                    onChange={updateAmannOptions}
+                    label="Add Amann Number"
+                    value={amannInputValue}
+                    placeholder="Search by number or color name"
+                    autoComplete="off"
+                    disabled={isSingleStitchingMode && selectedStitchingColors.length > 0}
+                  />
+                }
+              >
+                <ComboboxList 
+                  options={filteredAmannOptions}
+                  selectedValue={null}
+                  onSelect={handleAmannSelect}
                 />
-              }
-            >
-              <ComboboxList 
-                options={filteredAmannOptions}
-                selectedValue={matchingAmannNumber}
-                onSelect={handleAmannSelect}
-              />
-            </Combobox>
+              </Combobox>
+            </Box>
+  
+            <InlineStack gap="200" wrap>
+              {selectedStitchingColors.map((color, index) => (
+                <Tag key={index} onRemove={() => handleRemoveStitchingColor(index)}>
+                  {`${color.number} - ${color.name}`}
+                </Tag>
+              ))}
+            </InlineStack>
           </BlockStack>
-        </Box>
-      </InlineStack>
-    </Card>
-  );
-};
-
-export default React.memo(ThreadColorSelector);
+        </BlockStack>
+      </Card>
+    );
+  };
+  
+  export default React.memo(ThreadColorSelector);
