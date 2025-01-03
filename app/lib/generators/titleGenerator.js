@@ -68,8 +68,10 @@ const replacePlaceholders = (template, colors, tempMainHandle = '', title = '') 
   const replacements = {
     'leatherColor1.label': colors.leatherColor1?.label || '',
     'leatherColor2.label': colors.leatherColor2?.label || '',
-    'stitchingThreadColor.label': colors.stitchingThreadColor?.label || '',
-    'embroideryThreadColor.label': colors.embroideryThreadColor?.label || '',
+    'stitchingThreadColor.label': colors.stitchingThreadColor?.selectedName || colors.stitchingThreadColor?.label || '',
+    'stitchingThreadColor.number': colors.stitchingThreadColor?.selectedNumber || '',
+    'embroideryThreadColor.label': colors.embroideryThreadColor?.selectedName || colors.embroideryThreadColor?.label || '',
+    'embroideryThreadColor.number': colors.embroideryThreadColor?.selectedNumber || '',
     'tempMainHandle': tempMainHandle,
     'title': title
   };
