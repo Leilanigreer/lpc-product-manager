@@ -19,6 +19,14 @@ const getTemplateAndValidation = (collection, styleId, templateType) => {
   const collectionTemplate = collection.titleFormat?.[templateType];
   const collectionValidation = collection.titleFormat?.validation;
 
+  // Log template selection for debugging
+  console.log('Template Selection:', {
+    templateType,
+    styleTemplate,
+    collectionTemplate,
+    selectedTemplate: styleTemplate || collectionTemplate
+  });
+
   return {
     template: styleTemplate || collectionTemplate,
     validation: styleValidation || collectionValidation
@@ -31,9 +39,16 @@ const getTemplateAndValidation = (collection, styleId, templateType) => {
 const validateColors = (colors, validation) => {
   if (!validation?.required) return null;
 
+  // Log validation process
+  console.log('Validating colors:', {
+    colors,
+    requiredFields: validation.required
+  });
+
   for (const requiredField of validation.required) {
     const hasValue = colors[requiredField];
     if (!hasValue) {
+      console.warn(`Missing required color: ${requiredField}`);
       return validation.errorMessages?.[requiredField];
     }
   }
@@ -44,16 +59,25 @@ const validateColors = (colors, validation) => {
 /**
  * Replaces template placeholders with actual values
  */
-const replacePlaceholders = (template, colors, tempMainHandle = '') => {
+const replacePlaceholders = (template, colors, tempMainHandle = '', title = '') => {
   if (!template) return '';
 
-  return template
-    .replace(/{leatherColor1\.label}/g, colors.leatherColor1?.label || '')
-    .replace(/{leatherColor2\.label}/g, colors.leatherColor2?.label || '')
-    .replace(/{stitchingThreadColor\.label}/g, colors.stitchingThreadColor?.label || '')
-    .replace(/{embroideryThreadColor\.label}/g, colors.embroideryThreadColor?.label || '')
-    .replace(/{tempMainHandle}/g, tempMainHandle)
-    .replace(/{title}/g, template);
+  let result = template;
+  
+  // Handle nested object properties
+  const replacements = {
+    'leatherColor1.label': colors.leatherColor1?.label || '',
+    'leatherColor2.label': colors.leatherColor2?.label || '',
+    'stitchingThreadColor.label': colors.stitchingThreadColor?.label || '',
+    'embroideryThreadColor.label': colors.embroideryThreadColor?.label || '',
+    'tempMainHandle': tempMainHandle,
+    'title': title
+  };
+
+  // Replace all placeholders using the format {key}
+  return result.replace(/{([^}]+)}/g, (match, key) => {
+    return replacements[key] !== undefined ? replacements[key] : match;
+  });
 };
 
 /**
@@ -105,6 +129,12 @@ export const generateTitle = async (
       return DEFAULT_TITLE;
     }
 
+    // Log template before processing
+    console.log('Processing title template:', {
+      template,
+      colors
+    });
+
     // Validate colors
     const validationError = validateColors(colors, validation);
     if (validationError) {
@@ -112,7 +142,10 @@ export const generateTitle = async (
     }
 
     // Generate title using template
-    return replacePlaceholders(template, colors) || DEFAULT_TITLE;
+    const generatedTitle = replacePlaceholders(template, colors);
+    console.log('Generated title:', generatedTitle);
+
+    return generatedTitle || DEFAULT_TITLE;
 
   } catch (error) {
     console.error('Error generating title:', error);

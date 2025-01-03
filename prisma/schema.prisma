@@ -39,83 +39,14 @@ model LeatherColor {
   quilted_leather_color   ProductDataLPC[] @relation("QuiltedLeatherColor")
 }
 
-model Shape {
-  id             String           @id @default(cuid())
-  name           String
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  abbreviation   String?
-  productPrices  ProductPrice[]
-  ProductDataLPC ProductDataLPC[]
-}
-
-model Style {
-  id             String            @id @default(cuid())
-  name           String
-  abbreviation   String
-  image_url      String?
-  stylePerShape  Boolean           @default(true)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  ProductDataLPC ProductDataLPC[]
-  collections    StyleCollection[]
-}
-
-model StyleCollection {
-  id                       String            @id @default(cuid())
-  styleId                  String
-  collectionId             String
-  overrideSecondaryLeather Boolean?
-  overrideStitchingColor   Boolean?
-  overrideQClassicField    Boolean?
-  style                    Style             @relation(fields: [styleId], references: [id])
-  collection               ShopifyCollection @relation(fields: [collectionId], references: [id])
-  createdAt                DateTime          @default(now())
-  updatedAt                DateTime          @updatedAt
-
-  @@unique([styleId, collectionId])
-  @@index([styleId])
-  @@index([collectionId])
-}
-
-model Font {
-  id             String           @id @default(cuid())
-  name           String
-  image_url      String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  ProductDataLPC ProductDataLPC[]
-}
-
-model ShopifyCollection {
-  id                    String            @id @default(cuid())
-  shopifyId             String
-  title                 String
-  handle                String            @unique
-  needsSecondaryLeather Boolean           @default(false)
-  needsStitchingColor   Boolean           @default(false)
-  needsQClassicField    Boolean           @default(false)
-  showInDropdown        Boolean           @default(true)
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  admin_graphql_api_id  String
-  productPrices         ProductPrice[]
-  ProductDataLPC        ProductDataLPC[]
-  styles                StyleCollection[]
-
-  @@map("ShopifyCollections")
-}
-
-model ProductPrice {
-  id                  String             @id @default(cuid())
-  shopifyPrice        Decimal            @db.Decimal(10, 2)
-  higherPrice         Decimal            @db.Decimal(10, 2)
-  shapeId             String
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  shopifyCollectionId String?
-  shape               Shape              @relation(fields: [shapeId], references: [id])
-  shopifyCollection   ShopifyCollection? @relation(fields: [shopifyCollectionId], references: [id])
+model StitchingThread {
+  id           String        @id @default(cuid())
+  name         String
+  abbreviation String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  colorTags    ColorTag[]    @relation("StitchingThreadToTag")
+  amannNumbers AmannNumber[]
 }
 
 model EmbroideryThread {
@@ -140,16 +71,6 @@ model IsacordNumber {
   @@index([threadId])
 }
 
-model StitchingThread {
-  id           String        @id @default(cuid())
-  name         String
-  abbreviation String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  colorTags    ColorTag[]    @relation("StitchingThreadToTag")
-  amannNumbers AmannNumber[]
-}
-
 model AmannNumber {
   id             String           @id @default(cuid())
   number         String
@@ -170,6 +91,132 @@ model ColorTag {
   embroideryColors EmbroideryThread[] @relation("EmbroideryThreadToTag")
   leatherColors    LeatherColor[]     @relation("LeatherColorToTag")
   stitchingColors  StitchingThread[]  @relation("StitchingThreadToTag")
+}
+
+model Font {
+  id             String           @id @default(cuid())
+  name           String
+  image_url      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  ProductDataLPC ProductDataLPC[]
+}
+
+enum ShapeType {
+  WOOD
+  PUTTER
+  OTHER
+}
+
+model Shape {
+  id             String           @id @default(cuid())
+  name           String
+  displayOrder   Int              @default(0) // Controls ordering
+  abbreviation   String?
+  shapeType      ShapeType        @default(OTHER) // For wood/putter logic
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  productPrices  ProductPrice[]
+  ProductDataLPC ProductDataLPC[]
+}
+
+model Style {
+  id             String            @id @default(cuid())
+  name           String
+  abbreviation   String
+  image_url      String?
+  stylePerShape  Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  ProductDataLPC ProductDataLPC[]
+  collections    StyleCollection[]
+}
+
+model StyleCollection {
+  id                       String            @id @default(cuid())
+  styleId                  String
+  collectionId             String
+  overrideSecondaryLeather Boolean?
+  overrideStitchingColor   Boolean?
+  overrideQClassicField    Boolean?
+  titleTemplate            String? // Override collection title template if needed
+  seoTemplate              String? // Override collection SEO template if needed
+  handleTemplate           String? // Override collection handle template if needed
+  validation               Json? // Override validation rules if needed
+  style                    Style             @relation(fields: [styleId], references: [id])
+  collection               ShopifyCollection @relation(fields: [collectionId], references: [id])
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  @@unique([styleId, collectionId])
+  @@index([styleId])
+  @@index([collectionId])
+}
+
+enum ThreadType {
+  EMBROIDERY
+  STITCHING
+  NONE
+}
+
+model ShopifyCollection {
+  id                    String                 @id @default(cuid())
+  shopifyId             String
+  title                 String
+  handle                String                 @unique
+  skuPrefix             String?
+  threadType            ThreadType             @default(NONE)
+  description           String?                @db.Text
+  commonDescription     Boolean                @default(true)
+  needsSecondaryLeather Boolean                @default(false)
+  needsStitchingColor   Boolean                @default(false)
+  needsQClassicField    Boolean                @default(false)
+  needsStyle            Boolean                @default(false)
+  showInDropdown        Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  admin_graphql_api_id  String
+  productPrices         ProductPrice[]
+  ProductDataLPC        ProductDataLPC[]
+  styles                StyleCollection[]
+  titleFormat           CollectionTitleFormat?
+
+  @@map("ShopifyCollections")
+}
+
+model CommonDescription {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  content   String   @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CollectionTitleFormat {
+  id             String            @id @default(cuid())
+  collection     ShopifyCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  collectionId   String            @unique
+  titleTemplate  String // e.g. "{leatherColor1} with {leatherColor2} Leather"
+  seoTemplate    String // e.g. "{title} Quilted Golf Headcovers"
+  handleTemplate String // e.g. "{handle}-quilted-golf-headcovers"
+  validation     Json // Stores validation rules as JSON
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([collectionId])
+}
+
+model ProductPrice {
+  id                  String             @id @default(cuid())
+  shopifyPrice        Decimal            @db.Decimal(10, 2)
+  higherPrice         Decimal            @db.Decimal(10, 2)
+  shapeId             String
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  shopifyCollectionId String?
+  shape               Shape              @relation(fields: [shapeId], references: [id])
+  shopifyCollection   ShopifyCollection? @relation(fields: [shopifyCollectionId], references: [id])
 }
 
 model ProductDataLPC {

@@ -1,7 +1,6 @@
 // app/lib/generators/variants/custom/styledVariants.js
 
 import { formatSKU, isWoodType } from '../../../utils';
-import { COLLECTION_TYPES } from '../../../constants';
 import { createWoodCustomVariant } from './woodVariants';
 
 /**
@@ -23,7 +22,7 @@ export const createStyledCustomVariant = ({
   weight,
   skuInfo,
   shapes,
-  collectionType
+  collection
 }) => {
   // Input validation
   if (!variant?.style?.label || !shape || !skuInfo?.parts) {
@@ -68,17 +67,8 @@ export const createStyledCustomVariant = ({
   }
 };
 
-/**
- * Checks if variant should use styled variant generation
- * @param {string} collectionType Type of collection
- * @param {boolean} needsStyle Whether collection needs style
- * @returns {boolean} True if should use styled generation
- */
-export const shouldUseStyledVariant = (collectionType, needsStyle) => {
-  return needsStyle && [
-    COLLECTION_TYPES.CLASSIC,
-    COLLECTION_TYPES.ANIMAL
-  ].includes(collectionType);
+export const shouldUseStyledVariant = (collection) => {
+  return collection.needsStyle;
 };
 
 /**
@@ -103,7 +93,7 @@ export const processStyledVariant = ({
   weight,
   skuInfo,
   shapes,
-  collectionType,
+  collection,
   processedStyles
 }) => {
   if (!shape) return null;
@@ -121,7 +111,7 @@ export const processStyledVariant = ({
       weight,
       skuInfo,
       shapes,
-      collectionType
+      collection
     });
 
     if (woodVariant) {
@@ -140,6 +130,6 @@ export const processStyledVariant = ({
     weight,
     skuInfo,
     shapes,
-    collectionType
+    collection
   });
 };

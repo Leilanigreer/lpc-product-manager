@@ -1,45 +1,64 @@
 // app/lib/utils/versionUtils.js
-import { COLLECTION_TYPES } from "../constants";
 
-export const generateBaseParts = (collectionType, colors) => { 
-  const {leatherColor1, leatherColor2, stitchingThreadColor, embroideryThreadColor } = colors;
+/**
+ * Generates base parts for SKU based on collection and colors
+ * @param {Object} collection - Collection object from database
+ * @param {Object} colors - Color selections for the product
+ * @returns {Array<string>} Array of SKU parts
+ */
+export const generateBaseParts = (selectedCollection, colors) => { 
+  console.log('selectedCollection:', selectedCollection);
 
-  const partsMap = {
-    [COLLECTION_TYPES.QUILTED]: () => [
-      "Quilted",
-      leatherColor1?.abbreviation,
-      embroideryThreadColor?.abbreviation
-    ],
+  if (!selectedCollection?.value || !colors) {
+    console.warn('Missing required data for SKU parts generation:', {
+      hasCollectionId: !!selectedCollection?.value,
+      hasColors: !!colors
+    });
+    return [];
+  }
 
-    [COLLECTION_TYPES.ARGYLE]: () => [
-      "Argyle",
-      leatherColor1?.abbreviation,
-      leatherColor2?.abbreviation,
-      stitchingThreadColor?.abbreviation
-    ],
+  const {
+    leatherColor1, 
+    leatherColor2, 
+    stitchingThreadColor, 
+    embroideryThreadColor 
+  } = colors;
 
-    [COLLECTION_TYPES.ANIMAL]: () => [
-      "Animal",
-      leatherColor1?.abbreviation,
-      leatherColor2?.abbreviation
-    ],
+  if (!selectedCollection.skuPrefix) {
+    console.error('Collection is missing SKU prefix:', selectedCollection.value);
+    return [];
+  }
 
-    [COLLECTION_TYPES.CLASSIC]: () => [
-      "Classic",
-      leatherColor1?.abbreviation,
-      leatherColor2?.abbreviation
-    ],
+  const baseParts = [selectedCollection.skuPrefix];
 
-    [COLLECTION_TYPES.QCLASSIC]: () => [
-      "QClassic",
-      leatherColor1?.abbreviation,
-      leatherColor2?.abbreviation
-    ]
-  };
+  // Add leather colors
+  baseParts.push(leatherColor1?.abbreviation);
+  
+  if (selectedCollection.needsSecondaryLeather) {
+    baseParts.push(leatherColor2?.abbreviation);
+  }
 
-  return partsMap[collectionType]?.();
+  // Add thread colors based on collection's thread type
+  if (selectedCollection.needsStitchingColor) {
+    switch(selectedCollection.threadType) {
+      case 'EMBROIDERY':
+        baseParts.push(embroideryThreadColor?.abbreviation);
+        break;
+      case 'STITCHING':
+        baseParts.push(stitchingThreadColor?.abbreviation);
+        break;
+    }
+  }
+
+  return baseParts.filter(Boolean);
 };
 
+/**
+ * Calculates version number for SKU based on existing products
+ * @param {Array<string>} parts - Base SKU parts
+ * @param {Array<Object>} existingProducts - Existing products to check against
+ * @returns {number|null} Version number or null if no version needed
+ */
 export const calculateVersionFormParts = (parts, existingProducts) => {
   if (!existingProducts?.length) {
     return null;
