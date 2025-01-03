@@ -165,7 +165,11 @@ export default function CreateProduct() {
     const hasRequiredColors = needsSecondaryColor 
       ? formState.selectedLeatherColor1 && formState.selectedLeatherColor2
       : formState.selectedLeatherColor1;
-    const hasStitchingIfNeeded = needsStitchingColor ? formState.selectedStitchingColor : true;
+
+      const hasStitchingIfNeeded = needsStitchingColor
+      ? (formState.selectedStitchingColor && formState.selectedStitchingColor.id)
+      : true;
+
     const hasShapeData = Object.values(formState.weights).some(weight => weight !== "");
 
     return formState.selectedCollection && 
@@ -181,11 +185,15 @@ export default function CreateProduct() {
         threadType: 'global',
         globalThreads: {
           stitching: formState.selectedStitchingColor ? {
-            threadId: formState.selectedStitchingColor,
+            threadId: formState.selectedStitchingColor.id,
+            threadName: formState.selectedStitchingColor.name,
+            number: formState.selectedStitchingColor.number,
             numberId: formState.matchingAmannNumber
           } : null,
           embroidery: formState.selectedEmbroideryColor ? {
-            threadId: formState.selectedEmbroideryColor,
+            threadId: formState.selectedEmbroideryColor.id,
+            threadName: formState.selectedEmbroideryColor.name,
+            number: formState.selectedEmbroideryColor.number,
             numberId: formState.matchingIsacordNumber
           } : null
         }
@@ -194,11 +202,13 @@ export default function CreateProduct() {
       // Return shape-specific thread data when using ShapeSelector
       return {
         threadType: 'shape-specific',
-        shapeThreads: Object.keys(formState.selectedEmbroideryColors).reduce((acc, shapeId) => {
-          if (formState.selectedEmbroideryColors[shapeId]) {
+        shapeThreads: Object.entries(formState.selectedEmbroideryColors).reduce((acc, [shapeId, threadData]) => {
+          if (threadData) {
             acc[shapeId] = {
               embroideryThread: {
-                threadId: formState.selectedEmbroideryColors[shapeId],
+                threadId: threadData.id,
+                threadName: threadData.name,
+                number: threadData.number,
                 numberId: formState.shapeIsacordNumbers[shapeId] || null
               }
             };
@@ -214,21 +224,18 @@ export default function CreateProduct() {
   
     if (needsStitchingColor) {
       // Validate both stitching and embroidery in ThreadColorSelector
-      if (formState.selectedStitchingColor && !formState.matchingAmannNumber) {
+      if (formState.selectedStitchingColor?.id && !formState.matchingAmannNumber) {
         errors.push("Please select an Amann number for the stitching thread");
       }
-      if (formState.selectedEmbroideryColor && !formState.matchingIsacordNumber) {
+      if (formState.selectedEmbroideryColor?.id && !formState.matchingIsacordNumber) {
         errors.push("Please select an Isacord number for the embroidery thread");
       }
     } else {
-      // We're in the needsStyle case (since they're mutually exclusive)
-      // Only validate shape-specific embroidery
+      // Validate shape-specific embroidery
       Object.entries(formState.weights).forEach(([shapeId, weight]) => {
-        // Only validate shapes that are selected (have a weight)
         if (weight && weight !== "") {
-          const threadId = formState.selectedEmbroideryColors[shapeId];
-          // Only validate if a thread color is selected
-          if (threadId && !formState.shapeIsacordNumbers[shapeId]) {
+          const threadData = formState.selectedEmbroideryColors[shapeId];
+          if (threadData?.id && !formState.shapeIsacordNumbers[shapeId]) {
             errors.push(`Please select an Isacord number for the selected shape`);
           }
         }
