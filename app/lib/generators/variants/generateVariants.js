@@ -34,10 +34,10 @@ const validateRules = (validationRules, formState, colors) => {
             isFieldValid = !!colors.leatherColor2;
             break;
           case 'stitchingThread':
-            isFieldValid = !!colors.stitchingThreadColor;
+            isFieldValid = !!colors.stitchingThreadColor?.selectedName;
             break;
           case 'embroideryThread':
-            isFieldValid = !!colors.embroideryThreadColor;
+            isFieldValid = !!colors.embroideryThreadColor?.selectedName;
             break;
           default:
             console.warn(`Unknown validation field: ${field}`);
@@ -110,8 +110,8 @@ const validateCollectionRequirements = (collection, colors, formState) => {
     errors.push('Secondary leather color required for this collection');
   }
 
-  if (collection.needsStitchingColor && !colors.stitchingThreadColor) {
-    errors.push('Stitching color required for this collection');
+  if (collection.needsStitchingColor && !colors.stitchingThreadColor?.selectedNumber) {
+    errors.push('Stitching thread number required for this collection');
   }
 
   if (collection.needsStyle) {
@@ -200,10 +200,16 @@ export const generateVariants = async (
         leatherColors,
         collection: selectedCollection,
         baseCustomVariant: {
-          stitchingThreadId: variant.stitchingThreadId,
-          amannNumberId: variant.amannNumberId,
-          embroideryThreadId: variant.embroideryThreadId,
-          isacordNumberId: variant.isacordNumberId
+          stitchingThread: variant.stitchingThreadId ? {
+            id: variant.stitchingThreadId,
+            number: variant.amannNumberId,
+            name: colors.stitchingThreadColor?.selectedName
+          } : null,
+          embroideryThread: variant.embroideryThreadId ? {
+            id: variant.embroideryThreadId,
+            number: variant.isacordNumberId,
+            name: colors.embroideryThreadColor?.selectedName
+          } : null
         },
         customPrice: (parseFloat(variant.price) + 15).toFixed(2),
         weight: variant.weight,
