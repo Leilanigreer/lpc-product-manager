@@ -1,3 +1,5 @@
+// app/components/ProductTypeSelector.jsx
+
 import React from 'react';
 import {
   Card,
@@ -10,12 +12,20 @@ import {
   Divider
 } from "@shopify/polaris";
 
-const ProductTypeSelector = ({ 
-  selectedType, 
-  quantity,
-  onChange
-}) => {
+/**
+ * Product type selector component that handles both standard and limited edition types
+ * @param {Object} props
+ * @param {Object} props.formState - Current form state
+ * @param {string} props.formState.selectedOfferingType - Selected product type
+ * @param {string} props.formState.limitedEditionQuantity - Quantity for limited editions
+ * @param {Function} props.onChange - Callback when selections change
+ */
+const ProductTypeSelector = ({ formState, onChange }) => {
   const handleTypeChange = (value) => {
+    // Reset quantity if switching away from limited edition
+    if (value !== 'limitedEdition') {
+      onChange('limitedEditionQuantity', '');
+    }
     onChange('selectedOfferingType', value);
   };
 
@@ -38,7 +48,7 @@ const ProductTypeSelector = ({
           <Box minWidth="120px">
             <RadioButton
               label="Standard Stock"
-              checked={selectedType === 'customizable'}
+              checked={formState.selectedOfferingType === 'customizable'}
               id="customizable"
               name="productType"
               onChange={() => handleTypeChange('customizable')}
@@ -50,7 +60,7 @@ const ProductTypeSelector = ({
             <Box minWidth="120px">
               <RadioButton
                 label="Limited Edition"
-                checked={selectedType === 'limitedEdition'}
+                checked={formState.selectedOfferingType === 'limitedEdition'}
                 id="limitedEdition"
                 name="productType"
                 onChange={() => handleTypeChange('limitedEdition')}
@@ -58,12 +68,12 @@ const ProductTypeSelector = ({
               />
             </Box>
 
-            {selectedType === 'limitedEdition' && (
+            {formState.selectedOfferingType === 'limitedEdition' && (
               <Box minWidth="200px">
                 <TextField
                   label="Quantity"
                   type="number"
-                  value={quantity}
+                  value={formState.limitedEditionQuantity}
                   onChange={handleQuantityChange}
                   autoComplete="off"
                   min={1}
