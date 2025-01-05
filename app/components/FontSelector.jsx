@@ -1,14 +1,32 @@
 // app/components/FontSelector.jsx
 
-import React from 'react';
-import { Card, InlineStack, Box, Select, BlockStack, Text, Image } from "@shopify/polaris";
+import React, { useMemo } from 'react';
+import { Card, InlineStack, Box, Select, BlockStack, Text, Image, Spinner } from "@shopify/polaris";
 
-const FontSelector = ({ fonts, selectedFont, onChange }) => {
-  const selectedFontObject = fonts.find(font => font.value === selectedFont);
+const FontSelector = ({ fonts, formState, onChange }) => {
+  // Memoize font options and selected font
+  const fontOptions = useMemo(() => {
+    const baseOptions = [{ label: "Select a font", value: "" }];
+    
+    if (!Array.isArray(fonts)) {
+      console.warn('Invalid fonts array');
+      return baseOptions;
+    }
+
+    return [...baseOptions, ...fonts];
+  }, [fonts]);
+
+  const selectedFontObject = useMemo(() => 
+    fonts?.find(font => font.value === formState.selectedFont),
+    [fonts, formState.selectedFont]
+  );
 
   const handleChange = (value) => {
     onChange('selectedFont', value);
   };
+
+  // Add loading state for image
+  const [isImageLoading, setIsImageLoading] = React.useState(false);
 
   return (
     <Card>
@@ -16,19 +34,31 @@ const FontSelector = ({ fonts, selectedFont, onChange }) => {
         <Box width="50%">
           <Select
             label="Select Font"
-            options={[{ label: "Font used", value: "" }, ...fonts]}
+            options={fontOptions}
             onChange={handleChange}
-            value={selectedFont}
+            value={formState.selectedFont}
+            error={!formState.selectedFont ? "Font selection is required" : undefined}
           />
         </Box>
         <Box width="50%">
-          {selectedFont && (
+          {formState.selectedFont && (
             <BlockStack gap="200">
               <Text variant="bodyMd" as="p">Font Preview:</Text>
+              {isImageLoading && (
+                <Box padding="400">
+                  <Spinner accessibilityLabel="Loading font preview" size="small" />
+                </Box>
+              )}
               <Image
                 source={selectedFontObject?.image_url}
                 alt={`Preview of ${selectedFontObject?.label} font`}
-                style={{ width: '150px', height: 'auto' }}
+                style={{ 
+                  width: '150px', 
+                  height: 'auto',
+                  display: isImageLoading ? 'none' : 'block'
+                }}
+                onLoad={() => setIsImageLoading(false)}
+                onError={() => setIsImageLoading(false)}
               />
             </BlockStack>
           )}
