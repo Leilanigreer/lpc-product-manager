@@ -17,15 +17,18 @@ const CollectionSelector = ({
     ...(shopifyCollections
       ?.filter(c => c.showInDropdown)
       ?.map(collection => ({
-        label: collection.title,
-        value: collection.id
+        label: collection.label,
+        value: collection.value
       })) || [])
   ], [shopifyCollections]);
 
+  // console.log("raw data", shopifyCollections)
+  // console.log("Collections:", collectionOptions)
+
   // Get current collection for style options
   const currentCollection = useMemo(() => 
-    shopifyCollections?.find(col => col.id === formState.collection?.id),
-    [shopifyCollections, formState.collection?.id]
+    shopifyCollections?.find(col => col.value === formState.collection?.value),
+    [shopifyCollections, formState.collection?.value]
   );
 
   // Style mode options (global vs independent)
@@ -42,21 +45,21 @@ const CollectionSelector = ({
     return [
       { label: 'Select a style...', value: '' },
       ...currentCollection.styles.map(style => ({
-        label: style.name,
-        value: style.id,
+        label: style.label,
+        value: style.value,
         data: style // Pass full style object for reference
       }))
     ];
   }, [currentCollection]);
 
   const handleCollectionChange = (value) => {
-    const selectedCollection = shopifyCollections?.find(c => c.id === value);
+    const selectedCollection = shopifyCollections?.find(c => c.value === value);
     if (!selectedCollection) return;
 
     // Reset form state with new collection
     onChange('collection', {
-      id: selectedCollection.id,
-      title: selectedCollection.title,
+      value: selectedCollection.value,
+      label: selectedCollection.label,
       handle: selectedCollection.handle,
       skuPrefix: selectedCollection.skuPrefix,
       threadType: selectedCollection.threadType,
@@ -73,8 +76,8 @@ const CollectionSelector = ({
     // Reset style-related state
     onChange('styleMode', '');
     onChange('globalStyle', {
-      id: '',
-      name: '',
+      value: '',
+      label: '',
       abbreviation: '',
       image_url: '',
       overrides: {}
@@ -90,8 +93,8 @@ const CollectionSelector = ({
       onChange('selectedStyles', {});
     } else {
       onChange('globalStyle', {
-        id: '',
-        name: '',
+        value: '',
+        label: '',
         abbreviation: '',
         image_url: '',
         overrides: {}
@@ -115,14 +118,14 @@ const CollectionSelector = ({
   
 
   const handleGlobalStyleChange = (value) => {
-    const selectedStyle = currentCollection?.styles?.find(s => s.id === value);
+    const selectedStyle = currentCollection?.styles?.find(s => s.value === value);
     if (!selectedStyle) return;
 
     if (!validateStyleSelection(selectedStyle)) return;
 
     onChange('globalStyle', {
-      id: selectedStyle.id,
-      name: selectedStyle.name,
+      value: selectedStyle.value,
+      label: selectedStyle.label,
       abbreviation: selectedStyle.abbreviation,
       image_url: selectedStyle.image_url,
       overrides: {
@@ -148,7 +151,7 @@ const CollectionSelector = ({
               label="Select a collection"
               options={collectionOptions}
               onChange={handleCollectionChange}
-              value={formState.collection?.id || ''}
+              value={formState.collection?.value || ''}
             />
           </Box>
         </Box>
@@ -175,7 +178,7 @@ const CollectionSelector = ({
                     label="Select style"
                     options={styleOptions}
                     onChange={handleGlobalStyleChange}
-                    value={formState.globalStyle?.id || ''}
+                    value={formState.globalStyle?.value || ''}
                   />
                 </Box>
               </Box>
