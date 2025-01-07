@@ -1,11 +1,6 @@
-// app/components/CollectionSelector.jsx
-
 import React, { useMemo } from 'react';
 import { Select, Card, InlineStack, Box, Text, BlockStack } from "@shopify/polaris";
 
-/**
- * Collection selector component with style mode selection
- */
 const CollectionSelector = ({ 
   shopifyCollections,
   formState,
@@ -22,16 +17,13 @@ const CollectionSelector = ({
       })) || [])
   ], [shopifyCollections]);
 
-  // console.log("raw data", shopifyCollections)
-  // console.log("Collections:", collectionOptions)
-
   // Get current collection for style options
   const currentCollection = useMemo(() => 
     shopifyCollections?.find(col => col.value === formState.collection?.value),
     [shopifyCollections, formState.collection?.value]
   );
 
-  // Style mode options (global vs independent)
+  // Style mode options
   const styleModeOptions = useMemo(() => [
     { label: 'Select style mode...', value: '' },
     { label: 'Global style for all shapes', value: 'global' },
@@ -40,14 +32,15 @@ const CollectionSelector = ({
 
   // Available styles for the current collection
   const styleOptions = useMemo(() => {
-    if (!currentCollection?.styles) return [];
+    if (!currentCollection?.styles?.length) {
+      return [{ label: 'Select a style...', value: '' }];
+    }
     
     return [
       { label: 'Select a style...', value: '' },
       ...currentCollection.styles.map(style => ({
-        label: style.label,
-        value: style.value,
-        data: style // Pass full style object for reference
+        label: style.label || style.name,
+        value: style.value || style.id
       }))
     ];
   }, [currentCollection]);
@@ -56,7 +49,6 @@ const CollectionSelector = ({
     const selectedCollection = shopifyCollections?.find(c => c.value === value);
     if (!selectedCollection) return;
 
-    // Reset form state with new collection
     onChange('collection', {
       value: selectedCollection.value,
       label: selectedCollection.label,
@@ -70,18 +62,13 @@ const CollectionSelector = ({
       needsQClassicField: selectedCollection.needsQClassicField,
       needsStyle: selectedCollection.needsStyle,
       showInDropdown: selectedCollection.showInDropdown,
-      admin_graphql_api_id: selectedCollection.admin_graphql_api_id
+      admin_graphql_api_id: selectedCollection.admin_graphql_api_id,
+      styles: selectedCollection.styles
     });
 
     // Reset style-related state
     onChange('styleMode', '');
-    onChange('globalStyle', {
-      value: '',
-      label: '',
-      abbreviation: '',
-      image_url: '',
-      overrides: {}
-    });
+    onChange('globalStyle', null);
     onChange('selectedStyles', {});
   };
 
@@ -89,60 +76,45 @@ const CollectionSelector = ({
     onChange('styleMode', value);
     
     // Reset style selections when mode changes
-    if (value === 'global') {
-      onChange('selectedStyles', {});
-    } else {
-      onChange('globalStyle', {
-        value: '',
-        label: '',
-        abbreviation: '',
-        image_url: '',
-        overrides: {}
-      });
-    }
+    onChange('globalStyle', null);
+    onChange('selectedStyles', {});
   };
-
-  // Add validation helper
-  const validateStyleSelection = (selectedStyle) => {
-    if (!currentCollection || !selectedStyle) return true;
-    
-    // Check if style requires secondary leather when collection doesn't
-    if (selectedStyle.overrides.overrideSecondaryLeather && 
-        !currentCollection.needsSecondaryLeather) {
-      console.warn('Style requires secondary leather but collection does not support it');
-      return false;
-    }
-    
-    return true;
-  };
-  
 
   const handleGlobalStyleChange = (value) => {
-    const selectedStyle = currentCollection?.styles?.find(s => s.value === value);
+    const selectedStyle = currentCollection?.styles?.find(s => s.value === value || s.id === value);
+    
     if (!selectedStyle) return;
 
-    if (!validateStyleSelection(selectedStyle)) return;
-
-    onChange('globalStyle', {
-      value: selectedStyle.value,
-      label: selectedStyle.label,
+    const styleData = {
+      value: selectedStyle.value || selectedStyle.id,
+      label: selectedStyle.label || selectedStyle.name,
       abbreviation: selectedStyle.abbreviation,
-      image_url: selectedStyle.image_url,
       overrides: {
-        overrideSecondaryLeather: selectedStyle.overrideSecondaryLeather,
-        overrideStitchingColor: selectedStyle.overrideStitchingColor,
-        overrideQClassicField: selectedStyle.overrideQClassicField,
-        titleTemplate: selectedStyle.titleTemplate,
-        seoTemplate: selectedStyle.seoTemplate,
-        handleTemplate: selectedStyle.handleTemplate,
-        validation: selectedStyle.validation
+        overrideSecondaryLeather: selectedStyle.overrideSecondaryLeather || false,
+        overrideStitchingColor: selectedStyle.overrideStitchingColor || false,
+        overrideQClassicField: selectedStyle.overrideQClassicField || false,
+        titleTemplate: selectedStyle.titleTemplate || null,
+        seoTemplate: selectedStyle.seoTemplate || null,
+        handleTemplate: selectedStyle.handleTemplate || null,
+        validation: selectedStyle.validation || null
       }
-    });
-  };
+    };
 
+    onChange('globalStyle', styleData);
+
+    // Update selected styles for all shapes when in global mode
+    if (formState.styleMode === 'global' && formState.weights) {
+      const updatedStyles = {};
+      Object.keys(formState.weights).forEach(shapeId => {
+        updatedStyles[shapeId] = styleData;
+      });
+      onChange('selectedStyles', updatedStyles);
+    }
+  };
 
   return (
     <Card>
+
       <BlockStack gap="400">
         <Box width="100%">
           <Text as="h2" variant="headingMd">Collection Selection</Text>
@@ -190,4 +162,4 @@ const CollectionSelector = ({
   );
 };
 
-export default React.memo(CollectionSelector);
+export default CollectionSelector;
