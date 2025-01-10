@@ -1,6 +1,25 @@
 import React, { useMemo } from 'react';
 import { Select, Card, InlineStack, Box, Text, BlockStack } from "@shopify/polaris";
 
+/**
+ * @typedef {Object} StyleOverrides
+ * @property {boolean|null} overrideSecondaryLeather
+ * @property {boolean|null} overrideStitchingColor
+ * @property {boolean|null} overrideQClassicField
+ */
+
+/**
+ * @param {Object} collection Collection object
+ * @param {StyleOverrides|null} style Style object with overrides
+ */
+function resolveRequirements(collection, style) {
+  return {
+    needsSecondaryLeather: style?.overrideSecondaryLeather ?? collection.needsSecondaryLeather,
+    needsStitchingColor: style?.overrideStitchingColor ?? collection.needsStitchingColor,
+    needsQClassicField: style?.overrideQClassicField ?? collection.needsQClassicField
+  };
+}
+
 const CollectionSelector = ({ 
   shopifyCollections,
   formState,
@@ -82,22 +101,26 @@ const CollectionSelector = ({
 
   const handleGlobalStyleChange = (value) => {
     const selectedStyle = currentCollection?.styles?.find(s => s.value === value || s.id === value);
+    console.log('Selected style raw:', selectedStyle);
     
     if (!selectedStyle) return;
+
+    const requirements = resolveRequirements(currentCollection, selectedStyle);
 
     const styleData = {
       value: selectedStyle.value || selectedStyle.id,
       label: selectedStyle.label || selectedStyle.name,
       abbreviation: selectedStyle.abbreviation,
       overrides: {
-        overrideSecondaryLeather: selectedStyle.overrideSecondaryLeather || false,
-        overrideStitchingColor: selectedStyle.overrideStitchingColor || false,
-        overrideQClassicField: selectedStyle.overrideQClassicField || false,
-        titleTemplate: selectedStyle.titleTemplate || null,
-        seoTemplate: selectedStyle.seoTemplate || null,
-        handleTemplate: selectedStyle.handleTemplate || null,
-        validation: selectedStyle.validation || null
-      }
+        overrideSecondaryLeather: selectedStyle.overrideSecondaryLeather,
+        overrideStitchingColor: selectedStyle.overrideStitchingColor,
+        overrideQClassicField: selectedStyle.overrideQClassicField,
+        titleTemplate: selectedStyle.titleTemplate,
+        seoTemplate: selectedStyle.seoTemplate,
+        handleTemplate: selectedStyle.handleTemplate,
+        validation: selectedStyle.validation
+      },
+      requirements
     };
 
     onChange('globalStyle', styleData);
