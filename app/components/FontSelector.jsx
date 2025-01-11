@@ -37,7 +37,6 @@ const FontSelector = ({ fonts, formState, onChange }) => {
             options={fontOptions}
             onChange={handleChange}
             value={formState.selectedFont}
-            error={!formState.selectedFont ? "Font selection is required" : undefined}
           />
         </Box>
         <Box width="50%">

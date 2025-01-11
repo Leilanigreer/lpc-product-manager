@@ -1,119 +1,73 @@
 // app/components/ShapeSelector/ShapeRow.jsx
-
 import React, { useMemo } from 'react';
 import { InlineStack, Box } from "@shopify/polaris";
-import ShapeCheckbox from './fields/ShapeCheckbox';
+import ShapeSelection from './fields/ShapeSelection';
 import StyleField from './fields/StyleField';
 import EmbroideryField from './fields/EmbroideryField';
 import QClassicField from './fields/QClassicField';
-import WeightField from './fields/WeightField';
+import ErrorBoundary from '../ErrorBoundary';
 
-/**
- * @typedef {import('./index').Shape} Shape
- * @typedef {import('./index').Style} Style
- */
-
-/**
- * Individual row component for shape configuration
- * @param {Object} props
- * @param {Shape} props.shape - Shape to configure
- * @param {Style[]} props.styles - Available styles
- * @param {Array} props.leatherColors - Available leather colors
- * @param {Array} props.embroideryThreadColors - Available thread colors
- * @param {Object} props.formState - Current form state
- * @param {Function} props.handleChange - Form state update handler
- */
 const ShapeRow = ({
   shape,
-  styles,
-  leatherColors,
   embroideryThreadColors,
   formState,
-  handleChange
+  handleChange,
+  showStyleFields,
+  showEmbroideryFields,
+  showQClassic
 }) => {
-  // Get collection requirements from form state
-  const { needsStyle, needsQClassicField } = formState.collection || {};
-  
-  // Check shape selection status
-  const isSelected = Boolean(formState.weights[shape.value]);
-
-  // Memoize field props to prevent unnecessary re-renders
   const fieldProps = useMemo(() => ({
-    isSelected,
+    shape,
     formState,
     handleChange
-  }), [isSelected, formState, handleChange]);
+  }), [shape, formState, handleChange]);
 
-  // Memoize style-specific props
-  const styleProps = useMemo(() => ({
-    styles,
+  const embroideryFieldProps = useMemo(() => ({
+    ...fieldProps,
     embroideryThreadColors,
-    leatherColors
-  }), [styles, embroideryThreadColors, leatherColors]);
+  }), [fieldProps, embroideryThreadColors]);
 
   return (
     <InlineStack wrap={false} gap="400" align="start">
-      {/* Shape Checkbox - Always shown */}
-      <Box width="200px">
-        <ShapeCheckbox 
-          shape={shape}
-          {...fieldProps}
-        />
+      <Box width="250px">
+        <ErrorBoundary errorMessage="Failed to load shape selection">
+          <ShapeSelection 
+            {...fieldProps} 
+          />
+        </ErrorBoundary>
       </Box>
-
-      {/* Style Fields - Shown when style is needed */}
-      {needsStyle && (
-        <>
-          <Box width="200px">
+  
+      {showStyleFields && (
+        <Box width="200px">
+          <ErrorBoundary errorMessage={`Failed to load style options for ${shape.label}`}>
             <StyleField 
-              shape={shape}
-              styles={styleProps.styles}
               {...fieldProps}
             />
-          </Box>
-          
-          <Box width="200px">
-            <EmbroideryField
-              shape={shape}
-              embroideryThreadColors={styleProps.embroideryThreadColors}
-              {...fieldProps}
-            />
-          </Box>
-
-          {/* Q-Classic Field - Only shown when needed */}
-          {needsQClassicField && (
-            <Box width="200px">
-              <QClassicField
-                shape={shape}
-                leatherColors={styleProps.leatherColors}
-                {...fieldProps}
-              />
-            </Box>
-          )}
-        </>
+          </ErrorBoundary>
+        </Box>
       )}
-
-      {/* Weight Field - Always shown */}
-      <Box width="150px">
-        <WeightField
-          shape={shape}
-          {...fieldProps}
-        />
-      </Box>
+  
+      {showEmbroideryFields && (
+        <Box width="200px">
+          <ErrorBoundary errorMessage={`Failed to load embroidery options for ${shape.label}`}>
+            <EmbroideryField
+              { ...embroideryFieldProps }
+            />
+          </ErrorBoundary>
+        </Box>
+      )}
+  
+      {showQClassic && (
+        <Box width="200px">
+          <ErrorBoundary errorMessage={`Failed to load quilted leather options for ${shape.label}`}>
+            <QClassicField
+              {...fieldProps}
+            />
+          </ErrorBoundary>
+        </Box>
+      )}
     </InlineStack>
   );
 };
 
-// Ensure shape-level prop changes trigger re-renders
-const propsAreEqual = (prevProps, nextProps) => {
-  return (
-    prevProps.shape === nextProps.shape &&
-    prevProps.isSelected === nextProps.isSelected &&
-    prevProps.formState === nextProps.formState &&
-    prevProps.styles === nextProps.styles &&
-    prevProps.leatherColors === nextProps.leatherColors &&
-    prevProps.embroideryThreadColors === nextProps.embroideryThreadColors
-  );
-};
-
-export default React.memo(ShapeRow, propsAreEqual);
+export default React.memo(ShapeRow);
