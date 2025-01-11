@@ -1,30 +1,35 @@
 // app/components/ShapeSelector/ShapeGridHeader.jsx
-// Header component for the shape grid
 import React from 'react';
 import { InlineStack, Box, Text } from "@shopify/polaris";
 
-export const ShapeGridHeader = ({ showStyle, showQClassicField }) => (
+const ShapeGridHeader = ({ showStyleFields, showEmbroideryFields, showQClassic }) => (
   <InlineStack wrap={false} gap="400" align="start">
-    <Box width="200px">
-      <Text variant="bodyMd" fontWeight="bold">Shape</Text>
+    <Box width='250px'>
+    <InlineStack wrap={false} gap="150" align="start">
+      <Box width="125px">
+        <Text variant="bodyMd" fontWeight="bold">Shape</Text>
+      </Box>
+      <Box width="105px">
+        <Text variant="bodyMd" fontWeight="bold">Weight</Text>
+      </Box>
+    </InlineStack>
     </Box>
-    {showStyle && (
-      <>
-        <Box width="200px">
-          <Text variant="bodyMd" fontWeight="bold">Style</Text>
-        </Box>
-        <Box width="200px">
-          <Text variant="bodyMd" fontWeight="bold">Embroidery</Text>
-        </Box>
-        {showQClassicField && (
-          <Box width="200px">
-            <Text variant="bodyMd" fontWeight="bold">Quilted Leather</Text>
-          </Box>
-        )}
-      </>
+    {showStyleFields && (
+      <Box width="200px">
+        <Text variant="bodyMd" fontWeight="bold">Style</Text>
+      </Box>
     )}
-    <Box width="150px">
-      <Text variant="bodyMd" fontWeight="bold">Weight</Text>
-    </Box>
+    {showEmbroideryFields && (
+      <Box width="200px">
+        <Text variant="bodyMd" fontWeight="bold">Embroidery</Text>
+      </Box>
+    )}
+    {showQClassic && (
+      <Box width="200px">
+        <Text variant="bodyMd" fontWeight="bold">Quilted Leather</Text>
+      </Box>
+    )}
   </InlineStack>
 );
+
+export default React.memo(ShapeGridHeader);

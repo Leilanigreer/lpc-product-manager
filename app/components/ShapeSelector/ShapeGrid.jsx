@@ -3,16 +3,10 @@
 import React, { useMemo } from 'react';
 import { BlockStack, Box, Divider } from "@shopify/polaris";
 import ShapeRow from './ShapeRow';
-import { ShapeGridHeader } from './ShapeGridHeader';
+import ShapeGridHeader from './ShapeGridHeader';
 
-/**
- * Sort shapes by display order or name
- * @param {Array} shapes - Available shapes 
- * @returns {Array} Sorted shapes
- */
 const sortShapes = (shapes) => {
   if (!shapes?.length) return [];
-
   return [...shapes].sort((a, b) => {
     if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
       return a.displayOrder - b.displayOrder;
@@ -21,49 +15,50 @@ const sortShapes = (shapes) => {
   });
 };
 
-/**
- * Grid component for shape selection and configuration
- * Handles layout and coordinates visualization between header and rows
- * based on collection requirements:
- * - Basic: Just shape and weight (needsStyle = false)
- * - Standard: Shape, style, embroidery, weight (needsStyle = true)
- * - Full: Shape, style, embroidery, Q-classic, weight (needsStyle = true & needsQClassicField = true)
- */
 const ShapeGrid = ({
   shapes,
-  styles,
-  leatherColors,
   embroideryThreadColors,
   formState,
   handleChange
 }) => {
-  // Get collection requirements 
-  const { needsStyle, needsQClassicField } = formState.collection || {};
-
-  // Sort shapes while maintaining all types
+  // Sort shapes
   const sortedShapes = useMemo(() => 
     sortShapes(shapes),
     [shapes]
   );
 
-  // Memoize common row props
-  const rowProps = useMemo(() => ({
-    styles,
-    leatherColors,
-    embroideryThreadColors,
-    formState,
-    handleChange,
-    needsStyle,
-    needsQClassicField
-  }), [
-    styles, 
-    leatherColors, 
-    embroideryThreadColors, 
-    formState, 
-    handleChange, 
-    needsStyle,
-    needsQClassicField
-  ]);
+  // Calculate visibility flags for all shapes at once
+  const visibilityFlags = useMemo(() => {
+    const { collection, styleMode, threadMode, globalStyle } = formState;
+    
+    // Create a map of shape IDs to their visibility flags
+    return sortedShapes.reduce((acc, shape) => {
+      const isNotPutter = shape.shapeType !== 'PUTTER';
+      const isSelected = shape.value in (formState.weights || {});
+
+      acc[shape.value] = {
+        isSelected,
+        showStyleFields: isSelected && collection.needsStyle && isNotPutter && styleMode === 'independent',
+        showEmbroideryFields: isSelected && collection.needsStyle && isNotPutter && threadMode.embroidery === 'perShape',
+        showQClassic: isSelected && isNotPutter && (
+          styleMode === 'global'
+            ? globalStyle?.requirements.needsQClassicField
+            : collection.needsQClassicField
+        )
+      };
+      return acc;
+    }, {});
+  }, [formState, sortedShapes]);
+
+  // Determine which columns to show in the header
+  const headerVisibility = useMemo(() => {
+    const anyShape = Object.values(visibilityFlags)[0] || {};
+    return {
+      showStyleFields: anyShape.showStyleFields,
+      showEmbroideryFields: anyShape.showEmbroideryFields,
+      showQClassic: anyShape.showQClassic
+    };
+  }, [visibilityFlags]);
 
   if (!sortedShapes.length) {
     return null;
@@ -71,16 +66,16 @@ const ShapeGrid = ({
 
   return (
     <BlockStack gap="400">
-      <ShapeGridHeader 
-        needsStyle={needsStyle}
-        needsQClassicField={needsQClassicField}
-      />
+      <ShapeGridHeader {...headerVisibility} />
       
       {sortedShapes.map((shape, index) => (
-        <Box key={shape.id} paddingBlockEnd="400">
+        <Box key={shape.value} paddingBlockEnd="400">
           <ShapeRow 
             shape={shape}
-            {...rowProps}
+            embroideryThreadColors={embroideryThreadColors}
+            formState={formState}
+            handleChange={handleChange}
+            {...visibilityFlags[shape.value]}
           />
           {index < sortedShapes.length - 1 && <Divider />}
         </Box>
