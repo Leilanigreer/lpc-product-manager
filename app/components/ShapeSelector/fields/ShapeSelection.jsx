@@ -8,29 +8,28 @@ const ShapeSelection = ({
   shape 
 }) => {
   // Track if shape is selected based on presence in weights
-  const isSelected = shape.value in (formState.weights || {});
-  
+  const isSelected = shape.value in (formState.selectedShapes || {});
+  const currentShape = formState.selectedShapes?.[shape.value];
+
   // Handle checkbox toggle
   const handleSelect = useCallback((checked) => {
-    const newWeights = { ...formState.weights };
-    
-    if (checked) {
-      newWeights[shape.value] = '';
-    } else {
-      delete newWeights[shape.value];
-    }
-
-    handleChange('weights', newWeights);
-  }, [shape.value, formState.weights, handleChange]);
+    handleChange('selectedShapes', {
+      shape,
+      checked,
+      weight: ''
+    });
+  }, [shape, handleChange]);
 
   // Handle weight input
   const handleWeightChange = useCallback((value) => {
     if (!isSelected) return;
-
-    const newWeights = { ...formState.weights };
-    newWeights[shape.value] = value;
-    handleChange('weights', newWeights);
-  }, [shape.value, isSelected, formState.weights, handleChange]);
+    
+    handleChange('selectedShapes', {
+      shape,
+      checked: true,
+      weight: value
+    });
+  }, [shape, isSelected, handleChange]);
 
   // Prevent scroll wheel from changing number input
   const handleWheel = useCallback((e) => {
@@ -42,7 +41,7 @@ const ShapeSelection = ({
     <InlineStack wrap={false} gap="150" align="start">
       <Box width="125px">
         <Checkbox
-          id={`shape-${shape.value}`}
+          id={shape.value}
           label={shape.label}
           checked={isSelected}
           onChange={handleSelect}
@@ -55,7 +54,7 @@ const ShapeSelection = ({
           step="0.01"
           onWheel={handleWheel}
           onChange={handleWeightChange}
-          value={formState.weights[shape.value] || ''}
+          value={currentShape?.weight || ''}
           placeholder="0.00"
           suffix="oz"
           disabled={!isSelected}

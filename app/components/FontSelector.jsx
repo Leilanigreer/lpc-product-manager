@@ -1,6 +1,7 @@
 // app/components/FontSelector.jsx
 
 import React, { useMemo } from 'react';
+import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 import { Card, InlineStack, Box, Select, BlockStack, Text, Image, Spinner } from "@shopify/polaris";
 
 const FontSelector = ({ fonts, formState, onChange }) => {
@@ -49,7 +50,7 @@ const FontSelector = ({ fonts, formState, onChange }) => {
                 </Box>
               )}
               <Image
-                source={selectedFontObject?.image_url}
+                source={getGoogleDriveUrl(selectedFontObject?.url_id)}
                 alt={`Preview of ${selectedFontObject?.label} font`}
                 style={{ 
                   width: '150px', 

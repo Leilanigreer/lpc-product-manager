@@ -34,16 +34,16 @@ const ShapeGrid = ({
     // Create a map of shape IDs to their visibility flags
     return sortedShapes.reduce((acc, shape) => {
       const isNotPutter = shape.shapeType !== 'PUTTER';
-      const isSelected = shape.value in (formState.weights || {});
+      const isSelected = formState.selectedShapes?.[shape.value]?.weight !== undefined;
 
       acc[shape.value] = {
         isSelected,
         showStyleFields: isSelected && collection.needsStyle && isNotPutter && styleMode === 'independent',
         showEmbroideryFields: isSelected && collection.needsStyle && isNotPutter && threadMode.embroidery === 'perShape',
-        showQClassic: isSelected && isNotPutter && (
+        showColorDesignation: isSelected && isNotPutter && (
           styleMode === 'global'
-            ? globalStyle?.requirements.needsQClassicField
-            : collection.needsQClassicField
+            ? globalStyle?.requirements.needsColorDesignation
+            : collection.needsColorDesignation
         )
       };
       return acc;
@@ -56,7 +56,7 @@ const ShapeGrid = ({
     return {
       showStyleFields: anyShape.showStyleFields,
       showEmbroideryFields: anyShape.showEmbroideryFields,
-      showQClassic: anyShape.showQClassic
+      showColorDesignation: anyShape.showColorDesignation
     };
   }, [visibilityFlags]);
 

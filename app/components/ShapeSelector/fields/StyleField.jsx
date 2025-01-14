@@ -18,7 +18,6 @@ const StyleField = ({
         // Only include required style data
         style: {
           abbreviation: style.abbreviation,
-          handleTemplate: style.handleTemplate,
           label: style.label,
           value: style.value
         }
