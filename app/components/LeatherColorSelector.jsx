@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 import { Card, InlineStack, Box, Select, BlockStack, Text, Image } from "@shopify/polaris";
 
 const LeatherColorSelector = ({ 
@@ -40,7 +41,7 @@ const LeatherColorSelector = ({
               {type === 'secondary' ? "2nd Leather Preview:" : "Leather Preview:"}
             </Text>
             <Image
-              source={formState.leatherColors[type].image_url}
+              source={getGoogleDriveUrl(formState.leatherColors[type].url_id)}
               alt={`Preview of ${formState.leatherColors[type].label} leather`}
               style={{ width: '150px', height: 'auto' }}
             />
