@@ -1,24 +1,13 @@
 import React, { useMemo } from 'react';
 import { Select, Card, InlineStack, Box, Text, BlockStack } from "@shopify/polaris";
+import { resolveRequirements } from '../lib/utils';
 
 /**
  * @typedef {Object} StyleOverrides
  * @property {boolean|null} overrideSecondaryLeather
  * @property {boolean|null} overrideStitchingColor
- * @property {boolean|null} overrideQClassicField
+ * @property {boolean|null} overrideColorDesignation
  */
-
-/**
- * @param {Object} collection Collection object
- * @param {StyleOverrides|null} style Style object with overrides
- */
-function resolveRequirements(collection, style) {
-  return {
-    needsSecondaryLeather: style?.overrideSecondaryLeather ?? collection.needsSecondaryLeather,
-    needsStitchingColor: style?.overrideStitchingColor ?? collection.needsStitchingColor,
-    needsQClassicField: style?.overrideQClassicField ?? collection.needsQClassicField
-  };
-}
 
 const CollectionSelector = ({ 
   shopifyCollections,
@@ -67,25 +56,12 @@ const CollectionSelector = ({
   const handleCollectionChange = (value) => {
     const selectedCollection = shopifyCollections?.find(c => c.value === value);
     if (!selectedCollection) return;
-
-    onChange('collection', {
-      value: selectedCollection.value,
-      label: selectedCollection.label,
-      handle: selectedCollection.handle,
-      skuPrefix: selectedCollection.skuPrefix,
-      threadType: selectedCollection.threadType,
-      description: selectedCollection.description,
-      commonDescription: selectedCollection.commonDescription,
-      needsSecondaryLeather: selectedCollection.needsSecondaryLeather,
-      needsStitchingColor: selectedCollection.needsStitchingColor,
-      needsQClassicField: selectedCollection.needsQClassicField,
-      needsStyle: selectedCollection.needsStyle,
-      showInDropdown: selectedCollection.showInDropdown,
-      admin_graphql_api_id: selectedCollection.admin_graphql_api_id,
-      styles: selectedCollection.styles
-    });
-
-    // Reset style-related state
+  
+    // Set collection data from Prisma, including titleFormat, pricing and styles
+    // See form-state-docs.md for full data structure
+    onChange('collection', selectedCollection);
+    
+    // Reset style-related state when collection changes
     onChange('styleMode', '');
     onChange('globalStyle', null);
     onChange('selectedStyles', {});
@@ -114,7 +90,7 @@ const CollectionSelector = ({
       overrides: {
         overrideSecondaryLeather: selectedStyle.overrideSecondaryLeather,
         overrideStitchingColor: selectedStyle.overrideStitchingColor,
-        overrideQClassicField: selectedStyle.overrideQClassicField,
+        overrideColorDesignation: selectedStyle.overrideColorDesignation,
         titleTemplate: selectedStyle.titleTemplate,
         seoTemplate: selectedStyle.seoTemplate,
         handleTemplate: selectedStyle.handleTemplate,
@@ -124,20 +100,10 @@ const CollectionSelector = ({
     };
 
     onChange('globalStyle', styleData);
-
-    // Update selected styles for all shapes when in global mode
-    if (formState.styleMode === 'global' && formState.weights) {
-      const updatedStyles = {};
-      Object.keys(formState.weights).forEach(shapeId => {
-        updatedStyles[shapeId] = styleData;
-      });
-      onChange('selectedStyles', updatedStyles);
-    }
   };
 
   return (
     <Card>
-
       <BlockStack gap="400">
         <Box width="100%">
           <Text as="h2" variant="headingMd">Collection Selection</Text>

@@ -14,7 +14,7 @@ const ShapeRow = ({
   handleChange,
   showStyleFields,
   showEmbroideryFields,
-  showQClassic
+  showColorDesignation
 }) => {
   const fieldProps = useMemo(() => ({
     shape,
@@ -57,7 +57,7 @@ const ShapeRow = ({
         </Box>
       )}
   
-      {showQClassic && (
+      {showColorDesignation && (
         <Box width="200px">
           <ErrorBoundary errorMessage={`Failed to load quilted leather options for ${shape.label}`}>
             <QClassicField
