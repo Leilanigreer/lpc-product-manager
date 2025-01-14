@@ -29,7 +29,7 @@ model LeatherColor {
   id                      String           @id @default(cuid())
   name                    String
   abbreviation            String
-  image_url               String?
+  url_id                  String?
   isLimitedEditionLeather Boolean          @default(false)
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt
@@ -96,7 +96,7 @@ model ColorTag {
 model Font {
   id             String           @id @default(cuid())
   name           String
-  image_url      String?
+  url_id         String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   ProductDataLPC ProductDataLPC[]
@@ -120,33 +120,46 @@ model Shape {
   ProductDataLPC ProductDataLPC[]
 }
 
+enum StyleNamePattern {
+  STANDARD // "{leather.label} {style.leatherPhrase} {style.label}"
+  STYLE_FIRST // "{style.label} with {leather.label} {style.leatherPhrase}"
+  CUSTOM // Uses custom pattern
+}
+
 model Style {
-  id             String            @id @default(cuid())
-  name           String
-  abbreviation   String
-  image_url      String?
-  stylePerShape  Boolean           @default(true)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  ProductDataLPC ProductDataLPC[]
-  collections    StyleCollection[]
+  id                 String            @id @default(cuid())
+  name               String
+  abbreviation       String
+  url_id             String?
+  stylePerShape      Boolean           @default(true)
+  useOppositeLeather Boolean           @default(false) // For "Fat" style logic
+  leatherPhrase      String? // For "50/50" style phrase
+  namePattern        StyleNamePattern  @default(STANDARD)
+  customNamePattern  String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  ProductDataLPC     ProductDataLPC[]
+  collections        StyleCollection[]
 }
 
 model StyleCollection {
-  id                       String            @id @default(cuid())
-  styleId                  String
-  collectionId             String
-  overrideSecondaryLeather Boolean?
-  overrideStitchingColor   Boolean?
-  overrideQClassicField    Boolean?
-  titleTemplate            String? // Override collection title template if needed
-  seoTemplate              String? // Override collection SEO template if needed
-  handleTemplate           String? // Override collection handle template if needed
-  validation               Json? // Override validation rules if needed
-  style                    Style             @relation(fields: [styleId], references: [id])
-  collection               ShopifyCollection @relation(fields: [collectionId], references: [id])
-  createdAt                DateTime          @default(now())
-  updatedAt                DateTime          @updatedAt
+  id                        String            @id @default(cuid())
+  styleId                   String
+  collectionId              String
+  overrideSecondaryLeather  Boolean?
+  overrideStitchingColor    Boolean?
+  overrideColorDesignation  Boolean?
+  skuPattern                String?
+  titleTemplate             String? // Override collection title template if needed
+  seoTemplate               String? // Override collection SEO template if needed
+  handleTemplate            String? // Override collection handle template if needed
+  validation                Json? // Override validation rules if needed
+  overrideNamePattern       StyleNamePattern? // Override collection default
+  overrideCustomNamePattern String? // Used with CUSTOM pattern
+  style                     Style             @relation(fields: [styleId], references: [id])
+  collection                ShopifyCollection @relation(fields: [collectionId], references: [id])
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
 
   @@unique([styleId, collectionId])
   @@index([styleId])
@@ -160,26 +173,28 @@ enum ThreadType {
 }
 
 model ShopifyCollection {
-  id                    String                 @id @default(cuid())
-  shopifyId             String
-  title                 String
-  handle                String                 @unique
-  skuPrefix             String?
-  threadType            ThreadType             @default(NONE)
-  description           String?                @db.Text
-  commonDescription     Boolean                @default(true)
-  needsSecondaryLeather Boolean                @default(false)
-  needsStitchingColor   Boolean                @default(false)
-  needsQClassicField    Boolean                @default(false)
-  needsStyle            Boolean                @default(false)
-  showInDropdown        Boolean                @default(true)
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  admin_graphql_api_id  String
-  productPrices         ProductPrice[]
-  ProductDataLPC        ProductDataLPC[]
-  styles                StyleCollection[]
-  titleFormat           CollectionTitleFormat?
+  id                      String                 @id @default(cuid())
+  shopifyId               String
+  title                   String
+  handle                  String                 @unique
+  skuPattern              String?
+  threadType              ThreadType             @default(NONE)
+  description             String?                @db.Text
+  commonDescription       Boolean                @default(true)
+  needsSecondaryLeather   Boolean                @default(false)
+  needsStitchingColor     Boolean                @default(false)
+  needsColorDesignation   Boolean                @default(false)
+  needsStyle              Boolean                @default(false)
+  defaultStyleNamePattern StyleNamePattern       @default(STANDARD)
+  stylePerCollection      Boolean                @default(false) // For handling grouped styles
+  showInDropdown          Boolean                @default(true)
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  admin_graphql_api_id    String
+  productPrices           ProductPrice[]
+  ProductDataLPC          ProductDataLPC[]
+  styles                  StyleCollection[]
+  titleFormat             CollectionTitleFormat?
 
   @@map("ShopifyCollections")
 }
