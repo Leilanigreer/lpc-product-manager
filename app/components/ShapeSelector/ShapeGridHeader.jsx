@@ -2,7 +2,7 @@
 import React from 'react';
 import { InlineStack, Box, Text } from "@shopify/polaris";
 
-const ShapeGridHeader = ({ showStyleFields, showEmbroideryFields, showColorDesignation }) => (
+const ShapeGridHeader = ({ showStyleFields, showEmbroideryFields, showColorDesignation, headerText }) => (
   <InlineStack wrap={false} gap="400" align="start">
     <Box width='250px'>
     <InlineStack wrap={false} gap="150" align="start">
@@ -26,7 +26,7 @@ const ShapeGridHeader = ({ showStyleFields, showEmbroideryFields, showColorDesig
     )}
     {showColorDesignation && (
       <Box width="200px">
-        <Text variant="bodyMd" fontWeight="bold">Quilted Leather</Text>
+        <Text variant="bodyMd" fontWeight="bold">{headerText}</Text>
       </Box>
     )}
   </InlineStack>
