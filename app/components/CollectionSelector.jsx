@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { Select, Card, InlineStack, Box, Text, BlockStack } from "@shopify/polaris";
-import { resolveRequirements } from '../lib/utils';
 
 /**
  * @typedef {Object} StyleOverrides
@@ -55,51 +54,20 @@ const CollectionSelector = ({
 
   const handleCollectionChange = (value) => {
     const selectedCollection = shopifyCollections?.find(c => c.value === value);
-    if (!selectedCollection) return;
-  
-    // Set collection data from Prisma, including titleFormat, pricing and styles
-    // See form-state-docs.md for full data structure
-    onChange('collection', selectedCollection);
-    
-    // Reset style-related state when collection changes
-    onChange('styleMode', '');
-    onChange('globalStyle', null);
-    onChange('selectedStyles', {});
+    if (selectedCollection) {
+      onChange('collection', selectedCollection);
+    }
   };
 
   const handleStyleModeChange = (value) => {
     onChange('styleMode', value);
-    
-    // Reset style selections when mode changes
-    onChange('globalStyle', null);
-    onChange('selectedStyles', {});
   };
 
   const handleGlobalStyleChange = (value) => {
-    const selectedStyle = currentCollection?.styles?.find(s => s.value === value || s.id === value);
-    console.log('Selected style raw:', selectedStyle);
-    
-    if (!selectedStyle) return;
-
-    const requirements = resolveRequirements(currentCollection, selectedStyle);
-
-    const styleData = {
-      value: selectedStyle.value || selectedStyle.id,
-      label: selectedStyle.label || selectedStyle.name,
-      abbreviation: selectedStyle.abbreviation,
-      overrides: {
-        overrideSecondaryLeather: selectedStyle.overrideSecondaryLeather,
-        overrideStitchingColor: selectedStyle.overrideStitchingColor,
-        overrideColorDesignation: selectedStyle.overrideColorDesignation,
-        titleTemplate: selectedStyle.titleTemplate,
-        seoTemplate: selectedStyle.seoTemplate,
-        handleTemplate: selectedStyle.handleTemplate,
-        validation: selectedStyle.validation
-      },
-      requirements
-    };
-
-    onChange('globalStyle', styleData);
+    const selectedStyle = currentCollection?.styles?.find(s => s.value === value);
+    if (selectedStyle) {
+      onChange('globalStyle', selectedStyle);
+    }
   };
 
   return (
