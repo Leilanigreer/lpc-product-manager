@@ -1,5 +1,5 @@
 import { useReducer, useCallback } from 'react';
-import { resolveRequirements } from '../lib/utils';
+import { calculateFinalRequirements } from '../lib/utils';
 
 const ACTION_TYPES = {
   UPDATE_COLLECTION: 'UPDATE_COLLECTION',
@@ -23,50 +23,45 @@ const formReducer = (state, action) => {
   const { type, payload, initialState } = action;
   console.log('FormReducer - Action:', { type, payload });
 
+  let newState;
+  
   switch (type) {
     case ACTION_TYPES.UPDATE_COLLECTION: {
-      // Reset entire state except for collection data
-      return {
+      newState = {
         ...initialState,
         collection: payload.collection,
         ...getDefaultStyleState(),
-        selectedShapes: {} // Reset shapes when collection changes
+        selectedShapes: {}
       };
+      break;
     }
 
     case ACTION_TYPES.UPDATE_STYLE_MODE: {
       const { mode } = payload;
-      return {
+      newState = {
         ...state,
         styleMode: mode,
         globalStyle: mode === 'global' ? null : state.globalStyle,
         selectedShapes: mode === 'global'
           ? Object.fromEntries(
-            Object.entries(state.selectedShapes).map(([key, shape]) => [
-              key,
-              {
-                ...shape,
-                style: null // Clear style data when switching to global mode
-              }
-            ])
-          )
+              Object.entries(state.selectedShapes).map(([key, shape]) => [
+                key,
+                { ...shape, style: null }
+              ])
+            )
           : state.selectedShapes
       };
+      break;
     }
 
     case ACTION_TYPES.UPDATE_GLOBAL_STYLE: {
-      const { style } = payload;
       if (state.styleMode !== 'global') return state;
-
-      const requirements = resolveRequirements(state.collection, style);
       
-      return {
+      newState = {
         ...state,
-        globalStyle: {
-          ...style,
-          requirements
-        }
+        globalStyle: payload.style
       };
+      break;
     }
 
     case ACTION_TYPES.UPDATE_THREAD_MODE: {
@@ -178,6 +173,12 @@ const formReducer = (state, action) => {
       console.warn('Unknown action type:', type);
       return state;
   }
+
+  const finalRequirements = calculateFinalRequirements(newState);
+  return {
+    ...newState,
+    finalRequirements
+  };
 };
 
 export const useFormState = (initialState) => {
