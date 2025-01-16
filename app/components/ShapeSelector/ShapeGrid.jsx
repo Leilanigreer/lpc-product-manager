@@ -2,8 +2,8 @@
 
 import React, { useMemo } from 'react';
 import { BlockStack, Box, Divider } from "@shopify/polaris";
-import {  } from '../../lib/utils/styleUtils';
-import { getEffectiveRequirements, isPutter, isWoodType, findMatchingWoodStyles } from '../../lib/utils';
+import {  } from '../../lib/utils/requirementsUtils';
+import { isPutter, isWoodType, findMatchingWoodStyles } from '../../lib/utils';
 import ShapeRow from './ShapeRow';
 import ShapeGridHeader from './ShapeGridHeader';
 import { COLUMN_WIDTHS } from './constants';
@@ -39,31 +39,29 @@ const ShapeGrid = ({
 
   // Calculate visibility flags for all shapes at once
   const visibilityFlags = useMemo(() => {
-    const { collection, styleMode, threadMode, selectedShapes } = formState;
-    const requirements = getEffectiveRequirements(formState);
+    const { collection, styleMode, threadMode, selectedShapes, finalRequirements } = formState;
     
     // Create a map of shape IDs to their visibility flags
     return sortedShapes.reduce((acc, shape) => {
       const isSelected = selectedShapes?.[shape.value]?.weight !== undefined;
-
+  
       // Check if shape is part of a matching wood style group
       const isInMatchingWoodGroup = Object.values(matchingWoodStyles)
         .some(group => group.includes(shape.value));
-
+  
       // Determine if color designation should be shown
       const showColorDesignation = isSelected && !isPutter(shape) && (
-        // Show if in global mode and requirements indicate it
-        (styleMode === 'global' && requirements.needsColorDesignation) ||
-        // Show if in independent mode and collection requires it
-        (styleMode === 'independent' && collection.needsColorDesignation) ||
-        // Show if in independent mode, shape is wood type, and part of matching style group
-        (styleMode === 'independent' && 
-         isWoodType(shape) && 
-         isInMatchingWoodGroup)
+        // Show if requirements indicate it (from finalRequirements)
+        finalRequirements.needsColorDesignation ||
+        // Show if shape is wood type and part of matching style group (specific case)
+        (styleMode === 'independent' &&
+          isWoodType(shape) &&
+          isInMatchingWoodGroup)
       );
-
+  
       acc[shape.value] = {
         isSelected,
+        // Keep needsStyle at collection level
         showStyleFields: isSelected && collection.needsStyle && !isPutter(shape) && styleMode === 'independent',
         showEmbroideryFields: isSelected && collection.needsStyle && !isPutter(shape) && threadMode.embroidery === 'perShape',
         showColorDesignation
