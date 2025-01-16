@@ -4,10 +4,11 @@ import { InlineStack, Box } from "@shopify/polaris";
 import ShapeSelection from './fields/ShapeSelection';
 import StyleField from './fields/StyleField';
 import EmbroideryField from './fields/EmbroideryField';
-import QClassicField from './fields/QClassicField';
+import ColorDesignation from './fields/ColorDesignation';
 import ErrorBoundary from '../ErrorBoundary';
 
 const ShapeRow = ({
+  gridColumns,
   shape,
   embroideryThreadColors,
   formState,
@@ -29,43 +30,44 @@ const ShapeRow = ({
 
   return (
     <InlineStack wrap={false} gap="400" align="start">
-      <Box width="250px">
-        <ErrorBoundary errorMessage="Failed to load shape selection">
-          <ShapeSelection 
-            {...fieldProps} 
-          />
-        </ErrorBoundary>
-      </Box>
-  
-      {showStyleFields && (
-        <Box width="200px">
-          <ErrorBoundary errorMessage={`Failed to load style options for ${shape.label}`}>
-            <StyleField 
-              {...fieldProps}
-            />
-          </ErrorBoundary>
-        </Box>
-      )}
-  
-      {showEmbroideryFields && (
-        <Box width="200px">
-          <ErrorBoundary errorMessage={`Failed to load embroidery options for ${shape.label}`}>
-            <EmbroideryField
-              { ...embroideryFieldProps }
-            />
-          </ErrorBoundary>
-        </Box>
-      )}
-  
-      {showColorDesignation && (
-        <Box width="200px">
-          <ErrorBoundary errorMessage={`Failed to load quilted leather options for ${shape.label}`}>
-            <QClassicField
-              {...fieldProps}
-            />
-          </ErrorBoundary>
-        </Box>
-      )}
+      {gridColumns.map(column => {
+        switch(column.id) {
+          case 'shape':
+            return (
+              <Box key={column.id} width={column.width}>
+                <ErrorBoundary errorMessage="Failed to load shape selection">
+                  <ShapeSelection {...fieldProps} />
+                </ErrorBoundary>
+              </Box>
+            );
+          case 'style':
+            return showStyleFields ? (
+              <Box key={column.id} width={column.width}>
+                <ErrorBoundary errorMessage={`Failed to load style options for ${shape.label}`}>
+                  <StyleField {...fieldProps} />
+                </ErrorBoundary>  
+              </Box>
+            ) : <Box key={column.id} width={column.width} />;
+          case 'embroidery':
+            return showEmbroideryFields ? (
+              <Box key={column.id} width={column.width}>
+                <ErrorBoundary errorMessage={`Failed to load embroidery options for ${shape.label}`}>
+                  <EmbroideryField {...embroideryFieldProps} />
+                </ErrorBoundary>
+              </Box>
+            ) : <Box key={column.id} width={column.width} />;
+          case 'colorDesignation':
+            return showColorDesignation ? (
+              <Box key={column.id} width={column.width}>
+                <ErrorBoundary errorMessage={`Failed to load leather options for ${shape.label}`}>
+                  <ColorDesignation {...fieldProps} />
+                </ErrorBoundary>
+              </Box>
+            ) : <Box key={column.id} width={column.width} />;
+          default:
+            return null;
+        }
+      })}
     </InlineStack>
   );
 };
