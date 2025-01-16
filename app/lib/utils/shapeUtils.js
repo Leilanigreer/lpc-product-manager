@@ -35,3 +35,28 @@ export const getShapeCategory = (shape) => {
   if (!isValidShape(shape)) return 'Other';
   return shape.shapeType;
 };
+
+export const findMatchingWoodStyles = (shapes, selectedShapes) => {
+  if (!Array.isArray(shapes) || !selectedShapes) return {};
+  
+  // Group wood shapes by style value
+  const woodStyles = Object.entries(selectedShapes).reduce((acc, [shapeId, shapeData]) => {
+    const shape = shapes.find(s => s.value === shapeId);
+    
+    // Only include wood shapes that have a style selected
+    if (shape?.shapeType === 'WOOD' && shapeData.style?.value) {
+      const styleValue = shapeData.style.value;
+      acc[styleValue] = acc[styleValue] || [];
+      acc[styleValue].push(shapeId);
+    }
+    return acc;
+  }, {});
+
+  // Filter to only styles with 2+ shapes
+  return Object.entries(woodStyles)
+    .filter(([_, shapes]) => shapes.length >= 2)
+    .reduce((acc, [styleValue, shapeIds]) => {
+      acc[styleValue] = shapeIds;
+      return acc;
+    }, {});
+};
