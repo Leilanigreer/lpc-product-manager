@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 import { Card, InlineStack, Box, Select, BlockStack, Text, Image } from "@shopify/polaris";
 
@@ -7,19 +7,11 @@ const LeatherColorSelector = ({
   formState,
   onChange,
 }) => {
-  const needsSecondaryColor = useMemo(() => {
-    let requiresSecondary = formState.collection?.needsSecondaryLeather ?? false;
-    
-    if (formState.styleMode === 'global' && formState.globalStyle?.requirements) {
-      requiresSecondary = formState.globalStyle.requirements.needsSecondaryLeather;
-    }
-    
-    return requiresSecondary;
-  }, [formState.collection, formState.styleMode, formState.globalStyle]);
+  const requiresSecondary = formState.finalRequirements.needsSecondaryLeather;
 
   const renderColorSelector = (label, type) => (
     <>
-      <Box width={needsSecondaryColor ? "25%" : "50%"}>
+      <Box width={requiresSecondary ? "25%" : "50%"}>
         <Select
           label={label}
           options={[{ label: "Select a Leather", value: "" }, ...leatherColors]}
@@ -34,7 +26,7 @@ const LeatherColorSelector = ({
           value={formState.leatherColors[type]?.value || ''}
         />
       </Box>
-      <Box width={needsSecondaryColor ? "25%" : "50%"}>
+      <Box width={requiresSecondary ? "25%" : "50%"}>
         {formState.leatherColors[type] && formState.leatherColors[type].image_url !== "" && formState.leatherColors[type].image_url != null && (
           <BlockStack gap="200">
             <Text variant="bodyMd" as="p">
@@ -55,7 +47,7 @@ const LeatherColorSelector = ({
     <Card>
       <InlineStack gap="500" align="start" wrap={false}>
         {renderColorSelector("Select Leather Color", "primary")}
-        {needsSecondaryColor && (
+        {requiresSecondary && (
           renderColorSelector("Select 2nd Leather Color", "secondary")
         )}
       </InlineStack>
