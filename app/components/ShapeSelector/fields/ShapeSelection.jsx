@@ -7,31 +7,29 @@ const ShapeSelection = ({
   handleChange, 
   shape 
 }) => {
-  // Track if shape is selected based on presence in weights
   const isSelected = shape.value in (formState.selectedShapes || {});
   const currentShape = formState.selectedShapes?.[shape.value];
 
-  // Handle checkbox toggle
+  // Updated to work with new shape state structure
   const handleSelect = useCallback((checked) => {
-    handleChange('selectedShapes', {
+    handleChange('shape', {
       shape,
       checked,
-      weight: ''
+      weight: currentShape?.weight || ''  // Preserve existing weight if any
     });
-  }, [shape, handleChange]);
+  }, [shape, currentShape?.weight, handleChange]);
 
-  // Handle weight input
+  // Updated to use shape field update
   const handleWeightChange = useCallback((value) => {
     if (!isSelected) return;
     
-    handleChange('selectedShapes', {
-      shape,
-      checked: true,
-      weight: value
+    handleChange('shapeField', {
+      shapeId: shape.value,
+      field: 'weight',
+      value
     });
-  }, [shape, isSelected, handleChange]);
+  }, [shape.value, isSelected, handleChange]);
 
-  // Prevent scroll wheel from changing number input
   const handleWheel = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();

@@ -39,19 +39,18 @@ const EmbroideryField = ({
         options.push({
           label: number.label,
           value: number.value,
-          threadValue: thread.value,
           threadLabel: thread.label,
-          threadAbbreviation: thread.abbreviation,
-          threadColorTags: thread.colorTags,
           displayText: `${number.label} - ${thread.label}`,
           searchText: `${number.label} ${thread.label}`.toLowerCase(),
           thread: {
             value: thread.value,
             label: thread.label,
             abbreviation: thread.abbreviation,
-            isacordNumber: number.label,
-            isacordValue: number.value,
-            colorTags: thread.colorTags
+            colorTags: thread.colorTags,
+            isacordNumbers: [{
+              value: number.value,
+              label: number.label
+            }],
           }
         });
       });
@@ -72,22 +71,24 @@ const EmbroideryField = ({
   // Always prepare handlers
   const handleThreadSelect = useCallback((value) => {
     if (value === 'none') {
-      handleChange('shapeEmbroideryThreads', {
-        ...formState.shapeEmbroideryThreads,
-        [shape.value]: null
+      handleChange('shapeField', {
+        shapeId: shape.value,
+        field: 'embroideryThread',
+        value: null
       });
     } else {
       const selectedOption = threadOptions.find(opt => opt.value === value);
       if (selectedOption?.thread) {
-        handleChange('shapeEmbroideryThreads', {
-          ...formState.shapeEmbroideryThreads,
-          [shape.value]: selectedOption.thread
+        handleChange('shapeField', {
+          shapeId: shape.value,
+          field: 'embroideryThread',
+          value: selectedOption.thread
         });
       }
     }
     setSearchValue('');
     setIsEditing(false);
-  }, [shape.value, threadOptions, formState.shapeEmbroideryThreads, handleChange]);
+  }, [shape.value, threadOptions, handleChange]);
 
   const handleFocus = useCallback(() => setIsEditing(true), []);
   const handleBlur = useCallback(() => {
@@ -96,11 +97,11 @@ const EmbroideryField = ({
   }, []);
 
   // Get current display value for per-shape mode
-  const currentThread = formState.shapeEmbroideryThreads[shape.value];
+  const currentThread = formState.selectedShapes[shape.value]?.embroideryThread;
   const displayValue = isEditing
     ? searchValue
     : currentThread
-      ? `${currentThread.isacordNumber} - ${currentThread.label}`
+      ? `${currentThread.isacordNumbers[0].label} - ${currentThread.label}`
       : 'None';
 
   return (
@@ -118,7 +119,7 @@ const EmbroideryField = ({
     >
       <ComboboxList
         options={filteredOptions}
-        selectedValue={currentThread?.isacordValue}
+        selectedValue={currentThread?.isacordNumbers[0]?.value}
         onSelect={handleThreadSelect}
       />
     </Combobox>
