@@ -42,17 +42,20 @@ const ColorDesignation = ({
   }, [formState.leatherColors]);
 
   const handleColorChange = useCallback((value) => {
-    handleChange('colorDesignationLeathers', {
+    handleChange('shapeField', {
       shapeId: shape.value,
-      leather: value ? leatherOptions.find(opt => opt.value === value)?.color : null
+      field: 'colorDesignation',
+      value: value ? leatherOptions.find(opt => opt.value === value)?.color : null
     });
   }, [shape.value, handleChange, leatherOptions]);
+
+  const currentValue = formState.selectedShapes[shape.value]?.colorDesignation?.value || '';
 
   return (
     <Select
       options={leatherOptions}
       onChange={handleColorChange}
-      value={formState.colorDesignationLeathers[shape.value]?.value || ''}
+      value={currentValue}
     />
   );
 };

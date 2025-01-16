@@ -17,9 +17,9 @@ const StyleField = ({
         value: style.value,
         // Only include required style data
         style: {
-          abbreviation: style.abbreviation,
+          value: style.value,
           label: style.label,
-          value: style.value
+          abbreviation: style.abbreviation,
         }
       }))
     ];
@@ -28,10 +28,10 @@ const StyleField = ({
   // Handle style selection for independent mode
   const handleStyleChange = useCallback((value) => {
     if (!value) {
-      // If clearing selection
-      handleChange('selectedStyles', {
-        ...formState.selectedStyles,
-        [shape.value]: null
+      handleChange('shapeField', {
+        shapeId: shape.value,
+        field: 'style',
+        value: null
       });
       return;
     }
@@ -40,17 +40,18 @@ const StyleField = ({
     const selectedOption = styleOptions.find(opt => opt.value === value);
     if (!selectedOption?.style) return;
 
-    handleChange('selectedStyles', {
-      ...formState.selectedStyles,
-      [shape.value]: selectedOption.style
+    handleChange('shapeField', {
+      shapeId: shape.value,
+      field: 'style',
+      value: selectedOption.style
     });
-  }, [shape.value, styleOptions, formState.selectedStyles, handleChange]);
+  }, [shape.value, styleOptions, handleChange]);
 
   return (
     <Select
       options={styleOptions}
       onChange={handleStyleChange}
-      value={formState.selectedStyles[shape.value]?.value || ''}
+      value = { formState.selectedShapes[shape.value]?.style?.value || '' }
     />
   );
 };
