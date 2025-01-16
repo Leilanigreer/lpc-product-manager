@@ -1,42 +1,36 @@
-// app/hooks/useFormState.js
-
 import { useReducer, useCallback } from 'react';
+import { resolveRequirements } from '../lib/utils';
 
-// Action types for better maintainability
 const ACTION_TYPES = {
   UPDATE_COLLECTION: 'UPDATE_COLLECTION',
   UPDATE_STYLE_MODE: 'UPDATE_STYLE_MODE',
   UPDATE_GLOBAL_STYLE: 'UPDATE_GLOBAL_STYLE',
-  UPDATE_SHAPE_STYLES: 'UPDATE_SHAPE_STYLES',
   UPDATE_THREAD_MODE: 'UPDATE_THREAD_MODE',
-  UPDATE_GLOBAL_THREADS: 'UPDATE_GLOBAL_THREADS',
-  UPDATE_SHAPE_THREADS: 'UPDATE_SHAPE_THREADS',
-  UPDATE_WEIGHTS: 'UPDATE_WEIGHTS',
+  UPDATE_GLOBAL_EMBROIDERY: 'UPDATE_GLOBAL_EMBROIDERY',
+  UPDATE_STITCHING_THREADS: 'UPDATE_STITCHING_THREADS',
   UPDATE_LEATHER_COLORS: 'UPDATE_LEATHER_COLORS',
-  UPDATE_QCLASSIC: 'UPDATE_QCLASSIC',
+  UPDATE_SHAPE: 'UPDATE_SHAPE',
+  UPDATE_SHAPE_FIELD: 'UPDATE_SHAPE_FIELD',
   UPDATE_SIMPLE: 'UPDATE_SIMPLE'
 };
 
+const getDefaultStyleState = () => ({
+  styleMode: '',
+  globalStyle: null,
+});
+
 const formReducer = (state, action) => {
   const { type, payload, initialState } = action;
+  console.log('FormReducer - Action:', { type, payload });
 
   switch (type) {
     case ACTION_TYPES.UPDATE_COLLECTION: {
-      const { collection } = payload;
-      // Reset state but keep collection data
+      // Reset entire state except for collection data
       return {
         ...initialState,
-        collection: {
-          ...collection,
-          // Ensure all required collection fields are present
-          threadType: collection.threadType || 'NONE',
-          commonDescription: collection.commonDescription ?? true,
-          needsSecondaryLeather: collection.needsSecondaryLeather ?? false,
-          needsStitchingColor: collection.needsStitchingColor ?? false,
-          needsQClassicField: collection.needsQClassicField ?? false,
-          needsStyle: collection.needsStyle ?? false,
-          showInDropdown: collection.showInDropdown ?? true
-        }
+        collection: payload.collection,
+        ...getDefaultStyleState(),
+        selectedShapes: {} // Reset shapes when collection changes
       };
     }
 
@@ -45,9 +39,18 @@ const formReducer = (state, action) => {
       return {
         ...state,
         styleMode: mode,
-        // Reset style selections when changing modes
-        globalStyle: mode === 'global' ? state.globalStyle : null,
-        selectedStyles: mode === 'independent' ? {} : null
+        globalStyle: mode === 'global' ? null : state.globalStyle,
+        selectedShapes: mode === 'global'
+          ? Object.fromEntries(
+            Object.entries(state.selectedShapes).map(([key, shape]) => [
+              key,
+              {
+                ...shape,
+                style: null // Clear style data when switching to global mode
+              }
+            ])
+          )
+          : state.selectedShapes
       };
     }
 
@@ -55,94 +58,110 @@ const formReducer = (state, action) => {
       const { style } = payload;
       if (state.styleMode !== 'global') return state;
 
-      // Apply global style to all shapes
-      const selectedStyles = {};
-      Object.keys(state.weights || {}).forEach(shapeId => {
-        selectedStyles[shapeId] = style;
-      });
-
+      const requirements = resolveRequirements(state.collection, style);
+      
       return {
         ...state,
-        globalStyle: style,
-        selectedStyles
+        globalStyle: {
+          ...style,
+          requirements
+        }
       };
     }
 
     case ACTION_TYPES.UPDATE_THREAD_MODE: {
       const { threadType, mode } = payload;
-      return {
+      
+      const newState = {
         ...state,
         threadMode: {
           ...state.threadMode,
           [threadType]: mode
-        },
-        // Reset related thread selections
-        ...(threadType === 'embroidery' && {
-          globalEmbroideryThread: mode === 'global' ? null : state.globalEmbroideryThread,
-          shapeEmbroideryThreads: mode === 'perShape' ? {} : state.shapeEmbroideryThreads
-        })
-      };
-    }
-
-    case ACTION_TYPES.UPDATE_WEIGHTS: {
-      const { weights } = payload;
-      const newState = { ...state, weights };
-
-      // Handle removed shapes
-      const removedShapeIds = Object.keys(state.weights || {})
-        .filter(id => !weights[id]);
-
-      if (removedShapeIds.length > 0) {
-        // Clean up related state for removed shapes
-        removedShapeIds.forEach(shapeId => {
-          if (state.selectedStyles) delete newState.selectedStyles[shapeId];
-          if (state.shapeEmbroideryThreads) delete newState.shapeEmbroideryThreads[shapeId];
-          if (state.qClassicLeathers) delete newState.qClassicLeathers[shapeId];
-        });
-      }
-
-      // Handle new shapes
-      const newShapeIds = Object.keys(weights)
-        .filter(id => !state.weights?.[id]);
-
-      if (newShapeIds.length > 0) {
-        // Initialize new shapes with global values if applicable
-        if (state.styleMode === 'global' && state.globalStyle) {
-          newState.selectedStyles = { ...newState.selectedStyles };
-          newShapeIds.forEach(shapeId => {
-            newState.selectedStyles[shapeId] = state.globalStyle;
-          });
         }
+      };
 
-        if (state.threadMode?.embroidery === 'global' && state.globalEmbroideryThread) {
-          newState.shapeEmbroideryThreads = { ...newState.shapeEmbroideryThreads };
-          newShapeIds.forEach(shapeId => {
-            newState.shapeEmbroideryThreads[shapeId] = state.globalEmbroideryThread;
-          });
+      // Clear appropriate thread data when changing modes
+      if (threadType === 'embroidery') {
+        if (mode === 'perShape') {
+          newState.globalEmbroideryThread = null;
+        } else {
+          // Clear shape-specific thread data
+          newState.selectedShapes = Object.fromEntries(
+            Object.entries(state.selectedShapes).map(([key, shape]) => [
+              key,
+              {
+                ...shape,
+                embroideryThread: null
+              }
+            ])
+          );
         }
       }
 
       return newState;
     }
 
-    case ACTION_TYPES.UPDATE_LEATHER_COLORS: {
-      const { type: leatherType, color } = payload;
+    case ACTION_TYPES.UPDATE_GLOBAL_EMBROIDERY: {
+      return state.threadMode?.embroidery === 'global'
+        ? {
+            ...state,
+            globalEmbroideryThread: payload
+          }
+        : state;
+    }
+
+    case ACTION_TYPES.UPDATE_STITCHING_THREADS: {
       return {
         ...state,
-        leatherColors: {
-          ...state.leatherColors,
-          [leatherType]: color
-        }
+        stitchingThreads: payload
       };
     }
 
-    case ACTION_TYPES.UPDATE_QCLASSIC: {
-      const { shapeId, leather } = payload;
+    case ACTION_TYPES.UPDATE_LEATHER_COLORS: {
       return {
         ...state,
-        qClassicLeathers: {
-          ...state.qClassicLeathers,
-          [shapeId]: leather
+        leatherColors: payload
+      };
+    }
+
+    case ACTION_TYPES.UPDATE_SHAPE: {
+      const { shape, checked, weight } = payload;
+      const newSelectedShapes = { ...state.selectedShapes };
+
+      if (checked) {
+        // Add or update shape
+        newSelectedShapes[shape.value] = {
+          ...shape,
+          weight: weight || '',
+          style: state.styleMode === 'global' ? null : shape.style,
+          embroideryThread: state.threadMode?.embroidery === 'global' ? null : shape.embroideryThread,
+          colorDesignation: shape.colorDesignation
+        };
+      } else {
+        // Remove shape and its data
+        delete newSelectedShapes[shape.value];
+      }
+
+      return {
+        ...state,
+        selectedShapes: newSelectedShapes
+      };
+    }
+
+    case ACTION_TYPES.UPDATE_SHAPE_FIELD: {
+      const { shapeId, field, value } = payload;
+      const shape = state.selectedShapes[shapeId];
+      
+      if (!shape) return state;
+
+      return {
+        ...state,
+        selectedShapes: {
+          ...state.selectedShapes,
+          [shapeId]: {
+            ...shape,
+            [field]: value
+          }
         }
       };
     }
@@ -156,6 +175,7 @@ const formReducer = (state, action) => {
     }
 
     default:
+      console.warn('Unknown action type:', type);
       return state;
   }
 };
@@ -164,50 +184,59 @@ export const useFormState = (initialState) => {
   const [state, dispatch] = useReducer(formReducer, initialState);
 
   const handleChange = useCallback((field, value) => {
-    // Determine action type based on field and value
-    if (field === 'collection') {
-      dispatch({ 
-        type: ACTION_TYPES.UPDATE_COLLECTION, 
+    console.log('handleChange called with:', { field, value });
+
+    // Map field names to appropriate actions
+    const actionMap = {
+      collection: () => ({
+        type: ACTION_TYPES.UPDATE_COLLECTION,
         payload: { collection: value },
-        initialState 
-      });
-    } else if (field === 'styleMode') {
-      dispatch({ 
-        type: ACTION_TYPES.UPDATE_STYLE_MODE, 
-        payload: { mode: value } 
-      });
-    } else if (field === 'globalStyle') {
-      dispatch({ 
-        type: ACTION_TYPES.UPDATE_GLOBAL_STYLE, 
-        payload: { style: value } 
-      });
-    } else if (field === 'threadMode') {
-      dispatch({ 
-        type: ACTION_TYPES.UPDATE_THREAD_MODE, 
+        initialState
+      }),
+      styleMode: () => ({
+        type: ACTION_TYPES.UPDATE_STYLE_MODE,
+        payload: { mode: value }
+      }),
+      globalStyle: () => ({
+        type: ACTION_TYPES.UPDATE_GLOBAL_STYLE,
+        payload: { style: value }
+      }),
+      threadMode: () => ({
+        type: ACTION_TYPES.UPDATE_THREAD_MODE,
         payload: value // { threadType, mode }
-      });
-    } else if (field === 'weights') {
-      dispatch({ 
-        type: ACTION_TYPES.UPDATE_WEIGHTS, 
-        payload: { weights: value } 
-      });
-    } else if (field === 'leatherColors') {
-      dispatch({ 
-        type: ACTION_TYPES.UPDATE_LEATHER_COLORS, 
-        payload: value // { type, color }
-      });
-    } else if (field === 'qClassicLeathers') {
-      dispatch({ 
-        type: ACTION_TYPES.UPDATE_QCLASSIC, 
-        payload: value // { shapeId, leather }
-      });
-    } else {
-      dispatch({ 
-        type: ACTION_TYPES.UPDATE_SIMPLE, 
-        payload: { field, value } 
-      });
-    }
+      }),
+      globalEmbroideryThread: () => ({
+        type: ACTION_TYPES.UPDATE_GLOBAL_EMBROIDERY,
+        payload: value
+      }),
+      stitchingThreads: () => ({
+        type: ACTION_TYPES.UPDATE_STITCHING_THREADS,
+        payload: value
+      }),
+      leatherColors: () => ({
+        type: ACTION_TYPES.UPDATE_LEATHER_COLORS,
+        payload: value
+      }),
+      // Handle shape-specific updates
+      shape: () => ({
+        type: ACTION_TYPES.UPDATE_SHAPE,
+        payload: value // { shape, checked, weight }
+      }),
+      shapeField: () => ({
+        type: ACTION_TYPES.UPDATE_SHAPE_FIELD,
+        payload: value // { shapeId, field, value }
+      })
+    };
+
+    // Dispatch appropriate action or fall back to simple update
+    const action = actionMap[field]?.() || {
+      type: ACTION_TYPES.UPDATE_SIMPLE,
+      payload: { field, value }
+    };
+
+    dispatch(action);
   }, [initialState]);
 
   return [state, handleChange];
 };
+
