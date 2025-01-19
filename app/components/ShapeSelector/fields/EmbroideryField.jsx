@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Combobox, Listbox, Icon } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
 
-// Reusable ComboboxList component
 const ComboboxList = ({ options, selectedValue, onSelect }) => (
   options.length > 0 && (
     <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
@@ -30,7 +29,10 @@ const EmbroideryField = ({
   const [searchValue, setSearchValue] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
-  // Always prepare thread options
+  const shapeState = formState.allShapes[shape.value];
+  const currentThread = shapeState?.embroideryThread;
+
+  // Thread options preparation
   const threadOptions = useMemo(() => {
     const options = [{ label: "None", value: "none" }];
     
@@ -59,7 +61,7 @@ const EmbroideryField = ({
     return options;
   }, [embroideryThreadColors]);
 
-  // Always prepare filtered options
+  // Filtered options based on search
   const filteredOptions = useMemo(() => {
     const searchTerm = searchValue.toLowerCase();
     return threadOptions.filter(option => 
@@ -68,41 +70,37 @@ const EmbroideryField = ({
     );
   }, [threadOptions, searchValue]);
 
-  // Always prepare handlers
+  // Handle thread selection
   const handleThreadSelect = useCallback((value) => {
-    if (value === 'none') {
-      handleChange('shapeField', {
-        shapeId: shape.value,
-        field: 'embroideryThread',
-        value: null
-      });
-    } else {
-      const selectedOption = threadOptions.find(opt => opt.value === value);
-      if (selectedOption?.thread) {
-        handleChange('shapeField', {
-          shapeId: shape.value,
-          field: 'embroideryThread',
-          value: selectedOption.thread
-        });
-      }
-    }
+    handleChange('shapeField', {
+      shapeId: shape.value,
+      field: 'embroideryThread',
+      value: value === 'none' 
+        ? null 
+        : threadOptions.find(opt => opt.value === value)?.thread || null
+    });
     setSearchValue('');
     setIsEditing(false);
   }, [shape.value, threadOptions, handleChange]);
 
+  // Input field handlers
   const handleFocus = useCallback(() => setIsEditing(true), []);
   const handleBlur = useCallback(() => {
     setIsEditing(false);
     setSearchValue('');
   }, []);
 
-  // Get current display value for per-shape mode
-  const currentThread = formState.selectedShapes[shape.value]?.embroideryThread;
+  // Display value logic
   const displayValue = isEditing
     ? searchValue
     : currentThread
       ? `${currentThread.isacordNumbers[0].label} - ${currentThread.label}`
       : 'None';
+
+  // Early return after all hooks are defined
+  if (formState.threadMode?.embroidery !== 'perShape') {
+    return null;
+  }
 
   return (
     <Combobox
@@ -114,6 +112,7 @@ const EmbroideryField = ({
           onFocus={handleFocus}
           value={displayValue}
           autoComplete="off"
+          disabled={!shapeState?.isSelected}
         />
       }
     >

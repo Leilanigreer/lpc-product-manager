@@ -15,6 +15,9 @@ const ColorDesignation = ({
   formState,
   handleChange
 }) => {
+  const shapeState = formState.allShapes[shape.value];
+  const currentValue = shapeState?.colorDesignation?.value || '';
+
   const leatherOptions = useMemo(() => {
     const options = [];
     const { primary, secondary } = formState.leatherColors;
@@ -48,8 +51,6 @@ const ColorDesignation = ({
       value: value ? leatherOptions.find(opt => opt.value === value)?.color : null
     });
   }, [shape.value, handleChange, leatherOptions]);
-
-  const currentValue = formState.selectedShapes[shape.value]?.colorDesignation?.value || '';
 
   return (
     <Select
