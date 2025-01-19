@@ -6,6 +6,8 @@ const StyleField = ({
   formState,
   handleChange 
 }) => {
+  const shapeState = formState.allShapes[shape.value];
+
   // Generate style options from collection styles
   const styleOptions = useMemo(() => {
     const collectionStyles = formState.collection?.styles || [];
@@ -51,7 +53,8 @@ const StyleField = ({
     <Select
       options={styleOptions}
       onChange={handleStyleChange}
-      value = { formState.selectedShapes[shape.value]?.style?.value || '' }
+      value={shapeState?.style?.value || ''}
+      disabled={!shapeState?.isSelected}
     />
   );
 };

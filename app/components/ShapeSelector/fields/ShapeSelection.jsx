@@ -5,19 +5,21 @@ import { Box, Checkbox, TextField, InlineStack } from "@shopify/polaris";
 const ShapeSelection = ({ 
   formState, 
   handleChange, 
-  shape 
+  shape,
+  shapes 
 }) => {
-  const isSelected = shape.value in (formState.selectedShapes || {});
-  const currentShape = formState.selectedShapes?.[shape.value];
+  const shapeState = formState.allShapes[shape.value];
+  const isSelected = shapeState?.isSelected;
 
   // Updated to work with new shape state structure
   const handleSelect = useCallback((checked) => {
     handleChange('shape', {
       shape,
+      shapes,
       checked,
-      weight: currentShape?.weight || ''  // Preserve existing weight if any
+      weight: shapeState?.weight || ''  // Preserve existing weight if any
     });
-  }, [shape, currentShape?.weight, handleChange]);
+  }, [shape, shapes, shapeState?.weight, handleChange]);
 
   // Updated to use shape field update
   const handleWeightChange = useCallback((value) => {
@@ -52,7 +54,7 @@ const ShapeSelection = ({
           step="0.01"
           onWheel={handleWheel}
           onChange={handleWeightChange}
-          value={currentShape?.weight || ''}
+          value={shapeState?.weight || ''}
           placeholder="0.00"
           suffix="oz"
           disabled={!isSelected}
