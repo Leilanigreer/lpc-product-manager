@@ -1,10 +1,30 @@
 //app/lib/forms/formState.js
 
+export const createInitialShapeState = (shape) => ({
+  // Base properties from shape
+  value: shape.value,
+  label: shape.label,
+  abbreviation: shape.abbreviation,
+  shapeType: shape.shapeType,
+  
+  // Selection state
+  isSelected: false,
+  
+  // Requirement flags
+  needsColorDesignation: false,
+  
+  // Input values
+  weight: '',
+  style: null,
+  embroideryThread: null,
+  colorDesignation: null,
+});
+
 export const initialFormState = {
   // Required Base Fields
   collection: {
-    id: "",
-    title: "",
+    value: "",
+    label: "",
     handle: "",
     skuPrefix: "",
     threadType: "NONE", // NONE | EMBROIDERY | STITCHING
@@ -12,7 +32,7 @@ export const initialFormState = {
     commonDescription: true,
     needsSecondaryLeather: false,
     needsStitchingColor: false,
-    needsQClassicField: false,
+    needsColorDesignation: false,
     needsStyle: false,
     showInDropdown: true,
     admin_graphql_api_id: ""
@@ -24,10 +44,10 @@ export const initialFormState = {
   // Primary Leather (Always Required)
   leatherColors: {
     primary: {
-      id: "",
-      name: "",
+      value: "",
+      label: "",
       abbreviation: "",
-      image_url: "",
+      // image_url: "",
       colorTags: []
     },
     // Optional: Only used when collection.needsSecondaryLeather or style override requires it
@@ -35,23 +55,30 @@ export const initialFormState = {
   },
 
   // Style Configuration
-  styleMode: 'global', // 'global' | 'independent'
+  styleMode: 'independent', // 'global' | 'independent'
   globalStyle: null, // Only used when styleMode is 'global'
-  selectedStyles: {}, // Only used when styleMode is 'independent'
-
+  
   // Thread Configuration
   threadMode: {
-    embroidery: 'global', // 'global' | 'perShape'
+    embroidery: "", // 'global' | 'perShape'
   },
   
   // Thread Selections (based on collection.threadType)
   stitchingThreads: {}, // Can be multiple unless collection.threadType === 'STITCHING'
   globalEmbroideryThread: null, // Used when threadMode.embroidery === 'global'
-  shapeEmbroideryThreads: {}, // Used when threadMode.embroidery === 'perShape'
 
+  finalRequirements: {
+    needsSecondaryLeather: false,
+    needsStitchingColor: false,
+    needsColorDesignation: false,
+    titleTemplate: null,
+    seoTemplate: null,
+    handleTemplate: null,
+    validation: null,
+    namePattern: null,
+    skuPattern: null
+  },
+  
   // Shape Configuration
-  weights: {}, // Required for selected shapes
-
-  // Optional Configurations
-  qClassicLeathers: {} // Only used when collection.needsQClassicField is true
+  allShapes: {}, // Holds complete state for ALL shapes
 };
