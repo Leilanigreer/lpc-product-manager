@@ -2,10 +2,11 @@ import React, { useMemo } from 'react';
 import { Select, Card, InlineStack, Box, Text, BlockStack } from "@shopify/polaris";
 
 /**
- * @typedef {Object} StyleOverrides
- * @property {boolean|null} overrideSecondaryLeather
- * @property {boolean|null} overrideStitchingColor
- * @property {boolean|null} overrideColorDesignation
+ * Collection Selector component that handles collection selection and style mode configuration
+ * @param {Object} props
+ * @param {Array} props.shopifyCollections - Available collections from the database
+ * @param {Object} props.formState - Current form state including collection and style settings
+ * @param {Function} props.onChange - Callback when form state changes
  */
 
 const CollectionSelector = ({ 
@@ -40,6 +41,7 @@ const CollectionSelector = ({
   // Available styles for the current collection
   const styleOptions = useMemo(() => {
     if (!currentCollection?.styles?.length) {
+      console.warn(`No styles found for collection: ${currentCollection?.label}`);
       return [{ label: 'Select a style...', value: '' }];
     }
     
@@ -60,6 +62,9 @@ const CollectionSelector = ({
   };
 
   const handleStyleModeChange = (value) => {
+    if (value === 'independent') {
+      onChange('globalStyle', null);
+    }
     onChange('styleMode', value);
   };
 
