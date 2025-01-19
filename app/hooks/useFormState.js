@@ -1,5 +1,6 @@
 import { useReducer, useCallback } from 'react';
-import { calculateFinalRequirements } from '../lib/utils';
+import { calculateFinalRequirements, isPutter, isWoodType, findMatchingWoodStyles } from '../lib/utils';
+import { createInitialShapeState } from '../lib/forms/formState';
 
 const ACTION_TYPES = {
   UPDATE_COLLECTION: 'UPDATE_COLLECTION',
@@ -14,86 +15,126 @@ const ACTION_TYPES = {
   UPDATE_SIMPLE: 'UPDATE_SIMPLE'
 };
 
-const getDefaultStyleState = () => ({
-  styleMode: '',
-  globalStyle: null,
-});
-
 const formReducer = (state, action) => {
   const { type, payload, initialState } = action;
   console.log('FormReducer - Action:', { type, payload });
 
-  let newState;
-  
   switch (type) {
     case ACTION_TYPES.UPDATE_COLLECTION: {
-      newState = {
+      // Initialize all shapes with base state only
+      const allShapes = initialState.shapes.reduce((acc, shape) => ({
+        ...acc,
+        [shape.value]: createInitialShapeState(shape)
+      }), {});
+
+      // Create new state with collection and reset relevant fields
+      const newState = {
         ...initialState,
         collection: payload.collection,
-        ...getDefaultStyleState(),
-        selectedShapes: {}
+        styleMode: '',
+        globalStyle: null,
+        threadMode: { embroidery: '' },
+        globalEmbroideryThread: null,
+        stitchingThreads: {},
+        allShapes
       };
-      break;
+
+      // Calculate final requirements based on new collection
+      return {
+        ...newState,
+        finalRequirements: calculateFinalRequirements(newState)
+      };
     }
 
     case ACTION_TYPES.UPDATE_STYLE_MODE: {
       const { mode } = payload;
-      newState = {
+      const newAllShapes = { ...state.allShapes };
+      
+      // Update shape states based on new mode
+      Object.entries(newAllShapes).forEach(([shapeId, shape]) => {
+        if (!shape.isSelected) return;
+
+        // Reset style when switching modes
+        const updatedShape = {
+          ...shape,
+          style: mode === 'global' ? null : shape.style
+        };
+
+        // Only recalculate needsColorDesignation for selected shapes
+        if (mode === 'independent' && !isPutter(shape)) {
+          const matchingWoodStyles = findMatchingWoodStyles(
+            initialState.shapes,
+            Object.fromEntries(
+              Object.entries(newAllShapes)
+                .filter(([_, s]) => s.isSelected)
+            )
+          );
+
+          updatedShape.needsColorDesignation = 
+            state.finalRequirements?.needsColorDesignation ||
+            (isWoodType(shape) && 
+             Object.values(matchingWoodStyles).some(group => 
+               group.includes(shapeId)
+             ));
+        }
+
+        newAllShapes[shapeId] = updatedShape;
+      });
+
+      // Create new state
+      const newState = {
         ...state,
         styleMode: mode,
-        globalStyle: mode === 'global' ? null : state.globalStyle,
-        selectedShapes: mode === 'global'
-          ? Object.fromEntries(
-              Object.entries(state.selectedShapes).map(([key, shape]) => [
-                key,
-                { ...shape, style: null }
-              ])
-            )
-          : state.selectedShapes
+        globalStyle: mode === 'independent' ? null : state.globalStyle,
+        allShapes: newAllShapes
       };
-      break;
+
+      return {
+        ...newState,
+        finalRequirements: calculateFinalRequirements(newState)
+      };
     }
 
     case ACTION_TYPES.UPDATE_GLOBAL_STYLE: {
       if (state.styleMode !== 'global') return state;
-      
-      newState = {
+
+      return {
         ...state,
-        globalStyle: payload.style
+        globalStyle: payload.style,
+        finalRequirements: calculateFinalRequirements({
+          ...state,
+          globalStyle: payload.style
+        })
       };
-      break;
     }
 
     case ACTION_TYPES.UPDATE_THREAD_MODE: {
       const { threadType, mode } = payload;
-      
-      const newState = {
+      if (threadType !== 'embroidery') return state;
+
+      const newAllShapes = { ...state.allShapes };
+
+      if (mode === 'global') {
+        // Clear thread data from shapes when switching to global
+        Object.keys(newAllShapes).forEach(shapeId => {
+          if (newAllShapes[shapeId].isSelected) {
+            newAllShapes[shapeId] = {
+              ...newAllShapes[shapeId],
+              embroideryThread: null
+            };
+          }
+        });
+      }
+
+      return {
         ...state,
         threadMode: {
           ...state.threadMode,
           [threadType]: mode
-        }
+        },
+        globalEmbroideryThread: mode === 'perShape' ? null : state.globalEmbroideryThread,
+        allShapes: newAllShapes
       };
-
-      // Clear appropriate thread data when changing modes
-      if (threadType === 'embroidery') {
-        if (mode === 'perShape') {
-          newState.globalEmbroideryThread = null;
-        } else {
-          // Clear shape-specific thread data
-          newState.selectedShapes = Object.fromEntries(
-            Object.entries(state.selectedShapes).map(([key, shape]) => [
-              key,
-              {
-                ...shape,
-                embroideryThread: null
-              }
-            ])
-          );
-        }
-      }
-
-      return newState;
     }
 
     case ACTION_TYPES.UPDATE_GLOBAL_EMBROIDERY: {
@@ -121,43 +162,78 @@ const formReducer = (state, action) => {
 
     case ACTION_TYPES.UPDATE_SHAPE: {
       const { shape, checked, weight } = payload;
-      const newSelectedShapes = { ...state.selectedShapes };
+      const newAllShapes = { ...state.allShapes };
 
       if (checked) {
-        // Add or update shape
-        newSelectedShapes[shape.value] = {
-          ...shape,
+        // Initialize selected shape with current mode settings
+        newAllShapes[shape.value] = {
+          ...newAllShapes[shape.value],
+          isSelected: true,
           weight: weight || '',
-          style: state.styleMode === 'global' ? null : shape.style,
-          embroideryThread: state.threadMode?.embroidery === 'global' ? null : shape.embroideryThread,
-          colorDesignation: shape.colorDesignation
+          needsColorDesignation: !isPutter(shape) && (
+            state.finalRequirements?.needsColorDesignation ||
+            (state.styleMode === 'independent' && 
+             isWoodType(shape) && 
+             findMatchingWoodStyles(
+               initialState.shapes,
+               newAllShapes
+             )[shape.value]
+            )
+          )
         };
       } else {
-        // Remove shape and its data
-        delete newSelectedShapes[shape.value];
+        // Reset shape to initial state when unchecked
+        newAllShapes[shape.value] = createInitialShapeState(shape);
       }
 
       return {
         ...state,
-        selectedShapes: newSelectedShapes
+        allShapes: newAllShapes
       };
     }
 
     case ACTION_TYPES.UPDATE_SHAPE_FIELD: {
       const { shapeId, field, value } = payload;
-      const shape = state.selectedShapes[shapeId];
+      const shape = state.allShapes[shapeId];
       
-      if (!shape) return state;
+      if (!shape?.isSelected) return state;
+
+      const newAllShapes = {
+        ...state.allShapes,
+        [shapeId]: {
+          ...shape,
+          [field]: value
+        }
+      };
+
+      // Recalculate color designation when styles change
+      if (field === 'style' && state.styleMode === 'independent') {
+        Object.entries(newAllShapes).forEach(([currentShapeId, currentShape]) => {
+          if (!currentShape.isSelected || isPutter(currentShape)) return;
+
+          const matchingWoodStyles = findMatchingWoodStyles(
+            initialState.shapes,
+            Object.fromEntries(
+              Object.entries(newAllShapes)
+                .filter(([_, s]) => s.isSelected)
+            )
+          );
+
+          newAllShapes[currentShapeId] = {
+            ...currentShape,
+            needsColorDesignation: 
+              state.finalRequirements?.needsColorDesignation ||
+              (isWoodType(currentShape) && 
+               Object.values(matchingWoodStyles).some(group => 
+                 group.includes(currentShapeId)
+               ))
+          };
+        });
+      }
 
       return {
         ...state,
-        selectedShapes: {
-          ...state.selectedShapes,
-          [shapeId]: {
-            ...shape,
-            [field]: value
-          }
-        }
+        allShapes: newAllShapes
       };
     }
 
@@ -173,12 +249,6 @@ const formReducer = (state, action) => {
       console.warn('Unknown action type:', type);
       return state;
   }
-
-  const finalRequirements = calculateFinalRequirements(newState);
-  return {
-    ...newState,
-    finalRequirements
-  };
 };
 
 export const useFormState = (initialState) => {
@@ -196,7 +266,8 @@ export const useFormState = (initialState) => {
       }),
       styleMode: () => ({
         type: ACTION_TYPES.UPDATE_STYLE_MODE,
-        payload: { mode: value }
+        payload: { mode: value },
+        initialState
       }),
       globalStyle: () => ({
         type: ACTION_TYPES.UPDATE_GLOBAL_STYLE,
@@ -218,7 +289,6 @@ export const useFormState = (initialState) => {
         type: ACTION_TYPES.UPDATE_LEATHER_COLORS,
         payload: value
       }),
-      // Handle shape-specific updates
       shape: () => ({
         type: ACTION_TYPES.UPDATE_SHAPE,
         payload: value // { shape, checked, weight }
@@ -240,4 +310,3 @@ export const useFormState = (initialState) => {
 
   return [state, handleChange];
 };
-

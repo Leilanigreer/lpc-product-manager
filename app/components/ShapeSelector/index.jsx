@@ -4,24 +4,23 @@ import React, { useMemo } from 'react';
 import { Card, BlockStack, Text } from "@shopify/polaris";
 import ShapeGrid from './ShapeGrid';
 import { preventWheelChange } from './styles';
-
-/**
- * @typedef {Object} Shape
- * @property {string} value - Shape identifier
- * @property {string} label - Display name
- * @property {string} abbreviation - Short code
- * @property {string} shapeType - Shape type (PUTTER, WOOD, OTHER)
- */
+import ErrorBoundary from '../ErrorBoundary';
 
 /**
  * Shape configuration component managing shape selection and properties
- * Handles layout based on collection requirements and shape types
+ * Handles shape selection, weight input, and additional fields based on 
+ * collection requirements and shape types.
+ * 
  * @param {Object} props
- * @param {Shape[]} props.shapes - Available shapes to select from
- * @param {Array} props.embroideryThreadColors - Available thread colors
- * @param {Object} props.formState - Current form state
+ * @param {Array<Object>} props.shapes - Available shapes
+ *   @param {string} props.shapes[].value - Shape identifier
+ *   @param {string} props.shapes[].label - Display name
+ *   @param {string} props.shapes[].abbreviation - Shape code
+ *   @param {string} props.shapes[].shapeType - WOOD, PUTTER, or OTHER
+ *   @param {number} [props.shapes[].displayOrder] - Optional display order
+ * @param {Array<Object>} props.embroideryThreadColors - Available thread colors and their numbers
+ * @param {Object} props.formState - Current form state containing allShapes and configurations
  * @param {Function} props.handleChange - Form state update callback
- * @returns {React.ReactElement} Rendered shape selector
  */
 const ShapeSelector = ({ 
   shapes,
@@ -29,7 +28,7 @@ const ShapeSelector = ({
   formState, 
   handleChange
 }) => {
-  // Memoize props for ShapeGrid to prevent unnecessary re-renders
+  // Memoize props for ShapeGrid
   const gridProps = useMemo(() => ({
     shapes,
     embroideryThreadColors,
@@ -38,13 +37,15 @@ const ShapeSelector = ({
   }), [shapes, embroideryThreadColors, formState, handleChange]);
 
   return (
-    <Card>
-      <BlockStack gap="400">
-        <Text as="h2" variant="headingMd">Shape Configuration</Text>
-        <style>{preventWheelChange}</style>
-        <ShapeGrid {...gridProps} />
-      </BlockStack>
-    </Card>
+    <ErrorBoundary errorMessage="Error in shape configuration">
+      <Card>
+        <BlockStack gap="400">
+          <Text as="h2" variant="headingMd">Shape Configuration</Text>
+          <style>{preventWheelChange}</style>
+          <ShapeGrid {...gridProps} />
+        </BlockStack>
+      </Card>
+    </ErrorBoundary>
   );
 };
 
