@@ -87,6 +87,7 @@ export const validateCollection = (formState, debug = false) => {
         'id',
         'label',
         'abbreviation',
+        'stylePerShape'
       ];
 
       const isValid = requiredStyleFields.every(field => {
@@ -96,16 +97,6 @@ export const validateCollection = (formState, debug = false) => {
         }
         return hasField;
       });
-
-      // Validate validation object if present (but don't require it)
-      if (style.validation) {
-        if (typeof style.validation !== 'object' || 
-            !Array.isArray(style.validation.required) || 
-            !style.validation.errorMessages) {
-          if (debug) console.warn('Invalid validation structure in style');
-          return false;
-        }
-      }
 
       return isValid;
     });

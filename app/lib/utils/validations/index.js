@@ -9,6 +9,20 @@ import { validateFinalRequirements } from './requirementValidations';
 import { validateGlobalStyle, validateShapeStyles } from './styleValidations';
 
 /**
+ * Helper function to check if a validation result is valid
+ * Handles both simple boolean and complex validation results
+ */
+const isValidResult = (result) => {
+  if (result === undefined || result === null) return false;
+  if (typeof result === 'boolean') return result;
+  if (typeof result === 'object') {
+    // Handle validation objects that might have nested isValid property
+    return result.isValid === true && !result.error;
+  }
+  return false;
+};
+
+/**
  * Main validation function that checks all form requirements
  * @param {Object} formState - Current form state
  * @param {Object} options - Validation options
@@ -63,9 +77,10 @@ export const validateProductForm = (formState, { debug = false } = {}) => {
     }
 
     // Shape Validations
-    validations.hasValidShapes = validateShapes(formState, debug);
-    if (!validations.hasValidShapes) {
-      errors.push('Invalid shape configuration');
+    const shapeValidation = validateShapes(formState, debug);
+    validations.hasValidShapes = shapeValidation;
+    if (!isValidResult(shapeValidation)) {
+      errors.push(shapeValidation.error || 'Invalid shape configuration');
     }
 
     // Style Validations
@@ -111,7 +126,13 @@ export const validateProductForm = (formState, { debug = false } = {}) => {
   }
 
   const isValid = errors.length === 0 && 
-                 Object.values(validations).every(Boolean);
+                 Object.entries(validations).every(([key, value]) => {
+                   const valid = isValidResult(value);
+                   if (debug && !valid) {
+                     console.log(`Validation failed for: ${key}`, value);
+                   }
+                   return valid;
+                 });
 
   return {
     isValid,

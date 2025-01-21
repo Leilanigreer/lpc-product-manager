@@ -13,6 +13,17 @@ export const validateThreadStructure = (thread, threadType, debug = false) => {
     return false;
   }
 
+  // Handle explicit "no embroidery" case
+  if (threadType === 'embroidery' && thread.type === 'none') {
+    return true;
+  }
+
+  // Only validate thread structure if it's marked as an actual thread
+  if (!thread.isThread) {
+    if (debug) console.warn(`Thread object not marked as isThread:`, thread);
+    return false;
+  }
+
   // Validate base fields that both thread types share
   const baseFields = ['value', 'label', 'abbreviation'];
   const hasBaseFields = baseFields.every(field => {
@@ -90,9 +101,51 @@ export const validateStitchingThreads = (formState, debug = false) => {
 };
 
 /**
+ * Validates that a valid thread mode is selected
+ * @param {Object} formState - Current form state
+ * @param {boolean} debug - Whether to log debug messages
+ * @returns {boolean} True if valid thread mode is selected
+ */
+export const validateThreadMode = (formState, debug = false) => {
+  if (debug) {
+    console.group('Thread Mode Validation');
+    console.log('Checking thread mode:', formState?.threadMode);
+  }
+
+  // Ensure threadMode exists and has embroidery property
+  if (!formState?.threadMode?.embroidery) {
+    if (debug) {
+      console.warn('No valid thread mode selected');
+      console.groupEnd();
+    }
+    return false;
+  }
+
+  // Validate that mode is either 'global' or 'perShape'
+  const isValid = ['global', 'perShape'].includes(formState.threadMode.embroidery);
+  
+  if (debug) {
+    if (isValid) {
+      console.log('Thread mode validation passed');
+    } else {
+      console.warn('Invalid thread mode:', formState.threadMode.embroidery);
+    }
+    console.groupEnd();
+  }
+
+  return isValid;
+};
+
+/**
  * Validates global embroidery color object structure
  */
 export const validateGlobalEmbroideryThread = (formState, debug = false) => {
+
+  // First validate thread mode
+  if (!validateThreadMode(formState, debug)) {
+    return false;
+  }
+
   // Early return true if not using global embroidery mode
   if (formState?.threadMode?.embroidery !== 'global') {
     return true;
@@ -105,6 +158,11 @@ export const validateGlobalEmbroideryThread = (formState, debug = false) => {
  * Validates embroidery threads for all shapes that need them
  */
 export const validateShapeEmbroideryThreads = (formState, debug = false) => {
+  // First validate thread mode
+  if (!validateThreadMode(formState, debug)) {
+    return false;
+  }
+
   // Skip validation if not using per-shape embroidery
   if (formState?.threadMode?.embroidery !== 'perShape') {
     return true;
@@ -133,6 +191,12 @@ export const validateShapeEmbroideryThreads = (formState, debug = false) => {
  * Validates all thread-related requirements
  */
 export const validateThreads = (formState, debug = false) => {
+  // First validate thread mode
+  if (!validateThreadMode(formState, debug)) {
+    if (debug) console.warn('Thread mode validation failed');
+    return false;
+  }
+
   // Always validate stitching threads
   if (!validateStitchingThreads(formState, debug)) {
     if (debug) console.warn('Stitching threads validation failed');
