@@ -103,9 +103,11 @@ model Font {
 }
 
 enum ShapeType {
-  WOOD
-  PUTTER
-  OTHER
+  DRIVER // Base price point
+  WOOD // -10 from base
+  HYBRID // -15 from base
+  PUTTER // Fixed price or base, whichever is higher
+  OTHER // Keep for flexibility
 }
 
 model Shape {
@@ -113,10 +115,9 @@ model Shape {
   name           String
   displayOrder   Int              @default(0) // Controls ordering
   abbreviation   String?
-  shapeType      ShapeType        @default(OTHER) // For wood/putter logic
+  shapeType      ShapeType        @default(OTHER) // For wood/putter & pricing logic
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
-  productPrices  ProductPrice[]
   ProductDataLPC ProductDataLPC[]
 }
 
@@ -131,7 +132,6 @@ model Style {
   name               String
   abbreviation       String
   url_id             String?
-  stylePerShape      Boolean           @default(true)
   useOppositeLeather Boolean           @default(false) // For "Fat" style logic
   leatherPhrase      String? // For "50/50" style phrase
   namePattern        StyleNamePattern  @default(STANDARD)
@@ -191,10 +191,11 @@ model ShopifyCollection {
   createdAt               DateTime               @default(now())
   updatedAt               DateTime               @updatedAt
   admin_graphql_api_id    String
-  productPrices           ProductPrice[]
   ProductDataLPC          ProductDataLPC[]
   styles                  StyleCollection[]
   titleFormat             CollectionTitleFormat?
+  PriceTier               PriceTier?             @relation(fields: [priceTierId], references: [id])
+  priceTierId             String?                @unique
 
   @@map("ShopifyCollections")
 }
@@ -222,16 +223,27 @@ model CollectionTitleFormat {
   @@index([collectionId])
 }
 
-model ProductPrice {
-  id                  String             @id @default(cuid())
-  shopifyPrice        Decimal            @db.Decimal(10, 2)
-  higherPrice         Decimal            @db.Decimal(10, 2)
-  shapeId             String
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  shopifyCollectionId String?
-  shape               Shape              @relation(fields: [shapeId], references: [id])
-  shopifyCollection   ShopifyCollection? @relation(fields: [shopifyCollectionId], references: [id])
+model PriceTier {
+  id               String                @id @default(cuid())
+  name             String // e.g., "Classic Base", "Quilted Base"
+  shopifyPrice     Decimal               @db.Decimal(10, 2) // Base price for Shopify
+  marketplacePrice Decimal               @db.Decimal(10, 2) // Base price for other marketplaces
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  collection       ShopifyCollection?
+  adjustments      ShapeTypeAdjustment[]
+}
+
+model ShapeTypeAdjustment {
+  id                String    @id @default(cuid())
+  tierId            String
+  tier              PriceTier @relation(fields: [tierId], references: [id])
+  shapeType         ShapeType // DRIVER, WOOD, HYBRID, PUTTER
+  shopifyAdjustment Decimal   @db.Decimal(10, 2) // Adjustment for Shopify
+  marketAdjustment  Decimal   @db.Decimal(10, 2) // Adjustment for marketplaces
+  isBasePrice       Boolean   @default(false) // For fixed-price types like putters
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model ProductDataLPC {
