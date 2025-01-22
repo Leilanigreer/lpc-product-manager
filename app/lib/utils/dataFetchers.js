@@ -156,7 +156,6 @@ export const getShopifyCollections = async () => {
                 name: true,
                 abbreviation: true,
                 url_id: true,
-                stylePerShape: true,
                 useOppositeLeather: true,
                 leatherPhrase: true,
                 namePattern: true,
@@ -173,14 +172,11 @@ export const getShopifyCollections = async () => {
             validation: true
           }
         },
-        productPrices: {
-          select: {
-            id: true,
-            shopifyPrice: true,
-            higherPrice: true, 
-            shapeId: true
+        PriceTier: {
+          include: {
+            adjustments: true
           }
-        }
+        },
       }
     });
     
@@ -203,7 +199,7 @@ export const getShopifyCollections = async () => {
       showInDropdown,
       styles,
       titleFormat,
-      productPrices
+      PriceTier
     }) => ({
       value: id,
       shopifyId,
@@ -227,7 +223,6 @@ export const getShopifyCollections = async () => {
         label: sc.style.name,
         abbreviation: sc.style.abbreviation,
         url_id: sc.style.url_id,
-        stylePerShape: sc.style.stylePerShape,
         useOppositeLeather: sc.style.useOppositeLeather,
         leatherPhrase: sc.style.leatherPhrase,
         namePattern: sc.style.namePattern,
@@ -249,12 +244,18 @@ export const getShopifyCollections = async () => {
         handleTemplate: titleFormat.handleTemplate,
         validation: titleFormat.validation
       }: null,
-      prices: productPrices.map(price => ({
-        value: price.id,
-        shopifyPrice: parseFloat(price.shopifyPrice),
-        higherPrice: parseFloat(price.higherPrice),
-        shapeId: price.shapeId
-      })) 
+      priceTier: PriceTier ? {
+        value: PriceTier.id,
+        name: PriceTier.name,
+        shopifyPrice: parseFloat(PriceTier.shopifyPrice),
+        marketplacePrice: parseFloat(PriceTier.marketplacePrice),
+        adjustments: PriceTier.adjustments.map(adj => ({
+          shapeType: adj.shapeType,
+          shopifyAdjustment: parseFloat(adj.shopifyAdjustment),
+          marketAdjustment: parseFloat(adj.marketAdjustment),
+          isBasePrice: adj.isBasePrice,
+        }))
+      } : null,
     }));
   } catch (error) {
     console.error("Error Fetching Shopify Collections from Prisma", error);
@@ -501,12 +502,11 @@ export const getStyles = async () => {
       }
     });
     
-    return styles.map(({ id, name, abbreviation, url_id, stylePerShape, collections }) => ({
+    return styles.map(({ id, name, abbreviation, url_id, collections }) => ({
       value: id,
       label: name,
       abbreviation,
       url_id,
-      stylePerShape,
       collections: collections.map(sc => ({
         handle: sc.collection.handle,
         needsSecondaryLeather: sc.overrideSecondaryLeather ?? sc.collection.needsSecondaryLeather,
@@ -585,32 +585,6 @@ export const getCollectionTitleFormats = async () => {
     }));
   } catch (error) {
     console.error("Error fetching collection title formats:", error);
-    throw error;
-  }
-};
-
-// This fetcher is now optional since the data is included in getShopifyCollections
-export const getProductPrices = async () => {
-  try {
-    const productPrices = await prisma.ProductPrice.findMany({
-      select: {
-        id: true,
-        shopifyPrice: true,
-        higherPrice: true,
-        shapeId: true,
-        shopifyCollectionId: true
-      }
-    });
-    
-    return productPrices.map(({ id, shopifyPrice, higherPrice, shapeId, shopifyCollectionId }) => ({
-      value: id,
-      shopifyPrice: parseFloat(shopifyPrice), // Ensure price is a number
-      higherPrice: parseFloat(higherPrice), // Ensure price is a number
-      shapeId,
-      shopifyCollectionId,
-    }));
-  } catch (error) {
-    console.error("Error fetching product prices:", error);
     throw error;
   }
 };
