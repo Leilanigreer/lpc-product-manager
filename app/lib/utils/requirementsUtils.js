@@ -85,6 +85,8 @@ export const calculateFinalRequirements = (formState) => {
       formState.collection?.titleFormat?.validation;
     templates.namePattern = formState.globalStyle.overrideNamePattern ??
       formState.collection?.defaultStyleNamePattern;
+    templates.leatherPhrase = formState.globalStyle.leatherPhrase ?? 'leather as';
+    templates.useOppositeLeather = formState.globalStyle.useOppositeLeather ?? false;
     templates.skuPattern = formState.globalStyle.skuPattern ??
       formState.collection?.skuPattern;
   } else {
@@ -94,6 +96,8 @@ export const calculateFinalRequirements = (formState) => {
     templates.handleTemplate = formState.collection?.titleFormat?.handleTemplate;
     templates.validation = formState.collection?.titleFormat?.validation;
     templates.namePattern = formState.collection?.defaultStyleNamePattern;
+    templates.leatherPhrase = 'leather as';  // Collection-level default
+    templates.useOppositeLeather = false;    // Collection-level default
     templates.skuPattern = formState.collection?.skuPattern;
   }
 
