@@ -13,9 +13,12 @@ const VariantRow = memo(({ variant, index }) => (
       backgroundColor: index % 2 === 0 ? '#f6f6f7' : 'white'
     }}>
       <BlockStack gap="100">
-        <Text variant="bodyMd">{variant.variantName}</Text>
+        <Text variant="bodyMd">
+          {variant.variantName} 
+        </Text>
         {isDevelopment() && (
           <>
+          <Text variant="bodySm" color="subdued"> (Position: {variant.position})</Text>
             <Text variant="bodySm" color="subdued">
               SKU: {variant.sku}
             </Text>
@@ -34,6 +37,7 @@ const VariantRow = memo(({ variant, index }) => (
     </div>
   </BlockStack>
 ));
+
 VariantRow.displayName = 'VariantRow';
 
 const VariantGroup = memo(({ variantGroup, title }) => (
@@ -53,14 +57,15 @@ const VariantGroup = memo(({ variantGroup, title }) => (
 VariantGroup.displayName = 'VariantGroup';
 
 const ProductVariantCheck = ({ productData }) => {
-  if (!productData) {
-    return null;
-  }
+  if (!productData?.variants?.length) return null;
+
+  // Safe filtering with type check
+  const baseVariants = productData.variants.filter(v => v && !v.isCustom)
+    .sort((a, b) => a.position - b.position);
+  const customVariants = productData.variants.filter(v => v && v.isCustom)
+    .sort((a, b) => a.position - b.position);
 
   const { title, mainHandle, productType, seoTitle, descriptionHTML, seoDescription, tags, variants } = productData;
-
-  const baseVariants = variants.filter(v => !v.isCustom);
-  const customVariants = variants.filter(v => v.isCustom);
 
   return (
     <BlockStack gap="400">
