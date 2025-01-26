@@ -6,6 +6,7 @@ export const createInitialShapeState = (shape) => ({
   label: shape.label,
   abbreviation: shape.abbreviation,
   shapeType: shape.shapeType,
+  displayOrder: shape.displayOrder,
   
   // Selection state
   isSelected: false,
@@ -25,18 +26,9 @@ export const initialFormState = {
   collection: {
     value: "",
     label: "",
-    handle: "",
-    skuPrefix: "",
     threadType: "NONE", // NONE | EMBROIDERY | STITCHING
-    description: "",
-    commonDescription: true,
-    needsSecondaryLeather: false,
-    needsStitchingColor: false,
-    needsColorDesignation: false,
-    needsStyle: false,
-    showInDropdown: true,
-    admin_graphql_api_id: ""
   },
+
   selectedFont: "",
   selectedOfferingType: "",
   limitedEditionQuantity: "",
@@ -55,12 +47,12 @@ export const initialFormState = {
   },
 
   // Style Configuration
-  styleMode: 'independent', // 'global' | 'independent'
+  styleMode: null, // 'global' | 'independent'
   globalStyle: null, // Only used when styleMode is 'global'
   
   // Thread Configuration
   threadMode: {
-    embroidery: "", // 'global' | 'perShape'
+    embroidery: null, // 'global' | 'perShape'
   },
   
   // Thread Selections (based on collection.threadType)
@@ -81,4 +73,5 @@ export const initialFormState = {
   
   // Shape Configuration
   allShapes: {}, // Holds complete state for ALL shapes
+  shapes: []
 };
