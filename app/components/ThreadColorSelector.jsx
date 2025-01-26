@@ -106,8 +106,11 @@ const ThreadColorSelector = ({
           label: selectedOption.threadLabel,
           abbreviation: selectedOption.threadAbbreviation,
           colorTags: selectedOption.threadColorTags,
-          isacordNumber: selectedOption.label,
-          isacordValue: selectedOption.value
+          isacordNumbers: [{
+            value: selectedOption.value,
+            label: selectedOption.label
+          }],
+          isThread: true
         });
       }
     }
@@ -124,8 +127,11 @@ const ThreadColorSelector = ({
       label: selectedOption.threadLabel,
       abbreviation: selectedOption.threadAbbreviation,
       colorTags: selectedOption.threadColorTags,
-      amannNumber: selectedOption.label,
-      amannValue: selectedOption.value
+      amannNumbers: [{
+        value: selectedOption.value,
+        label: selectedOption.label
+      }],
+      isThread: true
     };
 
     // In single mode, replace existing selection. In multi mode, add to selection
@@ -168,8 +174,8 @@ const ThreadColorSelector = ({
       return "Shape-specific threads enabled";
     }
     const thread = formState.globalEmbroideryThread;
-    return thread?.isacordNumber 
-      ? `${thread.isacordNumber} - ${thread.label}`
+    return thread?.isacordNumbers[0].label 
+      ? `${thread.isacordNumbers[0].label} - ${thread.label}`
       : "Search by number or color name";
   };
 
@@ -205,7 +211,7 @@ const ThreadColorSelector = ({
             >
               <ComboboxList 
                 options={filteredIsacordOptions}
-                selectedValue={isIndependentMode ? 'independent' : formState.globalEmbroideryThread?.isacordNumber}
+                selectedValue={isIndependentMode ? 'independent' : formState.globalEmbroideryThread?.isacordNumbers[0].label}
                 onSelect={handleIsacordSelect}
               />
             </Combobox>
@@ -247,8 +253,8 @@ const ThreadColorSelector = ({
                 key={thread.value} 
                 onRemove={() => handleRemoveStitchingThread(thread.value)}
               >
-                {thread.amannNumber && thread.label 
-                  ? `${thread.amannNumber} - ${thread.label}`
+                {thread.amannNumbers[0].label && thread.label 
+                  ? `${thread.amannNumbers[0].label} - ${thread.label}`
                   : "Unknown thread"}
               </Tag>
             ))}
