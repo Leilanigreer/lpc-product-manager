@@ -1,55 +1,81 @@
 // app/lib/utils/versionUtils.js
 
 /**
- * Generates base parts for SKU based on collection and colors
- * @param {Object} collection - Collection object from database
- * @param {Object} colors - Color selections for the product
+ * Evaluates a pattern with provided data context
+ * @param {string} pattern - Pattern string containing placeholders
+ * @param {Object} context - Data to fill placeholders
+ * @returns {string} Evaluated pattern
+ */
+const evaluatePattern = (pattern, context) => {
+  if (!pattern) return '';
+  
+  return pattern.replace(/\{([^}]+)\}/g, (match, path) => {
+    const value = path.split('.').reduce((obj, key) => {
+      // Handle array index notation, e.g., stitchingThreads[0]
+      const arrayMatch = key.match(/(\w+)\[(\d+)\]/);
+      if (arrayMatch) {
+        const [, arrayName, index] = arrayMatch;
+        return obj?.[arrayName]?.[parseInt(index)];
+      }
+      return obj?.[key];
+    }, context);
+
+    if (!value) {
+      console.warn(`Missing value for path: ${path}`);
+      return '';
+    }
+    return value;
+  });
+};
+
+/**
+ * Generates base parts for SKU based on collection pattern and form data
+ * @param {Object} formState - Current form state including finalRequirements
  * @returns {Array<string>} Array of SKU parts
  */
-export const generateBaseParts = (selectedCollection, colors) => {
-  if (!selectedCollection?.value || !colors) {
-    console.warn('Missing required data for SKU parts generation:', {
-      hasCollectionId: !!selectedCollection?.value,
-      hasColors: !!colors
-    });
+export const generateBaseParts = (formState) => {
+  const { finalRequirements } = formState;
+  
+  if (!finalRequirements) {
+    console.warn('Missing finalRequirements in form state');
     return [];
   }
 
-  const {
-    leatherColor1,
-    leatherColor2,
-    stitchingThreadColor,
-    embroideryThreadColor
-  } = colors;
-
-  if (!selectedCollection.skuPrefix) {
-    console.error('Collection missing SKU prefix:', selectedCollection.value);
-    return [];
-  }
-
-  const baseParts = [selectedCollection.skuPrefix];
-
-  baseParts.push(leatherColor1?.abbreviation);
-
-  if (selectedCollection.needsSecondaryLeather) {
-    baseParts.push(leatherColor2?.abbreviation);
-  }
-
-  if (selectedCollection.needsStitchingColor) {
-    switch (selectedCollection.threadType) {
-      case 'EMBROIDERY':
-        // Use number from new thread data structure
-        const embroideryAbbrev = embroideryThreadColor?.number || embroideryThreadColor?.abbreviation;
-        baseParts.push(embroideryAbbrev);
-        break;
-      case 'STITCHING':
-        const stitchingAbbrev = stitchingThreadColor?.number || stitchingThreadColor?.abbreviation;
-        baseParts.push(stitchingAbbrev);
-        break;
+  try {
+    const pattern = finalRequirements.skuPattern;
+    
+    if (!pattern) {
+      console.error('No SKU pattern found in finalRequirements');
+      return [];
     }
-  }
 
-  return baseParts.filter(Boolean);
+    // Create context object matching the pattern structure
+    const context = {
+      leatherColors: {
+        primary: formState.leatherColors?.primary,
+        secondary: formState.leatherColors?.secondary
+      },
+      stitchingThreadColor: formState.stitchingThreads?.['thread-value'],
+      globalEmbroideryThread: formState.globalEmbroideryThread
+    };
+
+    // Evaluate the pattern
+    const generatedSku = evaluatePattern(pattern, context);
+    
+    // Split into parts and filter out empty segments
+    const parts = generatedSku.split('-').filter(Boolean);
+
+    if (parts.length === 0) {
+      console.error('Generated SKU parts are empty');
+      return [];
+    }
+
+    return parts;
+
+  } catch (error) {
+    console.error('Error generating SKU parts:', error);
+    return [];
+  }
 };
 
 /**
@@ -58,21 +84,29 @@ export const generateBaseParts = (selectedCollection, colors) => {
  * @param {Array<Object>} existingProducts - Existing products to check against
  * @returns {number|null} Version number or null if no version needed
  */
-export const calculateVersionFormParts = (parts, existingProducts) => {
-  if (!existingProducts?.length) {
+export const calculateVersionFromParts = (parts, existingProducts) => {
+  if (!Array.isArray(parts) || !Array.isArray(existingProducts)) {
+    console.warn('Invalid inputs for version calculation');
     return null;
   }
 
-  const baseSKU = parts.filter(Boolean).join('-');
+  const baseSku = parts.join('-');
   
-  const matchingProduct = existingProducts.find(product =>
-    product.baseSKU === baseSKU ||
-    product.baseSKU.startsWith(`${baseSKU}-V`)
+  // Filter products matching this collection
+  const matchingProducts = existingProducts.filter(product => 
+    product.baseSKU === baseSku || 
+    product.baseSKU.startsWith(`${baseSku}-V`)
   );
 
-  if (!matchingProduct) return null;
+  if (matchingProducts.length === 0) return null;
 
-  const regex = /-V(\d+)$/;
-  const match = matchingProduct.baseSKU.match(regex);
-  return match ? parseInt(match[1]) + 1 : 2;
+  // Extract versions and find highest
+  const versions = matchingProducts
+    .map(product => {
+      const match = product.baseSKU.match(/-V(\d+)$/);
+      return match ? parseInt(match[1]) : 1;
+    })
+    .filter(v => !isNaN(v));
+
+  return versions.length > 0 ? Math.max(...versions) + 1 : 2;
 };
