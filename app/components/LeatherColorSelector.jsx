@@ -1,5 +1,5 @@
 import React from 'react';
-import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
+import { getGoogleDriveUrl } from '../lib/utils';
 import { Card, InlineStack, Box, Select, BlockStack, Text, Image } from "@shopify/polaris";
 
 const LeatherColorSelector = ({ 

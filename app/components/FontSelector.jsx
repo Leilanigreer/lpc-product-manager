@@ -1,7 +1,7 @@
 // app/components/FontSelector.jsx
 
 import React, { useMemo } from 'react';
-import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
+import { getGoogleDriveUrl } from '../lib/utils';
 import { Card, InlineStack, Box, Select, BlockStack, Text, Image, Spinner } from "@shopify/polaris";
 
 const FontSelector = ({ fonts, formState, onChange }) => {
