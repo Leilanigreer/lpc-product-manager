@@ -26,7 +26,7 @@ const ShapeSelection = ({
     if (!isSelected) return;
     
     handleChange('shapeField', {
-      shapeId: shape.value,
+      shapeValue: shape.value,
       field: 'weight',
       value
     });

@@ -46,7 +46,7 @@ const ColorDesignation = ({
 
   const handleColorChange = useCallback((value) => {
     handleChange('shapeField', {
-      shapeId: shape.value,
+      shapeValue: shape.value,
       field: 'colorDesignation',
       value: value ? leatherOptions.find(opt => opt.value === value)?.color : null
     });
