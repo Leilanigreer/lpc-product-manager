@@ -22,6 +22,9 @@ const StyleField = ({
           value: style.value,
           label: style.label,
           abbreviation: style.abbreviation,
+          useOppositeLeather: style.useOppositeLeather,
+          leatherPhrase: style.leatherPhrase,
+          namePattern: style.namePattern
         }
       }))
     ];
@@ -31,7 +34,7 @@ const StyleField = ({
   const handleStyleChange = useCallback((value) => {
     if (!value) {
       handleChange('shapeField', {
-        shapeId: shape.value,
+        shapValue: shape.value,
         field: 'style',
         value: null
       });
@@ -43,7 +46,7 @@ const StyleField = ({
     if (!selectedOption?.style) return;
 
     handleChange('shapeField', {
-      shapeId: shape.value,
+      shapeValue: shape.value,
       field: 'style',
       value: selectedOption.style
     });

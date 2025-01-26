@@ -2,6 +2,9 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Combobox, Listbox, Icon } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
 
+export const NO_EMBROIDERY = 'NO_EMBROIDERY';
+
+
 const ComboboxList = ({ options, selectedValue, onSelect }) => (
   options.length > 0 && (
     <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
@@ -34,7 +37,14 @@ const EmbroideryField = ({
 
   // Thread options preparation
   const threadOptions = useMemo(() => {
-    const options = [{ label: "None", value: "none" }];
+    const options = [
+      { 
+        label: "No Embroidery", 
+        value: NO_EMBROIDERY,
+        displayText: "No Embroidery (Skip)",
+        searchText: "no embroidery skip none"  
+      }
+    ];
     
     embroideryThreadColors?.forEach(thread => {
       thread.isacordNumbers?.forEach(number => {
@@ -53,6 +63,7 @@ const EmbroideryField = ({
               value: number.value,
               label: number.label
             }],
+            isThread: true
           }
         });
       });
@@ -65,7 +76,7 @@ const EmbroideryField = ({
   const filteredOptions = useMemo(() => {
     const searchTerm = searchValue.toLowerCase();
     return threadOptions.filter(option => 
-      option.value === 'none' || 
+      option.value === NO_EMBROIDERY || 
       option.searchText.includes(searchTerm)
     );
   }, [threadOptions, searchValue]);
@@ -73,10 +84,10 @@ const EmbroideryField = ({
   // Handle thread selection
   const handleThreadSelect = useCallback((value) => {
     handleChange('shapeField', {
-      shapeId: shape.value,
+      shapeValue: shape.value,
       field: 'embroideryThread',
-      value: value === 'none' 
-        ? null 
+      value: value === NO_EMBROIDERY 
+        ? { type: 'none', value: NO_EMBROIDERY } 
         : threadOptions.find(opt => opt.value === value)?.thread || null
     });
     setSearchValue('');
@@ -93,9 +104,11 @@ const EmbroideryField = ({
   // Display value logic
   const displayValue = isEditing
     ? searchValue
-    : currentThread
-      ? `${currentThread.isacordNumbers[0].label} - ${currentThread.label}`
-      : 'None';
+    : currentThread?.type === 'none'
+      ? 'No Embroidery'
+      : currentThread?.isacordNumbers?.[0]
+        ? `${currentThread.isacordNumbers[0].label} - ${currentThread.label}`
+        : 'Select embroidery...';
 
   // Early return after all hooks are defined
   if (formState.threadMode?.embroidery !== 'perShape') {
@@ -111,6 +124,7 @@ const EmbroideryField = ({
           onBlur={handleBlur}
           onFocus={handleFocus}
           value={displayValue}
+          placeholder="Select embroidery..."
           autoComplete="off"
           disabled={!shapeState?.isSelected}
         />
@@ -118,7 +132,11 @@ const EmbroideryField = ({
     >
       <ComboboxList
         options={filteredOptions}
-        selectedValue={currentThread?.isacordNumbers[0]?.value}
+        selectedValue={
+          currentThread?.type === 'none' 
+            ? NO_EMBROIDERY 
+            : currentThread?.isacordNumbers?.[0]?.value
+        }       
         onSelect={handleThreadSelect}
       />
     </Combobox>
