@@ -156,7 +156,7 @@ export const canGenerateProductData = (formState) => {
 export * from './baseValidations';
 export * from './collectionValidations';
 export * from './colorValidations';
+export * from './requirementValidations';
+export * from './shapeValidations';
 export * from './styleValidations';
 export * from './threadValidations';
-export * from './shapeValidations';
-export * from './requirementValidations';

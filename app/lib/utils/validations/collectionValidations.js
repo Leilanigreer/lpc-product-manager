@@ -53,27 +53,6 @@ export const validateCollection = (formState, debug = false) => {
 
   if (!hasValidBooleanFlags) return false;
 
-  // Validate prices array
-  if (!Array.isArray(collection.prices)) {
-    if (debug) console.warn('Prices is not an array');
-    return false;
-  }
-
-  const hasValidPrices = collection.prices.every(price => {
-    const isValid = 
-      price.value &&
-      typeof price.shopifyPrice === 'number' &&
-      typeof price.higherPrice === 'number' &&
-      price.shapeId;
-    
-    if (!isValid && debug) {
-      console.warn('Invalid price object:', price);
-    }
-    return isValid;
-  });
-
-  if (!hasValidPrices) return false;
-
   // Validate styles array if needsStyle is true
   if (collection.needsStyle) {
     if (!Array.isArray(collection.styles)) {
