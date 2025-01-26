@@ -1,5 +1,5 @@
 import { useReducer, useCallback } from 'react';
-import { calculateFinalRequirements, isPutter, isWoodType, findMatchingWoodStyles } from '../lib/utils';
+import { calculateFinalRequirements, isPutter, isWoodType, findMatchingWoodStyles, extractExistingProducts, filterProductsByCollection } from '../lib/utils';
 import { createInitialShapeState } from '../lib/forms/formState';
 
 const ACTION_TYPES = {
@@ -21,22 +21,31 @@ const formReducer = (state, action) => {
 
   switch (type) {
     case ACTION_TYPES.UPDATE_COLLECTION: {
+      const { collection, productDataLPC } = payload;
+      console.log('UPDATE_COLLECTION payload:', payload);
+      console.log('Collection being set:', collection);
+    
       // Initialize all shapes with base state only
       const allShapes = initialState.shapes.reduce((acc, shape) => ({
         ...acc,
         [shape.value]: createInitialShapeState(shape)
       }), {});
 
+      // Process existing products during collection selection
+      const existingProducts = extractExistingProducts(productDataLPC);
+      const filteredProducts = filterProductsByCollection(existingProducts, collection.value);
+
       // Create new state with collection and reset relevant fields
       const newState = {
         ...initialState,
-        collection: payload.collection,
+        collection,
         styleMode: '',
         globalStyle: null,
         threadMode: { embroidery: '' },
         globalEmbroideryThread: null,
         stitchingThreads: {},
-        allShapes
+        allShapes,
+        existingProducts: filteredProducts // Store processed products in state
       };
 
       // Calculate final requirements based on new collection
@@ -51,44 +60,60 @@ const formReducer = (state, action) => {
       const newAllShapes = { ...state.allShapes };
       
       // Update shape states based on new mode
-      Object.entries(newAllShapes).forEach(([shapeId, shape]) => {
-        if (!shape.isSelected) return;
-
-        // Reset style when switching modes
-        const updatedShape = {
-          ...shape,
-          style: mode === 'global' ? null : shape.style
-        };
-
-        // Only recalculate needsColorDesignation for selected shapes
-        if (mode === 'independent' && !isPutter(shape)) {
-          const matchingWoodStyles = findMatchingWoodStyles(
-            initialState.shapes,
-            Object.fromEntries(
-              Object.entries(newAllShapes)
-                .filter(([_, s]) => s.isSelected)
-            )
-          );
-
-          updatedShape.needsColorDesignation = 
-            state.finalRequirements?.needsColorDesignation ||
-            (isWoodType(shape) && 
-             Object.values(matchingWoodStyles).some(group => 
-               group.includes(shapeId)
-             ));
+      Object.entries(newAllShapes).forEach(([shapeValue, shapeState]) => {
+        if (!shapeState?.isSelected) return;
+    
+        // Find the shape definition
+        const shapeDefinition = state.shapes.find(s => s.value === shapeValue);
+        if (!shapeDefinition) {
+          console.warn(`Shape definition not found for ID: ${shapeValue}`);
+          return;
         }
-
-        newAllShapes[shapeId] = updatedShape;
+    
+        // Start with current shape state
+        const updatedShape = { ...shapeState };
+    
+        // Handle style reset and updates
+        if (mode === 'global') {
+          // Clear individual styles when switching to global mode
+          updatedShape.style = null;
+        } else if (mode === 'independent') {
+          // Keep existing style when switching to independent mode
+          // Style will be managed by StyleField component
+          updatedShape.style = shapeState.style;
+    
+          // Calculate color designation for non-putter shapes
+          if (!isPutter(shapeDefinition)) {
+            const selectedShapes = Object.fromEntries(
+              Object.entries(newAllShapes).filter(([_, s]) => s.isSelected)
+            );
+    
+            const matchingWoodStyles = findMatchingWoodStyles(
+              state.shapes,
+              selectedShapes
+            );
+    
+            updatedShape.needsColorDesignation = 
+              state.finalRequirements?.needsColorDesignation ||
+              (isWoodType(shapeDefinition) && 
+               Object.values(matchingWoodStyles).some(group => 
+                 group.includes(shapeValue)
+               ));
+          }
+        }
+    
+        newAllShapes[shapeValue] = updatedShape;
       });
-
+    
       // Create new state
       const newState = {
         ...state,
         styleMode: mode,
+        // Clear global style when switching to independent mode
         globalStyle: mode === 'independent' ? null : state.globalStyle,
         allShapes: newAllShapes
       };
-
+    
       return {
         ...newState,
         finalRequirements: calculateFinalRequirements(newState)
@@ -116,10 +141,10 @@ const formReducer = (state, action) => {
 
       if (mode === 'global') {
         // Clear thread data from shapes when switching to global
-        Object.keys(newAllShapes).forEach(shapeId => {
-          if (newAllShapes[shapeId].isSelected) {
-            newAllShapes[shapeId] = {
-              ...newAllShapes[shapeId],
+        Object.keys(newAllShapes).forEach(shapeValue => {
+          if (newAllShapes[shapeValue].isSelected) {
+            newAllShapes[shapeValue] = {
+              ...newAllShapes[shapeValue],
               embroideryThread: null
             };
           }
@@ -175,8 +200,8 @@ const formReducer = (state, action) => {
             (state.styleMode === 'independent' && 
              isWoodType(shape) && 
              findMatchingWoodStyles(
-               initialState.shapes,
-               newAllShapes
+              state.shapes,
+              newAllShapes
              )[shape.value]
             )
           )
@@ -193,14 +218,14 @@ const formReducer = (state, action) => {
     }
 
     case ACTION_TYPES.UPDATE_SHAPE_FIELD: {
-      const { shapeId, field, value } = payload;
-      const shape = state.allShapes[shapeId];
+      const { shapeValue, field, value } = payload;
+      const shape = state.allShapes[shapeValue];
       
       if (!shape?.isSelected) return state;
 
       const newAllShapes = {
         ...state.allShapes,
-        [shapeId]: {
+        [shapeValue]: {
           ...shape,
           [field]: value
         }
@@ -208,24 +233,24 @@ const formReducer = (state, action) => {
 
       // Recalculate color designation when styles change
       if (field === 'style' && state.styleMode === 'independent') {
-        Object.entries(newAllShapes).forEach(([currentShapeId, currentShape]) => {
+        Object.entries(newAllShapes).forEach(([currentShapeValue, currentShape]) => {
           if (!currentShape.isSelected || isPutter(currentShape)) return;
 
           const matchingWoodStyles = findMatchingWoodStyles(
-            initialState.shapes,
+            state.shapes,
             Object.fromEntries(
               Object.entries(newAllShapes)
                 .filter(([_, s]) => s.isSelected)
             )
           );
 
-          newAllShapes[currentShapeId] = {
+          newAllShapes[currentShapeValue] = {
             ...currentShape,
             needsColorDesignation: 
               state.finalRequirements?.needsColorDesignation ||
               (isWoodType(currentShape) && 
                Object.values(matchingWoodStyles).some(group => 
-                 group.includes(currentShapeId)
+                 group.includes(currentShapeValue)
                ))
           };
         });
@@ -259,9 +284,9 @@ export const useFormState = (initialState) => {
 
     // Map field names to appropriate actions
     const actionMap = {
-      collection: () => ({
+      updateCollection: () => ({
         type: ACTION_TYPES.UPDATE_COLLECTION,
-        payload: { collection: value },
+        payload: value,
         initialState
       }),
       styleMode: () => ({
@@ -295,7 +320,7 @@ export const useFormState = (initialState) => {
       }),
       shapeField: () => ({
         type: ACTION_TYPES.UPDATE_SHAPE_FIELD,
-        payload: value // { shapeId, field, value }
+        payload: value // { shapeValue, field, value }
       })
     };
 
