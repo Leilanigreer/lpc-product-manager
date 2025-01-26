@@ -1,17 +1,61 @@
 // app/lib/utils/skuUtils.js
 
+import _ from 'lodash';
+
 /**
- * Formats SKU based on base parts, version, and shape
+ * Extracts unique products with SKUs from ProductDataLPC
+ */
+export const extractExistingProducts = (productDataLPC) => {
+  console.log('ProductDataLPC structure:', productDataLPC?.[0]);
+
+  if (!productDataLPC?.length) {
+    return [];
+  }
+
+  const products = productDataLPC
+    .map(product => ({
+      baseSKU: product.baseSKU,
+      collection: product.collection // Keep full collection reference
+    }))
+    .filter(product => product.baseSKU);
+
+  return _.uniqBy(products, 'baseSKU');
+};
+
+/**
+ * Filters products by collection ID
+ * @param {Array} existingProducts - Products with SKUs
+ * @param {string} collectionValue - Collection ID to filter by 
+ * @returns {Array} Filtered products
+ */
+export const filterProductsByCollection = (existingProducts, collectionValue) => {
+  return existingProducts.filter(product => product.collection?.value === collectionValue);
+};
+
+/**
+ * Formats SKU based on base parts, version, and shape data
  * @param {Array} baseParts - Array of SKU parts
  * @param {number} version - Version number
- * @param {Object} shape - Shape object containing abbreviation
+ * @param {string} shapeValue - ID of the shape from allShapes
+ * @param {Object} formState - Current form state containing allShapes
  * @param {Object} options - Additional options for SKU formatting
  * @returns {Object} Object containing baseSKU and fullSKU
  */
-export const formatSKU = (baseParts, version, shape, options = {}) => {
+export const formatSKU = (baseParts, version, shapeValue, formState, options = {}) => {
   // Validate inputs
-  if (!Array.isArray(baseParts)) {
-    console.error('formatSKU: baseParts must be an array', baseParts);
+  if (!Array.isArray(baseParts) || !shapeValue || !formState?.allShapes) {
+    console.error('formatSKU: Invalid inputs', { baseParts, shapeValue, hasFormState: !!formState });
+    return {
+      baseSKU: '',
+      fullSKU: '',
+      parts: []
+    };
+  }
+
+  // Get shape data from allShapes
+  const shapeData = formState.allShapes[shapeValue];
+  if (!shapeData?.isSelected) {
+    console.error('formatSKU: Shape not found or not selected:', shapeValue);
     return {
       baseSKU: '',
       fullSKU: '',
@@ -24,27 +68,30 @@ export const formatSKU = (baseParts, version, shape, options = {}) => {
   const baseSKU = filteredParts.join('-');
   const versionedBaseSKU = version ? `${baseSKU}-V${version}` : baseSKU;
   
+  
   // Handle custom variants and styles
   let fullSKU = versionedBaseSKU;
   
-  if (shape?.abbreviation) {
+  if (shapeData.abbreviation) {
     if (options.isCustom) {
-      if (options.style?.abbreviation) {
+      const shapeAbbrev = shapeData.shapeType === 'WOOD' ? 'Fairway' : shapeData.abbreviation;
+      const styleAbbrev = shapeData.style?.abbreviation || formState.globalStyle?.abbreviation
+      if (styleAbbrev) {
         // Handle style-specific custom SKUs
-        if (options.qClassicLeatherAbbreviation) {
-          // QClassic with specific leather color
-          fullSKU = `${versionedBaseSKU}-${shape.abbreviation}-${options.qClassicLeatherAbbreviation}-${options.style.abbreviation}-Custom`;
+        if (shapeData.needsColorDesignation && shapeData.colorDesignation?.abbreviation) {
+          // With color designation (e.g., QClassic)
+          fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${shapeData.colorDesignation.abbreviation}-${styleAbbrev}-Custom`;
         } else {
           // Regular style custom
-          fullSKU = `${versionedBaseSKU}-${shape.abbreviation}-${options.style.abbreviation}-Custom`;
+          fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${styleAbbrev}-Custom`;
         }
       } else {
         // Regular custom
-        fullSKU = `${versionedBaseSKU}-${shape.abbreviation}-Custom`;
+        fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-Custom`;
       }
     } else {
       // Regular variant
-      fullSKU = `${versionedBaseSKU}-${shape.abbreviation}`;
+      fullSKU = `${versionedBaseSKU}-${shapeData.abbreviation}`;
     }
   }
 
