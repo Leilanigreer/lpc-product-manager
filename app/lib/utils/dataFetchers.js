@@ -329,26 +329,35 @@ export const getProductDataLPC = async () => {
             url_id: true
           }
         },
-        amann: {
-          select: {
-            id: true,
-            number: true,
-            thread: {
+        amannNumbers: {
+          include: {
+            amannNumber: {
               select: {
-                name: true,
-                abbreviation: true
+                id: true,
+                number: true,
+                thread: {
+                  select: {
+                    name: true,
+                    abbreviation: true
+                  }
+                }
               }
             }
           }
         },
-        isacord: {
-          select: {
-            id: true,
-            number: true,
-            thread: {
+        embroideryThreads: {
+          include: {
+            embroideryThread: {
               select: {
+                id: true,
                 name: true,
                 abbreviation: true
+              }
+            },
+            isacordNumber: {
+              select: {
+                id: true,
+                number: true
               }
             }
           }
@@ -361,7 +370,7 @@ export const getProductDataLPC = async () => {
             url_id: true
           }
         },
-        quiltedLeatherColor: {
+        colorDesignation: {
           select: {
             id: true,
             name: true,
@@ -389,16 +398,16 @@ export const getProductDataLPC = async () => {
       weight,
       leatherColor1,
       leatherColor2,
-      amann,
-      isacord,
+      amannNumbers,
+      embroideryThreads,
       style,
-      quiltedLeatherColor,
+      colorDesignation,
       mainHandle,
       createdAt,
       updatedAt
     }) => {
       // Validate required fields
-      if (!collection || !font || !shape || !leatherColor1 || !isacord) {
+      if (!collection || !font || !shape || !leatherColor1) {
         console.warn(`Missing required fields for ProductDataLPC ID: ${id}`);
         return null;
       }
@@ -440,33 +449,37 @@ export const getProductDataLPC = async () => {
           abbreviation: leatherColor2.abbreviation,
           url_id: leatherColor2.url_id
         } : null,
-        amann: amann ? {
-          value: amann.id,
-          label: amann.number,
+        amannNumbers: amannNumbers.map(relation => ({
+          value: relation.amannNumber.id,
+          label: relation.amannNumber.number,
           thread: {
-            label: amann.thread.name,
-            abbreviation: amann.thread.abbreviation
+            value: relation.amannNumber.thread.id,
+            label: relation.amannNumber.thread.name,
+            abbreviation: relation.amannNumber.thread.abbreviation
+          }
+        })),
+        embroideryThread: embroideryThreads[0] ? {
+          thread: {
+            value: embroideryThreads[0].embroideryThread.id,
+            label: embroideryThreads[0].embroideryThread.name,
+            abbreviation: embroideryThreads[0].embroideryThread.abbreviation
+          },
+          isacordNumber: {
+            value: embroideryThreads[0].isacordNumber.id,
+            label: embroideryThreads[0].isacordNumber.number
           }
         } : null,
-        isacord: {
-          value: isacord.id,
-          label: isacord.number,
-          thread: {
-            label: isacord.thread?.name,
-            abbreviation: isacord.thread?.abbreviation
-          }
-        },
         style: style ? {
           value: style.id,
           label: style.name,
           abbreviation: style.abbreviation,
           url_id: style.url_id
         } : null,
-        quiltedLeatherColor: quiltedLeatherColor ? {
-          value: quiltedLeatherColor.id,
-          label: quiltedLeatherColor.name,
-          abbreviation: quiltedLeatherColor.abbreviation,
-          url_id: quiltedLeatherColor.url_id
+        colorDesignation: colorDesignation ? {
+          value: colorDesignation.id,
+          label: colorDesignation.name,
+          abbreviation: colorDesignation.abbreviation,
+          url_id: colorDesignation.url_id
         } : null,
         mainHandle,
         createdAt,
