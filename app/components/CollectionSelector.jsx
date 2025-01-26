@@ -11,6 +11,7 @@ import { Select, Card, InlineStack, Box, Text, BlockStack } from "@shopify/polar
 
 const CollectionSelector = ({ 
   shopifyCollections,
+  productDataLPC,
   formState,
   onChange
 }) => {
@@ -57,7 +58,10 @@ const CollectionSelector = ({
   const handleCollectionChange = (value) => {
     const selectedCollection = shopifyCollections?.find(c => c.value === value);
     if (selectedCollection) {
-      onChange('collection', selectedCollection);
+      onChange('updateCollection', {
+        collection: selectedCollection, 
+        productDataLPC 
+      });
     }
   };
 
