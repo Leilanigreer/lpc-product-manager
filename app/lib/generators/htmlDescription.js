@@ -25,32 +25,32 @@ const wrapDescription = (collectionDescription, includeCommon, commonDescription
 
 /**
  * Generates HTML description for a product based on collection
- * @param {Object} formState - Current form state
- * @param {Array} shopifyCollections - Available collections
- * @param {string} commonDescription - Common leather description from loader
+ * @param {Object} formState - Current form state containing collection data
+ * @param {Array} commonDescription - Array of common descriptions from database
  * @returns {string} Formatted HTML description
  */
-export const generateDescriptionHTML = (formState, shopifyCollections, commonDescription) => {
-  if (!formState?.selectedCollection || !Array.isArray(shopifyCollections)) {
-    console.warn('Invalid inputs to generateDescriptionHTML');
+export const generateDescriptionHTML = (formState, commonDescription) => {
+  if (!formState?.collection) {
+    console.warn('No collection data in formState');
     return '';
   }
 
   try {
-    const collection = shopifyCollections.find(col => col.value === formState.selectedCollection);
-    if (!collection?.description) {
-      console.warn('No description found for collection:', formState.selectedCollection);
+    const { description, commonDescription: includeCommon } = formState.collection;
+
+    if (!description) {
+      console.warn('No description found in collection data');
       return '';
     }
 
     // Extract active common description content
-    const commonContent = Array.isArray(commonDescription)
-    ? commonDescription.find(desc => desc.isActive)?.content
-    : null;
+    const commonContent = Array.isArray(commonDescription) 
+      ? commonDescription.find(desc => desc.isActive)?.content 
+      : null;
 
     return wrapDescription(
-      collection.description, 
-      collection.commonDescription,
+      description,
+      includeCommon,
       commonContent
     ).replace(/\s+/g, " ").trim();
 
