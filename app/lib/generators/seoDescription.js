@@ -1,3 +1,3 @@
-export const generateSEODescription = (formState, shopifyCollections) => {
+export const generateSEODescription = (formState) => {
   return "pending SEO description"
 };
