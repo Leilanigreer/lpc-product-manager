@@ -40,19 +40,24 @@ const ThreadColorSelector = ({
   // Prepare Isacord thread options
   const isacordOptions = useMemo(() => {
     const baseOptions = embroideryThreadColors.map(thread => 
-      thread.isacordNumbers?.map(number => ({
-        label: number.label,
-        value: number.value,
-        threadValue: thread.value,
-        threadLabel: thread.label,
-        threadAbbreviation: thread.abbreviation,
-        threadColorTags: thread.colorTags,
-        displayText: `${number.label} - ${thread.label}`,
-        searchText: `${number.label} ${thread.label}`.toLowerCase()
-      }))
+      thread.isacordNumbers?.map(number => {
+        const fullData = {
+          threadValue: thread.value,
+          threadLabel: thread.label,
+          threadAbbreviation: thread.abbreviation,
+          threadColorTags: thread.colorTags,
+        };
+        
+        return {
+          label: number.label,
+          value: number.value,
+          displayText: `${number.label} - ${thread.label}`,
+          searchText: `${number.label} ${thread.label}`.toLowerCase(),
+          _fullData: fullData
+        };
+      })
     ).flat().filter(Boolean);
 
-    // Add independent option for shape-specific selection if needed
     if (showsIndependentOption) {
       return [
         {
@@ -71,16 +76,22 @@ const ThreadColorSelector = ({
   // Prepare Amann thread options
   const amannOptions = useMemo(() => 
     stitchingThreadColors.map(thread => 
-      thread.amannNumbers?.map(number => ({
-        label: number.label,
-        value: number.value,
-        threadValue: thread.value,
-        threadLabel: thread.label,
-        threadAbbreviation: thread.abbreviation,
-        threadColorTags: thread.colorTags,
-        displayText: `${number.label} - ${thread.label}`,
-        searchText: `${number.label} ${thread.label}`.toLowerCase()
-      }))
+      thread.amannNumbers?.map(number => {
+        const fullData = {
+          threadValue: thread.value,
+          threadLabel: thread.label,
+          threadAbbreviation: thread.abbreviation,
+          threadColorTags: thread.colorTags,
+        };
+
+        return {
+          label: number.label,
+          value: number.value,
+          displayText: `${number.label} - ${thread.label}`,
+          searchText: `${number.label} ${thread.label}`.toLowerCase(),
+          _fullData: fullData
+        };
+      })
     ).flat().filter(Boolean),
     [stitchingThreadColors]
   );
@@ -97,15 +108,16 @@ const ThreadColorSelector = ({
     } else {
       const selectedOption = isacordOptions.find(option => option.value === value);
       if (selectedOption) {
+        const [_fullData ] = selectedOption;
         onChange('threadMode', {
           threadType: 'embroidery',
           mode: 'global'
         });
         onChange('globalEmbroideryThread', {
-          value: selectedOption.threadValue,
-          label: selectedOption.threadLabel,
-          abbreviation: selectedOption.threadAbbreviation,
-          colorTags: selectedOption.threadColorTags,
+          value: _fullData.threadValue,
+          label: _fullData.threadLabel,
+          abbreviation: _fullData.threadAbbreviation,
+          colorTags: _fullData.threadColorTags,
           isacordNumbers: [{
             value: selectedOption.value,
             label: selectedOption.label
@@ -121,12 +133,13 @@ const ThreadColorSelector = ({
   const handleAmannSelect = useCallback((value) => {
     const selectedOption = amannOptions.find(option => option.value === value);
     if (!selectedOption) return;
+    const { _fullData } = selectedOption;
 
     const threadData = {
-      value: selectedOption.threadValue,
-      label: selectedOption.threadLabel,
-      abbreviation: selectedOption.threadAbbreviation,
-      colorTags: selectedOption.threadColorTags,
+      value: _fullData.threadValue,
+      label: _fullData.threadLabel,
+      abbreviation: _fullData.threadAbbreviation,
+      colorTags: _fullData.threadColorTags,
       amannNumbers: [{
         value: selectedOption.value,
         label: selectedOption.label
