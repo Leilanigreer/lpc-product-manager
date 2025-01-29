@@ -1,5 +1,5 @@
-import React from 'react';
-import { getGoogleDriveUrl } from '../lib/utils';
+import React, {useMemo} from 'react';
+import { getGoogleDriveUrl, sanitizeSelectOptions } from '../lib/utils';
 import { Card, InlineStack, Box, Select, BlockStack, Text, Image } from "@shopify/polaris";
 
 const LeatherColorSelector = ({ 
@@ -7,6 +7,12 @@ const LeatherColorSelector = ({
   formState,
   onChange,
 }) => {
+
+  const displayOptions = useMemo(() => {
+    const baseOption = [{ label: "Select a Leather", value: "" }];
+    return [...baseOption, ...sanitizeSelectOptions(leatherColors)];
+  }, [leatherColors]);
+  
   const requiresSecondary = formState.finalRequirements.needsSecondaryLeather;
 
   const renderColorSelector = (label, type) => (
@@ -14,7 +20,7 @@ const LeatherColorSelector = ({
       <Box width={requiresSecondary ? "25%" : "50%"}>
         <Select
           label={label}
-          options={[{ label: "Select a Leather", value: "" }, ...leatherColors]}
+          options={displayOptions}
           onChange={(value) => {
             const selectedColor = leatherColors.find(c => c.value === value) || null;
             const updatedColors = {
