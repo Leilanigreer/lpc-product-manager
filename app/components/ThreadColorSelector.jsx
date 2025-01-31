@@ -108,7 +108,7 @@ const ThreadColorSelector = ({
     } else {
       const selectedOption = isacordOptions.find(option => option.value === value);
       if (selectedOption) {
-        const [_fullData ] = selectedOption;
+        const { _fullData } = selectedOption;
         onChange('threadMode', {
           threadType: 'embroidery',
           mode: 'global'
