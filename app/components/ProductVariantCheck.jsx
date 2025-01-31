@@ -59,11 +59,8 @@ VariantGroup.displayName = 'VariantGroup';
 const ProductVariantCheck = ({ productData }) => {
   if (!productData?.variants?.length) return null;
 
-  // Safe filtering with type check
-  const baseVariants = productData.variants.filter(v => v && !v.isCustom)
-    .sort((a, b) => a.position - b.position);
-  const customVariants = productData.variants.filter(v => v && v.isCustom)
-    .sort((a, b) => a.position - b.position);
+  const baseVariants = productData.variants.filter(v => v && !v.isCustom);
+  const customVariants = productData.variants.filter(v => v && v.isCustom);
 
   const { title, mainHandle, productType, seoTitle, descriptionHTML, seoDescription, tags, variants } = productData;
 
