@@ -55,7 +55,7 @@ export const generateVariants = async (formState, skuInfo) => {
       formState.allShapes
     );
 
-    return [
+    const allVariants = [
       ...regularVariants,
       {
         variantName: "Create my own set",
@@ -70,9 +70,12 @@ export const generateVariants = async (formState, skuInfo) => {
         position: variant.position + regularVariants.length + 1
       }))
     ];
+
+    // Sort by position before returning
+    return allVariants.sort((a, b) => a.position - b.position);
  
   } catch (error) {
     console.error('Error generating variants:', error);
     throw error;
   }
- };
+};

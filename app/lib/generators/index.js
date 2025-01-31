@@ -1,140 +1,66 @@
 // app/lib/generators/index.js
 
 import { generateTitle, generateMainHandle, generateSEOTitle } from './titleGenerator';
-import { generateProductType } from '../constants';
 import { generateDescriptionHTML } from './htmlDescription';
 import { generateSEODescription } from './seoDescription';
 import { generateTags } from './tagsGenerator';
 import { generateVariants } from './variants'; 
-import { generateBaseParts, calculateVersionFormParts, getColors } from '../utils';
-
-/**
- * @typedef {Object} ProductData
- * @property {string} title - Product title
- * @property {string} mainHandle - URL handle
- * @property {string} productType - Type of product
- * @property {string} seoTitle - SEO-optimized title
- * @property {string} descriptionHTML - HTML product description
- * @property {string} seoDescription - SEO-optimized description
- * @property {Array<string>} tags - Product tags
- * @property {Array<Object>} variants - Product variants
- */
+import { generateBaseParts, calculateVersionFromParts, mapStitchingThreads, mapEmbroideryThreads } from '../utils';
 
 /**
  * Generates complete product data by coordinating all generators
  */
-export const generateProductData = async (
-  formState,
-  leatherColors,
-  stitchingThreadColors,
-  embroideryThreadColors,
-  colorTags,
-  shapes,
-  styles,
-  productPrices,
-  shopifyCollections,
-  commonDescription
-) => {
+export const generateProductData = async (formState, commonDescription) => {
   try {
-    // Input validation
-    if (!formState || !Array.isArray(leatherColors) || !Array.isArray(shopifyCollections)) {
-      throw new Error('Missing required parameters for product generation');
-    }
-
-    // Get selected collection with its formatting templates
-    const selectedCollection = shopifyCollections.find(
-      col => col.value === formState.selectedCollection
-    );
-    
-    if (!selectedCollection) {
-      throw new Error('Selected collection not found');
-    }
-
-    const colors = getColors(formState, leatherColors, stitchingThreadColors, embroideryThreadColors);
-    
-    // Generate SKU parts and version
-    const skuParts = generateBaseParts(selectedCollection, colors);
-    
+    // Generate SKU information
+    const skuParts = generateBaseParts(formState);    
     if (!Array.isArray(skuParts) || skuParts.length === 0) {
       throw new Error('Failed to generate SKU parts');
     }
 
-    const version = calculateVersionFormParts(skuParts, formState.existingProducts);
+    const version = calculateVersionFromParts(skuParts, formState.existingProducts);
     const skuInfo = { parts: skuParts, version };
 
-    console.log('Generated SKU Info:', skuInfo);
-
-    // Generate all product components
+    // Generate title and variants in parallel
     const [title, variants] = await Promise.all([
-      generateTitle(
-        formState,
-        leatherColors,
-        stitchingThreadColors,
-        embroideryThreadColors,
-        shopifyCollections
-      ),
-      generateVariants(
-        formState,
-        leatherColors,
-        stitchingThreadColors,
-        embroideryThreadColors,
-        shapes,
-        styles,
-        productPrices,
-        shopifyCollections,
-        skuInfo
-      )
+      generateTitle(formState),
+      generateVariants(formState, skuInfo)
     ]);
 
     if (!variants || variants.length === 0) {
       throw new Error('No variants generated');
     }
 
-    return {
+    // Build the complete product data object
+    const productData = {
       title,
-      mainHandle: await generateMainHandle(formState, title, shopifyCollections, version),
-      productType: generateProductType(formState, shopifyCollections),
-      seoTitle: await generateSEOTitle(formState, title, shopifyCollections),
-      descriptionHTML: generateDescriptionHTML(formState, shopifyCollections, commonDescription),
-      seoDescription: generateSEODescription(formState, shopifyCollections),
-      tags: generateTags(formState, leatherColors, embroideryThreadColors, stitchingThreadColors, colorTags),
+      mainHandle: await generateMainHandle(formState, title, version),
+      productType: formState.collection.label || '',
+      seoTitle: await generateSEOTitle(formState, title),
+      descriptionHTML: generateDescriptionHTML(formState, commonDescription),
+      seoDescription: generateSEODescription(formState),
+      tags: generateTags(formState),
       variants,
-
+      
       // Database fields
-      collectionId: formState.selectedCollection,
+      collectionId: formState.collection.value,
       selectedFont: formState.selectedFont,
       offeringType: formState.selectedOfferingType,
       limitedEditionQuantity: formState.limitedEditionQuantity || null,
       
-      // Metadata
-      selectedLeatherColor1: formState.selectedLeatherColor1,
-      selectedLeatherColor2: formState.selectedLeatherColor2,
-      selectedStitchingColor: formState.selectedStitchingColor?.id || formState.selectedStitchingColor,
-      selectedEmbroideryColor: formState.selectedEmbroideryColor?.id || formState.selectedEmbroideryColor,
-    
-      // Add thread metadata to track both number and color
-      threadMetadata: {
-        stitching: formState.selectedStitchingColor
-          ? {
-            id: formState.selectedStitchingColor.id,
-            name: formState.selectedStitchingColor.name,
-            number: formState.selectedStitchingColor.number
-          }
-          : null,
-        embroidery: formState.selectedEmbroideryColor
-          ? {
-            id: formState.selectedEmbroideryColor.id,
-            name: formState.selectedEmbroideryColor.name,
-            number: formState.selectedEmbroideryColor.number
-          }
-          : null
-      },
-    
-      createdAt: new Date().toISOString(),
+      // Color and thread selections
+      selectedLeatherColor1: formState.leatherColors.primary.value,
+      selectedLeatherColor2: formState.leatherColors?.secondary?.value || null,
+      stitchingThreads: mapStitchingThreads(formState.stitchingThreads),
+      embroideryThreads: mapEmbroideryThreads(formState),
+      
+      createdAt: new Date().toISOString()
     };
 
+    return productData;
+
   } catch (error) {
-    console.error('Error generating product data:', error);
+    console.error('Product data generation failed:', error);
     throw error;
   }
 };
