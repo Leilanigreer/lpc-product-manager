@@ -91,8 +91,8 @@ const generateCustomVariant = (shapeData, formState, skuInfo) => {
     return {
       shapeValue: shapeData.value,
       shape: shapeData.label,
-      style: shapeData.style,
-      colorDesignation: shapeData.colorDesignation,
+      style: shapeData.style || null,
+      colorDesignation: shapeData.colorDesignation || null,
       sku: customSku.fullSKU,
       baseSKU: customSku.baseSKU,
       variantName: getVariantName(shapeData, formState),
@@ -100,9 +100,8 @@ const generateCustomVariant = (shapeData, formState, skuInfo) => {
       weight: shapeData.weight,
       isCustom: true,
       embroideryThread: formState.threadMode?.embroidery === 'perShape'
-        ? shapeData.embroideryThread
-        : formState.globalEmbroideryThread,
-      stitchingThread: Object.values(formState.stitchingThreads || {})[0]
+        ? shapeData.embroideryThread || null
+        : formState.globalEmbroideryThread || null
     };
   } catch (error) {
     console.error('Error generating custom variant:', error);

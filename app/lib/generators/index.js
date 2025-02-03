@@ -5,7 +5,7 @@ import { generateDescriptionHTML } from './htmlDescription';
 import { generateSEODescription } from './seoDescription';
 import { generateTags } from './tagsGenerator';
 import { generateVariants } from './variants'; 
-import { generateBaseParts, calculateVersionFromParts, mapStitchingThreads, mapEmbroideryThreads } from '../utils';
+import { generateBaseParts, calculateVersionFromParts } from '../utils';
 
 /**
  * Generates complete product data by coordinating all generators
@@ -43,7 +43,7 @@ export const generateProductData = async (formState, commonDescription) => {
       variants,
       
       // Database fields
-      collectionId: formState.collection.value,
+      collection: formState.collection,
       selectedFont: formState.selectedFont,
       offeringType: formState.selectedOfferingType,
       limitedEditionQuantity: formState.limitedEditionQuantity || null,
@@ -51,8 +51,7 @@ export const generateProductData = async (formState, commonDescription) => {
       // Color and thread selections
       selectedLeatherColor1: formState.leatherColors.primary.value,
       selectedLeatherColor2: formState.leatherColors?.secondary?.value || null,
-      stitchingThreads: mapStitchingThreads(formState.stitchingThreads),
-      embroideryThreads: mapEmbroideryThreads(formState),
+      stitchingThreads: formState.stitchingThreads,
       
       createdAt: new Date().toISOString()
     };

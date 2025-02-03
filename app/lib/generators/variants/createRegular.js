@@ -23,7 +23,8 @@ export const createRegularVariants = (formState, skuInfo) => {
         const variant = {
           shapeValue: shape.value,
           shape: shape.label,
-          style: shape.style,
+          style: shape.style || null,
+          colorDesignation: shape.colorDesignation || null,
           sku: variantSku.fullSKU,
           baseSKU: variantSku.baseSKU,
           variantName: shape.style ? 
@@ -31,7 +32,10 @@ export const createRegularVariants = (formState, skuInfo) => {
             shape.label,
           price: calculatePrice(shape.value, formState),
           weight: shape.weight,
-          isCustom: false
+          isCustom: false,
+          embroideryThread: formState.threadMode?.embroidery === 'perShape'
+            ? shape.embroideryThread || null
+            : formState.globalEmbroideryThread || null
         };
 
         // Get first stitching thread's abbreviation if exists
