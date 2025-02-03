@@ -18,7 +18,8 @@ const VariantRow = memo(({ variant, index }) => (
         </Text>
         {isDevelopment() && (
           <>
-          <Text variant="bodySm" color="subdued"> (Position: {variant.position})</Text>
+            <Text variant="bodySm" color="subdued"> (Position: {variant.position})</Text>
+            <Text variant='bodySm' color="subdued"> Shape: {variant.shape}</Text>
             <Text variant="bodySm" color="subdued">
               SKU: {variant.sku}
             </Text>

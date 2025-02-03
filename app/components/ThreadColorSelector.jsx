@@ -1,3 +1,5 @@
+// app/components/ThreadColorSelector.jsx
+
 import React, { useMemo, useState, useCallback } from 'react';
 import { Card, Combobox, Listbox, Icon, Box, InlineStack, BlockStack, Text, Tag } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
