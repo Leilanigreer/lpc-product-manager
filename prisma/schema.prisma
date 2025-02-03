@@ -40,46 +40,47 @@ model LeatherColor {
 }
 
 model StitchingThread {
-  id           String        @id @default(cuid())
-  name         String
-  abbreviation String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  colorTags    ColorTag[]    @relation("StitchingThreadToTag")
-  amannNumbers AmannNumber[]
+  id               String             @id @default(cuid())
+  name             String
+  abbreviation     String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  colorTags        ColorTag[]         @relation("StitchingThreadToTag")
+  amannNumbers     AmannNumber[]
+  productStitching ProductStitching[]
 }
 
 model EmbroideryThread {
-  id                      String                       @id @default(cuid())
-  name                    String
-  abbreviation            String
-  createdAt               DateTime                     @default(now())
-  updatedAt               DateTime                     @updatedAt
-  colorTags               ColorTag[]                   @relation("EmbroideryThreadToTag")
-  isacordNumbers          IsacordNumber[]
-  productDataLPCToThreads ProductDataLPCToEmbroidery[]
+  id             String           @id @default(cuid())
+  name           String
+  abbreviation   String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  colorTags      ColorTag[]       @relation("EmbroideryThreadToTag")
+  isacordNumbers IsacordNumber[]
+  ProductDataLPC ProductDataLPC[]
 }
 
 model IsacordNumber {
-  id                      String                       @id @default(cuid())
-  number                  String
-  threadId                String
-  createdAt               DateTime                     @default(now())
-  updatedAt               DateTime                     @updatedAt
-  thread                  EmbroideryThread             @relation(fields: [threadId], references: [id])
-  productDataLPCToThreads ProductDataLPCToEmbroidery[]
+  id             String           @id @default(cuid())
+  number         String
+  threadId       String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  thread         EmbroideryThread @relation(fields: [threadId], references: [id])
+  ProductDataLPC ProductDataLPC[]
 
   @@index([threadId])
 }
 
 model AmannNumber {
-  id                    String                  @id @default(cuid())
-  number                String
-  threadId              String
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  thread                StitchingThread         @relation(fields: [threadId], references: [id])
-  productDataLPCToAmann ProductDataLPCToAmann[]
+  id               String             @id @default(cuid())
+  number           String
+  threadId         String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  thread           StitchingThread    @relation(fields: [threadId], references: [id])
+  ProductStitching ProductStitching[]
 
   @@index([threadId])
 }
@@ -247,65 +248,61 @@ model ShapeTypeAdjustment {
   updatedAt         DateTime  @updatedAt
 }
 
-model ProductDataLPCToAmann {
-  productDataLPCId String
-  amannNumberId    String
-  productDataLPC   ProductDataLPC @relation(fields: [productDataLPCId], references: [id], onDelete: Cascade)
-  amannNumber      AmannNumber    @relation(fields: [amannNumberId], references: [id])
+model ProductStitching {
+  id                String          @id @default(cuid())
+  productDataLPCId  String
+  productDataLPC    ProductDataLPC  @relation(fields: [productDataLPCId], references: [id], onDelete: Cascade)
+  stitchingThreadId String
+  stitchingThread   StitchingThread @relation(fields: [stitchingThreadId], references: [id])
+  amannId           String
+  amann             AmannNumber     @relation(fields: [amannId], references: [id])
 
-  @@id([productDataLPCId, amannNumberId])
   @@index([productDataLPCId])
-  @@index([amannNumberId])
-}
-
-model ProductDataLPCToEmbroidery {
-  productDataLPCId   String
-  embroideryThreadId String
-  isacordNumberId    String
-  productDataLPC     ProductDataLPC   @relation(fields: [productDataLPCId], references: [id], onDelete: Cascade)
-  embroideryThread   EmbroideryThread @relation(fields: [embroideryThreadId], references: [id])
-  isacordNumber      IsacordNumber    @relation(fields: [isacordNumberId], references: [id])
-
-  @@id([productDataLPCId, isacordNumberId])
-  @@index([productDataLPCId])
-  @@index([embroideryThreadId])
-  @@index([isacordNumberId])
+  @@index([stitchingThreadId])
+  @@index([amannId])
 }
 
 model ProductDataLPC {
-  id                 String                       @id @default(cuid())
+  id                 String             @id @default(cuid())
   shopifyProductId   String
   shopifyVariantId   String
   shopifyInventoryId String
   SKU                String
   baseSKU            String?
   collectionId       String
-  collection         ShopifyCollection            @relation(fields: [collectionId], references: [id])
+  collection         ShopifyCollection  @relation(fields: [collectionId], references: [id])
   offeringType       String
   fontId             String
-  font               Font                         @relation(fields: [fontId], references: [id])
+  font               Font               @relation(fields: [fontId], references: [id])
   shapeId            String
-  shape              Shape                        @relation(fields: [shapeId], references: [id])
-  weight             Decimal                      @db.Decimal(10, 2)
+  shape              Shape              @relation(fields: [shapeId], references: [id])
+  weight             Decimal            @db.Decimal(10, 2)
   leatherColor1Id    String
-  leatherColor1      LeatherColor                 @relation("PrimaryLeatherColor", fields: [leatherColor1Id], references: [id])
+  leatherColor1      LeatherColor       @relation("PrimaryLeatherColor", fields: [leatherColor1Id], references: [id])
   leatherColor2Id    String?
-  leatherColor2      LeatherColor?                @relation("SecondaryLeatherColor", fields: [leatherColor2Id], references: [id])
-  amannNumbers       ProductDataLPCToAmann[]
-  embroideryThreads  ProductDataLPCToEmbroidery[]
+  leatherColor2      LeatherColor?      @relation("SecondaryLeatherColor", fields: [leatherColor2Id], references: [id])
+  // Single embroidery thread with its isacord number
+  embroideryThreadId String?
+  embroideryThread   EmbroideryThread?  @relation(fields: [embroideryThreadId], references: [id])
+  isacordId          String?
+  isacord            IsacordNumber?     @relation(fields: [isacordId], references: [id])
+  // Multiple stitching threads with their amann numbers
+  stitchingThreads   ProductStitching[]
   styleId            String?
-  style              Style?                       @relation(fields: [styleId], references: [id])
+  style              Style?             @relation(fields: [styleId], references: [id])
   colorDesignationId String?
-  colorDesignation   LeatherColor?                @relation("ColorDesignation", fields: [colorDesignationId], references: [id])
+  colorDesignation   LeatherColor?      @relation("ColorDesignation", fields: [colorDesignationId], references: [id])
   mainHandle         String
-  createdAt          DateTime                     @default(now())
-  updatedAt          DateTime                     @updatedAt
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@index([collectionId])
   @@index([fontId])
   @@index([shapeId])
   @@index([leatherColor1Id])
   @@index([leatherColor2Id])
+  @@index([embroideryThreadId])
+  @@index([isacordId])
   @@index([styleId])
   @@index([colorDesignationId])
 }
