@@ -22,13 +22,10 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
     // Extract variant data from the first filtered variant as a base
     const baseVariant = filteredVariants[0];
 
-    // Validate and fetch collection with its configuration
-    const collection = await prisma.shopifyCollection.findUnique({
-      where: { id: productData.collectionId }
-    });
+    const collection = productData.collection
   
     if (!collection) {
-      throw new Error(`Collection not found for ID: ${productData.collectionId}`);
+      throw new Error('Collection data missing from product data');
     }
 
     // Map the data to match your productDataLPC schema
@@ -47,9 +44,9 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
         offeringType: productData.offeringType,
         weight: variant.weight,
         mainHandle: productData.mainHandle,
-        collectionId: productData.collectionId,
+        collectionId: productData.collection.value,
         fontId: productData.selectedFont,
-        shapeId: variant.shapeId,
+        shapeId: variant.shapeValue,
         leatherColor1Id: productData.selectedLeatherColor1,
       };
     
@@ -62,6 +59,21 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
     
       // Build the product record
       try {
+
+        let embroideryThreadData = {};
+
+        if (variant.embroideryThread && 
+          variant.embroideryThread.value !== "NO_EMBROIDERY" && variant.embroideryThread.isacordNumbers?.[0]) {
+          embroideryThreadData = {
+            embroideryThread: {
+              connect: { id: variant.embroideryThread.value }
+            },
+            isacord: {
+              connect: { id: variant.embroideryThread.isacordNumbers[0].value }
+            }
+          };
+        }
+
         const productRecord = {
           // Required fields
           shopifyProductId: requiredFields.shopifyProductId,
@@ -94,25 +106,24 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
               id: requiredFields.leatherColor1Id
             }
           },
+          stitchingThreads: {
+            create: Object.entries(productData.stitchingThreads).map(([_, thread]) => ({
+              stitchingThread: {
+                connect: { id: thread.value }
+              },
+              amann: {
+                connect: { id: thread.amannNumbers[0].value }
+              }
+            }))
+          },
       
           // Optional relations based on collection configuration
-          ...(variant.isacordNumberId || (productData.selectedEmbroideryColor?.id) ? {
-            isacord: {
-              connect: { id: variant.isacordNumberId || productData.selectedEmbroideryColor?.number }
-            }
-          } : {}),
-    
+          ...embroideryThreadData,
+
           ...(collection.needsSecondaryLeather && productData.selectedLeatherColor2 && {
             leatherColor2: {
               connect: { id: productData.selectedLeatherColor2 }
             }
-          }),
-    
-          ...(collection.needsStitchingColor && 
-            (variant.amannNumberId || productData.matchingAmannNumber) && {
-              amann: {
-                connect: { id: variant.amannNumberId || productData.matchingAmannNumber }
-              }
           }),
     
           ...(collection.needsStyle && variant.styleId && {
@@ -121,26 +132,15 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
             }
           }),
     
-          ...(collection.needsQClassicField && variant.qClassicLeather && {
-            quiltedLeatherColor: {
-              connect: { id: variant.qClassicLeather }
+          ...(collection.needsColorDesignation && variant.colorDesignation && {
+            colorDesignation: {
+              connect: { id: variant.colorDesignation }
             }
           })
         };
       
         return prisma.productDataLPC.create({
           data: productRecord,
-          include: {
-            collection: true,
-            font: true,
-            shape: true,
-            leatherColor1: true,
-            leatherColor2: true,
-            amann: true,
-            isacord: true,
-            style: true,
-            quiltedLeatherColor: true,
-          }
         });
       } catch (error) {
         throw new Error(`Failed to create product record: ${error.message}`);
