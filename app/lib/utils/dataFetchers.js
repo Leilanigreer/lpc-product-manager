@@ -329,35 +329,39 @@ export const getProductDataLPC = async () => {
             url_id: true
           }
         },
-        amannNumbers: {
+        stitchingThreads: {
           include: {
-            amannNumber: {
-              select: {
-                id: true,
-                number: true,
-                thread: {
-                  select: {
-                    name: true,
-                    abbreviation: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        embroideryThreads: {
-          include: {
-            embroideryThread: {
+            stitchingThread: {
               select: {
                 id: true,
                 name: true,
                 abbreviation: true
               }
             },
-            isacordNumber: {
+            amann: {
               select: {
                 id: true,
                 number: true
+              }
+            }
+          }
+        },
+        embroideryThread: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true
+          }
+        },
+        isacord: {
+          select: {
+            id: true,
+            number: true,
+            thread: {
+              select: {
+                id: true,
+                name: true,
+                abbreviation: true
               }
             }
           }
@@ -398,8 +402,9 @@ export const getProductDataLPC = async () => {
       weight,
       leatherColor1,
       leatherColor2,
-      amannNumbers,
-      embroideryThreads,
+      stitchingThreads,
+      embroideryThread,
+      isacord,
       style,
       colorDesignation,
       mainHandle,
@@ -449,24 +454,20 @@ export const getProductDataLPC = async () => {
           abbreviation: leatherColor2.abbreviation,
           url_id: leatherColor2.url_id
         } : null,
-        amannNumbers: amannNumbers.map(relation => ({
-          value: relation.amannNumber.id,
-          label: relation.amannNumber.number,
-          thread: {
-            value: relation.amannNumber.thread.id,
-            label: relation.amannNumber.thread.name,
-            abbreviation: relation.amannNumber.thread.abbreviation
-          }
+        stitchingThreads: stitchingThreads.map(relation => ({
+          threadValue: relation.stitchingThread.id,
+          threadLabel: relation.stitchingThread.name,
+          threadAbbreviation: relation.stitchingThread.abbreviation,
+          amannValue: relation.amann.id,
+          amannLabel: relation.amann.number
         })),
-        embroideryThread: embroideryThreads[0] ? {
-          thread: {
-            value: embroideryThreads[0].embroideryThread.id,
-            label: embroideryThreads[0].embroideryThread.name,
-            abbreviation: embroideryThreads[0].embroideryThread.abbreviation
-          },
+        embroideryThread: embroideryThread && isacord ? {
+          value: embroideryThread.id,
+          label: embroideryThread.name,
+          abbreviation: embroideryThread.abbreviation,
           isacordNumber: {
-            value: embroideryThreads[0].isacordNumber.id,
-            label: embroideryThreads[0].isacordNumber.number
+            value: isacord.id,
+            label: isacord.number
           }
         } : null,
         style: style ? {
