@@ -129,7 +129,7 @@ export const createShopifyProduct = async (admin, productData) => {
             category: "gid://shopify/TaxonomyCategory/sg-4-7-7-2",
             seo: {
               title: productData.seoTitle,
-              description: productData.descriptionHTML,
+              // description: productData.descriptionHTML,
             },
             productOptions: [
               {
