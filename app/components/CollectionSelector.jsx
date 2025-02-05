@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { sanitizeCollectionOptions } from '../lib/utils/optionSanitizer';
 import { Select, Card, InlineStack, Box, Text, BlockStack } from "@shopify/polaris";
 
 /**
@@ -16,24 +15,20 @@ const CollectionSelector = ({
   formState,
   onChange
 }) => {
-  const displayCollections = useMemo(() => 
-      sanitizeCollectionOptions(shopifyCollections),
-      [shopifyCollections]
-    );
-
-  // Filter collections that should be shown in dropdown
   const collectionOptions = useMemo(() => [    
     { label: 'Select a collection...', value: '' }, 
-    ...displayCollections.map(({ value, label }) => ({
-      value,
-      label
-    }))
-  ], [displayCollections]);
+    ...shopifyCollections
+      .filter(c => c.showInDropdown)
+      .map(({ value, label }) => ({
+        value,
+        label
+      }))
+  ], [shopifyCollections]);
 
-  // Get current collection for style options
+  // Keep full collection data separate from UI options
   const currentCollection = useMemo(() => 
-    displayCollections?.find(col => col.value === formState.collection?.value),
-    [displayCollections, formState.collection?.value]
+    shopifyCollections?.find(col => col.value === formState.collection?.value),
+    [shopifyCollections, formState.collection?.value]
   );
 
   // Style mode options
@@ -52,7 +47,10 @@ const CollectionSelector = ({
     
     return [
       { label: 'Select a style...', value: '' },
-      ...currentCollection.styles
+      ...currentCollection.styles.map(style => ({
+        label: style.label,
+        value: style.value
+      }))
     ];
   }, [currentCollection]);
 
