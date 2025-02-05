@@ -32,7 +32,7 @@ export const generateTitle = async (formState) => {
     return template
       .replace('{leatherColors.primary.label}', formState.leatherColors?.primary?.label || '')
       .replace('{leatherColors.secondary.label}', formState.leatherColors?.secondary?.label || '')
-      .replace('{stitchingThreadColor.label}', Object.values(formState.stitchingThreads || {})[0]?.label || '')
+      .replace('{stitchingThreads.[0].label}', Object.values(formState.stitchingThreads || {})[0]?.label || '')
       .replace('{globalEmbroideryThread.label}', formState.globalEmbroideryThread?.label || '')
       || DEFAULT_TITLE;
 

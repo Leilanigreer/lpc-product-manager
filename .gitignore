@@ -13,15 +13,15 @@ database.sqlite
 .env
 .env.*
 
-.compare
-.compare2
+.compare*
+.compare2*
 .file-structure
+/app/routes/app.createProducts.backup.jsx
 
 /extensions/*/dist
 
 # Ignore shopify files created during app dev
 .shopify/*
 .shopify.lock
-.vercel
 
 /shopify.app.dev.toml

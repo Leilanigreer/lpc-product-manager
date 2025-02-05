@@ -12,7 +12,8 @@ const ACTION_TYPES = {
   UPDATE_LEATHER_COLORS: 'UPDATE_LEATHER_COLORS',
   UPDATE_SHAPE: 'UPDATE_SHAPE',
   UPDATE_SHAPE_FIELD: 'UPDATE_SHAPE_FIELD',
-  UPDATE_SIMPLE: 'UPDATE_SIMPLE'
+  UPDATE_SIMPLE: 'UPDATE_SIMPLE',
+  RESET_FORM: 'RESET_FORM'
 };
 
 const formReducer = (state, action) => {
@@ -270,6 +271,18 @@ const formReducer = (state, action) => {
       };
     }
 
+    case ACTION_TYPES.RESET_FORM: {
+      const resetState = {
+        ...initialState,
+        shapes: state.shapes 
+      };
+      
+      return {
+        ...resetState,
+        finalRequirements: calculateFinalRequirements(resetState)
+      };
+    }
+
     default:
       console.warn('Unknown action type:', type);
       return state;
@@ -282,7 +295,13 @@ export const useFormState = (initialState) => {
   const handleChange = useCallback((field, value) => {
     console.log('handleChange called with:', { field, value });
 
-    // Map field names to appropriate actions
+    if (field === 'resetForm') {
+      dispatch({
+        type: ACTION_TYPES.RESET_FORM,
+        initialState
+      });
+      return;
+    }
     const actionMap = {
       updateCollection: () => ({
         type: ACTION_TYPES.UPDATE_COLLECTION,

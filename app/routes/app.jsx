@@ -1,4 +1,3 @@
-import { json } from "@remix-run/node";
 import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
@@ -13,85 +12,48 @@ export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
-  return json({ 
+  return { 
     apiKey: process.env.SHOPIFY_API_KEY || "",
     host: new URL(request.url).searchParams.get("host")
-  });
+  };
 };
 
 export default function App() {
   const { apiKey, host } = useLoaderData();
-  const [isMounted, setIsMounted] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
+    // Ensure app-bridge is initialized after hydration
+    const timer = setTimeout(() => {
+      setIsLoaded(true);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const originalError = console.error;
-      console.error = (...args) => {
-        const errorMessage = args[0]?.toString() || '';
-        
-        const suppressPatterns = [
-          'Extra attributes from the server',
-          'data-new-gr-c-s-check-loaded',
-          'data-gr-ext-installed',
-          'Hydration failed because',
-          'There was an error while hydrating',
-          'The server could not finish this Suspense boundary'
-        ];
+  const content = (
+    <PolarisProvider i18n={en}>
+      <NavMenu>
+        <Link to="/app" rel="home">
+          Home
+        </Link>
+        <Link to="/app/createProducts">Create a new product</Link>
+        <Link to="/app/updatePricing">Update Pricing</Link>
+      </NavMenu>
+      <Outlet />
+    </PolarisProvider>
+  );
 
-        if (suppressPatterns.some(pattern => errorMessage.includes(pattern))) {
-          return;
-        }
-
-        originalError.call(console, ...args);
-      };
-
-      return () => {
-        console.error = originalError;
-      };
-    }
-  }, []);
-
-  const appContent = (
+  // Only render app-bridge content after initial load
+  return (
     <AppProvider 
       isEmbeddedApp 
       apiKey={apiKey}
       host={host}
       forceRedirect
     >
-      <PolarisProvider i18n={en}>
-        <NavMenu>
-          <Link to="/app" rel="home">
-            Home
-          </Link>
-          <Link to="/app/createProducts">Create a new product</Link>
-          <Link to="/app/updatePricing">Update Pricing</Link>
-        </NavMenu>
-        <Outlet />
-      </PolarisProvider>
+      {isLoaded ? content : <div style={{ opacity: 0 }}>{content}</div>}
     </AppProvider>
   );
-
-  // Server-side rendering
-  if (typeof window === 'undefined') {
-    return appContent;
-  }
-
-  // Client-side rendering
-  if (!isMounted) {
-    return (
-      <AppProvider isEmbeddedApp apiKey={apiKey}>
-        <PolarisProvider i18n={en}>
-          <div style={{ padding: '1rem' }}>Loading...</div>
-        </PolarisProvider>
-      </AppProvider>
-    );
-  }
-
-  return appContent;
 }
 
 export function ErrorBoundary() {
