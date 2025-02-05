@@ -62,13 +62,16 @@ model EmbroideryThread {
 }
 
 model IsacordNumber {
-  id             String           @id @default(cuid())
-  number         String
-  threadId       String
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  thread         EmbroideryThread @relation(fields: [threadId], references: [id])
-  ProductDataLPC ProductDataLPC[]
+  id              String            @id @default(cuid())
+  number          String
+  threadId        String?
+  wawakColorName  String?
+  wawakItemNumber String?
+  isStockThread   Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  thread          EmbroideryThread? @relation(fields: [threadId], references: [id])
+  ProductDataLPC  ProductDataLPC[]
 
   @@index([threadId])
 }

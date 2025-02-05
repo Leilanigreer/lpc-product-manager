@@ -1,7 +1,8 @@
+// app/routes/app.createProducts.jsx
+
 import React, { useState, useMemo } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { validateProductForm } from "../lib/utils";
 import { loader as dataLoader } from "../lib/loaders";
@@ -45,16 +46,25 @@ export const action = async ({ request }) => {
     const shopifyResponse = await createShopifyProduct(admin, productData);
     const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse);
 
-    return json({
+    // Instead of json(), return object directly
+    return {
       ...shopifyResponse,
       databaseSave: dbSaveResult,
       success: true
-    });
+    };
   } catch (error) {
     console.error('Detailed Error:', error);
-    return json({
-      errors: [typeof error === 'string' ? error : error.message || "An unexpected error occurred"]
-    }, { status: 500 });
+    return new Response(
+      JSON.stringify({
+        errors: [typeof error === 'string' ? error : error.message || "An unexpected error occurred"]
+      }), 
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
   }
 };
 
@@ -108,8 +118,22 @@ export default function CreateProduct() {
     setSuccessDetails
   } = useFormNotifications({
     fetcher,
-    handleChange
+    handleChange,
+    onSuccess: () => {
+      setProductData(null);
+      setGenerationError(null);    }
   });  
+
+  React.useEffect(() => {
+    return () => {
+      setProductData(null);
+      setGenerationError(null);
+      setSubmissionError(null);
+      setNotification(null);
+      setSuccessDetails(null);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGenerateData = async () => {
     setIsGenerating(true);
@@ -122,13 +146,28 @@ export default function CreateProduct() {
       }
 
       if (!formState?.collection?.value) {
+        console.error('Collection validation failed:', formState.collection);
         throw new Error('Invalid collection configuration');
       }
 
       const data = await generateProductData(formState, commonDescription);
+      console.log('Generated product data:', {
+        hasData: Boolean(data),
+        title: data?.title,
+        variantCount: data?.variants?.length,
+        variants: data?.variants
+      });
+
       setProductData(data);
     } catch (error) {
-      console.error("Error generating product data:", error);
+      console.error("Error generating product data:", {
+        error,
+        stack: error.stack,
+        formState: {
+          collection: formState.collection,
+          shapes: Object.keys(formState.allShapes || {})
+        }
+      });
       setGenerationError(error.message);
       setProductData(null);
     } finally {
