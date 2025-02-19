@@ -28,7 +28,8 @@
     "prisma": "prisma",
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
-    "generate": "shopify app generate"
+    "generate": "shopify app generate",
+    "import-isacord": "node scripts/import-isacord.js"
   },
   "type": "module",
   "engines": {
