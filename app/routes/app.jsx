@@ -38,6 +38,7 @@ export default function App() {
         </Link>
         <Link to="/app/createProducts">Create a new product</Link>
         <Link to="/app/updatePricing">Update Pricing</Link>
+        <Link to="/app/websiteCustomOptions">Website Product Option Sets</Link>
       </NavMenu>
       <Outlet />
     </PolarisProvider>

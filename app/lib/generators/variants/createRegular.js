@@ -30,7 +30,7 @@ export const createRegularVariants = (formState, skuInfo) => {
           variantName: shape.style ? 
             `${shape.label} - ${shape.style.label}` : 
             shape.label,
-          price: calculatePrice(shape.value, formState),
+          price: calculatePrice(shape.value, formState).toFixed(2),
           weight: shape.weight,
           isCustom: false,
           embroideryThread: formState.threadMode?.embroidery === 'perShape'
