@@ -1,6 +1,6 @@
 import { Page, Layout, Card, BlockStack, Text, Button, Grid } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { PlusIcon, CashDollarIcon } from '@shopify/polaris-icons';
+import { PlusIcon, CashDollarIcon, AdjustIcon } from '@shopify/polaris-icons';
 import { useNavigate } from "@remix-run/react";
 import React from 'react';
 
@@ -41,8 +41,19 @@ export default function Index() {
                         <Button icon={CashDollarIcon} onClick={() => navigate("/app/updatePricing")}>Update Pricing</Button>
                       </BlockStack>
                     </Card>
-                  </Grid.Cell >
-                {/* Add more feature descriptions as needed */}
+                  </Grid.Cell>
+                  <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
+                    <Card title="Website Custom Options">
+                      <BlockStack gap="400">
+                        <Text variant="bodyMd">
+                          Manage product customization options
+                        </Text>
+                        <Button icon={AdjustIcon} onClick={() => navigate("/app/websiteCustomOptions")}>
+                          Customize Options
+                        </Button>
+                      </BlockStack>
+                    </Card>
+                  </Grid.Cell>
                 </Grid>
                 <Card>
                   <BlockStack gap="400">
