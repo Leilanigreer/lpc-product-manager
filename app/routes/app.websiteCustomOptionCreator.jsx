@@ -1,6 +1,18 @@
-import { Card, BlockStack, Select, TextField, Button, Checkbox, Text } from "@shopify/polaris";
+import { useState } from "react";
+import { TitleBar } from "@shopify/app-bridge-react";
+import {
+  Page,
+  Layout,
+  Card,
+  Text,
+  BlockStack,
+  Button,
+  Select,
+  TextField,
+  Checkbox,
+} from "@shopify/polaris";
 
-export function Option({ type, name, values, onUpdate }) {
+function Option({ type, name, values, nickname, required, description, minValues, maxValues, onUpdate }) {
   const optionTypes = [
     { label: 'Button', value: 'button' },
     { label: 'Radio Button', value: 'radio' },
@@ -8,14 +20,6 @@ export function Option({ type, name, values, onUpdate }) {
     { label: 'Text Field', value: 'text' },
     { label: 'Checkbox', value: 'checkbox' }
   ];
-
-  const additionalSettings = {
-    nickname: '',
-    required: false,
-    description: '',
-    minValues: '',
-    maxValues: ''
-  };
 
   return (
     <Card>
@@ -49,20 +53,20 @@ export function Option({ type, name, values, onUpdate }) {
             <TextField
               label="Option nickname"
               helpText="Only visible to you"
-              value={additionalSettings.nickname}
+              value={nickname}
               onChange={(value) => onUpdate({ nickname: value })}
             />
             
             <Checkbox
               label="Required"
-              checked={additionalSettings.required}
+              checked={required}
               onChange={(checked) => onUpdate({ required: checked })}
             />
 
             <TextField
               label="Option description"
               helpText="Visible to customers"
-              value={additionalSettings.description}
+              value={description}
               multiline={2}
               onChange={(value) => onUpdate({ description: value })}
             />
@@ -70,14 +74,14 @@ export function Option({ type, name, values, onUpdate }) {
             <TextField
               label="Minimum selectable values"
               type="number"
-              value={additionalSettings.minValues}
+              value={minValues}
               onChange={(value) => onUpdate({ minValues: value })}
             />
 
             <TextField
               label="Maximum selectable values" 
               type="number"
-              value={additionalSettings.maxValues}
+              value={maxValues}
               onChange={(value) => onUpdate({ maxValues: value })}
             />
           </BlockStack>
@@ -86,3 +90,44 @@ export function Option({ type, name, values, onUpdate }) {
     </Card>
   );
 }
+
+export default function OptionsPage() {
+  const [options, setOptions] = useState({
+    type: 'button',
+    name: '',
+    values: '',
+    nickname: '',
+    required: false,
+    description: '',
+    minValues: '',
+    maxValues: ''
+  });
+
+  const handleOptionUpdate = (updates) => {
+    setOptions(prev => ({
+      ...prev,
+      ...updates
+    }));
+  };
+
+  return (
+    <Page>
+      <TitleBar title="Product Options" />
+      <Layout>
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Create Custom Option
+              </Text>
+              <Option
+                {...options}
+                onUpdate={handleOptionUpdate}
+              />
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+      </Layout>
+    </Page>
+  );
+} 

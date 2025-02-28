@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { BlockStack, Box, Divider } from "@shopify/polaris";
-import { isPutter } from '../../lib/utils';
+import { isPutter } from '../../../lib/utils';
 import ShapeRow from './ShapeRow';
 import ShapeGridHeader from './ShapeGridHeader';
 import { COLUMN_WIDTHS } from './constants';
