@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useNavigate, Outlet } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { TitleBar } from "@shopify/app-bridge-react";
@@ -15,9 +15,9 @@ import {
   ButtonGroup,
 } from "@shopify/polaris";
 
-import { OptionSet } from "../components/WebsiteCustomOptions/OptionSet";
-import { Option } from "../components/WebsiteCustomOptions/Option";
-import { Rule } from "../components/WebsiteCustomOptions/Rule";
+import { OptionSet } from "../components/webSiteCustomOptions/OptionSet";
+import { Option } from "../components/webSiteCustomOptions/Option";
+import { Rule } from "../components/webSiteCustomOptions/Rule";
 
 // Expanded GraphQL query to include collections
 const SHOP_CONFIGURATION_QUERY = `
@@ -62,6 +62,7 @@ export default function CustomOptions() {
   const { shop, collections, error } = useLoaderData();
   const [optionSets, setOptionSets] = useState([]);
   const [activeSet, setActiveSet] = useState(null);
+  const navigate = useNavigate();
 
   return (
     <Page>
@@ -77,12 +78,36 @@ export default function CustomOptions() {
         )}
 
         <Layout.Section>
-          <ButtonGroup>
-            <Button primary onClick={() => {/* Create new option set */}}>
-              Create Option Set
-            </Button>
-          </ButtonGroup>
+          <Card>
+            <BlockStack gap="400">
+              <ButtonGroup>
+                <Button primary onClick={() => {/* Create new option set */}}>
+                  Create Option Set
+                </Button>
+                <Button onClick={() => navigate("../websiteCustomOptionCreator")}>
+                  Create Options
+                </Button>
+              </ButtonGroup>
+            </BlockStack>
+          </Card>
         </Layout.Section>
+
+        <Outlet />
+
+        {!activeSet && (
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  No Option Set Selected
+                </Text>
+                <Text as="p" variant="bodyMd">
+                  Create a new option set or select an existing one to get started.
+                </Text>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        )}
 
         {activeSet && (
           <>

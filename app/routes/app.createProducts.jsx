@@ -21,7 +21,8 @@ import {
   ShapeSelector,
   ThreadColorSelector,
   ProductVariantCheck,
-} from "../components/productCreation";
+} from "../components/productCreation/index.js";
+
 
 import {
   Page,
