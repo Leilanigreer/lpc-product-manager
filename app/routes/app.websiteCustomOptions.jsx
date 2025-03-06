@@ -13,11 +13,13 @@ import {
   Banner,
   Button,
   ButtonGroup,
+  Select,
 } from "@shopify/polaris";
 
 import { OptionSet } from "../components/webSiteCustomOptions/OptionSet";
 import { Option } from "../components/webSiteCustomOptions/Option";
 import { Rule } from "../components/webSiteCustomOptions/Rule";
+import { getOptionTypeChoices } from "../lib/utils/optionTypeMapping";
 
 // Expanded GraphQL query to include collections
 const SHOP_CONFIGURATION_QUERY = `
@@ -62,7 +64,15 @@ export default function CustomOptions() {
   const { shop, collections, error } = useLoaderData();
   const [optionSets, setOptionSets] = useState([]);
   const [activeSet, setActiveSet] = useState(null);
+  const [selectedOptionType, setSelectedOptionType] = useState('');
   const navigate = useNavigate();
+
+  const handleOptionTypeChange = (value) => {
+    setSelectedOptionType(value);
+    if (value) {
+      navigate(`../websiteCustomOptionCreator?type=${value}`);
+    }
+  };
 
   return (
     <Page>
@@ -84,9 +94,14 @@ export default function CustomOptions() {
                 <Button primary onClick={() => {/* Create new option set */}}>
                   Create Option Set
                 </Button>
-                <Button onClick={() => navigate("../websiteCustomOptionCreator")}>
-                  Create Options
-                </Button>
+                <Select
+                  // label="Create Option"
+                  labelInline
+                  options={getOptionTypeChoices()}
+                  value={selectedOptionType}
+                  onChange={handleOptionTypeChange}
+                  placeholder="Create Option"
+                />
               </ButtonGroup>
             </BlockStack>
           </Card>
