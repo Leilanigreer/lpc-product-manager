@@ -309,3 +309,81 @@ model ProductDataLPC {
   @@index([styleId])
   @@index([colorDesignationId])
 }
+
+enum OptionType {
+  FILE_UPLOAD
+  CHECKBOX
+  DROPDOWN
+  IMAGE_SWATCH
+  COLOR_SWATCH
+  RADIO_BUTTON
+  BUTTON
+  TEXT_BOX
+  NUMBER_FIELD
+  DATE_PICKER
+}
+
+model OptionLayout {
+  id                      String     @id @default(cuid())
+  type                    OptionType
+  optionName              Boolean    @default(true)
+  nickname                Boolean    @default(true)
+  required                Boolean    @default(true)
+  description             Boolean    @default(true)
+  inCartName              Boolean    @default(true)
+  associatedProductId     Boolean    @default(true)
+  allowedTypes            Boolean    @default(false)
+  minSelectable           Boolean    @default(false)
+  maxSelectable           Boolean    @default(false)
+  default                 Boolean    @default(false)
+  image                   Boolean    @default(false)
+  allowMultipleSelections Boolean    @default(false)
+  color                   Boolean    @default(false)
+  placeholderText         Boolean    @default(false)
+  minCharLimit            Boolean    @default(false)
+  maxCharLimit            Boolean    @default(false)
+  minNumber               Boolean    @default(false)
+  maxNumber               Boolean    @default(false)
+  optionValues            Boolean    @default(false)
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+  Option                  Option[]
+
+  @@map("option_layouts")
+}
+
+model Option {
+  id              String        @id @default(cuid())
+  name            String
+  nickname        String?
+  required        Boolean
+  description     String?
+  inCartName      String?
+  allowedTypes    String?
+  minSelection    Int?
+  maxSelection    Int?
+  allowMultiple   Boolean?
+  placeholderText String?
+  minCharacters   Int?
+  maxCharacters   Int?
+  minNumber       Int?
+  maxNumber       Int?
+  layoutId        String
+  layout          OptionLayout  @relation(fields: [layoutId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  OptionValue     OptionValue[]
+}
+
+model OptionValue {
+  id                  String   @id @default(cuid())
+  name                String?
+  displayOrder        Int?
+  associatedProductId String?
+  default             Boolean  @default(false)
+  imageUrl            String?
+  optionId            String
+  option              Option   @relation(fields: [optionId], references: [id])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}

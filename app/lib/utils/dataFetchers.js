@@ -538,6 +538,38 @@ export const getStyles = async () => {
   }
 }
 
+export const getOptionLayouts = async () => {
+  try {
+    const optionLayouts = await prisma.OptionLayout.findMany();
+    return optionLayouts.map(({ id, type, optionName, nickname, required, description, inCartName, associatedProductId, allowedTypes, minSelectable, maxSelectable, default: isDefault, image, allowMultipleSelections, color, placeholderText, minCharLimit, maxCharLimit, minNumber, maxNumber, optionValues }) => ({
+      id,
+      type,  // This is the OptionType enum value
+      optionName,
+      nickname,
+      required,
+      description,
+      inCartName,
+      associatedProductId,
+      allowedTypes,
+      minSelectable,
+      maxSelectable,
+      isDefault,
+      image,
+      allowMultipleSelections,
+      color,
+      placeholderText,
+      minCharLimit,
+      maxCharLimit,
+      minNumber,
+      maxNumber,
+      optionValues
+    }));
+  } catch (error) {
+    console.error("Error fetching option layouts:", error);
+    throw error;
+  }
+};
+
 // This fetcher is now optional since the data is included in getShopifyCollections
 export const getCollectionTitleFormats = async () => {
   try {
