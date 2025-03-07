@@ -9,7 +9,8 @@ import {
   getShopifyCollections,
   getCommonDescription, 
   getProductDataLPC,
-  getOptionLayouts
+  getOptionLayouts,
+  getOptionTags
 } from "../utils/dataFetchers";
 
 export const loader = async () => {  
@@ -23,7 +24,8 @@ export const loader = async () => {
       shopifyCollections,
       commonDescription,
       productDataLPC,
-      optionLayouts
+      optionLayouts,
+      optionTags
     ] = await Promise.all([
       getLeatherColors(),
       getStitchingThreadColors(),
@@ -33,7 +35,8 @@ export const loader = async () => {
       getShopifyCollections(),
       getCommonDescription(),
       getProductDataLPC(),
-      getOptionLayouts()
+      getOptionLayouts(),
+      getOptionTags()
     ]);
 
     return {
@@ -46,6 +49,7 @@ export const loader = async () => {
       commonDescription,
       productDataLPC,
       optionLayouts,
+      optionTags,
       error: null
     };
   } catch (error) {
@@ -61,6 +65,7 @@ export const loader = async () => {
         commonDescription: [],
         productDataLPC: [],
         optionLayouts: [],
+        optionTags: [],
         error: error.message
       }), 
       { status: 500,

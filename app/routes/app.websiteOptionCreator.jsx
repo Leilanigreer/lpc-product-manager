@@ -12,10 +12,10 @@ import {
   Select,
   TextField,
   Checkbox,
-  InlineStack,
   ColorPicker,
   DropZone,
-  Spinner,
+  Tag,
+  Combobox,
 } from "@shopify/polaris";
 import {
   DeleteIcon,
@@ -40,11 +40,13 @@ import { CSS } from '@dnd-kit/utilities';
 import { loader as rootLoader } from "../lib/loaders/index.js";
 import { getOptionTypeChoices, getOptionTypeDisplayName } from "../lib/utils/optionTypeMapping.js";
 import { createCustomOption } from "../lib/server/websiteCustomization.server.js";
-import { preventWheelChange } from "../styles/shared/inputs";
+import { getOptionTags } from "../lib/utils/dataFetchers.js";
+import { preventWheelChange } from "../styles/shared/inputs.js";
 
 export const loader = async () => {
   const { optionLayouts } = await rootLoader();
-  return { optionLayouts };
+  const optionTags = await getOptionTags();
+  return { optionLayouts, optionTags };
 };
 
 export const action = async ({ request }) => {
@@ -548,16 +550,80 @@ function AdditionalSettings({
   maxCharLimit,
   minNumber,
   maxNumber,
+  tags = [],
   onUpdate, 
-  optionLayouts 
+  optionLayouts,
+  optionTags = []
 }) {
   // Find the layout settings for the current option type
   const currentLayout = optionLayouts.find(layout => layout.type === type) || {};
+
+  const [selectedTags, setSelectedTags] = useState(tags);
+  const [tagInputValue, setTagInputValue] = useState('');
+  const [availableTags, setAvailableTags] = useState(optionTags);
+
+  const updateTags = (newTags) => {
+    setSelectedTags(newTags);
+    onUpdate({ tags: newTags });
+  };
+
+  const handleTagRemove = (tagToRemove) => {
+    updateTags(selectedTags.filter(tag => tag.value !== tagToRemove.value));
+  };
+
+  const handleTagAdd = (tag) => {
+    if (!selectedTags.find(t => t.value === tag.value)) {
+      updateTags([...selectedTags, tag]);
+    }
+    setTagInputValue('');
+  };
 
   return (
       <Card>
         <BlockStack gap="400">
           <Text as="h2" variant="headingMd">Additional Settings</Text>
+          
+          {/* Tags Section */}
+          <div>
+            <Text as="h3" variant="headingSm">Tags</Text>
+            <div style={{ marginTop: '4px' }}>
+              <Combobox
+                activator={
+                  <Combobox.TextField
+                    label="Tags"
+                    labelHidden
+                    value={tagInputValue}
+                    onChange={setTagInputValue}
+                    placeholder="Search or add tags"
+                  />
+                }
+              >
+                {availableTags
+                  .filter(tag => 
+                    tag.label.toLowerCase().includes(tagInputValue.toLowerCase()) &&
+                    !selectedTags.find(t => t.value === tag.value)
+                  )
+                  .map((tag) => (
+                    <Combobox.Option
+                      key={tag.value}
+                      value={tag.value}
+                      selected={selectedTags.some(t => t.value === tag.value)}
+                      onClick={() => handleTagAdd(tag)}
+                    >
+                      {tag.label}
+                    </Combobox.Option>
+                  ))
+                }
+              </Combobox>
+            </div>
+            <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {selectedTags.map((tag) => (
+                <Tag key={tag.value} onRemove={() => handleTagRemove(tag)}>
+                  {tag.label}
+                </Tag>
+              ))}
+            </div>
+          </div>
           
           {currentLayout.nickname && (
             <TextField
@@ -693,9 +759,10 @@ function Option({
   maxCharLimit,
   minNumber,
   maxNumber,
+  tags = [],
   onUpdate 
 }) {
-  const { optionLayouts = [] } = useLoaderData();
+  const { optionLayouts = [], optionTags = [] } = useLoaderData();
   const currentLayout = optionLayouts.find(layout => layout.type === type) || {};
   
   const handleOptionValuesUpdate = (newValues) => {
@@ -730,47 +797,45 @@ function Option({
 
   return (
     <>
-      {/* Main Option Settings */}
       <Layout.Section>
         <BlockStack gap="400">
-
-        <Card>
-          <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">Create Custom Option</Text>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <div style={{ flex: 1 }}>
-                <TextField
-                  label="Option name"
-                  value={name}
-                  helpText="Visible to customers"
-                  onChange={(value) => onUpdate({ name: value })}
-                  />
-              </div>
-              <div style={{ flex: 1 }}>
-                <Select
-                  label="Option type" 
-                  options={optionTypes}
-                  value={type}
-                  onChange={(value) => onUpdate({ type: value })}
-                  />
-              </div>
-            </div>
-          </BlockStack>
-        </Card>
-
-        {/* Associated Product ID Section */}
-        {currentLayout.associatedProductId && (
           <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">Create Custom Option</Text>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                  <TextField
+                    label="Option name"
+                    value={name}
+                    helpText="Visible to customers"
+                    onChange={(value) => onUpdate({ name: value })}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Select
+                    label="Option type" 
+                    options={optionTypes}
+                    value={type}
+                    onChange={(value) => onUpdate({ type: value })}
+                  />
+                </div>
+              </div>
+            </BlockStack>
+          </Card>
+
+          {/* Associated Product ID Section */}
+          {currentLayout.associatedProductId && (
+            <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">Associated Product ID</Text>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                   {currentLayout.optionValues && (
                     <div style={{ flex: 1 }}>
                       <Select
-                      label="Product ID Type"
-                      options={productIdTypeOptions}
-                      value={productIdType}
-                      onChange={handleProductIdTypeChange}
+                        label="Product ID Type"
+                        options={productIdTypeOptions}
+                        value={productIdType}
+                        onChange={handleProductIdTypeChange}
                       />
                     </div>
                   )}
@@ -787,24 +852,24 @@ function Option({
                           onUpdate({ values: updatedValues });
                         }}
                         helpText="This ID will be applied to all option values"
-                        />
+                      />
                     </div>
                   )}
                 </div>
               </BlockStack>
             </Card>
-        )}
+          )}
 
-        {/* Option Values Section */}
-        {currentLayout.optionValues && (
-          <OptionValues
-          type={type}
-          optionValues={values}
-          onUpdate={handleOptionValuesUpdate}
-          optionLayouts={optionLayouts}
-          productIdType={productIdType}
-          />
-        )}
+          {/* Option Values Section */}
+          {currentLayout.optionValues && (
+            <OptionValues
+              type={type}
+              optionValues={values}
+              onUpdate={handleOptionValuesUpdate}
+              optionLayouts={optionLayouts}
+              productIdType={productIdType}
+            />
+          )}
         </BlockStack>
       </Layout.Section>
 
@@ -825,13 +890,12 @@ function Option({
           maxCharLimit={maxCharLimit}
           minNumber={minNumber}
           maxNumber={maxNumber}
+          tags={tags}
           onUpdate={onUpdate}
           optionLayouts={optionLayouts}
+          optionTags={optionTags}
         />
       </Layout.Section>
-
-
-
     </>
   );
 }
@@ -857,7 +921,9 @@ export default function OptionsPage() {
     placeholderText: '',
     minCharLimit: '',
     maxCharLimit: '',
-    minNumber: ''
+    minNumber: '',
+    maxNumber: '',
+    tags: []
   };
   
   const [options, setOptions] = useState(initialOptions);
@@ -891,6 +957,9 @@ export default function OptionsPage() {
         // Ensure each value has a name property
         const validValues = value.filter(v => v.name?.trim());
         formData.append(key, JSON.stringify(validValues));
+      } else if (key === 'tags') {
+        // Add tags as JSON string
+        formData.append(key, JSON.stringify(value.map(tag => tag.value)));
       } else {
         formData.append(key, value?.toString() || '');
       }

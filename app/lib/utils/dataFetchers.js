@@ -571,6 +571,82 @@ export const getOptionLayouts = async () => {
   }
 };
 
+export const getOption = async () => {
+  try {
+    const options = await prisma.Option.findMany({
+      include: {
+        OptionValue: {
+          orderBy: {
+            displayOrder: 'asc'
+          }
+        },
+        layout: true,
+        tags: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+    
+    return options.map(option => ({
+      id: option.id,
+      name: option.name,
+      nickname: option.nickname,
+      required: option.required,
+      description: option.description,
+      inCartName: option.inCartName,
+      allowedTypes: option.allowedTypes,
+      minSelectable: option.minSelectable,
+      maxSelectable: option.maxSelectable,
+      allowMultipleSelections: option.allowMultipleSelections,
+      placeholderText: option.placeholderText,
+      minCharLimit: option.minCharLimit,
+      maxCharLimit: option.maxCharLimit,
+      minNumber: option.minNumber,
+      maxNumber: option.maxNumber,
+      layoutId: option.layoutId,
+      layout: option.layout,
+      tags: option.tags.map(tag => ({
+        value: tag.id,
+        label: tag.name
+      })),
+      optionValues: option.OptionValue.map(value => ({
+        id: value.id,
+        name: value.name,
+        displayOrder: value.displayOrder,
+        default: value.default,
+        associatedProductId: value.associatedProductId,
+        imageUrl: value.imageUrl
+      }))
+    }));
+  } catch (error) {
+    console.error("Error fetching options:", error);
+    throw error;
+  }
+}
+
+export const getOptionTags = async () => {
+  try {
+    const optionTags = await prisma.OptionTag.findMany({
+      orderBy: {
+        name: 'asc'
+      }
+    });
+    return optionTags.map(({ id, name }) => ({
+      value: id,
+      label: name
+    }));
+  } catch (error) {
+    console.error("Error fetching option tags:", error);
+    throw error;
+  }
+};
+
 // This fetcher is now optional since the data is included in getShopifyCollections
 export const getCollectionTitleFormats = async () => {
   try {
@@ -744,6 +820,8 @@ export const getColorTags = async () => {
     throw error;
   }
 };
+
+
 
 // export const getCollections = async (admin) => {
 //   const COLLECTION_QUERY = `

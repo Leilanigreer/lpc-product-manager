@@ -70,7 +70,7 @@ export default function CustomOptions() {
   const handleOptionTypeChange = (value) => {
     setSelectedOptionType(value);
     if (value) {
-      navigate(`../websiteCustomOptionCreator?type=${value}`);
+      navigate(`../websiteOptionCreator?type=${value}`);
     }
   };
 
@@ -91,11 +91,10 @@ export default function CustomOptions() {
           <Card>
             <BlockStack gap="400">
               <ButtonGroup>
-                <Button primary onClick={() => {/* Create new option set */}}>
+                <Button primary Link={"/app/websiteOptionSetsCreator"}>
                   Create Option Set
                 </Button>
                 <Select
-                  // label="Create Option"
                   labelInline
                   options={getOptionTypeChoices()}
                   value={selectedOptionType}
