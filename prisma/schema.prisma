@@ -201,6 +201,7 @@ model ShopifyCollection {
   titleFormat             CollectionTitleFormat?
   PriceTier               PriceTier?             @relation(fields: [priceTierId], references: [id])
   priceTierId             String?                @unique
+  OptionSet               OptionSet[]
 
   @@map("ShopifyCollections")
 }
@@ -353,7 +354,7 @@ model OptionLayout {
 }
 
 model Option {
-  id              String        @id @default(cuid())
+  id              String            @id @default(cuid())
   name            String
   nickname        String?
   required        Boolean
@@ -369,10 +370,11 @@ model Option {
   minNumber       Int?
   maxNumber       Int?
   layoutId        String
-  layout          OptionLayout  @relation(fields: [layoutId], references: [id])
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  layout          OptionLayout      @relation(fields: [layoutId], references: [id])
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
   OptionValue     OptionValue[]
+  OptionSetOption OptionSetOption[]
 }
 
 model OptionValue {
@@ -386,4 +388,76 @@ model OptionValue {
   option              Option   @relation(fields: [optionId], references: [id])
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+model OptionSet {
+  id           String             @id @default(cuid())
+  title        String
+  rank         Int                @default(0) // For ordering sets
+  collectionId String?
+  collection   ShopifyCollection? @relation(fields: [collectionId], references: [id])
+  isActive     Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  options      OptionSetOption[]
+  rules        OptionSetRule[]
+}
+
+model OptionSetRule {
+  id              String                  @id @default(cuid())
+  name            String // e.g. "Select Driver Number", "Show Driver Mono Placement"
+  optionSetId     String
+  conditionType   RuleConditionType // ANY or ALL
+  conditions      Json // Array of conditions, each with:
+  // - field: "Shopify options", "Add Monogram", etc
+  // - operator: "is one of", etc
+  // - values: ["Shape", "Customize Driver +$15", etc]
+  action          RuleActionType // SHOW or HIDE
+  actionTargets   Json[] // Array of targets to show/hide, each with:
+  // - optionId: The option to show/hide
+  // - valueType: "All values" or specific values
+  // - values: [] if "All values", else specific values to show/hide
+  optionSet       OptionSet               @relation(fields: [optionSetId], references: [id], onDelete: Cascade)
+  affectedOptions OptionSetRuleToOption[] // Many-to-many relation with options
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([optionSetId])
+}
+
+// Junction table for many-to-many relationship between rules and options
+model OptionSetRuleToOption {
+  id                String          @id @default(cuid())
+  ruleId            String
+  optionSetOptionId String
+  rule              OptionSetRule   @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  option            OptionSetOption @relation(fields: [optionSetOptionId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, optionSetOptionId])
+  @@index([ruleId])
+  @@index([optionSetOptionId])
+}
+
+// Update OptionSetOption to include the reverse relation
+model OptionSetOption {
+  id          String                  @id @default(cuid())
+  optionSetId String
+  optionId    String
+  rank        Int                     @default(0) // For ordering options within a set
+  optionSet   OptionSet               @relation(fields: [optionSetId], references: [id], onDelete: Cascade)
+  option      Option                  @relation(fields: [optionId], references: [id])
+  rules       OptionSetRuleToOption[] // Many-to-many relation with rules
+
+  @@index([optionSetId])
+  @@index([optionId])
+}
+
+enum RuleConditionType {
+  ANY
+  ALL
+}
+
+enum RuleActionType {
+  SHOW
+  HIDE
 }

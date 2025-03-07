@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useLoaderData, useSearchParams } from "@remix-run/react";
+import { useState, useEffect } from "react";
+import { useLoaderData, useSearchParams, useSubmit, useNavigate } from "@remix-run/react";
+import { json } from "@remix-run/node";
 import { TitleBar } from "@shopify/app-bridge-react";
 import {
   Page,
@@ -12,6 +13,9 @@ import {
   TextField,
   Checkbox,
   InlineStack,
+  ColorPicker,
+  DropZone,
+  Spinner,
 } from "@shopify/polaris";
 import {
   DeleteIcon,
@@ -35,10 +39,85 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { loader as rootLoader } from "../lib/loaders/index.js";
 import { getOptionTypeChoices, getOptionTypeDisplayName } from "../lib/utils/optionTypeMapping.js";
+import { createCustomOption } from "../lib/server/websiteCustomization.server.js";
 
 export const loader = async () => {
   const { optionLayouts } = await rootLoader();
   return { optionLayouts };
+};
+
+export const action = async ({ request }) => {
+  const formData = await request.formData();
+  const data = Object.fromEntries(formData);
+  
+  console.log('=== FORM SUBMISSION START ===');
+  console.log('Raw form data:', data);
+  
+  try {
+    // Parse the values array from the form data
+    const values = data.values ? JSON.parse(data.values) : [];
+    console.log('Parsed values:', values);
+    
+    // Get the layout ID based on the type
+    const { optionLayouts } = await rootLoader();
+    console.log('Available layouts:', optionLayouts);
+    
+    if (!optionLayouts || !Array.isArray(optionLayouts)) {
+      throw new Error('Failed to load option layouts');
+    }
+
+    const layout = optionLayouts.find(l => l.type === data.type);
+    console.log('Found layout for type:', data.type, layout);
+    
+    if (!layout) {
+      throw new Error(`No layout found for type: ${data.type}`);
+    }
+
+    // Clean up the data before sending to createCustomOption
+    const cleanedData = {
+      name: data.name,
+      type: data.type,
+      layoutId: layout.id,
+      required: data.required === 'true',
+      // Only include values if the layout supports them and we have values
+      ...(layout.optionValues && data.values ? {
+        values: JSON.parse(data.values).map(v => ({
+          name: v.name,
+          displayOrder: v.displayOrder || 0,
+          default: v.default || false,
+          associatedProductId: v.associatedProductId || null,
+          imageUrl: v.imageUrl || null
+        }))
+      } : {}),
+      // Optional fields - only include if they have values and are supported by the layout
+      ...(layout.nickname && data.nickname && { nickname: data.nickname }),
+      ...(layout.description && data.description && { description: data.description }),
+      ...(layout.inCartName && data.inCartName && { inCartName: data.inCartName }),
+      ...(layout.allowedTypes && data.allowedTypes && { allowedTypes: data.allowedTypes }),
+      ...(layout.minSelectable && data.minSelectable && { minSelectable: data.minSelectable }),
+      ...(layout.maxSelectable && data.maxSelectable && { maxSelectable: data.maxSelectable }),
+      ...(layout.allowMultipleSelections && data.allowMultipleSelections === 'true' && { allowMultipleSelections: true }),
+      ...(layout.placeholderText && data.placeholderText && { placeholderText: data.placeholderText }),
+      ...(layout.minCharLimit && data.minCharLimit && { minCharLimit: data.minCharLimit }),
+      ...(layout.maxCharLimit && data.maxCharLimit && { maxCharLimit: data.maxCharLimit }),
+      ...(layout.minNumber && data.minNumber && { minNumber: data.minNumber }),
+      ...(layout.maxNumber && data.maxNumber && { maxNumber: data.maxNumber })
+    };
+
+    console.log('Cleaned data being sent to createCustomOption:', cleanedData);
+
+    // Create the option with layout ID
+    const option = await createCustomOption(cleanedData);
+
+    console.log('Successfully created option:', option);
+    return json({ option });
+  } catch (error) {
+    console.error('Error in action:', error);
+    return json({ 
+      error: error.message,
+      details: error.stack
+    }, { status: 400 });
+  }
 };
 
 function SortableItem({ id, children, index }) {
@@ -77,17 +156,49 @@ function OptionValues({
   optionLayouts,
   productIdType 
 }) {
-  const [optionRows, setOptionRows] = useState([
-    { 
+  const [uploadingImages, setUploadingImages] = useState(new Set());
+  const [optionRows, setOptionRows] = useState(() => {
+    // Initialize with optionValues if provided, otherwise create default row
+    return optionValues?.length > 0 ? optionValues : [{
       id: '1', 
       name: '', 
       default: false, 
       displayOrder: 0,
-      imageUrl: '',
-      color: '',
-      associatedProductId: '' 
+      imageUrl: '', // Will be Cloudinary URL later
+      tempImageUrl: '', // Local preview URL
+      file: null,
+      color: {
+        hue: 0,
+        brightness: 1,
+        saturation: 1
+      },
+      associatedProductId: ''
+    }];
+  });
+
+  // Update optionRows when optionValues prop changes
+  useEffect(() => {
+    // If optionValues is empty array or null/undefined, reset to default state
+    if (!optionValues || optionValues.length === 0) {
+      setOptionRows([{
+        id: '1', 
+        name: '', 
+        default: false, 
+        displayOrder: 0,
+        imageUrl: '',
+        tempImageUrl: '',
+        file: null,
+        color: {
+          hue: 0,
+          brightness: 1,
+          saturation: 1
+        },
+        associatedProductId: ''
+      }]);
+    } else {
+      setOptionRows(optionValues);
     }
-  ]);
+  }, [optionValues]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -134,7 +245,13 @@ function OptionValues({
           default: false, 
           displayOrder: prev.length,
           imageUrl: '',
-          color: '',
+          tempImageUrl: '',
+          file: null,
+          color: {
+            hue: 0,
+            brightness: 1,
+            saturation: 1
+          },
           associatedProductId: '' 
         }
       ];
@@ -156,8 +273,53 @@ function OptionValues({
     });
   };
 
+  const handleDropZoneChange = async (files, id) => {
+    const file = files[0];
+    if (!file) return;
+
+    // For now, just show local preview
+    const tempImageUrl = URL.createObjectURL(file);
+    
+    // Update with local preview only
+    handleValueUpdate(id, {
+      tempImageUrl,
+      file
+    });
+
+    // Commenting out Cloudinary upload for now
+    /* try {
+      setUploadingImages(prev => new Set(prev).add(id));
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/upload-swatch', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+
+      const { url } = await response.json();
+
+      handleValueUpdate(id, {
+        imageUrl: url,
+        tempImageUrl: '',
+        file: null
+      });
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setUploadingImages(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    } */
+  };
+
   // Find the current layout settings
-  const currentLayout = optionLayouts.find(layout => layout.type === type) || {};
+  const currentLayout = optionLayouts.find(layout => layout.type === type) || {CHECKBOX: true};
 
   // If none of the relevant fields are enabled, don't render anything
   if (!currentLayout.optionValues && !currentLayout.image && 
@@ -169,6 +331,36 @@ function OptionValues({
       <Card>
         <BlockStack gap="400">
           <Text as="h2" variant="headingMd">Option Values</Text>
+          
+          {/* Column Headers */}
+          <div style={{ display: 'flex', gap: '1rem', paddingLeft: '44px' }}>
+            {currentLayout.image && (
+              <div style={{ flex: 2 }}>
+                <Text as="p" variant="bodyMd">Image</Text>
+              </div>
+            )}
+            {currentLayout.color && (
+              <div style={{ flex: 2 }}>
+                <Text as="p" variant="bodyMd">Color</Text>
+              </div>
+            )}
+            {currentLayout.optionValues && (
+              <div style={{ flex: 2 }}>
+                <Text as="p" variant="bodyMd">Value</Text>
+              </div>
+            )}
+            {currentLayout.associatedProductId && productIdType === 'independent' && (
+              <div style={{ flex: 2 }}>
+                <Text as="p" variant="bodyMd">Product ID</Text>
+              </div>
+            )}
+            {currentLayout.optionValues && (
+              <div style={{ flex: 'none', width: '140px' }}>
+                <Text as="p" variant="bodyMd">Default</Text>
+              </div>
+            )}
+          </div>
+
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -181,6 +373,51 @@ function OptionValues({
               {optionRows.map((row, index) => (
                 <SortableItem key={row.id} id={row.id} index={index}>
                   <div style={{ display: 'flex', gap: '1rem', flex: 1, alignItems: 'center' }}>
+                    {/* Image Upload - controlled by image */}
+                    {currentLayout.image && (
+                      <div style={{ flex: 2, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: 40, height: 40, position: 'relative' }}>
+                          <DropZone
+                            allowMultiple={false}
+                            accept="image/*"
+                            type="image"
+                            onChange={(files) => handleDropZoneChange(files, row.id)}
+                          >
+                            {row.tempImageUrl ? (
+                              <img
+                                src={row.tempImageUrl}
+                                alt="Option swatch"
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover'
+                                }}
+                              />
+                            ) : (
+                              <DropZone.FileUpload />
+                            )}
+                          </DropZone>
+                        </div>
+                        {row.file && (
+                          <Text variant="bodySm" as="p">
+                            {row.file.name}
+                          </Text>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Color Picker - controlled by color */}
+                    {currentLayout.color && (
+                      <div style={{ flex: 2 }}>
+                        <ColorPicker
+                          label="Color"
+                          onChange={(color) => handleValueUpdate(row.id, { color })}
+                          color={row.color || { hue: 0, brightness: 1, saturation: 1 }}
+                          allowAlpha={false}
+                        />
+                      </div>
+                    )}
+
                     {/* Option Value Name - controlled by optionValues */}
                     {currentLayout.optionValues && (
                       <div style={{ flex: 2 }}>
@@ -189,32 +426,6 @@ function OptionValues({
                           value={row.name}
                           onChange={(value) => handleValueUpdate(row.id, { name: value })}
                           labelHidden
-                        />
-                      </div>
-                    )}
-
-                    {/* Image Upload - controlled by image */}
-                    {currentLayout.image && (
-                      <div style={{ flex: 2 }}>
-                        <TextField
-                          label="Image URL"
-                          value={row.imageUrl}
-                          onChange={(value) => handleValueUpdate(row.id, { imageUrl: value })}
-                          labelHidden
-                          helpText="Image upload coming soon"
-                        />
-                      </div>
-                    )}
-
-                    {/* Color Picker - controlled by color */}
-                    {currentLayout.color && (
-                      <div style={{ flex: 2 }}>
-                        <TextField
-                          label="Color"
-                          value={row.color}
-                          onChange={(value) => handleValueUpdate(row.id, { color: value })}
-                          labelHidden
-                          helpText="Color picker coming soon"
                         />
                       </div>
                     )}
@@ -497,15 +708,17 @@ function Option({
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">Associated Product ID</Text>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                    <Select
+                  {currentLayout.optionValues && (
+                    <div style={{ flex: 1 }}>
+                      <Select
                       label="Product ID Type"
                       options={productIdTypeOptions}
                       value={productIdType}
                       onChange={handleProductIdTypeChange}
                       />
-                  </div>
-                  {productIdType === 'universal' && (
+                    </div>
+                  )}
+                  {(productIdType === 'universal' || !currentLayout.optionValues) && (
                     <div style={{ flex: 1 }}>
                       <TextField
                         label="Universal Product ID"
@@ -569,9 +782,11 @@ function Option({
 
 export default function OptionsPage() {
   const [searchParams] = useSearchParams();
-  const initialType = searchParams.get('type') || '';
+  const initialType = searchParams.get('type') || 'CHECKBOX';
+  const submit = useSubmit();
+  const navigate = useNavigate();
   
-  const [options, setOptions] = useState({
+  const initialOptions = {
     type: initialType,
     name: '',
     values: [],
@@ -587,18 +802,79 @@ export default function OptionsPage() {
     minCharLimit: '',
     maxCharLimit: '',
     minNumber: ''
-  });
+  };
+  
+  const [options, setOptions] = useState(initialOptions);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleOptionUpdate = (updates) => {
     setOptions(prev => ({
       ...prev,
       ...updates
     }));
+    setIsDirty(true);
   };
 
+  const handleSubmit = async () => {
+    setIsSaving(true);
+    
+    console.log('=== SUBMITTING FORM DATA ===');
+    console.log('Options state:', options);
+    
+    // Convert the options state to FormData
+    const formData = new FormData();
+    
+    // Ensure required fields are present
+    if (!options.type) {
+      options.type = 'CHECKBOX'; // Default type if none selected
+    }
+    
+    Object.entries(options).forEach(([key, value]) => {
+      if (key === 'values') {
+        // Ensure each value has a name property
+        const validValues = value.filter(v => v.name?.trim());
+        formData.append(key, JSON.stringify(validValues));
+      } else {
+        formData.append(key, value?.toString() || '');
+      }
+    });
+
+    console.log('Form data being submitted:', Object.fromEntries(formData));
+
+    try {
+      await submit(formData, { method: 'post' });
+      // Reset form to initial state after successful save
+      setOptions(initialOptions);
+      setIsDirty(false);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDiscard = () => {
+    // Just reset the form to initial state
+    setOptions(initialOptions);
+    setIsDirty(false);
+  };
+
+  // Show save bar when form is dirty and name is not empty
+  const showSaveBar = isDirty && options.name.trim() !== '';
+
   return (
-    <Page fullWidth>
-      <TitleBar title="Product Options" />
+    <Page fullWidth>    
+      <TitleBar title="Product Options">
+        {showSaveBar && (
+          <>
+            <button onClick={handleDiscard}>Discard</button>
+            <button variant="primary" onClick={handleSubmit} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </button>
+          </>
+        )}
+      </TitleBar>
       <Layout>
         <Option
           {...options}
@@ -608,3 +884,6 @@ export default function OptionsPage() {
     </Page>
   );
 } 
+
+
+
