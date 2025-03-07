@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { Card, BlockStack, Text } from "@shopify/polaris";
 import ShapeGrid from './ShapeGrid';
-import { preventWheelChange } from './styles';
+import { preventWheelChange } from '../../../styles/shared/inputs';
 import ErrorBoundary from '../ErrorBoundary';
 
 /**
