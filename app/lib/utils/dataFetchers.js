@@ -540,33 +540,34 @@ export const getStyles = async () => {
 
 export const getOptionLayouts = async () => {
   try {
-    const optionLayouts = await prisma.OptionLayout.findMany();
-    return optionLayouts.map(({ id, type, optionName, nickname, required, description, inCartName, associatedProductId, allowedTypes, minSelectable, maxSelectable, default: isDefault, image, allowMultipleSelections, color, placeholderText, minCharLimit, maxCharLimit, minNumber, maxNumber, optionValues }) => ({
-      id,
-      type,  // This is the OptionType enum value
-      optionName,
-      nickname,
-      required,
-      description,
-      inCartName,
-      associatedProductId,
-      allowedTypes,
-      minSelectable,
-      maxSelectable,
-      isDefault,
-      image,
-      allowMultipleSelections,
-      color,
-      placeholderText,
-      minCharLimit,
-      maxCharLimit,
-      minNumber,
-      maxNumber,
-      optionValues
+    const optionLayouts = await prisma.optionLayout.findMany();
+    return optionLayouts.map(layout => ({
+      id: layout.id,
+      type: layout.type,
+      optionName: layout.optionName,
+      nickname: layout.nickname,
+      required: layout.required,
+      description: layout.description,
+      inCartName: layout.inCartName,
+      associatedProductId: layout.associatedProductId,
+      allowedTypes: layout.allowedTypes,
+      minSelectable: layout.minSelectable,
+      maxSelectable: layout.maxSelectable,
+      default: layout.default,
+      image: layout.image,
+      allowMultipleSelections: layout.allowMultipleSelections,
+      color: layout.color,
+      placeholderText: layout.placeholderText,
+      minCharLimit: layout.minCharLimit,
+      maxCharLimit: layout.maxCharLimit,
+      minNumber: layout.minNumber,
+      maxNumber: layout.maxNumber,
+      optionValues: layout.optionValues
     }));
   } catch (error) {
     console.error("Error fetching option layouts:", error);
-    throw error;
+    // Return empty array instead of throwing
+    return [];
   }
 };
 
