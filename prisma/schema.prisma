@@ -353,6 +353,14 @@ model OptionLayout {
   @@map("option_layouts")
 }
 
+model OptionTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  options   Option[] @relation("OptionToTag")
+}
+
 model Option {
   id              String            @id @default(cuid())
   name            String
@@ -375,6 +383,7 @@ model Option {
   updatedAt       DateTime          @updatedAt
   OptionValue     OptionValue[]
   OptionSetOption OptionSetOption[]
+  tags            OptionTag[]       @relation("OptionToTag")
 }
 
 model OptionValue {
