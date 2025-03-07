@@ -157,6 +157,9 @@ function OptionValues({
   optionLayouts,
   productIdType 
 }) {
+  console.log('OptionValues rendering with type:', type);
+  console.log('Current layout:', optionLayouts?.find(layout => layout.type === type));
+
   const [uploadingImages, setUploadingImages] = useState(new Set());
   const [optionRows, setOptionRows] = useState(() => {
     // Initialize with optionValues if provided, otherwise create default row
@@ -275,56 +278,92 @@ function OptionValues({
   };
 
   const handleDropZoneChange = async (files, id) => {
-    const file = files[0];
-    if (!file) return;
+    console.log('=== handleDropZoneChange START ===');
+    console.log('Received files:', files);
+    console.log('Row ID:', id);
 
-    // For now, just show local preview
+    const file = files[0];
+    if (!file) {
+      console.log('No file received');
+      return;
+    }
+
+    console.log('File details:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    });
+
+    // Show local preview immediately
     const tempImageUrl = URL.createObjectURL(file);
+    console.log('Created local preview URL');
     
-    // Update with local preview only
+    // Update with local preview
     handleValueUpdate(id, {
       tempImageUrl,
       file
     });
+    console.log('Updated state with local preview');
 
-    // Commenting out Cloudinary upload for now
-    /* try {
+    try {
+      console.log('Starting upload process');
       setUploadingImages(prev => new Set(prev).add(id));
       
       const formData = new FormData();
       formData.append('file', file);
+      console.log('FormData created with file');
       
+      console.log('Sending request to /api/upload-swatch');
       const response = await fetch('/api/upload-swatch', {
         method: 'POST',
         body: formData,
       });
+      console.log('Received response:', {
+        status: response.status,
+        ok: response.ok
+      });
 
-      if (!response.ok) throw new Error('Upload failed');
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Upload response error:', error);
+        throw new Error(error.message || 'Upload failed');
+      }
 
-      const { url } = await response.json();
+      const responseData = await response.json();
+      console.log('Upload successful:', responseData);
 
       handleValueUpdate(id, {
-        imageUrl: url,
+        imageUrl: responseData.url,
+        publicId: responseData.publicId,
         tempImageUrl: '',
         file: null
       });
+      console.log('Updated state with Cloudinary URL');
     } catch (error) {
-      console.error('Upload failed:', error);
+      console.error('Upload process error:', error);
+      console.error('Error stack:', error.stack);
     } finally {
       setUploadingImages(prev => {
         const next = new Set(prev);
         next.delete(id);
         return next;
       });
-    } */
+      console.log('=== handleDropZoneChange END ===');
+    }
   };
 
   // Find the current layout settings
   const currentLayout = optionLayouts.find(layout => layout.type === type) || {CHECKBOX: true};
+  console.log('Current layout settings:', {
+    type,
+    hasImage: currentLayout.image,
+    layout: currentLayout
+  });
 
   // If none of the relevant fields are enabled, don't render anything
   if (!currentLayout.optionValues && !currentLayout.image && 
       !currentLayout.color && !currentLayout.associatedProductId) {
+    console.log('No relevant fields enabled, not rendering OptionValues');
     return null;
   }
 
@@ -382,7 +421,23 @@ function OptionValues({
                             allowMultiple={false}
                             accept="image/*"
                             type="image"
-                            onChange={(files) => handleDropZoneChange(files, row.id)}
+                            onDrop={(files, acceptedFiles, rejectedFiles) => {
+                              console.log('DropZone onDrop triggered', { files, acceptedFiles, rejectedFiles });
+                            }}
+                            onDropAccepted={(acceptedFiles) => {
+                              console.log('DropZone onDropAccepted triggered');
+                              console.log('Accepted files:', acceptedFiles);
+                              handleDropZoneChange(acceptedFiles, row.id);
+                            }}
+                            onDropRejected={(rejectedFiles) => {
+                              console.log('DropZone onDropRejected triggered');
+                              console.log('Rejected files:', rejectedFiles);
+                            }}
+                            errorOverlayText="File type must be an image"
+                            overlayText="Drop image file to upload"
+                            onDragOver={() => console.log('Dragging over dropzone')}
+                            onDragEnter={() => console.log('Entered dropzone')}
+                            onDragLeave={() => console.log('Left dropzone')}
                           >
                             {row.tempImageUrl ? (
                               <img
