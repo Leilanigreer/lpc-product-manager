@@ -40,6 +40,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { loader as rootLoader } from "../lib/loaders/index.js";
 import { getOptionTypeChoices, getOptionTypeDisplayName } from "../lib/utils/optionTypeMapping.js";
 import { createCustomOption } from "../lib/server/websiteCustomization.server.js";
+import { preventWheelChange } from "../styles/shared/inputs";
 
 export const loader = async () => {
   const { optionLayouts } = await rootLoader();
@@ -865,6 +866,7 @@ export default function OptionsPage() {
 
   return (
     <Page fullWidth>    
+      <style>{preventWheelChange}</style>
       <TitleBar title="Product Options">
         {showSaveBar && (
           <>
