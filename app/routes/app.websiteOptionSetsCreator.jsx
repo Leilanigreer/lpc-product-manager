@@ -97,11 +97,9 @@ export default function WebsiteOptionSetsCreator() {
             </Text>
           </Card>
           <Card>
-            <Card.Section>
               <Text variant="headingMd" as="h2">
                 Placeholder for options
               </Text>
-            </Card.Section> */}
           </Card>
         </Layout.Section>
       </Layout>
