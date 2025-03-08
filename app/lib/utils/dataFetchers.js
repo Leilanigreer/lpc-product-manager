@@ -541,7 +541,8 @@ export const getStyles = async () => {
 export const getOptionLayouts = async () => {
   try {
     const optionLayouts = await prisma.optionLayout.findMany();
-    return optionLayouts.map(layout => ({
+    console.log('Raw option layouts:', optionLayouts);
+    const mappedLayouts = optionLayouts.map(layout => ({
       id: layout.id,
       type: layout.type,
       optionName: layout.optionName,
@@ -564,6 +565,8 @@ export const getOptionLayouts = async () => {
       maxNumber: layout.maxNumber,
       optionValues: layout.optionValues
     }));
+    console.log('Mapped option layouts:', mappedLayouts);
+    return mappedLayouts;
   } catch (error) {
     console.error("Error fetching option layouts:", error);
     // Return empty array instead of throwing
@@ -571,7 +574,7 @@ export const getOptionLayouts = async () => {
   }
 };
 
-export const getOption = async () => {
+export const getOptions = async () => {
   try {
     const options = await prisma.Option.findMany({
       include: {
@@ -593,7 +596,8 @@ export const getOption = async () => {
       }
     });
     
-    return options.map(option => ({
+    console.log('Raw options:', options);
+    const mappedOptions = options.map(option => ({
       id: option.id,
       name: option.name,
       nickname: option.nickname,
@@ -615,7 +619,7 @@ export const getOption = async () => {
         value: tag.id,
         label: tag.name
       })),
-      optionValues: option.OptionValue.map(value => ({
+      OptionValue: option.OptionValue.map(value => ({
         id: value.id,
         name: value.name,
         displayOrder: value.displayOrder,
@@ -624,6 +628,8 @@ export const getOption = async () => {
         imageUrl: value.imageUrl
       }))
     }));
+    console.log('Mapped options:', mappedOptions);
+    return mappedOptions;
   } catch (error) {
     console.error("Error fetching options:", error);
     throw error;
@@ -644,6 +650,55 @@ export const getOptionTags = async () => {
   } catch (error) {
     console.error("Error fetching option tags:", error);
     throw error;
+  }
+};
+
+export const getOptionSets = async () => {
+  try {
+    const optionSets = await prisma.optionSet.findMany({
+      include: {
+        collection: {
+          select: {
+            id: true,
+            title: true,
+            handle: true
+          }
+        },
+        options: {
+          include: {
+            option: {
+              include: {
+                layout: true,
+                OptionValue: true
+              }
+            }
+          }
+        },
+        rules: true
+      },
+      orderBy: {
+        rank: 'asc'
+      }
+    });
+
+    return optionSets.map(optionSet => ({
+      id: optionSet.id,
+      title: optionSet.title,
+      rank: optionSet.rank,
+      collection: optionSet.collection,
+      isActive: optionSet.isActive,
+      options: optionSet.options.map(optionSetOption => ({
+        id: optionSetOption.option.id,
+        name: optionSetOption.option.name,
+        type: optionSetOption.option.layout.type,
+        values: optionSetOption.option.OptionValue.length,
+        rank: optionSetOption.rank
+      })),
+      rules: optionSet.rules
+    }));
+  } catch (error) {
+    console.error("Error fetching option sets:", error);
+    return [];
   }
 };
 
