@@ -1,12 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { useLoaderData, useSearchParams, useSubmit, useNavigate } from "@remix-run/react";
-import { json } from "@remix-run/node";
 import { TitleBar } from "@shopify/app-bridge-react";
 import {
   Page,
   Layout,
-  Button,
-  Banner,
 } from "@shopify/polaris";
 import { preventWheelChange } from "../styles/shared/inputs.js";
 import { loader as rootLoader } from "../lib/loaders/index.js";
@@ -17,29 +14,26 @@ import Option from "../components/WebsiteCustomOptions/Option.jsx";
 export const loader = async ({ request }) => {
   const url = new URL(request.url);
   const optionId = url.searchParams.get('id');
-  console.log('Received optionId:', optionId);
   
   const { optionLayouts, options } = await rootLoader();
   const optionTags = await getOptionTags();
   
   let option = null;
   if (optionId) {
-    console.log('Attempting to find option with ID:', optionId);
     option = options.find(opt => opt.id === optionId);
-    console.log('Found option:', option);
     
     if (!option) {
       console.error('Option not found in loaded options');
-      return json({ 
+      return { 
         error: `Option with ID ${optionId} not found`,
         optionLayouts, 
         optionTags, 
         option: null 
-      });
+      };
     }
   }
 
-  return json({ optionLayouts, optionTags, option });
+  return { optionLayouts, optionTags, option };
 };
 
 export const action = async ({ request }) => {
@@ -47,13 +41,7 @@ export const action = async ({ request }) => {
   const data = Object.fromEntries(formData);
   const isEditing = formData.get('isEditing') === 'true';
   
-  console.log('=== FORM SUBMISSION START ===');
-  console.log('Raw form data:', data);
-  
   try {
-    // Parse the values array from the form data
-    const values = data.values ? JSON.parse(data.values) : [];
-    
     // Get the layout ID based on the type
     const { optionLayouts } = await rootLoader();
     
@@ -100,22 +88,23 @@ export const action = async ({ request }) => {
     if (isEditing) {
       cleanedData.id = data.id;
       const updatedOption = await updateCustomOption(cleanedData);
-      return json({ option: updatedOption });
+      return { option: updatedOption };
     }
 
     // Otherwise create new option
     const newOption = await createCustomOption(cleanedData);
-    return json({ option: newOption });
+    return { option: newOption };
   } catch (error) {
     console.error('Error in action:', error);
-    return json({ 
+    return { 
       error: error.message,
       details: error.stack
-    }, { status: 400 });
+    };
   }
 };
 
 export default function OptionsPage() {
+  // eslint-disable-next-line no-unused-vars
   const { optionLayouts, optionTags, option: existingOption } = useLoaderData();
   const [searchParams] = useSearchParams();
   const initialType = searchParams.get('type') || (existingOption?.layout?.type || 'CHECKBOX');
@@ -181,76 +170,48 @@ export default function OptionsPage() {
       // Handle arrays
       if (Array.isArray(value1) && Array.isArray(value2)) {
         if (value1.length !== value2.length) {
-          console.log('Array length mismatch:', value1.length, value2.length);
           return true;
         }
         return value1.some((item, index) => {
           const item2 = value2[index];
           if (typeof item === 'object' && item !== null) {
-            return Object.keys(item).some(key => {
-              const isDifferent = normalizeValue(item[key]) !== normalizeValue(item2?.[key]);
-              if (isDifferent) {
-                console.log('Array object value mismatch:', key, item[key], item2?.[key]);
-              }
-              return isDifferent;
-            });
+            return Object.keys(item).some(key => 
+              normalizeValue(item[key]) !== normalizeValue(item2?.[key])
+            );
           }
-          const isDifferent = normalizeValue(item) !== normalizeValue(item2);
-          if (isDifferent) {
-            console.log('Array value mismatch:', item, item2);
-          }
-          return isDifferent;
+          return normalizeValue(item) !== normalizeValue(item2);
         });
       }
       
       // Handle primitive values
       if (typeof value1 !== 'object' || value1 === null) {
-        const isDifferent = normalizeValue(value1) !== normalizeValue(value2);
-        if (isDifferent) {
-          console.log('Primitive value mismatch:', value1, value2);
-        }
-        return isDifferent;
+        return normalizeValue(value1) !== normalizeValue(value2);
       }
       
       // Handle objects
       return Object.keys(value1).some(key => {
         if (key === 'id') return false; // Skip id comparison
-        const isDifferent = compareValues(value1[key], value2[key]);
-        if (isDifferent) {
-          console.log('Object key mismatch:', key, value1[key], value2[key]);
-        }
-        return isDifferent;
+        return compareValues(value1[key], value2[key]);
       });
     };
 
-    const changed = compareValues(options, initialOptions);
-    console.log('Change detection result:', changed);
-    console.log('Current options:', options);
-    console.log('Initial options:', initialOptions);
-    return changed;
+    return compareValues(options, initialOptions);
   }, [options, initialOptions]);
 
   // Update isDirty based on actual changes
   useEffect(() => {
-    console.log('Setting isDirty to:', hasChanges);
     setIsDirty(hasChanges);
   }, [hasChanges]);
 
   const handleOptionUpdate = (updates) => {
-    console.log('Handling option update:', updates);
-    setOptions(prev => {
-      const newOptions = {
-        ...prev,
-        ...updates
-      };
-      console.log('New options state:', newOptions);
-      return newOptions;
-    });
+    setOptions(prev => ({
+      ...prev,
+      ...updates
+    }));
   };
 
   const handleSubmit = async () => {
     if (!hasChanges) {
-      console.log('No changes detected, skipping submit');
       return;
     }
     
@@ -274,7 +235,6 @@ export default function OptionsPage() {
         }
       });
 
-      console.log('Submitting form data:', Object.fromEntries(formData));
       await submit(formData, { method: 'post' });
       navigate('/app/websiteCustomizationLanding');
     } catch (error) {
