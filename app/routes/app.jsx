@@ -38,7 +38,7 @@ export default function App() {
         </Link>
         <Link to="/app/createProducts">Create a new product</Link>
         <Link to="/app/updatePricing">Update Pricing</Link>
-        <Link to="/app/websiteCustomOptionSets">Website Option Sets</Link>
+        <Link to="/app/websiteCustomizationLanding">Website Customization</Link>
         <Link to="/app/websiteOptionSetsCreator">Create Option Sets</Link>
         <Link to="/app/websiteOptionCreator">Create Options</Link>
         <Link to="/app/websiteOptionEditor">Edit Options</Link>

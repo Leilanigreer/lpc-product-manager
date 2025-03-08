@@ -48,7 +48,7 @@ export default function Index() {
                         <Text variant="bodyMd">
                           Manage product customization options
                         </Text>
-                        <Button icon={AdjustIcon} onClick={() => navigate("/app/websiteCustomOptionSets")}>
+                        <Button icon={AdjustIcon} onClick={() => navigate("/app/websiteCustomizationLanding")}>
                           Customize Options
                         </Button>
                       </BlockStack>

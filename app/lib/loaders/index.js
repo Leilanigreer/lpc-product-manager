@@ -10,7 +10,9 @@ import {
   getCommonDescription, 
   getProductDataLPC,
   getOptionLayouts,
-  getOptionTags
+  getOptions,
+  getOptionTags,
+  getOptionSets
 } from "../utils/dataFetchers";
 
 export const loader = async () => {  
@@ -25,7 +27,9 @@ export const loader = async () => {
       commonDescription,
       productDataLPC,
       optionLayouts,
-      optionTags
+      options,
+      optionTags,
+      optionSets
     ] = await Promise.all([
       getLeatherColors(),
       getStitchingThreadColors(),
@@ -36,7 +40,9 @@ export const loader = async () => {
       getCommonDescription(),
       getProductDataLPC(),
       getOptionLayouts(),
-      getOptionTags()
+      getOptions(),
+      getOptionTags(),
+      getOptionSets()
     ]);
 
     return {
@@ -49,7 +55,9 @@ export const loader = async () => {
       commonDescription,
       productDataLPC,
       optionLayouts,
+      options,
       optionTags,
+      optionSets,
       error: null
     };
   } catch (error) {
@@ -65,7 +73,9 @@ export const loader = async () => {
         commonDescription: [],
         productDataLPC: [],
         optionLayouts: [],
+        options: [],
         optionTags: [],
+        optionSets: [],
         error: error.message
       }), 
       { status: 500,
