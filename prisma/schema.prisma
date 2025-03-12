@@ -362,28 +362,28 @@ model OptionTag {
 }
 
 model Option {
-  id              String            @id @default(cuid())
-  name            String
-  nickname        String?
-  required        Boolean
-  description     String?
-  inCartName      String?
-  allowedTypes    String?
-  minSelection    Int?
-  maxSelection    Int?
-  allowMultiple   Boolean?
-  placeholderText String?
-  minCharacters   Int?
-  maxCharacters   Int?
-  minNumber       Int?
-  maxNumber       Int?
-  layoutId        String
-  layout          OptionLayout      @relation(fields: [layoutId], references: [id])
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  OptionValue     OptionValue[]
-  OptionSetOption OptionSetOption[]
-  tags            OptionTag[]       @relation("OptionToTag")
+  id                      String            @id @default(cuid())
+  name                    String
+  nickname                String?
+  required                Boolean
+  description             String?
+  inCartName              String?
+  allowedTypes            String?
+  minSelectable           Int?
+  maxSelectable           Int?
+  allowMultipleSelections Boolean?
+  placeholderText         String?
+  minCharLimit            Int?
+  maxCharLimit            Int?
+  minNumber               Int?
+  maxNumber               Int?
+  layoutId                String
+  layout                  OptionLayout      @relation(fields: [layoutId], references: [id])
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  OptionValue             OptionValue[]
+  OptionSetOption         OptionSetOption[]
+  tags                    OptionTag[]       @relation("OptionToTag")
 }
 
 model OptionValue {
