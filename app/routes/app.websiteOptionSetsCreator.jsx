@@ -25,6 +25,7 @@ import {
   Listbox,
   Combobox,
   Tag,
+  Checkbox,
 } from "@shopify/polaris";
 import {
   DeleteIcon,
@@ -92,9 +93,9 @@ export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
   // Get options data from our centralized data loader
-  const { options } = await rootLoader();
+  const { options, shopifyCollections, productDataLPC } = await rootLoader();
   
-  return { options };
+  return { options, shopifyCollections, productDataLPC };
 };
 
 
@@ -104,14 +105,15 @@ export default function WebsiteOptionSetsCreator() {
     name: '',
     rank: '',
     description: '',
-    options: []
+    options: [],
+    isActive: true
   });
   const [selectedOptions, setSelectedOptions] = useState([]);
   const [searchValue, setSearchValue] = useState('');
   const [selectedType, setSelectedType] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const { options } = useLoaderData();
+  const { options, shopifyCollections, productDataLPC } = useLoaderData();
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
@@ -287,19 +289,12 @@ export default function WebsiteOptionSetsCreator() {
           <Layout.Section>
             <Card>
               <BlockStack gap="200">
-                <InlineStack gap="200">
-                  <TextField
-                    label="Option Set Name"
-                    helpText="This is not visible to customers"
-                    value={activeSet?.name || ""}
-                    onChange={(value) => setActiveSet({ ...activeSet, name: value })}
-                  />
-                  <TextField 
-                    label="Rank"
-                    value={activeSet?.rank || ""}
-                    onChange={(value) => setActiveSet({ ...activeSet, rank: value })}
-                  />
-                </InlineStack>
+                <TextField
+                  label="Option Set Name"
+                  helpText="This is not visible to customers"
+                  value={activeSet?.name || ""}
+                  onChange={(value) => setActiveSet({ ...activeSet, name: value })}
+                />
                 <TextField 
                   label="Option Set Description"
                   value={activeSet?.description || ""}
@@ -307,6 +302,7 @@ export default function WebsiteOptionSetsCreator() {
                 />
               </BlockStack>
             </Card>
+            
             <Card>
               <BlockStack gap="400">
                 <Text variant="headingMd" as="h2">
@@ -363,102 +359,149 @@ export default function WebsiteOptionSetsCreator() {
                   </Button>
                 </div>
               </BlockStack>
-
-              <Modal
-                open={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                title="Add options to option sets"
-                primaryAction={{
-                  content: 'Add Options',
-                  onAction: () => {
-                    // Handle adding selected options with unique IDs
-                    const selectedOptionData = options
-                      .filter(opt => selectedOptions.includes(opt.id))
-                      .map(opt => {
-                        // Keep all the original option data
-                        const newOption = {
-                          ...opt,
-                          originalId: opt.id,
-                          id: `${opt.id}_${generateUniqueId()}`,
-                          displayOrder: activeSet.options.length,
-                          // Preserve the OptionValue array exactly as it is
-                          OptionValue: opt.OptionValue ? [...opt.OptionValue] : []
-                        };
-                        return newOption;
-                      });
-
-                    setActiveSet(prev => ({
-                      ...prev,
-                      options: [...(prev?.options || []), ...selectedOptionData]
-                    }));
-                    setSelectedOptions([]);
-                    setIsModalOpen(false);
-                  }
-                }}
-                secondaryActions={[
-                  {
-                    content: 'Cancel',
-                    onAction: () => setIsModalOpen(false)
-                  }
-                ]}
-              >
-                <Modal.Section>
-                  <ResourceList
-                    resourceName={{ singular: 'option', plural: 'options' }}
-                    items={filteredOptions}
-                    renderItem={(item) => {
-                      const { id, name, layout } = item;
-                      return (
-                        <ResourceItem
-                          id={id}
-                          name={name}
-                          accessibilityLabel={`Select ${name}`}
-                        >
-                          <h3>
-                            <Text variant="bodyMd" fontWeight="bold" as="span">
-                              {name}
-                            </Text>
-                          </h3>
-                          <div>Type: {getOptionTypeDisplayName(layout.type)}</div>
-                        </ResourceItem>
-                      );
-                    }}
-                    selectedItems={selectedOptions}
-                    onSelectionChange={handleOptionSelect}
-                    filterControl={filterControl}
-                    selectable
-                  />
-                </Modal.Section>
-              </Modal>
             </Card>
+
             <Card>
-              <Text variant="headingMd" as="h2">
-                Placeholder for Rules
-              </Text>
-              <ResourceList
-                resourceName={{ singular: 'rule', plural: 'rules' }}
-                items={[]}
-                renderItem={() => {
-                  return <div>Rule</div>;
-                }}
-              />
-              <RulesModal
-                isOpen={isRuleModalOpen}
-                onClose={() => setIsRuleModalOpen(false)}
-                onSave={handleRuleSave}
-                activeSet={activeSet}
-                getOptionValues={getOptionValues}
-                filterValues={filterValues}
-              />
-              <Button
-                icon={PlusIcon}
-                onClick={() => setIsRuleModalOpen(true)}
-              >
-                Create Rule
-              </Button>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h2">
+                  Rules
+                </Text>
+                <ResourceList
+                  resourceName={{ singular: 'rule', plural: 'rules' }}
+                  items={[]}
+                  renderItem={() => {
+                    return <div>Rule</div>;
+                  }}
+                />
+                <Button
+                  icon={PlusIcon}
+                  onClick={() => setIsRuleModalOpen(true)}
+                >
+                  Create Rule
+                </Button>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+
+          <Layout.Section variant="oneThird">
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h2">Set Settings</Text>
+                
+                <Select
+                  label="Collection"
+                  options={[
+                    { label: 'Select a collection...', value: '' },
+                    ...shopifyCollections
+                      .filter(c => c.showInDropdown)
+                      .map(({ value, label }) => ({
+                        value,
+                        label
+                      }))
+                  ]}
+                  value={activeSet.collection?.value || ''}
+                  onChange={(value) => {
+                    const selectedCollection = shopifyCollections?.find(c => c.value === value);
+                    if (selectedCollection) {
+                      setActiveSet(prev => ({
+                        ...prev,
+                        collection: selectedCollection
+                      }));
+                    }
+                  }}
+                  helpText="Select the collection this option set belongs to"
+                />
+
+                <TextField 
+                  label="Rank"
+                  type="number"
+                  value={activeSet?.rank || ""}
+                  onChange={(value) => setActiveSet(prev => ({ ...prev, rank: value }))}
+                  helpText="Controls the display order of option sets"
+                />
+
+                <Checkbox
+                  label="Active"
+                  checked={activeSet?.isActive ?? true}
+                  onChange={(checked) => setActiveSet(prev => ({ ...prev, isActive: checked }))}
+                  helpText="When disabled, this option set won't be shown to customers"
+                />
+              </BlockStack>
             </Card>
           </Layout.Section>
         </Layout>
+
+        {/* Modals */}
+        <Modal
+          open={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Add options to option sets"
+          primaryAction={{
+            content: 'Add Options',
+            onAction: () => {
+              const selectedOptionData = options
+                .filter(opt => selectedOptions.includes(opt.id))
+                .map(opt => ({
+                  ...opt,
+                  originalId: opt.id,
+                  id: `${opt.id}_${generateUniqueId()}`,
+                  displayOrder: activeSet.options.length,
+                  OptionValue: opt.OptionValue ? [...opt.OptionValue] : []
+                }));
+
+              setActiveSet(prev => ({
+                ...prev,
+                options: [...(prev?.options || []), ...selectedOptionData]
+              }));
+              setSelectedOptions([]);
+              setIsModalOpen(false);
+            }
+          }}
+          secondaryActions={[
+            {
+              content: 'Cancel',
+              onAction: () => setIsModalOpen(false)
+            }
+          ]}
+        >
+          <Modal.Section>
+            <ResourceList
+              resourceName={{ singular: 'option', plural: 'options' }}
+              items={filteredOptions}
+              renderItem={(item) => {
+                const { id, name, layout } = item;
+                return (
+                  <ResourceItem
+                    id={id}
+                    name={name}
+                    accessibilityLabel={`Select ${name}`}
+                  >
+                    <h3>
+                      <Text variant="bodyMd" fontWeight="bold" as="span">
+                        {name}
+                      </Text>
+                    </h3>
+                    <div>Type: {getOptionTypeDisplayName(layout.type)}</div>
+                  </ResourceItem>
+                );
+              }}
+              selectedItems={selectedOptions}
+              onSelectionChange={handleOptionSelect}
+              filterControl={filterControl}
+              selectable
+            />
+          </Modal.Section>
+        </Modal>
+
+        <RulesModal
+          isOpen={isRuleModalOpen}
+          onClose={() => setIsRuleModalOpen(false)}
+          onSave={handleRuleSave}
+          activeSet={activeSet}
+          getOptionValues={getOptionValues}
+          filterValues={filterValues}
+          productDataLPC={productDataLPC}
+        />
       </Page>
     </Frame>
   );
