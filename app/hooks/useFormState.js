@@ -22,7 +22,7 @@ const formReducer = (state, action) => {
 
   switch (type) {
     case ACTION_TYPES.UPDATE_COLLECTION: {
-      const { collection, productDataLPC } = payload;
+      const { collection, productSets } = payload;
       console.log('UPDATE_COLLECTION payload:', payload);
       console.log('Collection being set:', collection);
     
@@ -33,7 +33,7 @@ const formReducer = (state, action) => {
       }), {});
 
       // Process existing products during collection selection
-      const existingProducts = extractExistingProducts(productDataLPC);
+      const existingProducts = extractExistingProducts(productSets);
       const filteredProducts = filterProductsByCollection(existingProducts, collection.value);
 
       // Create new state with collection and reset relevant fields
