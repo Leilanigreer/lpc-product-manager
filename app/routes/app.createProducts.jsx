@@ -77,7 +77,7 @@ export default function CreateProduct() {
     shapes, 
     shopifyCollections,
     commonDescription, 
-    productDataLPC, 
+    productSets, 
     error 
   } = useLoaderData();
 
@@ -92,8 +92,9 @@ export default function CreateProduct() {
       ...initialFormState,
       shapes, // Add shapes array for reference
       allShapes, // Add initialized shape states
+      existingProducts: productSets // Update reference to use productSets
     };
-  }, [shapes]);
+  }, [shapes, productSets]);
 
   const fetcher = useFetcher();
   const [formState, handleChange] = useFormState(completeInitialState);
@@ -225,7 +226,7 @@ export default function CreateProduct() {
             <BlockStack gap="400">
               <CollectionSelector
                 shopifyCollections={shopifyCollections}
-                productDataLPC={productDataLPC}
+                productSets={productSets}
                 formState={formState}
                 onChange={handleChange}
               />

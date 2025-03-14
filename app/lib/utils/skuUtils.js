@@ -3,19 +3,19 @@
 import _ from 'lodash';
 
 /**
- * Extracts unique products with SKUs from ProductDataLPC
+ * Extracts unique products with SKUs from ProductSetDataLPC
  */
-export const extractExistingProducts = (productDataLPC) => {
-  console.log('ProductDataLPC structure:', productDataLPC?.[0]);
+export const extractExistingProducts = (productSets) => {
+  console.log('ProductSets structure:', productSets?.[0]);
 
-  if (!productDataLPC?.length) {
+  if (!productSets?.length) {
     return [];
   }
 
-  const products = productDataLPC
-    .map(product => ({
-      baseSKU: product.baseSKU,
-      collection: product.collection // Keep full collection reference
+  const products = productSets
+    .map(set => ({
+      baseSKU: set.baseSKU,
+      collection: set.collection // Keep full collection reference
     }))
     .filter(product => product.baseSKU);
 

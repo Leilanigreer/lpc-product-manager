@@ -26,17 +26,17 @@ model Session {
 }
 
 model LeatherColor {
-  id                      String           @id @default(cuid())
+  id                      String                  @id @default(cuid())
   name                    String
   abbreviation            String
   url_id                  String?
-  isLimitedEditionLeather Boolean          @default(false)
-  createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
-  colorTags               ColorTag[]       @relation("LeatherColorToTag")
-  first_leather_color     ProductDataLPC[] @relation("PrimaryLeatherColor")
-  second_leather_color    ProductDataLPC[] @relation("SecondaryLeatherColor")
-  color_designation       ProductDataLPC[] @relation("ColorDesignation")
+  isLimitedEditionLeather Boolean                 @default(false)
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  colorTags               ColorTag[]              @relation("LeatherColorToTag")
+  first_leather_color     ProductSetDataLPC[]     @relation("PrimaryLeatherColor")
+  second_leather_color    ProductSetDataLPC[]     @relation("SecondaryLeatherColor")
+  color_designation       ProductVariantDataLPC[] @relation("ColorDesignation")
 }
 
 model StitchingThread {
@@ -51,27 +51,27 @@ model StitchingThread {
 }
 
 model EmbroideryThread {
-  id             String           @id @default(cuid())
-  name           String
-  abbreviation   String
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  colorTags      ColorTag[]       @relation("EmbroideryThreadToTag")
-  isacordNumbers IsacordNumber[]
-  ProductDataLPC ProductDataLPC[]
+  id                    String                  @id @default(cuid())
+  name                  String
+  abbreviation          String
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  colorTags             ColorTag[]              @relation("EmbroideryThreadToTag")
+  isacordNumbers        IsacordNumber[]
+  ProductVariantDataLPC ProductVariantDataLPC[]
 }
 
 model IsacordNumber {
-  id              String            @id @default(cuid())
-  number          String
-  threadId        String?
-  wawakColorName  String?
-  wawakItemNumber String?
-  isStockThread   Boolean           @default(false)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  thread          EmbroideryThread? @relation(fields: [threadId], references: [id])
-  ProductDataLPC  ProductDataLPC[]
+  id                    String                  @id @default(cuid())
+  number                String
+  threadId              String?
+  wawakColorName        String?
+  wawakItemNumber       String?
+  isStockThread         Boolean                 @default(false)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  thread                EmbroideryThread?       @relation(fields: [threadId], references: [id])
+  ProductVariantDataLPC ProductVariantDataLPC[]
 
   @@index([threadId])
 }
@@ -99,12 +99,12 @@ model ColorTag {
 }
 
 model Font {
-  id             String           @id @default(cuid())
-  name           String
-  url_id         String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  ProductDataLPC ProductDataLPC[]
+  id                String              @id @default(cuid())
+  name              String
+  url_id            String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  ProductSetDataLPC ProductSetDataLPC[]
 }
 
 enum ShapeType {
@@ -116,14 +116,14 @@ enum ShapeType {
 }
 
 model Shape {
-  id             String           @id @default(cuid())
-  name           String
-  displayOrder   Int              @default(0) // Controls ordering
-  abbreviation   String?
-  shapeType      ShapeType        @default(OTHER) // For wood/putter & pricing logic
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  ProductDataLPC ProductDataLPC[]
+  id                    String                  @id @default(cuid())
+  name                  String
+  displayOrder          Int                     @default(0)
+  abbreviation          String?
+  shapeType             ShapeType               @default(OTHER)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  ProductVariantDataLPC ProductVariantDataLPC[]
 }
 
 enum StyleNamePattern {
@@ -133,18 +133,18 @@ enum StyleNamePattern {
 }
 
 model Style {
-  id                 String            @id @default(cuid())
-  name               String
-  abbreviation       String
-  url_id             String?
-  useOppositeLeather Boolean           @default(false) // For "Fat" style logic
-  leatherPhrase      String? // For "50/50" style phrase
-  namePattern        StyleNamePattern  @default(STANDARD)
-  customNamePattern  String?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  ProductDataLPC     ProductDataLPC[]
-  collections        StyleCollection[]
+  id                    String                  @id @default(cuid())
+  name                  String
+  abbreviation          String
+  url_id                String?
+  useOppositeLeather    Boolean                 @default(false)
+  leatherPhrase         String?
+  namePattern           StyleNamePattern        @default(STANDARD)
+  customNamePattern     String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  ProductVariantDataLPC ProductVariantDataLPC[]
+  collections           StyleCollection[]
 }
 
 model StyleCollection {
@@ -191,16 +191,17 @@ model ShopifyCollection {
   needsColorDesignation   Boolean                @default(false)
   needsStyle              Boolean                @default(false)
   defaultStyleNamePattern StyleNamePattern       @default(STANDARD)
-  stylePerCollection      Boolean                @default(false) // For handling grouped styles
+  stylePerCollection      Boolean                @default(false)
   showInDropdown          Boolean                @default(true)
   createdAt               DateTime               @default(now())
   updatedAt               DateTime               @updatedAt
   admin_graphql_api_id    String
-  ProductDataLPC          ProductDataLPC[]
+  productSets             ProductSetCollection[]
   styles                  StyleCollection[]
   titleFormat             CollectionTitleFormat?
   PriceTier               PriceTier?             @relation(fields: [priceTierId], references: [id])
   priceTierId             String?                @unique
+  OptionSet               OptionSet[]
 
   @@map("ShopifyCollections")
 }
@@ -252,60 +253,277 @@ model ShapeTypeAdjustment {
 }
 
 model ProductStitching {
-  id                String          @id @default(cuid())
-  productDataLPCId  String
-  productDataLPC    ProductDataLPC  @relation(fields: [productDataLPCId], references: [id], onDelete: Cascade)
+  id                String            @id @default(cuid())
+  setId             String
+  set               ProductSetDataLPC @relation(fields: [setId], references: [id], onDelete: Cascade)
   stitchingThreadId String
-  stitchingThread   StitchingThread @relation(fields: [stitchingThreadId], references: [id])
+  stitchingThread   StitchingThread   @relation(fields: [stitchingThreadId], references: [id])
   amannId           String
-  amann             AmannNumber     @relation(fields: [amannId], references: [id])
+  amann             AmannNumber       @relation(fields: [amannId], references: [id])
 
-  @@index([productDataLPCId])
+  @@index([setId])
   @@index([stitchingThreadId])
   @@index([amannId])
 }
 
-model ProductDataLPC {
-  id                 String             @id @default(cuid())
-  shopifyProductId   String
+enum ImageType {
+  PRIMARY // For drivers, fairways, hybrids and putters (front view)
+  SECONDARY // For putters (side view)
+  TERTIARY // For putters (top view)
+  BACK // Universal back view
+  INSIDE // Universal inside view
+}
+
+enum Marketplace {
+  SHOPIFY
+  ETSY
+  EBAY
+}
+
+model ProductImage {
+  id            String                 @id @default(cuid())
+  setId         String?
+  set           ProductSetDataLPC?     @relation("SetImages", fields: [setId], references: [id], onDelete: Cascade)
+  variantId     String?
+  variant       ProductVariantDataLPC? @relation("VariantImages", fields: [variantId], references: [id], onDelete: Cascade)
+  imageType     ImageType
+  marketplace   Marketplace
+  cloudinaryUrl String
+  cloudinaryId  String
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@unique([setId, imageType, marketplace])
+  @@unique([variantId, imageType, marketplace])
+  @@index([setId])
+  @@index([variantId])
+  @@index([marketplace])
+}
+
+model ProductSetDataLPC {
+  id               String                  @id @default(cuid())
+  shopifyProductId String
+  baseSKU          String
+  collections      ProductSetCollection[]
+  offeringType     String
+  fontId           String
+  font             Font                    @relation(fields: [fontId], references: [id])
+  leatherColor1Id  String
+  leatherColor1    LeatherColor            @relation("PrimaryLeatherColor", fields: [leatherColor1Id], references: [id])
+  leatherColor2Id  String?
+  leatherColor2    LeatherColor?           @relation("SecondaryLeatherColor", fields: [leatherColor2Id], references: [id])
+  stitchingThreads ProductStitching[]
+  mainHandle       String
+  setImages        ProductImage[]          @relation("SetImages")
+  variants         ProductVariantDataLPC[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([fontId])
+  @@index([leatherColor1Id])
+  @@index([leatherColor2Id])
+}
+
+model ProductVariantDataLPC {
+  id                 String            @id @default(cuid())
+  setId              String
+  set                ProductSetDataLPC @relation(fields: [setId], references: [id], onDelete: Cascade)
   shopifyVariantId   String
   shopifyInventoryId String
   SKU                String
-  baseSKU            String?
-  collectionId       String
-  collection         ShopifyCollection  @relation(fields: [collectionId], references: [id])
-  offeringType       String
-  fontId             String
-  font               Font               @relation(fields: [fontId], references: [id])
   shapeId            String
-  shape              Shape              @relation(fields: [shapeId], references: [id])
-  weight             Decimal            @db.Decimal(10, 2)
-  leatherColor1Id    String
-  leatherColor1      LeatherColor       @relation("PrimaryLeatherColor", fields: [leatherColor1Id], references: [id])
-  leatherColor2Id    String?
-  leatherColor2      LeatherColor?      @relation("SecondaryLeatherColor", fields: [leatherColor2Id], references: [id])
-  // Single embroidery thread with its isacord number
+  shape              Shape             @relation(fields: [shapeId], references: [id])
+  weight             Decimal           @db.Decimal(10, 2)
   embroideryThreadId String?
-  embroideryThread   EmbroideryThread?  @relation(fields: [embroideryThreadId], references: [id])
+  embroideryThread   EmbroideryThread? @relation(fields: [embroideryThreadId], references: [id])
   isacordId          String?
-  isacord            IsacordNumber?     @relation(fields: [isacordId], references: [id])
-  // Multiple stitching threads with their amann numbers
-  stitchingThreads   ProductStitching[]
+  isacord            IsacordNumber?    @relation(fields: [isacordId], references: [id])
   styleId            String?
-  style              Style?             @relation(fields: [styleId], references: [id])
+  style              Style?            @relation(fields: [styleId], references: [id])
   colorDesignationId String?
-  colorDesignation   LeatherColor?      @relation("ColorDesignation", fields: [colorDesignationId], references: [id])
-  mainHandle         String
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  colorDesignation   LeatherColor?     @relation("ColorDesignation", fields: [colorDesignationId], references: [id])
+  variantImages      ProductImage[]    @relation("VariantImages")
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
-  @@index([collectionId])
-  @@index([fontId])
+  @@index([setId])
   @@index([shapeId])
-  @@index([leatherColor1Id])
-  @@index([leatherColor2Id])
   @@index([embroideryThreadId])
   @@index([isacordId])
   @@index([styleId])
   @@index([colorDesignationId])
+}
+
+model ProductSetCollection {
+  id           String            @id @default(cuid())
+  setId        String
+  collectionId String
+  set          ProductSetDataLPC @relation(fields: [setId], references: [id], onDelete: Cascade)
+  collection   ShopifyCollection @relation(fields: [collectionId], references: [id])
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([setId, collectionId])
+  @@index([setId])
+  @@index([collectionId])
+}
+
+enum OptionType {
+  FILE_UPLOAD
+  CHECKBOX
+  DROPDOWN
+  IMAGE_SWATCH
+  COLOR_SWATCH
+  RADIO_BUTTON
+  BUTTON
+  TEXT_BOX
+  NUMBER_FIELD
+  DATE_PICKER
+}
+
+model OptionLayout {
+  id                      String     @id @default(cuid())
+  type                    OptionType
+  optionName              Boolean    @default(true)
+  nickname                Boolean    @default(true)
+  required                Boolean    @default(true)
+  description             Boolean    @default(true)
+  inCartName              Boolean    @default(true)
+  associatedProductId     Boolean    @default(true)
+  allowedTypes            Boolean    @default(false)
+  minSelectable           Boolean    @default(false)
+  maxSelectable           Boolean    @default(false)
+  default                 Boolean    @default(false)
+  image                   Boolean    @default(false)
+  allowMultipleSelections Boolean    @default(false)
+  color                   Boolean    @default(false)
+  placeholderText         Boolean    @default(false)
+  minCharLimit            Boolean    @default(false)
+  maxCharLimit            Boolean    @default(false)
+  minNumber               Boolean    @default(false)
+  maxNumber               Boolean    @default(false)
+  optionValues            Boolean    @default(false)
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+  Option                  Option[]
+
+  @@map("option_layouts")
+}
+
+model OptionTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  options   Option[] @relation("OptionToTag")
+}
+
+model Option {
+  id                      String            @id @default(cuid())
+  name                    String
+  nickname                String?
+  required                Boolean
+  description             String?
+  inCartName              String?
+  allowedTypes            String?
+  minSelectable           Int?
+  maxSelectable           Int?
+  allowMultipleSelections Boolean?
+  placeholderText         String?
+  minCharLimit            Int?
+  maxCharLimit            Int?
+  minNumber               Int?
+  maxNumber               Int?
+  layoutId                String
+  layout                  OptionLayout      @relation(fields: [layoutId], references: [id])
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  OptionValue             OptionValue[]
+  OptionSetOption         OptionSetOption[]
+  tags                    OptionTag[]       @relation("OptionToTag")
+}
+
+model OptionValue {
+  id                  String   @id @default(cuid())
+  name                String?
+  displayOrder        Int?
+  associatedProductId String?
+  default             Boolean  @default(false)
+  imageUrl            String?
+  optionId            String
+  option              Option   @relation(fields: [optionId], references: [id])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model OptionSet {
+  id           String             @id @default(cuid())
+  title        String
+  rank         Int                @default(0) // For ordering sets
+  collectionId String?
+  collection   ShopifyCollection? @relation(fields: [collectionId], references: [id])
+  isActive     Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  options      OptionSetOption[]
+  rules        OptionSetRule[]
+}
+
+model OptionSetRule {
+  id              String                  @id @default(cuid())
+  name            String // e.g. "Select Driver Number", "Show Driver Mono Placement"
+  optionSetId     String
+  conditionType   RuleConditionType // ANY or ALL
+  conditions      Json // Array of conditions, each with:
+  // - field: "Shopify options", "Add Monogram", etc
+  // - operator: "is one of", etc
+  // - values: ["Shape", "Customize Driver +$15", etc]
+  action          RuleActionType // SHOW or HIDE
+  actionTargets   Json[] // Array of targets to show/hide, each with:
+  // - optionId: The option to show/hide
+  // - valueType: "All values" or specific values
+  // - values: [] if "All values", else specific values to show/hide
+  optionSet       OptionSet               @relation(fields: [optionSetId], references: [id], onDelete: Cascade)
+  affectedOptions OptionSetRuleToOption[] // Many-to-many relation with options
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([optionSetId])
+}
+
+// Junction table for many-to-many relationship between rules and options
+model OptionSetRuleToOption {
+  id                String          @id @default(cuid())
+  ruleId            String
+  optionSetOptionId String
+  rule              OptionSetRule   @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  option            OptionSetOption @relation(fields: [optionSetOptionId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, optionSetOptionId])
+  @@index([ruleId])
+  @@index([optionSetOptionId])
+}
+
+// Update OptionSetOption to include the reverse relation
+model OptionSetOption {
+  id          String                  @id @default(cuid())
+  optionSetId String
+  optionId    String
+  rank        Int                     @default(0) // For ordering options within a set
+  optionSet   OptionSet               @relation(fields: [optionSetId], references: [id], onDelete: Cascade)
+  option      Option                  @relation(fields: [optionId], references: [id])
+  rules       OptionSetRuleToOption[] // Many-to-many relation with rules
+
+  @@index([optionSetId])
+  @@index([optionId])
+}
+
+enum RuleConditionType {
+  ANY
+  ALL
+}
+
+enum RuleActionType {
+  SHOW
+  HIDE
 }
