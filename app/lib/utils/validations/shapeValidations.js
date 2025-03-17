@@ -41,6 +41,10 @@ const validateShapeProperties = (shape, debug = false) => {
     displayOrder: {
       type: 'number',
       validate: value => typeof value === 'number' && !isNaN(value)
+    },
+    isActive: {
+      type: 'boolean',
+      validate: value => typeof value === 'boolean'
     }
   };
 

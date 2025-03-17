@@ -1,4 +1,4 @@
-import { v2 as cloudinary } from 'cloudinary';
+import { Cloudinary } from "@cloudinary/url-gen";
 
 // Helper function to get environment-specific variables
 const getEnvironmentConfig = () => {
@@ -52,13 +52,17 @@ if (missingConfig.length > 0) {
   throw new Error(`Missing required Cloudinary configuration: ${missingConfig.join(', ')}`);
 }
 
-cloudinary.config(config);
+// Configure Cloudinary with the new SDK
+const cld = new Cloudinary({
+  cloud: {
+    cloudName: config.cloud_name
+  }
+});
 
 console.log('Cloudinary Configuration:', {
   cloud_name: config.cloud_name,
   api_key: config.api_key ? '***' : undefined,
   api_secret: config.api_secret ? '***' : undefined,
-  isConfigured: cloudinary.config().cloud_name === config.cloud_name,
   environment: {
     NODE_ENV: process.env.NODE_ENV,
     RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME,
@@ -70,7 +74,7 @@ console.log('Cloudinary Configuration:', {
 export const uploadToCloudinary = async (file) => {
   console.log('=== Cloudinary Upload START ===');
   
-  if (!cloudinary.config().cloud_name) {
+  if (!config.cloud_name) {
     throw new Error('Cloudinary is not properly configured');
   }
 
@@ -81,23 +85,32 @@ export const uploadToCloudinary = async (file) => {
   });
 
   try {
-    console.log('Converting file to base64');
-    // Convert file to base64
-    const base64Data = await file.arrayBuffer().then(buffer => 
-      Buffer.from(buffer).toString('base64')
-    );
-    console.log('File converted to base64');
+    // Create form data for upload
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'product-options'); // Make sure this matches your upload preset
+    formData.append('api_key', config.api_key);
+    formData.append('timestamp', Math.round(new Date().getTime() / 1000));
     
+    // Generate signature
+    const signature = await generateSignature(formData);
+    formData.append('signature', signature);
+
     // Upload to Cloudinary
     console.log('Initiating Cloudinary upload');
-    const result = await cloudinary.uploader.upload(
-      `data:${file.type};base64,${base64Data}`,
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${config.cloud_name}/auto/upload`,
       {
-        folder: 'product-options',
-        resource_type: 'auto',
-        timeout: 60000, // 60 second timeout
+        method: 'POST',
+        body: formData,
       }
     );
+
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
     console.log('Cloudinary upload successful:', {
       url: result.secure_url,
       publicId: result.public_id,
@@ -115,9 +128,7 @@ export const uploadToCloudinary = async (file) => {
   } catch (error) {
     console.error('Cloudinary upload error:', {
       message: error.message,
-      stack: error.stack,
-      code: error.http_code,
-      details: error.error?.message || error.error
+      stack: error.stack
     });
     console.log('=== Cloudinary Upload END (with error) ===');
     throw error;
@@ -129,7 +140,34 @@ export const deleteFromCloudinary = async (publicId) => {
   console.log('Deleting publicId:', publicId);
 
   try {
-    const result = await cloudinary.uploader.destroy(publicId);
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const signature = await generateSignature({
+      public_id: publicId,
+      timestamp: timestamp,
+      api_key: config.api_key
+    });
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${config.cloud_name}/image/destroy`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          public_id: publicId,
+          signature: signature,
+          api_key: config.api_key,
+          timestamp: timestamp
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Delete failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
     console.log('Delete result:', result);
     console.log('=== Cloudinary Delete END ===');
     return result;
@@ -139,4 +177,22 @@ export const deleteFromCloudinary = async (publicId) => {
     console.log('=== Cloudinary Delete END (with error) ===');
     throw new Error('Failed to delete image');
   }
-}; 
+};
+
+// Helper function to generate signature for upload and delete operations
+const generateSignature = async (params) => {
+  const sortedParams = Object.keys(params)
+    .sort()
+    .map(key => `${key}=${params[key]}`)
+    .join('&');
+
+  const signatureString = sortedParams + config.api_secret;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(signatureString);
+  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+// Export the Cloudinary instance for URL generation
+export { cld }; 
