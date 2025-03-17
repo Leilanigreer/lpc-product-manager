@@ -112,6 +112,7 @@ enum ShapeType {
   WOOD // -10 from base
   HYBRID // -15 from base
   PUTTER // Fixed price or base, whichever is higher
+  LAB_PUTTER // Fixed price or base, whichever is higher
   OTHER // Keep for flexibility
 }
 
@@ -121,6 +122,7 @@ model Shape {
   displayOrder          Int                     @default(0)
   abbreviation          String?
   shapeType             ShapeType               @default(OTHER)
+  isActive              Boolean                 @default(true)
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
   ProductVariantDataLPC ProductVariantDataLPC[]
@@ -343,8 +345,14 @@ model ProductVariantDataLPC {
   colorDesignationId String?
   colorDesignation   LeatherColor?     @relation("ColorDesignation", fields: [colorDesignationId], references: [id])
   variantImages      ProductImage[]    @relation("VariantImages")
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+
+  // Custom variant fields
+  customShopifyVariantId   String?
+  customShopifyInventoryId String?
+  customSKU                String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([setId])
   @@index([shapeId])
