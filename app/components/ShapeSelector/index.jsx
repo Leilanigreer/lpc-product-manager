@@ -1,8 +1,9 @@
 // app/components/ShapeSelector/index.jsx
 
 import React, { useMemo } from 'react';
-import { Card, BlockStack, Text } from "@shopify/polaris";
+import { Card, BlockStack, Text, Divider } from "@shopify/polaris";
 import ShapeGrid from './ShapeGrid';
+import AdditionalViews from '../AdditionalViews';
 import { preventWheelChange } from './styles';
 import ErrorBoundary from '../ErrorBoundary';
 
@@ -28,23 +29,54 @@ const ShapeSelector = ({
   formState, 
   handleChange
 }) => {
-  // Memoize props for ShapeGrid
+  // Split shapes into putter and non-putter groups
+  const { putterShapes, nonPutterShapes } = useMemo(() => {
+    return shapes.reduce((acc, shape) => {
+      if (shape.shapeType === 'PUTTER' || shape.shapeType === 'LAB_PUTTER') {
+        acc.putterShapes.push(shape);
+      } else {
+        acc.nonPutterShapes.push(shape);
+      }
+      return acc;
+    }, { putterShapes: [], nonPutterShapes: [] });
+  }, [shapes]);
+
+  // Memoize props for each grid
   const gridProps = useMemo(() => ({
-    shapes,
     embroideryThreadColors,
     formState,
     handleChange
-  }), [shapes, embroideryThreadColors, formState, handleChange]);
+  }), [embroideryThreadColors, formState, handleChange]);
 
   return (
     <ErrorBoundary errorMessage="Error in shape configuration">
-      <Card>
-        <BlockStack gap="400">
-          <Text as="h2" variant="headingMd">Shape Configuration</Text>
-          <style>{preventWheelChange}</style>
-          <ShapeGrid {...gridProps} />
-        </BlockStack>
-      </Card>
+      <BlockStack gap="400">
+        {/* Box 1: Non-Putter Shapes */}
+        <Card>
+          <BlockStack gap="400">
+            <Text as="h2" variant="headingLg">Driver, Fairways & Hybrid</Text>
+            <Divider borderColor="border-inverse" />
+            <style>{preventWheelChange}</style>
+            <ShapeGrid 
+              {...gridProps} 
+              shapes={nonPutterShapes}
+            />
+          </BlockStack>
+        </Card>
+
+        {/* Box 2: Putter Shapes */}
+        <Card>
+          <BlockStack gap="400">
+            <Text as="h2" variant="headingLg">Putters</Text>
+            <Divider borderColor="border-inverse" />
+            <style>{preventWheelChange}</style>
+            <ShapeGrid 
+              {...gridProps} 
+              shapes={putterShapes}
+            />
+          </BlockStack>
+        </Card>
+      </BlockStack>
     </ErrorBoundary>
   );
 };
