@@ -4,6 +4,7 @@
  * @property {string} label - Shape name
  * @property {string} abbreviation - Shape code
  * @property {string} shapeType - DRIVER, WOOD, FAIRWAY, PUTTER, or OTHER
+ * @property {boolean} isActive - Whether the shape is active
  */
 
 const isValidShape = (shape) => {
@@ -11,7 +12,9 @@ const isValidShape = (shape) => {
     shape &&
     typeof shape === 'object' &&
     'shapeType' in shape &&
-    typeof shape.shapeType === 'string'
+    typeof shape.shapeType === 'string' &&
+    'isActive' in shape &&
+    typeof shape.isActive === 'boolean'
   );
 };
 
@@ -20,7 +23,7 @@ export const isPutter = (shape) => {
     console.warn('Invalid shape provided to isPutter:', shape);
     return false;
   }
-  return shape.shapeType === 'PUTTER';
+  return shape.shapeType === 'PUTTER' || shape.shapeType === 'LAB_PUTTER';
 };
 
 export const isWoodType = (shape) => {

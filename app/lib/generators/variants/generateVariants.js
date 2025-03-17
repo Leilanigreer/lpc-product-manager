@@ -17,7 +17,8 @@ const assignVariantPositions = (variants, allShapes) => {
  
   return variants.map(variant => ({
     ...variant,
-    position: orderedShapeValues.indexOf(variant.shapeValue) + 1
+    position: orderedShapeValues.indexOf(variant.shapeValue) + 1,
+    shapeType: allShapes[variant.shapeValue]?.shapeType || 'DEFAULT'
   }));
  };
 
@@ -63,11 +64,13 @@ export const generateVariants = async (formState, skuInfo) => {
         weight: "0.00",
         isCustom: true,
         position: regularVariants.length + 1,
-        options: { Style: "Create my own set" }
+        options: { Style: "Create my own set" },
+        shapeType: selectedShapes[0]?.shapeType || 'DEFAULT'
       },
       ...customVariants.map(variant => ({
         ...variant,
-        position: variant.position + regularVariants.length + 1
+        position: variant.position + regularVariants.length + 1,
+        shapeType: formState.allShapes[variant.shapeValue]?.shapeType || 'DEFAULT'
       }))
     ];
 

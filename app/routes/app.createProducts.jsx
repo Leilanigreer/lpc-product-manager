@@ -222,6 +222,8 @@ export default function CreateProduct() {
         )}
 
         <Layout.Section>
+          <BlockStack gap="400">
+
           <Card>
             <BlockStack gap="400">
               <CollectionSelector
@@ -229,42 +231,39 @@ export default function CreateProduct() {
                 productSets={productSets}
                 formState={formState}
                 onChange={handleChange}
-              />
+                />
               <ProductTypeSelector
                 formState={formState}
                 onChange={handleChange}
-              />
+                />
               <LeatherColorSelector
                 leatherColors={leatherColors}
                 formState={formState}
                 onChange={handleChange}
-              />
+                />
               <FontSelector
                 fonts={fonts}
                 formState={formState}
                 onChange={handleChange}
-              />
+                />
               <ThreadColorSelector
                 stitchingThreadColors={stitchingThreadColors}
                 embroideryThreadColors={embroideryThreadColors}
                 formState={formState}
                 onChange={handleChange}
-              />
+                />
             </BlockStack>
           </Card>
 
           <Card>
+            <BlockStack gap="400">
             <ShapeSelector
               shapes={shapes}
               leatherColors={leatherColors}
               embroideryThreadColors={embroideryThreadColors}
               formState={formState}
               handleChange={handleChange}
-            />
-          </Card>
-
-          <Card>
-            <BlockStack gap="400">
+              />
               {generationError && (
                 <Banner status="critical">
                   {generationError}
@@ -272,15 +271,21 @@ export default function CreateProduct() {
               )}
               
               <Button
+                primary
+                size="large"
                 onClick={handleGenerateData}
                 loading={isGenerating}
                 disabled={!formState.collection || isGenerating}
-              >
+                >
                 Preview Product Data
               </Button>
+            </BlockStack>
+          </Card>
 
               {productData && (
-                <>
+                <Card>
+                  <BlockStack gap="400">
+
                   <ProductVariantCheck productData={productData} />
                   
                   {submissionError && (
@@ -294,13 +299,13 @@ export default function CreateProduct() {
                     loading={isSubmitting}
                     disabled={isSubmitting}
                     onClick={handleSubmit}
-                  >
+                    >
                     Create Product
                   </Button>
-                </>
+                </BlockStack>
+                </Card>
               )}
-            </BlockStack>
-          </Card>
+              </BlockStack>
         </Layout.Section>
       </Layout>
     </Page>

@@ -119,13 +119,21 @@ export const getFonts = async () => {
 
 export const getShapes = async () => {
   try {
-    const shapes = await prisma.Shape.findMany();
-    return shapes.map(({ id, name, displayOrder, abbreviation, shapeType}) =>({
+    const shapes = await prisma.Shape.findMany({
+      where: {
+        isActive: true
+      },
+      orderBy: {
+        displayOrder: 'asc'
+      }
+    });
+    return shapes.map(({ id, name, displayOrder, abbreviation, shapeType, isActive }) => ({
       value: id, 
       label: name,
       displayOrder,
       abbreviation,
-      shapeType,
+      shapeType: shapeType || 'OTHER',
+      isActive: isActive ?? true
     }));
   } catch (error) {
     console.error("Error fetching shapes:", error);
@@ -358,7 +366,10 @@ export const getProductSets = async () => {
               select: {
                 id: true,
                 name: true,
-                abbreviation: true
+                abbreviation: true,
+                isActive: true,
+                shapeType: true,
+                displayOrder: true
               }
             },
             embroideryThread: {
@@ -496,7 +507,10 @@ export const getProductSets = async () => {
           shape: {
             value: variant.shape.id,
             label: variant.shape.name,
-            abbreviation: variant.shape.abbreviation
+            abbreviation: variant.shape.abbreviation,
+            isActive: variant.shape.isActive,
+            shapeType: variant.shape.shapeType,
+            displayOrder: variant.shape.displayOrder
           },
           embroideryThread: variant.embroideryThread && variant.isacord ? {
             value: variant.embroideryThread.id,

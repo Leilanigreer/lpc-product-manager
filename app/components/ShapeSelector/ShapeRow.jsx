@@ -30,6 +30,8 @@ const ShapeRow = ({
     embroideryThreadColors,
   }), [fieldProps, embroideryThreadColors]);
 
+  const isSelected = formState.allShapes[shape.value]?.isSelected;
+
   return (
     <ErrorBoundary errorMessage={`Error in shape row: ${shape.label}`}>
       <InlineStack wrap={false} gap="400" align="start">
