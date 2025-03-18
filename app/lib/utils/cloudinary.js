@@ -103,7 +103,13 @@ export const uploadToCloudinary = async (file, customPublicId = null) => {
   try {
     // Create form data for upload
     const formData = new FormData();
-    formData.append('file', file);
+    
+    // Create a new File object with the custom filename if provided
+    const fileToUpload = customPublicId 
+      ? new File([file], `${customPublicId}.${file.name.split('.').pop()}`, { type: file.type })
+      : file;
+    
+    formData.append('file', fileToUpload);
     formData.append('upload_preset', 'product-images'); // Using product-images upload preset
     
     // If custom public ID is provided, add it to the form data
@@ -113,7 +119,7 @@ export const uploadToCloudinary = async (file, customPublicId = null) => {
 
     // Log the form data for debugging (excluding sensitive info)
     console.log('Upload form data:', {
-      file: file.name,
+      file: fileToUpload.name,
       upload_preset: 'product-images',
       public_id: customPublicId
     });
