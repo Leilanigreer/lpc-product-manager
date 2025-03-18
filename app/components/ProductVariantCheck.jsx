@@ -248,7 +248,7 @@ const ProductVariantCheck = ({ productData, onImageUpload }) => {
       <BlockStack gap="200">
         <Text variant="headingMd" as="h3">Additional Views</Text>
         <Card>
-          <Box padding="400">
+          <Box padding="100">
             <AdditionalViews 
               formState={formState} 
               handleChange={() => {}} 

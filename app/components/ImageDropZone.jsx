@@ -24,8 +24,8 @@ const SIZES = {
     style: {}
   },
   additional: {
-    width: "200px",
-    height: "112.5px",
+    width: "160px",
+    height: "90px",
     showLabel: true,
     outline: true,
     style: {}
@@ -50,7 +50,10 @@ const ImageDropZone = ({
   const dropZoneStyle = {
     minHeight: height,
     height: height,
-    width: width
+    width: width,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   };
 
   const handleDrop = async (files) => {
@@ -109,13 +112,13 @@ const ImageDropZone = ({
   );
 
   return (
-    <BlockStack gap="200">
+    <BlockStack gap="100">
       {sizeConfig.showLabel && (
         <Text variant="bodyMd" as="p">{label}</Text>
       )}
-      <Box width={width} height={height} {...sizeConfig.style}>
+      <Box width={width} height={height}>
         {isUploading ? (
-          <Box padding="400" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <Box padding="200" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
             <Spinner accessibilityLabel="Uploading image" size="small" />
           </Box>
         ) : uploadedImageUrl ? (
@@ -129,11 +132,8 @@ const ImageDropZone = ({
             label={sizeConfig.showLabel ? undefined : label}
             labelHidden={!sizeConfig.showLabel}
             outline={sizeConfig.outline}
-            style={dropZoneStyle}
           >
-            <BlockStack gap="100">
-              <DropZone.FileUpload actionHint="" />
-            </BlockStack>
+            <DropZone.FileUpload actionHint="" />
           </DropZone>
         )}
       </Box>
