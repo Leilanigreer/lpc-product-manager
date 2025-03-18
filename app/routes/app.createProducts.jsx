@@ -107,8 +107,9 @@ export default function CreateProduct() {
 
     setProductData(prevData => {
       const newData = { ...prevData };
-      const variant = newData.variants.find(v => v.sku === sku);
       
+      // If the SKU matches a variant's SKU, update the variant's images
+      const variant = newData.variants.find(v => v.sku === sku);
       if (variant) {
         // Initialize images array if it doesn't exist
         variant.images = variant.images || [];
@@ -122,6 +123,21 @@ export default function CreateProduct() {
         } else {
           // Add new image
           variant.images.push({ label, url });
+        }
+      } else {
+        // This is an additional view
+        // Initialize additionalViews array if it doesn't exist
+        newData.additionalViews = newData.additionalViews || [];
+        
+        // Check if an image with this label already exists
+        const existingImageIndex = newData.additionalViews.findIndex(img => img.label === label);
+        
+        if (existingImageIndex >= 0) {
+          // Update existing image
+          newData.additionalViews[existingImageIndex] = { label, url };
+        } else {
+          // Add new image
+          newData.additionalViews.push({ label, url });
         }
       }
       
