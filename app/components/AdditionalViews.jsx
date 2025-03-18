@@ -47,6 +47,13 @@ const AdditionalViews = ({
     console.log('Files rejected:', files);
   }, []);
 
+  // Get the uploaded image URL for a specific label
+  const getUploadedImageUrl = useCallback((label) => {
+    if (!productData.additionalViews) return null;
+    const image = productData.additionalViews.find(img => img.label === label);
+    return image?.url || null;
+  }, [productData.additionalViews]);
+
   // Check if any non-putter shapes are selected
   const hasSelectedNonPutters = Object.entries(formState.allShapes).some(
     ([_, shapeState]) => shapeState?.isSelected && !shapeState?.isPutter
@@ -69,6 +76,7 @@ const AdditionalViews = ({
           onDrop={(files) => handleDrop(files, 'Back')}
           onDropAccepted={handleDropAccepted}
           onDropRejected={handleDropRejected}
+          uploadedImageUrl={getUploadedImageUrl('Back')}
         />
       </Box>
       <Box>
@@ -78,6 +86,7 @@ const AdditionalViews = ({
           onDrop={(files) => handleDrop(files, 'Inside')}
           onDropAccepted={handleDropAccepted}
           onDropRejected={handleDropRejected}
+          uploadedImageUrl={getUploadedImageUrl('Inside')}
         />
       </Box>
     </InlineStack>
