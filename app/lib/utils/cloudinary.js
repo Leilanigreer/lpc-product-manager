@@ -2,8 +2,36 @@ import { Cloudinary } from "@cloudinary/url-gen";
 
 // Helper function to get environment-specific variables
 const getEnvironmentConfig = () => {
-  // For Railway (staging and production)
-  if (process.env.RAILWAY_ENVIRONMENT_NAME) {
+  // For client-side, use window.ENV
+  if (typeof window !== 'undefined' && window.ENV) {
+    return {
+      cloud_name: window.ENV.CLOUDINARY_CLOUD_NAME,
+      api_key: window.ENV.CLOUDINARY_API_KEY,
+      api_secret: window.ENV.CLOUDINARY_API_SECRET,
+    };
+  }
+
+  // For server-side, use process.env
+  if (typeof process !== 'undefined' && process.env) {
+    // For Railway (staging and production)
+    if (process.env.RAILWAY_ENVIRONMENT_NAME) {
+      return {
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+      };
+    }
+
+    // For local development
+    if (process.env.NODE_ENV === 'development') {
+      return {
+        cloud_name: process.env.SHOPIFY_CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.SHOPIFY_CLOUDINARY_API_KEY,
+        api_secret: process.env.SHOPIFY_CLOUDINARY_API_SECRET,
+      };
+    }
+
+    // Fallback to standard env vars
     return {
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
       api_key: process.env.CLOUDINARY_API_KEY,
@@ -11,21 +39,8 @@ const getEnvironmentConfig = () => {
     };
   }
 
-  // For local development
-  if (process.env.NODE_ENV === 'development') {
-    return {
-      cloud_name: process.env.SHOPIFY_CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.SHOPIFY_CLOUDINARY_API_KEY,
-      api_secret: process.env.SHOPIFY_CLOUDINARY_API_SECRET,
-    };
-  }
-
-  // Fallback to standard env vars
-  return {
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-  };
+  // If neither context is available, throw an error
+  throw new Error('Cloudinary configuration is not available in this context');
 };
 
 // Configure Cloudinary
@@ -39,16 +54,13 @@ const missingConfig = Object.entries(config)
 if (missingConfig.length > 0) {
   console.error('Missing Cloudinary configuration:', missingConfig);
   console.error('Environment details:', {
-    NODE_ENV: process.env.NODE_ENV,
-    RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME,
-    isProduction: process.env.NODE_ENV === 'production',
-    isStaging: process.env.RAILWAY_ENVIRONMENT_NAME === 'staging',
+    isClient: typeof window !== 'undefined',
+    isServer: typeof process !== 'undefined',
+    NODE_ENV: typeof process !== 'undefined' ? process.env.NODE_ENV : undefined,
+    RAILWAY_ENVIRONMENT_NAME: typeof process !== 'undefined' ? process.env.RAILWAY_ENVIRONMENT_NAME : undefined,
+    isProduction: typeof process !== 'undefined' ? process.env.NODE_ENV === 'production' : undefined,
+    isStaging: typeof process !== 'undefined' ? process.env.RAILWAY_ENVIRONMENT_NAME === 'staging' : undefined,
   });
-  console.error('Available environment variables:', 
-    Object.keys(process.env)
-      .filter(key => key.includes('CLOUDINARY') || key.includes('SHOPIFY'))
-      .map(key => `${key}: ${process.env[key] ? '[SET]' : '[NOT SET]'}`)
-  );
   throw new Error(`Missing required Cloudinary configuration: ${missingConfig.join(', ')}`);
 }
 
@@ -59,19 +71,22 @@ const cld = new Cloudinary({
   }
 });
 
-console.log('Cloudinary Configuration:', {
-  cloud_name: config.cloud_name,
-  api_key: config.api_key ? '***' : undefined,
-  api_secret: config.api_secret ? '***' : undefined,
-  environment: {
-    NODE_ENV: process.env.NODE_ENV,
-    RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME,
-    isProduction: process.env.NODE_ENV === 'production',
-    isStaging: process.env.RAILWAY_ENVIRONMENT_NAME === 'staging',
-  }
-});
+// Only log configuration in development
+if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
+  console.log('Cloudinary Configuration:', {
+    cloud_name: config.cloud_name,
+    api_key: config.api_key ? '***' : undefined,
+    api_secret: config.api_secret ? '***' : undefined,
+    environment: {
+      NODE_ENV: process.env.NODE_ENV,
+      RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME,
+      isProduction: process.env.NODE_ENV === 'production',
+      isStaging: process.env.RAILWAY_ENVIRONMENT_NAME === 'staging',
+    }
+  });
+}
 
-export const uploadToCloudinary = async (file) => {
+export const uploadToCloudinary = async (file, customPublicId = null) => {
   console.log('=== Cloudinary Upload START ===');
   
   if (!config.cloud_name) {
@@ -81,20 +96,27 @@ export const uploadToCloudinary = async (file) => {
   console.log('Received file:', {
     name: file.name,
     type: file.type,
-    size: file.size
+    size: file.size,
+    customPublicId
   });
 
   try {
     // Create form data for upload
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', 'product-options'); // Make sure this matches your upload preset
-    formData.append('api_key', config.api_key);
-    formData.append('timestamp', Math.round(new Date().getTime() / 1000));
+    formData.append('upload_preset', 'product-images'); // Using product-images upload preset
     
-    // Generate signature
-    const signature = await generateSignature(formData);
-    formData.append('signature', signature);
+    // If custom public ID is provided, add it to the form data
+    if (customPublicId) {
+      formData.append('public_id', customPublicId);
+    }
+
+    // Log the form data for debugging (excluding sensitive info)
+    console.log('Upload form data:', {
+      file: file.name,
+      upload_preset: 'product-images',
+      public_id: customPublicId
+    });
 
     // Upload to Cloudinary
     console.log('Initiating Cloudinary upload');
@@ -107,7 +129,13 @@ export const uploadToCloudinary = async (file) => {
     );
 
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
+      const errorData = await response.json();
+      console.error('Cloudinary upload failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
+      throw new Error(`Upload failed: ${response.statusText} - ${errorData.error?.message || ''}`);
     }
 
     const result = await response.json();
