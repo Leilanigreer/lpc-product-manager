@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { InlineStack, Box, Text } from "@shopify/polaris";
+import { InlineStack, Text } from "@shopify/polaris";
 import ImageDropZone from './ImageDropZone';
 import { uploadToCloudinary } from '../lib/utils/cloudinary';
 
@@ -68,27 +68,23 @@ const AdditionalViews = ({
   }
 
   return (
-    <InlineStack gap="400" align="start">
-      <Box>
-        <ImageDropZone
-          size="additional"
-          label="Back View"
-          onDrop={(files) => handleDrop(files, 'Back')}
-          onDropAccepted={handleDropAccepted}
-          onDropRejected={handleDropRejected}
-          uploadedImageUrl={getUploadedImageUrl('Back')}
-        />
-      </Box>
-      <Box>
-        <ImageDropZone
-          size="additional"
-          label="Inside View"
-          onDrop={(files) => handleDrop(files, 'Inside')}
-          onDropAccepted={handleDropAccepted}
-          onDropRejected={handleDropRejected}
-          uploadedImageUrl={getUploadedImageUrl('Inside')}
-        />
-      </Box>
+    <InlineStack gap="600" align="start">
+      <ImageDropZone
+        size="additional"
+        label="Back View"
+        onDrop={(files) => handleDrop(files, 'Back')}
+        onDropAccepted={handleDropAccepted}
+        onDropRejected={handleDropRejected}
+        uploadedImageUrl={getUploadedImageUrl('Back')}
+      />
+      <ImageDropZone
+        size="additional"
+        label="Inside View"
+        onDrop={(files) => handleDrop(files, 'Inside')}
+        onDropAccepted={handleDropAccepted}
+        onDropRejected={handleDropRejected}
+        uploadedImageUrl={getUploadedImageUrl('Inside')}
+      />
     </InlineStack>
   );
 };

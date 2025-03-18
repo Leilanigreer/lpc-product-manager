@@ -1,7 +1,7 @@
 // app/components/ShapeSelector/ShapeGrid.jsx
 
 import React, { useMemo } from 'react';
-import { BlockStack, Box, Divider, DropZone } from "@shopify/polaris";
+import { BlockStack, Box, Divider } from "@shopify/polaris";
 import { isPutter } from '../../lib/utils';
 import ShapeRow from './ShapeRow';
 import ShapeGridHeader from './ShapeGridHeader';
