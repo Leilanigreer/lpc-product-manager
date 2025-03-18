@@ -1,6 +1,6 @@
 // app/routes/app.createProducts.jsx
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
@@ -102,6 +102,33 @@ export default function CreateProduct() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
 
+  const handleImageUpload = useCallback((sku, label, url) => {
+    if (!productData) return;
+
+    setProductData(prevData => {
+      const newData = { ...prevData };
+      const variant = newData.variants.find(v => v.sku === sku);
+      
+      if (variant) {
+        // Initialize images array if it doesn't exist
+        variant.images = variant.images || [];
+        
+        // Check if an image with this label already exists
+        const existingImageIndex = variant.images.findIndex(img => img.label === label);
+        
+        if (existingImageIndex >= 0) {
+          // Update existing image
+          variant.images[existingImageIndex] = { label, url };
+        } else {
+          // Add new image
+          variant.images.push({ label, url });
+        }
+      }
+      
+      return newData;
+    });
+  }, [productData]);
+
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       console.log('Form State Updated:', formState);
@@ -158,6 +185,15 @@ export default function CreateProduct() {
         variantCount: data?.variants?.length,
         variants: data?.variants
       });
+
+      // Create a sanitized folder name from the product title
+      const folderName = data.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      // Add the folder name to the product data
+      data.cloudinaryFolder = folderName;
 
       setProductData(data);
     } catch (error) {
@@ -285,24 +321,26 @@ export default function CreateProduct() {
               {productData && (
                 <Card>
                   <BlockStack gap="400">
-
-                  <ProductVariantCheck productData={productData} />
-                  
-                  {submissionError && (
-                    <Banner status="critical">
-                      {submissionError}
-                    </Banner>
-                  )}
-                  
-                  <Button
-                    primary
-                    loading={isSubmitting}
-                    disabled={isSubmitting}
-                    onClick={handleSubmit}
-                    >
-                    Create Product
-                  </Button>
-                </BlockStack>
+                    <ProductVariantCheck 
+                      productData={productData} 
+                      onImageUpload={handleImageUpload}
+                    />
+                    
+                    {submissionError && (
+                      <Banner status="critical">
+                        {submissionError}
+                      </Banner>
+                    )}
+                    
+                    <Button
+                      primary
+                      loading={isSubmitting}
+                      disabled={isSubmitting}
+                      onClick={handleSubmit}
+                      >
+                      Create Product
+                    </Button>
+                  </BlockStack>
                 </Card>
               )}
               </BlockStack>
