@@ -41,6 +41,13 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
     }
   }, [variant, productData, onImageUpload]);
 
+  // Get the uploaded image URL for a specific label
+  const getUploadedImageUrl = useCallback((label) => {
+    if (!variant.images) return null;
+    const image = variant.images.find(img => img.label === label);
+    return image?.url || null;
+  }, [variant.images]);
+
   // Skip image upload for custom variants
   if (variant.isCustom) {
     return (
@@ -135,6 +142,7 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
                 size="small"
                 label={label}
                 onDrop={(files) => handleDrop(files, label)}
+                uploadedImageUrl={getUploadedImageUrl(label)}
               />
               <Text variant="bodySm" style={{ marginTop: '4px' }}>{label}</Text>
             </Box>
