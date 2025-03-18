@@ -9,20 +9,6 @@ const SIZES = {
     outline: true,
     style: {}
   },
-  medium: {
-    width: "150px",
-    height: "84.375px",
-    showLabel: false,
-    outline: true,
-    style: {}
-  },
-  large: {
-    width: "100%",
-    height: "auto",
-    showLabel: true,
-    outline: true,
-    style: {}
-  },
   additional: {
     width: "160px",
     height: "90px",
@@ -33,7 +19,7 @@ const SIZES = {
 };
 
 const ImageDropZone = ({
-  size = "medium",
+  size = "small",
   label,
   onDrop,
   onDropAccepted,
@@ -43,18 +29,9 @@ const ImageDropZone = ({
   uploadedImageUrl,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
-  const sizeConfig = SIZES[size] || SIZES.medium;
+  const sizeConfig = SIZES[size] || SIZES.small;
   const width = customWidth || sizeConfig.width;
   const height = customHeight || sizeConfig.height;
-
-  const dropZoneStyle = {
-    minHeight: height,
-    height: height,
-    width: width,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  };
 
   const handleDrop = async (files) => {
     if (!files || files.length === 0) return;
