@@ -12,9 +12,7 @@ const isValidShape = (shape) => {
     shape &&
     typeof shape === 'object' &&
     'shapeType' in shape &&
-    typeof shape.shapeType === 'string' &&
-    'isActive' in shape &&
-    typeof shape.isActive === 'boolean'
+    typeof shape.shapeType === 'string'
   );
 };
 
