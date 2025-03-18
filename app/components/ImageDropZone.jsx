@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { DropZone, BlockStack, Text, Box, Image, Spinner } from "@shopify/polaris";
 
 const SIZES = {
@@ -67,6 +67,47 @@ const ImageDropZone = ({
     }
   };
 
+  // Create a ref for the hidden file input
+  const fileInputRef = React.useRef(null);
+
+  // Handler for clicking the image or button
+  const handleClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const renderUploadedImage = () => (
+    <Box 
+      style={{ position: 'relative', height: '100%' }}
+      onClick={handleClick}
+    >
+      <Image
+        source={uploadedImageUrl}
+        alt={`Uploaded ${label} image`}
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          objectFit: 'cover',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}
+      />
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        accept="image/*"
+        onChange={(e) => {
+          if (e.target.files?.length) {
+            handleDrop(e.target.files);
+          }
+          // Reset the input value so the same file can be selected again
+          e.target.value = '';
+        }}
+      />
+    </Box>
+  );
+
   return (
     <BlockStack gap="200">
       {sizeConfig.showLabel && (
@@ -78,31 +119,7 @@ const ImageDropZone = ({
             <Spinner accessibilityLabel="Uploading image" size="small" />
           </Box>
         ) : uploadedImageUrl ? (
-          <Box style={{ position: 'relative', height: '100%' }}>
-            <Image
-              source={uploadedImageUrl}
-              alt={`Uploaded ${label} image`}
-              style={{ 
-                width: '100%', 
-                height: '100%', 
-                objectFit: 'cover',
-                borderRadius: '4px'
-              }}
-            />
-            <Box style={{ 
-              position: 'absolute', 
-              top: '4px', 
-              right: '4px',
-              background: 'rgba(0, 0, 0, 0.5)',
-              borderRadius: '50%',
-              padding: '2px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Text variant="bodySm" color="base-inverse">✓</Text>
-            </Box>
-          </Box>
+          renderUploadedImage()
         ) : (
           <DropZone
             accept="image/*"
