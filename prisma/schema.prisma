@@ -195,6 +195,7 @@ model ShopifyCollection {
   defaultStyleNamePattern StyleNamePattern       @default(STANDARD)
   stylePerCollection      Boolean                @default(false)
   showInDropdown          Boolean                @default(true)
+  googleDriveFolderId     String? // Added field for Google Drive folder ID
   createdAt               DateTime               @default(now())
   updatedAt               DateTime               @updatedAt
   admin_graphql_api_id    String
