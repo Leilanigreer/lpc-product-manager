@@ -25,3 +25,9 @@ database.sqlite
 .shopify.lock
 
 /shopify.app.dev.toml
+
+lpcgolf-product-images-f6c82c76c2ea.json
+
+debug-google-creds.js
+
+test-google-auth.js
