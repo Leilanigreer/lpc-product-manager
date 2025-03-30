@@ -13,6 +13,9 @@ export const loader = async ({ request }) => {
     CLOUDINARY_CLOUD_NAME: process.env.SHOPIFY_CLOUDINARY_CLOUD_NAME,
     CLOUDINARY_API_KEY: process.env.SHOPIFY_CLOUDINARY_API_KEY,
     CLOUDINARY_API_SECRET: process.env.SHOPIFY_CLOUDINARY_API_SECRET,
+    GOOGLE_CLIENT_EMAIL: process.env.GOOGLE_CLIENT_EMAIL,
+    GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID,
+    HAS_GOOGLE_CREDENTIALS: !!process.env.GOOGLE_PRIVATE_KEY,
   };
 
   return json({

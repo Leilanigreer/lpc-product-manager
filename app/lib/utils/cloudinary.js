@@ -86,7 +86,7 @@ if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
   });
 }
 
-export const uploadToCloudinary = async (file, customPublicId = null) => {
+export const uploadToCloudinary = async (file, customPublicId = null, collection = null) => {
   console.log('=== Cloudinary Upload START ===');
   
   if (!config.cloud_name) {
@@ -97,7 +97,8 @@ export const uploadToCloudinary = async (file, customPublicId = null) => {
     name: file.name,
     type: file.type,
     size: file.size,
-    customPublicId
+    customPublicId,
+    collection
   });
 
   try {
@@ -112,16 +113,39 @@ export const uploadToCloudinary = async (file, customPublicId = null) => {
     formData.append('file', fileToUpload);
     formData.append('upload_preset', 'product-images'); // Using product-images upload preset
     
+    // Set the asset folder based on collection
+    if (collection) {
+      const assetFolder = 'products/' + collection;
+      formData.append('asset_folder', assetFolder);
+      
+      // Debug log for form data entries
+      for (let pair of formData.entries()) {
+        console.log('Form Data Entry:', pair[0], '=', pair[1]);
+      }
+    }
+    
     // If custom public ID is provided, add it to the form data
+    // Ensure public_id includes the products prefix and collection
     if (customPublicId) {
-      formData.append('public_id', customPublicId);
+      let fullPublicId = customPublicId;
+      if (!fullPublicId.startsWith('products/')) {
+        fullPublicId = `products/${fullPublicId}`;
+      }
+      // If collection is provided and not already in the path, add it
+      if (collection && !fullPublicId.includes(`/${collection}/`)) {
+        const parts = fullPublicId.split('/');
+        parts.splice(1, 0, collection);
+        fullPublicId = parts.join('/');
+      }
+      formData.append('public_id', fullPublicId);
     }
 
     // Log the form data for debugging (excluding sensitive info)
     console.log('Upload form data:', {
       file: fileToUpload.name,
       upload_preset: 'product-images',
-      public_id: customPublicId
+      asset_folder: collection ? `products/${collection}` : undefined,
+      public_id: customPublicId ? (customPublicId.startsWith('products/') ? customPublicId : `products/${customPublicId}`) : undefined
     });
 
     // Upload to Cloudinary
@@ -145,13 +169,19 @@ export const uploadToCloudinary = async (file, customPublicId = null) => {
     }
 
     const result = await response.json();
-    console.log('Cloudinary upload successful:', {
+    
+    // Log the response to determine which folder mode is being used
+    console.log('Cloudinary upload response:', {
       url: result.secure_url,
       publicId: result.public_id,
       format: result.format,
       size: result.bytes,
       width: result.width,
-      height: result.height
+      height: result.height,
+      folder: result.folder,
+      asset_folder: result.asset_folder,
+      display_name: result.display_name,
+      folderMode: result.asset_folder ? 'dynamic' : 'fixed'
     });
 
     console.log('=== Cloudinary Upload END ===');

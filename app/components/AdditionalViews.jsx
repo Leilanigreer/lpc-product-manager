@@ -20,12 +20,13 @@ const AdditionalViews = ({
       const publicId = `${productData.cloudinaryFolder}/${baseSKU}-${label.toLowerCase().replace(/\s+/g, '-')}`;
 
       // Upload to Cloudinary
-      const result = await uploadToCloudinary(file, publicId);
+      const result = await uploadToCloudinary(file, publicId, productData.productType);
       
       console.log('Additional view uploaded:', {
         baseSKU,
         label,
         publicId,
+        collection: productData.productType,
         url: result.url,
         folder: productData.cloudinaryFolder
       });
@@ -37,7 +38,7 @@ const AdditionalViews = ({
     } catch (error) {
       console.error('Error uploading additional view:', error);
     }
-  }, [formState.baseSKU, onImageUpload, productData.cloudinaryFolder]);
+  }, [formState.baseSKU, onImageUpload, productData.cloudinaryFolder, productData.productType]);
 
   const handleDropAccepted = useCallback((files) => {
     console.log('Files accepted:', files);

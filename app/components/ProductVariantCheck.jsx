@@ -7,6 +7,7 @@ import ImageDropZone from './ImageDropZone';
 import AdditionalViews from './AdditionalViews';
 import { uploadToCloudinary } from '../lib/utils/cloudinary';
 import { isPutter } from '../lib/utils/shapeUtils';
+import { uploadToGoogleDrive } from '../lib/utils/googleDrive';
 
 const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
   const handleDrop = useCallback(async (files, label) => {
@@ -21,14 +22,28 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
         ? `${productData.cloudinaryFolder}/${variant.sku}-${label}`
         : `${productData.cloudinaryFolder}/${variant.sku}`;
 
-      // Upload to Cloudinary with the specific public ID
-      const result = await uploadToCloudinary(file, publicId);
+      // Upload to both services
+      try {
+        await uploadToGoogleDrive(file, {
+          collection: productData.productType,
+          folderName: productData.cloudinaryFolder,
+          sku: variant.sku,
+          label
+        });
+      } catch (driveError) {
+        console.error('Google Drive upload failed:', driveError);
+        // Continue with Cloudinary upload even if Google Drive fails
+      }
+
+      // Upload to Cloudinary
+      const result = await uploadToCloudinary(file, publicId, productData.productType);
       
       console.log('Image uploaded:', {
         sku: variant.sku,
         label,
         isPutter: isPutterVariant,
         publicId,
+        collection: productData.productType,
         url: result.url
       });
 
