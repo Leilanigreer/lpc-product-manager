@@ -28,7 +28,7 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
           collection: productData.productType,
           folderName: productData.cloudinaryFolder,
           sku: variant.sku,
-          label
+          label: isPutterVariant ? label : undefined
         });
       } catch (driveError) {
         console.error('Google Drive upload failed:', driveError);
