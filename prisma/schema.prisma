@@ -540,3 +540,15 @@ enum RuleActionType {
   SHOW
   HIDE
 }
+
+model OAuthToken {
+  id           String    @id @default(cuid())
+  provider     String // e.g., "google"
+  refreshToken String    @db.Text
+  accessToken  String?   @db.Text
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([provider])
+}
