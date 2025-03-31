@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
+import { getOAuthToken, updateOAuthToken } from './oauth.server.js';
 
 // Initialize the Gmail API client
 const oauth2Client = new OAuth2Client({
@@ -7,11 +8,48 @@ const oauth2Client = new OAuth2Client({
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
 });
 
-oauth2Client.setCredentials({
-  refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-});
+let gmail = null;
 
-const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+// Initialize credentials from database
+async function initializeOAuthClient() {
+  try {
+    const token = await getOAuthToken('google');
+    if (!token) {
+      throw new Error('No OAuth token found in database');
+    }
+
+    console.log('Initializing OAuth client with token:', {
+      hasRefreshToken: !!token.refreshToken,
+      hasAccessToken: !!token.accessToken,
+      expiresAt: token.expiresAt
+    });
+
+    // Set credentials
+    oauth2Client.setCredentials({
+      refresh_token: token.refreshToken,
+      access_token: token.accessToken,
+      expiry_date: token.expiresAt?.getTime()
+    });
+
+    // Set up token refresh handler
+    oauth2Client.on('tokens', async (tokens) => {
+      console.log('Token refresh event received:', {
+        hasRefreshToken: !!tokens.refresh_token,
+        hasAccessToken: !!tokens.access_token,
+        expiresIn: tokens.expiry_date
+      });
+      await updateOAuthToken('google', tokens);
+    });
+
+    // Initialize Gmail API
+    gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+    console.log('Gmail API initialized successfully');
+    return gmail;
+  } catch (error) {
+    console.error('Error initializing OAuth client:', error);
+    throw error;
+  }
+}
 
 export async function sendEmail({
   to,
@@ -21,6 +59,11 @@ export async function sendEmail({
   attachments,
 }) {
   try {
+    // Ensure Gmail API is initialized
+    if (!gmail) {
+      await initializeOAuthClient();
+    }
+
     // Create email in base64 format
     const emailLines = [
       `To: ${to}`,
@@ -52,7 +95,7 @@ export async function sendEmail({
           `Content-Disposition: attachment; filename="${attachment.filename}"`,
           'Content-Transfer-Encoding: base64',
           '',
-          attachment.content.toString('base64')
+          attachment.content
         );
       }
     }
@@ -62,6 +105,13 @@ export async function sendEmail({
     const email = emailLines.join('\r\n');
     const encodedEmail = Buffer.from(email).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
+    console.log('Sending email:', {
+      to,
+      subject,
+      hasHtml: !!html,
+      attachmentCount: attachments?.length || 0
+    });
+
     const res = await gmail.users.messages.send({
       userId: 'me',
       requestBody: {
@@ -69,6 +119,7 @@ export async function sendEmail({
       },
     });
 
+    console.log('Email sent successfully:', res.data);
     return res.data;
   } catch (error) {
     console.error('Error sending email:', error);
