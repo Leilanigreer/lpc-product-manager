@@ -33,11 +33,18 @@ const drive = google.drive({ version: 'v3', auth });
 
 // Helper function to find or create a folder
 async function findOrCreateFolder(parentId, folderName, isCollection = false) {
-  console.log(`Looking for folder "${folderName}" in parent "${parentId}"`);
+  console.log(`\nSearching for folder "${folderName}" in parent "${parentId}"`);
+  
+  // List all folders in the parent
+  const listResponse = await drive.files.list({
+    q: `mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`,
+    fields: 'files(id, name)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
   
   // Use exact name matching for all folders
   const query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`;
-
   const response = await drive.files.list({
     q: query,
     fields: 'files(id, name)',
@@ -46,7 +53,7 @@ async function findOrCreateFolder(parentId, folderName, isCollection = false) {
   });
 
   if (response.data.files && response.data.files.length > 0) {
-    console.log(`Found existing folder "${folderName}"`, response.data.files[0]);
+    console.log(`Found existing folder "${folderName}"`);
     return response.data.files[0].id;
   }
 
@@ -65,28 +72,20 @@ async function findOrCreateFolder(parentId, folderName, isCollection = false) {
       supportsAllDrives: true,
     });
 
-    console.log(`Created new folder "${folderName}"`, folder.data);
+    console.log(`Created new folder "${folderName}"`);
     return folder.data.id;
   } else {
-    throw new Error(`Collection folder "${folderName}" not found`);
+    throw new Error(`Collection folder "${folderName}" not found. Available folders: ${listResponse.data.files.map(f => f.name).join(', ')}`);
   }
 }
 
 export async function uploadToGoogleDrive(file, { collection, folderName, sku, label }) {
   try {
-    // Log all inputs for debugging
-    console.log('Upload to Google Drive called with:', {
-      fileName: file?.name,
-      fileType: file?.type,
-      fileSize: file?.size,
-      fileKeys: Object.keys(file),
-      hasBuffer: !!file.buffer,
-      hasStream: typeof file.stream === 'function',
-      collection,
-      folderName,
-      sku,
-      label
-    });
+    console.log('\n=== Starting Google Drive Upload ===');
+    console.log('File:', file.name);
+    console.log('Collection:', collection);
+    console.log('Folder:', folderName);
+    console.log('SKU:', sku);
     
     const ROOT_FOLDER_ID = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
     if (!ROOT_FOLDER_ID) {
@@ -94,74 +93,55 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     }
     
     // First verify the root folder exists
-    console.log('Verifying root folder exists:', ROOT_FOLDER_ID);
     try {
-      await drive.files.get({
+      const rootFolder = await drive.files.get({
         fileId: ROOT_FOLDER_ID,
-        fields: 'id, name, driveId',
+        fields: 'id, name',
         supportsAllDrives: true,
       });
+      console.log(`Root folder verified: ${rootFolder.data.name}`);
     } catch (folderError) {
-      console.error('Error verifying root folder:', folderError);
       throw new Error(`Could not verify root folder: ${folderError.message}`);
     }
 
-    // Create folder structure: Headcovers -> Collection (with number) -> mainHandle
+    // Create folder structure: Headcovers -> Collection -> Product Folder
     let targetFolderId = ROOT_FOLDER_ID;
     
     if (collection) {
-      console.log('Finding collection folder:', collection);
       targetFolderId = await findOrCreateFolder(targetFolderId, collection, true);
     }
     
     if (folderName) {
-      console.log('Creating/finding specific folder:', folderName);
       targetFolderId = await findOrCreateFolder(targetFolderId, folderName);
     }
     
-    // Simple file name creation
+    // Prepare file for upload
     const fileName = label ? `${sku}-${label}` : sku;
     const fileExtension = file.name.split('.').pop();
     const fullFileName = `${fileName}.${fileExtension}`;
     
-    // Upload to the target folder
+    // Convert file to buffer
+    let fileBuffer;
+    if (file.buffer && Buffer.isBuffer(file.buffer)) {
+      fileBuffer = file.buffer;
+    } else if (typeof file.arrayBuffer === 'function') {
+      fileBuffer = Buffer.from(await file.arrayBuffer());
+    } else {
+      throw new Error('File object does not support conversion to buffer');
+    }
+    
+    // Upload file
     const fileMetadata = {
       name: fullFileName,
       parents: [targetFolderId],
     };
     
-    // Convert the file to a Buffer first
-    let fileBuffer;
-    
-    if (file.buffer && Buffer.isBuffer(file.buffer)) {
-      fileBuffer = file.buffer;
-      console.log('Using existing file.buffer');
-    } else {
-      console.log('Converting file to buffer');
-      if (typeof file.arrayBuffer === 'function') {
-        fileBuffer = Buffer.from(await file.arrayBuffer());
-        console.log('Used arrayBuffer method to create buffer');
-      } else {
-        throw new Error('File object does not support conversion to buffer');
-      }
-    }
-    
-    // Create a readable stream from the buffer
-    const fileStream = Readable.from(fileBuffer);
-    
     const media = {
       mimeType: file.type,
-      body: fileStream
+      body: Readable.from(fileBuffer)
     };
     
-    console.log('Uploading file to Google Drive:', {
-      fileName: fullFileName,
-      mimeType: file.type,
-      fileSize: fileBuffer.length,
-      parent: targetFolderId
-    });
-    
-    // Upload file with support for shared drives
+    console.log(`Uploading file: ${fullFileName}`);
     const uploadedFile = await drive.files.create({
       resource: fileMetadata,
       media: media,
@@ -169,10 +149,9 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
       supportsAllDrives: true,
     });
     
-    console.log('File uploaded successfully:', {
-      fileId: uploadedFile.data.id,
-      webViewLink: uploadedFile.data.webViewLink
-    });
+    console.log('Upload successful!');
+    console.log('File link:', uploadedFile.data.webViewLink);
+    console.log('=== Upload Complete ===\n');
     
     return {
       success: true,
@@ -180,14 +159,7 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
       webViewLink: uploadedFile.data.webViewLink,
     };
   } catch (error) {
-    console.error('Error in uploadToGoogleDrive:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      errors: error.errors,
-      response: error.response?.data,
-      status: error.response?.status,
-    });
+    console.error('Upload failed:', error.message);
     throw new Error(`Google Drive upload failed: ${error.message}`);
   }
 }
