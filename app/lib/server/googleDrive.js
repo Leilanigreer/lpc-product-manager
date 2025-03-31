@@ -9,7 +9,7 @@ const auth = new google.auth.GoogleAuth({
     private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     project_id: process.env.GOOGLE_PROJECT_ID,
   },
-  scopes: ['https://www.googleapis.com/auth/drive.file'],
+  scopes: ['https://www.googleapis.com/auth/drive'],
 });
 
 console.log('Google Auth credentials check:', {
@@ -51,6 +51,19 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     if (!ROOT_FOLDER_ID) {
       throw new Error('GOOGLE_DRIVE_ROOT_FOLDER_ID is not configured');
     }
+
+    // First verify the folder exists and get its details
+    console.log('Verifying folder exists:', ROOT_FOLDER_ID);
+    try {
+      await drive.files.get({
+        fileId: ROOT_FOLDER_ID,
+        fields: 'id, name, driveId',
+        supportsAllDrives: true,
+      });
+    } catch (folderError) {
+      console.error('Error verifying folder:', folderError);
+      throw new Error(`Could not verify folder: ${folderError.message}`);
+    }
     
     // Simple file name creation
     const fileName = label ? `${sku}-${label}` : sku;
@@ -67,15 +80,10 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     let fileBuffer;
     
     if (file.buffer && Buffer.isBuffer(file.buffer)) {
-      // If there's already a buffer property, use it
       fileBuffer = file.buffer;
       console.log('Using existing file.buffer');
     } else {
-      // Convert to buffer using arrayBuffer if available
       console.log('Converting file to buffer');
-      
-      // Extract the file data as a buffer
-      // For Remix, files from parseMultipartFormData have a `getStream()` method
       if (typeof file.arrayBuffer === 'function') {
         fileBuffer = Buffer.from(await file.arrayBuffer());
         console.log('Used arrayBuffer method to create buffer');
@@ -99,11 +107,12 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
       parent: ROOT_FOLDER_ID
     });
     
-    // Upload file
+    // Upload file with support for shared drives
     const uploadedFile = await drive.files.create({
       resource: fileMetadata,
       media: media,
       fields: 'id, webViewLink',
+      supportsAllDrives: true,
     });
     
     console.log('File uploaded successfully:', {
@@ -118,6 +127,13 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     };
   } catch (error) {
     console.error('Error in uploadToGoogleDrive:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      errors: error.errors,
+      response: error.response?.data,
+      status: error.response?.status,
+    });
     throw new Error(`Google Drive upload failed: ${error.message}`);
   }
 }
