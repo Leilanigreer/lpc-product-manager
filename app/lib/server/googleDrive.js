@@ -31,6 +31,47 @@ console.log('- GOOGLE_DRIVE_ROOT_FOLDER_ID:', process.env.GOOGLE_DRIVE_ROOT_FOLD
 // Create the Google Drive client
 const drive = google.drive({ version: 'v3', auth });
 
+// Helper function to find or create a folder
+async function findOrCreateFolder(parentId, folderName, isCollection = false) {
+  console.log(`Looking for folder "${folderName}" in parent "${parentId}"`);
+  
+  // Use exact name matching for all folders
+  const query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`;
+
+  const response = await drive.files.list({
+    q: query,
+    fields: 'files(id, name)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+
+  if (response.data.files && response.data.files.length > 0) {
+    console.log(`Found existing folder "${folderName}"`, response.data.files[0]);
+    return response.data.files[0].id;
+  }
+
+  // If folder doesn't exist, create it (only for non-collection folders)
+  if (!isCollection) {
+    console.log(`Creating new folder "${folderName}"`);
+    const fileMetadata = {
+      name: folderName,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [parentId],
+    };
+
+    const folder = await drive.files.create({
+      resource: fileMetadata,
+      fields: 'id',
+      supportsAllDrives: true,
+    });
+
+    console.log(`Created new folder "${folderName}"`, folder.data);
+    return folder.data.id;
+  } else {
+    throw new Error(`Collection folder "${folderName}" not found`);
+  }
+}
+
 export async function uploadToGoogleDrive(file, { collection, folderName, sku, label }) {
   try {
     // Log all inputs for debugging
@@ -51,9 +92,9 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     if (!ROOT_FOLDER_ID) {
       throw new Error('GOOGLE_DRIVE_ROOT_FOLDER_ID is not configured');
     }
-
-    // First verify the folder exists and get its details
-    console.log('Verifying folder exists:', ROOT_FOLDER_ID);
+    
+    // First verify the root folder exists
+    console.log('Verifying root folder exists:', ROOT_FOLDER_ID);
     try {
       await drive.files.get({
         fileId: ROOT_FOLDER_ID,
@@ -61,8 +102,21 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
         supportsAllDrives: true,
       });
     } catch (folderError) {
-      console.error('Error verifying folder:', folderError);
-      throw new Error(`Could not verify folder: ${folderError.message}`);
+      console.error('Error verifying root folder:', folderError);
+      throw new Error(`Could not verify root folder: ${folderError.message}`);
+    }
+
+    // Create folder structure: Headcovers -> Collection (with number) -> mainHandle
+    let targetFolderId = ROOT_FOLDER_ID;
+    
+    if (collection) {
+      console.log('Finding collection folder:', collection);
+      targetFolderId = await findOrCreateFolder(targetFolderId, collection, true);
+    }
+    
+    if (folderName) {
+      console.log('Creating/finding specific folder:', folderName);
+      targetFolderId = await findOrCreateFolder(targetFolderId, folderName);
     }
     
     // Simple file name creation
@@ -70,10 +124,10 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     const fileExtension = file.name.split('.').pop();
     const fullFileName = `${fileName}.${fileExtension}`;
     
-    // Simple upload to root folder for now
+    // Upload to the target folder
     const fileMetadata = {
       name: fullFileName,
-      parents: [ROOT_FOLDER_ID],
+      parents: [targetFolderId],
     };
     
     // Convert the file to a Buffer first
@@ -104,7 +158,7 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
       fileName: fullFileName,
       mimeType: file.type,
       fileSize: fileBuffer.length,
-      parent: ROOT_FOLDER_ID
+      parent: targetFolderId
     });
     
     // Upload file with support for shared drives
