@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { InlineStack, Text } from "@shopify/polaris";
 import ImageDropZone from './ImageDropZone';
 import { uploadToCloudinary } from '../lib/utils/cloudinary';
+import { uploadToGoogleDrive } from '../lib/utils/googleDrive';
 
 const AdditionalViews = ({ 
   formState,
@@ -22,6 +23,19 @@ const AdditionalViews = ({
       // Upload to Cloudinary
       const result = await uploadToCloudinary(file, publicId, productData.productType);
       
+      // Upload to Google Drive
+      try {
+        await uploadToGoogleDrive(file, {
+          collection: productData.productType,  // Use the product type as collection
+          folderName: productData.cloudinaryFolder,
+          sku: baseSKU,  // Use baseSKU for additional views
+          label: label.toLowerCase().replace(/\s+/g, '-')  // Format label consistently
+        });
+      } catch (driveError) {
+        console.error('Google Drive upload failed:', driveError);
+        // Continue even if Google Drive fails
+      }
+
       console.log('Additional view uploaded:', {
         baseSKU,
         label,
