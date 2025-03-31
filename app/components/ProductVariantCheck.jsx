@@ -23,8 +23,9 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
         : `${productData.cloudinaryFolder}/${variant.sku}`;
 
       // Upload to both services
+      let driveData = null;
       try {
-        await uploadToGoogleDrive(file, {
+        driveData = await uploadToGoogleDrive(file, {
           collection: productData.productType,
           folderName: productData.cloudinaryFolder,
           sku: variant.sku,
@@ -44,12 +45,13 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
         isPutter: isPutterVariant,
         publicId,
         collection: productData.productType,
-        url: result.url
+        url: result.url,
+        driveData
       });
 
-      // Update the product data with the new image URL
+      // Update the product data with the new image URL and drive data
       if (onImageUpload) {
-        onImageUpload(variant.sku, label, result.url);
+        onImageUpload(variant.sku, label, result.url, driveData);
       }
     } catch (error) {
       console.error('Error uploading image:', error);

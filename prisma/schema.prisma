@@ -281,20 +281,23 @@ enum Marketplace {
   SHOPIFY
   ETSY
   EBAY
+  ORIGINAL
 }
 
 model ProductImage {
-  id            String                 @id @default(cuid())
-  setId         String?
-  set           ProductSetDataLPC?     @relation("SetImages", fields: [setId], references: [id], onDelete: Cascade)
-  variantId     String?
-  variant       ProductVariantDataLPC? @relation("VariantImages", fields: [variantId], references: [id], onDelete: Cascade)
-  imageType     ImageType
-  marketplace   Marketplace
-  cloudinaryUrl String
-  cloudinaryId  String
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
+  id             String                 @id @default(cuid())
+  setId          String?
+  set            ProductSetDataLPC?     @relation("SetImages", fields: [setId], references: [id], onDelete: Cascade)
+  variantId      String?
+  variant        ProductVariantDataLPC? @relation("VariantImages", fields: [variantId], references: [id], onDelete: Cascade)
+  imageType      ImageType
+  marketplace    Marketplace
+  cloudinaryUrl  String?
+  cloudinaryId   String?
+  googleDriveUrl String?
+  googleDriveId  String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 
   @@unique([setId, imageType, marketplace])
   @@unique([variantId, imageType, marketplace])
@@ -304,23 +307,24 @@ model ProductImage {
 }
 
 model ProductSetDataLPC {
-  id               String                  @id @default(cuid())
-  shopifyProductId String
-  baseSKU          String
-  collections      ProductSetCollection[]
-  offeringType     String
-  fontId           String
-  font             Font                    @relation(fields: [fontId], references: [id])
-  leatherColor1Id  String
-  leatherColor1    LeatherColor            @relation("PrimaryLeatherColor", fields: [leatherColor1Id], references: [id])
-  leatherColor2Id  String?
-  leatherColor2    LeatherColor?           @relation("SecondaryLeatherColor", fields: [leatherColor2Id], references: [id])
-  stitchingThreads ProductStitching[]
-  mainHandle       String
-  setImages        ProductImage[]          @relation("SetImages")
-  variants         ProductVariantDataLPC[]
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
+  id                   String                  @id @default(cuid())
+  shopifyProductId     String
+  baseSKU              String
+  collections          ProductSetCollection[]
+  offeringType         String
+  fontId               String
+  font                 Font                    @relation(fields: [fontId], references: [id])
+  leatherColor1Id      String
+  leatherColor1        LeatherColor            @relation("PrimaryLeatherColor", fields: [leatherColor1Id], references: [id])
+  leatherColor2Id      String?
+  leatherColor2        LeatherColor?           @relation("SecondaryLeatherColor", fields: [leatherColor2Id], references: [id])
+  stitchingThreads     ProductStitching[]
+  mainHandle           String
+  setImages            ProductImage[]          @relation("SetImages")
+  variants             ProductVariantDataLPC[]
+  googleDriveFolderUrl String? // URL to the Google Drive folder containing all product images
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
 
   @@index([fontId])
   @@index([leatherColor1Id])
