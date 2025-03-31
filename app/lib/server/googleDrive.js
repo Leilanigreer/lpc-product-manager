@@ -54,7 +54,17 @@ async function findOrCreateFolder(parentId, folderName, isCollection = false) {
 
   if (response.data.files && response.data.files.length > 0) {
     console.log(`Found existing folder "${folderName}"`);
-    return response.data.files[0].id;
+    const folderId = response.data.files[0].id;
+    // Get the webViewLink for the folder
+    const folderDetails = await drive.files.get({
+      fileId: folderId,
+      fields: 'id, webViewLink',
+      supportsAllDrives: true,
+    });
+    return {
+      id: folderId,
+      webViewLink: folderDetails.data.webViewLink
+    };
   }
 
   // If folder doesn't exist, create it (only for non-collection folders)
@@ -68,12 +78,15 @@ async function findOrCreateFolder(parentId, folderName, isCollection = false) {
 
     const folder = await drive.files.create({
       resource: fileMetadata,
-      fields: 'id',
+      fields: 'id, webViewLink',
       supportsAllDrives: true,
     });
 
     console.log(`Created new folder "${folderName}"`);
-    return folder.data.id;
+    return {
+      id: folder.data.id,
+      webViewLink: folder.data.webViewLink
+    };
   } else {
     throw new Error(`Collection folder "${folderName}" not found. Available folders: ${listResponse.data.files.map(f => f.name).join(', ')}`);
   }
@@ -96,7 +109,7 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     try {
       const rootFolder = await drive.files.get({
         fileId: ROOT_FOLDER_ID,
-        fields: 'id, name',
+        fields: 'id, name, webViewLink',
         supportsAllDrives: true,
       });
       console.log(`Root folder verified: ${rootFolder.data.name}`);
@@ -104,18 +117,25 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
       throw new Error(`Could not verify root folder: ${folderError.message}`);
     }
 
-    // Create folder structure: Headcovers -> Collection -> Product Folder
-    let targetFolderId = ROOT_FOLDER_ID;
-    
-    if (collection) {
-      targetFolderId = await findOrCreateFolder(targetFolderId, collection, true);
+    // Find or create the collection folder
+    const collectionFolder = await findOrCreateFolder(ROOT_FOLDER_ID, collection, true);
+    if (!collectionFolder) {
+      throw new Error(`Failed to find or create collection folder: ${collection}`);
     }
-    
-    if (folderName) {
-      targetFolderId = await findOrCreateFolder(targetFolderId, folderName);
+
+    // Find or create the product folder
+    const productFolder = await findOrCreateFolder(collectionFolder.id, folderName);
+    if (!productFolder) {
+      throw new Error(`Failed to find or create product folder: ${folderName}`);
     }
-    
-    // Prepare file for upload
+
+    // Find or create the Originals subfolder
+    const originalsFolder = await findOrCreateFolder(productFolder.id, "Originals");
+    if (!originalsFolder) {
+      throw new Error(`Failed to find or create Originals folder for: ${folderName}`);
+    }
+
+    // Prepare the file for upload
     const fileName = label ? `${sku}-${label}` : sku;
     const fileExtension = file.name.split('.').pop();
     const fullFileName = `${fileName}.${fileExtension}`;
@@ -130,10 +150,10 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
       throw new Error('File object does not support conversion to buffer');
     }
     
-    // Upload file
+    // Upload the file
     const fileMetadata = {
       name: fullFileName,
-      parents: [targetFolderId],
+      parents: [originalsFolder.id]
     };
     
     const media = {
@@ -149,14 +169,25 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
       supportsAllDrives: true,
     });
     
-    console.log('Upload successful!');
-    console.log('File link:', uploadedFile.data.webViewLink);
-    console.log('=== Upload Complete ===\n');
+    console.log('File uploaded successfully:', {
+      fileName,
+      fileId: uploadedFile.data.id,
+      webViewLink: uploadedFile.data.webViewLink,
+      folderPath: `${collection}/${folderName}/Originals`
+    });
     
     return {
       success: true,
       fileId: uploadedFile.data.id,
       webViewLink: uploadedFile.data.webViewLink,
+      folderPath: {
+        collection,
+        folderName,
+        fullPath: `${collection}/${folderName}`,
+        collectionFolderUrl: collectionFolder?.webViewLink,
+        productFolderUrl: productFolder?.webViewLink,
+        originalsFolderUrl: originalsFolder?.webViewLink
+      }
     };
   } catch (error) {
     console.error('Upload failed:', error.message);

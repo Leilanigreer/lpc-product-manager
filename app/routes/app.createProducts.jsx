@@ -102,7 +102,7 @@ export default function CreateProduct() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
 
-  const handleImageUpload = useCallback((sku, label, url) => {
+  const handleImageUpload = useCallback((sku, label, url, driveData) => {
     if (!productData) return;
 
     setProductData(prevData => {
@@ -119,10 +119,18 @@ export default function CreateProduct() {
         
         if (existingImageIndex >= 0) {
           // Update existing image
-          variant.images[existingImageIndex] = { label, url };
+          variant.images[existingImageIndex] = { 
+            label, 
+            url,
+            driveData: driveData || null
+          };
         } else {
           // Add new image
-          variant.images.push({ label, url });
+          variant.images.push({ 
+            label, 
+            url,
+            driveData: driveData || null
+          });
         }
       } else {
         // This is an additional view
@@ -134,10 +142,18 @@ export default function CreateProduct() {
         
         if (existingImageIndex >= 0) {
           // Update existing image
-          newData.additionalViews[existingImageIndex] = { label, url };
+          newData.additionalViews[existingImageIndex] = { 
+            label, 
+            url,
+            driveData: driveData || null
+          };
         } else {
           // Add new image
-          newData.additionalViews.push({ label, url });
+          newData.additionalViews.push({ 
+            label, 
+            url,
+            driveData: driveData || null
+          });
         }
       }
       
