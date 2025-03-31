@@ -5,9 +5,10 @@ import { Text, BlockStack, Box, InlineStack, Card } from '@shopify/polaris';
 import { isDevelopment } from '../lib/config/environment';
 import ImageDropZone from './ImageDropZone';
 import AdditionalViews from './AdditionalViews';
-import { uploadToCloudinary } from '../lib/utils/cloudinary';
+// import { uploadToCloudinary } from '../lib/utils/cloudinary';
 import { isPutter } from '../lib/utils/shapeUtils';
 import { uploadToGoogleDrive } from '../lib/utils/googleDrive';
+import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 
 const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
   const handleDrop = useCallback(async (files, label) => {
@@ -17,41 +18,41 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
       const file = files[0];
       const isPutterVariant = isPutter({ shapeType: variant.shapeType });
       
-      // Create the public ID based on whether it's a putter or not
-      const publicId = isPutterVariant 
-        ? `${productData.productPictureFolder}/${variant.sku}-${label}`
-        : `${productData.productPictureFolder}/${variant.sku}`;
-
-      // Upload to both services
+      console.log('Starting image upload:', {
+        sku: variant.sku,
+        label,
+        isPutter: isPutterVariant,
+        folderName: productData.productPictureFolder,
+        productType: productData.productType
+      });
+      
+      // Upload to Google Drive with appropriate file naming based on variant type
       let driveData = null;
       try {
         driveData = await uploadToGoogleDrive(file, {
           collection: productData.productType,
           folderName: productData.productPictureFolder,
           sku: variant.sku,
+          // For putters, include the label in the filename
           label: isPutterVariant ? label : undefined
         });
       } catch (driveError) {
         console.error('Google Drive upload failed:', driveError);
-        // Continue with Cloudinary upload even if Google Drive fails
+        throw driveError; // Re-throw to handle the error
       }
-
-      // Upload to Cloudinary
-      const result = await uploadToCloudinary(file, publicId, productData.productType);
       
-      console.log('Image uploaded:', {
+      console.log('Image uploaded successfully:', {
         sku: variant.sku,
         label,
         isPutter: isPutterVariant,
-        publicId,
         collection: productData.productType,
-        url: result.url,
+        folderName: productData.productPictureFolder,
         driveData
       });
 
-      // Update the product data with the new image URL and drive data
+      // Update the product data with the Google Drive URL and drive data
       if (onImageUpload) {
-        onImageUpload(variant.sku, label, result.url, driveData);
+        onImageUpload(variant.sku, label, getGoogleDriveUrl(driveData.fileId), driveData);
       }
     } catch (error) {
       console.error('Error uploading image:', error);

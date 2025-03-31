@@ -48,12 +48,6 @@ const mapImageType = (label) => {
  */
 export const saveProductToDatabase = async (productData, shopifyResponse) => {
   try {
-    console.log('Starting database save with product data:', {
-      title: productData.title,
-      variantCount: productData.variants?.length,
-      hasImages: Boolean(productData.variants?.[0]?.images?.length)
-    });
-
     // Filter out "Create my own set" variant
     const filteredVariants = productData.variants.filter(
       variant => variant.variantName !== "Create my own set"
@@ -68,14 +62,6 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
     if (!collection) {
       throw new Error('Collection data missing from product data');
     }
-
-    // Log collection details
-    console.log('Collection details:', {
-      id: collection.value,
-      needsSecondaryLeather: collection.needsSecondaryLeather,
-      needsStyle: collection.needsStyle,
-      needsColorDesignation: collection.needsColorDesignation
-    });
 
     // Create the parent product set first
     const productSet = await prisma.productSetDataLPC.create({
@@ -117,12 +103,6 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
       }
     });
 
-    console.log('Created product set:', {
-      id: productSet.id,
-      baseSKU: productSet.baseSKU,
-      googleDriveFolderUrl: productSet.googleDriveFolderUrl
-    });
-
     // Group regular and custom variants by their base characteristics
     const variantGroups = filteredVariants.reduce((groups, variant) => {
       const key = `${variant.shapeValue}-${variant.style?.value || ''}-${variant.colorDesignation?.value || ''}`;
@@ -136,11 +116,6 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
       }
       return groups;
     }, {});
-
-    console.log('Variant groups created:', {
-      groupCount: Object.keys(variantGroups).length,
-      groups: Object.keys(variantGroups)
-    });
 
     // Create variants with their custom counterparts
     const savedVariants = await Promise.all(
@@ -176,39 +151,15 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
           v.inventoryItem?.sku === custom.sku
         ) : null;
 
-        // Log image data before processing
-        console.log('Processing images for variant:', {
-          sku: regular.sku,
-          imageCount: regular.images?.length || 0,
-          images: regular.images?.map(img => ({
-            label: img.label,
-            mappedType: mapImageType(img.label),
-            hasUrl: Boolean(img.url),
-            hasDriveData: Boolean(img.driveData)
-          }))
-        });
-
         // Create variant images with Google Drive data
-        const variantImages = regular.images?.map(image => {
-          const imageData = {
-            imageType: mapImageType(image.label),
-            marketplace: 'ORIGINAL',
-            cloudinaryUrl: image.url,
-            cloudinaryId: image.driveData?.fileId,
-            googleDriveUrl: image.driveData?.webViewLink,
-            googleDriveId: image.driveData?.fileId
-          };
-
-          console.log('Creating image record:', {
-            sku: regular.sku,
-            originalLabel: image.label,
-            mappedImageType: imageData.imageType,
-            hasCloudinaryUrl: Boolean(imageData.cloudinaryUrl),
-            hasGoogleDriveUrl: Boolean(imageData.googleDriveUrl)
-          });
-
-          return imageData;
-        }) || [];
+        const variantImages = regular.images?.map(image => ({
+          imageType: mapImageType(image.label),
+          marketplace: 'ORIGINAL',
+          cloudinaryUrl: image.url,
+          cloudinaryId: image.driveData?.fileId,
+          googleDriveUrl: image.driveData?.webViewLink,
+          googleDriveId: image.driveData?.fileId
+        })) || [];
 
         const variantData = {
           set: {
@@ -244,26 +195,11 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
           }
         };
 
-        console.log('Creating variant with data:', {
-          sku: variantData.SKU,
-          imageCount: variantImages.length,
-          hasStyle: Boolean(variantData.style),
-          hasColorDesignation: Boolean(variantData.colorDesignation)
-        });
-
         return prisma.productVariantDataLPC.create({
           data: variantData
         });
       })
     );
-
-    console.log('Database save completed:', {
-      productSetId: productSet.id,
-      variantCount: savedVariants.length,
-      totalImages: savedVariants.reduce((sum, variant) => 
-        sum + (variant.variantImages?.length || 0), 0
-      )
-    });
 
     return {
       mainProduct: productSet,

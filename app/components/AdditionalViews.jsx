@@ -1,8 +1,9 @@
 import React, { useCallback } from 'react';
 import { InlineStack, Text } from "@shopify/polaris";
 import ImageDropZone from './ImageDropZone';
-import { uploadToCloudinary } from '../lib/utils/cloudinary';
+// import { uploadToCloudinary } from '../lib/utils/cloudinary';
 import { uploadToGoogleDrive } from '../lib/utils/googleDrive';
+import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 
 const AdditionalViews = ({ 
   formState,
@@ -17,37 +18,38 @@ const AdditionalViews = ({
       const file = files[0];
       const baseSKU = formState.baseSKU;
       
-      // Create the public ID using the same folder structure as variants
-      const publicId = `${productData.productPictureFolder}/${baseSKU}-${label.toLowerCase().replace(/\s+/g, '-')}`;
-
-      // Upload to Cloudinary
-      const result = await uploadToCloudinary(file, publicId, productData.productType);
+      console.log('Starting additional view upload:', {
+        baseSKU,
+        label,
+        folderName: productData.productPictureFolder,
+        productType: productData.productType
+      });
       
       // Upload to Google Drive
+      let driveData = null;
       try {
-        await uploadToGoogleDrive(file, {
-          collection: productData.productType,  // Use the product type as collection
+        driveData = await uploadToGoogleDrive(file, {
+          collection: productData.productType,
           folderName: productData.productPictureFolder,
-          sku: baseSKU,  // Use baseSKU for additional views
-          label: label.toLowerCase().replace(/\s+/g, '-')  // Format label consistently
+          sku: baseSKU,
+          label: label.toLowerCase().replace(/\s+/g, '-')
         });
       } catch (driveError) {
         console.error('Google Drive upload failed:', driveError);
-        // Continue even if Google Drive fails
+        throw driveError; // Re-throw to handle the error
       }
 
-      console.log('Additional view uploaded:', {
+      console.log('Additional view uploaded successfully:', {
         baseSKU,
         label,
-        publicId,
         collection: productData.productType,
-        url: result.url,
-        folder: productData.productPictureFolder
+        folderName: productData.productPictureFolder,
+        driveData
       });
 
-      // Update the form state with the new image URL
+      // Update the form state with the Google Drive URL
       if (onImageUpload) {
-        onImageUpload(label, result.url);
+        onImageUpload(label, getGoogleDriveUrl(driveData.fileId), driveData);
       }
     } catch (error) {
       console.error('Error uploading additional view:', error);
