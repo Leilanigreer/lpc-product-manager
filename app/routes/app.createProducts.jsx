@@ -12,6 +12,8 @@ import { useFormState } from "../hooks/useFormState";
 import { useFormNotifications } from "../hooks/useFormNotifications.js";
 import { createShopifyProduct } from "../lib/server/shopifyOperations.server.js";
 import { saveProductToDatabase } from "../lib/server/productOperations.server.js";
+import { sendInternalEmail } from "../services/email.server";
+import { generateProductCreationNotification } from "../templates/product-creation-notification";
 import {
   CollectionSelector,
   FontSelector,
@@ -46,7 +48,19 @@ export const action = async ({ request }) => {
     const shopifyResponse = await createShopifyProduct(admin, productData);
     const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse);
 
-    // Instead of json(), return object directly
+    // Send notification email about new product creation
+    const htmlContent = generateProductCreationNotification({
+      product: shopifyResponse.product,
+      databaseSave: dbSaveResult,
+      shop: shopifyResponse.shop
+    });
+
+    await sendInternalEmail(
+      `Karl just created ${shopifyResponse.product.title}`,
+      `Karl just created a new set on the website.`,
+      htmlContent
+    );
+
     return {
       ...shopifyResponse,
       databaseSave: dbSaveResult,
@@ -219,13 +233,13 @@ export default function CreateProduct() {
       });
 
       // Create a sanitized folder name from the product title
-      const folderName = data.title
+      const folderName = data.mainHandle
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
       // Add the folder name to the product data
-      data.cloudinaryFolder = folderName;
+      data.productPictureFolder = folderName;
 
       setProductData(data);
     } catch (error) {
