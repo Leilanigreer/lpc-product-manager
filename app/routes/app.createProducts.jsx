@@ -122,6 +122,12 @@ export default function CreateProduct() {
     setProductData(prevData => {
       const newData = { ...prevData };
       
+      // If this is the first image upload and we have drive data with a product folder URL,
+      // set the Google Drive folder URL for the entire product
+      if (driveData?.folderPath?.productFolderUrl && !newData.googleDriveFolderUrl) {
+        newData.googleDriveFolderUrl = driveData.folderPath.productFolderUrl;
+      }
+      
       // If the SKU matches a variant's SKU, update the variant's images
       const variant = newData.variants.find(v => v.sku === sku);
       if (variant) {
@@ -225,21 +231,9 @@ export default function CreateProduct() {
       }
 
       const data = await generateProductData(formState, commonDescription);
-      console.log('Generated product data:', {
-        hasData: Boolean(data),
-        title: data?.title,
-        variantCount: data?.variants?.length,
-        variants: data?.variants
-      });
-
-      // Create a sanitized folder name from the product title
-      const folderName = data.mainHandle
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-
-      // Add the folder name to the product data
-      data.productPictureFolder = folderName;
+      
+      // Use the already sanitized mainHandle for the folder name
+      data.productPictureFolder = data.mainHandle;
 
       setProductData(data);
     } catch (error) {
