@@ -18,7 +18,7 @@ const AdditionalViews = ({
       const baseSKU = formState.baseSKU;
       
       // Create the public ID using the same folder structure as variants
-      const publicId = `${productData.cloudinaryFolder}/${baseSKU}-${label.toLowerCase().replace(/\s+/g, '-')}`;
+      const publicId = `${productData.productPictureFolder}/${baseSKU}-${label.toLowerCase().replace(/\s+/g, '-')}`;
 
       // Upload to Cloudinary
       const result = await uploadToCloudinary(file, publicId, productData.productType);
@@ -27,7 +27,7 @@ const AdditionalViews = ({
       try {
         await uploadToGoogleDrive(file, {
           collection: productData.productType,  // Use the product type as collection
-          folderName: productData.cloudinaryFolder,
+          folderName: productData.productPictureFolder,
           sku: baseSKU,  // Use baseSKU for additional views
           label: label.toLowerCase().replace(/\s+/g, '-')  // Format label consistently
         });
@@ -42,7 +42,7 @@ const AdditionalViews = ({
         publicId,
         collection: productData.productType,
         url: result.url,
-        folder: productData.cloudinaryFolder
+        folder: productData.productPictureFolder
       });
 
       // Update the form state with the new image URL
@@ -52,7 +52,7 @@ const AdditionalViews = ({
     } catch (error) {
       console.error('Error uploading additional view:', error);
     }
-  }, [formState.baseSKU, onImageUpload, productData.cloudinaryFolder, productData.productType]);
+  }, [formState.baseSKU, onImageUpload, productData.productPictureFolder, productData.productType]);
 
   const handleDropAccepted = useCallback((files) => {
     console.log('Files accepted:', files);

@@ -19,15 +19,15 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
       
       // Create the public ID based on whether it's a putter or not
       const publicId = isPutterVariant 
-        ? `${productData.cloudinaryFolder}/${variant.sku}-${label}`
-        : `${productData.cloudinaryFolder}/${variant.sku}`;
+        ? `${productData.productPictureFolder}/${variant.sku}-${label}`
+        : `${productData.productPictureFolder}/${variant.sku}`;
 
       // Upload to both services
       let driveData = null;
       try {
         driveData = await uploadToGoogleDrive(file, {
           collection: productData.productType,
-          folderName: productData.cloudinaryFolder,
+          folderName: productData.productPictureFolder,
           sku: variant.sku,
           label: isPutterVariant ? label : undefined
         });
@@ -100,7 +100,7 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
     if (isPutterVariant) {
       // For putters, use the variant's shape to determine the views
       if (variant.shape === 'Blade') {
-        return ['Top', 'Side Back', 'Side Front'];
+        return ['Side Front', 'Side Back', 'Top' ];
       } else if (variant.shape === 'Mallet') {
         return ['Front', 'Back', 'Open Back'];
       }
