@@ -29,7 +29,8 @@
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
     "generate": "shopify app generate",
-    "import-isacord": "node scripts/import-isacord.js"
+    "import-isacord": "node scripts/import-isacord.js",
+    "get-refresh-token": "node scripts/get-refresh-token.js"
   },
   "type": "module",
   "engines": {
