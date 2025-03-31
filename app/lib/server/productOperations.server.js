@@ -57,7 +57,11 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
               connect: { id: thread.amannNumbers[0].value }
             }
           }))
-        }
+        },
+        // Add Google Drive folder URL if available
+        ...(productData.googleDriveFolderUrl && {
+          googleDriveFolderUrl: productData.googleDriveFolderUrl
+        })
       }
     });
 
@@ -109,6 +113,16 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
           v.inventoryItem?.sku === custom.sku
         ) : null;
 
+        // Create variant images with Google Drive data
+        const variantImages = regular.images?.map(image => ({
+          imageType: image.label.toUpperCase(),
+          marketplace: 'ORIGINAL',
+          cloudinaryUrl: image.url,
+          cloudinaryId: image.driveData?.fileId,
+          googleDriveUrl: image.driveData?.webViewLink,
+          googleDriveId: image.driveData?.fileId
+        })) || [];
+
         return prisma.productVariantDataLPC.create({
           data: {
             set: {
@@ -137,7 +151,11 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
               customShopifyVariantId: customShopifyVariant.id,
               customShopifyInventoryId: customShopifyVariant.inventoryItem.id,
               customSKU: custom.sku
-            })
+            }),
+            // Add variant images
+            variantImages: {
+              create: variantImages
+            }
           }
         });
       })
