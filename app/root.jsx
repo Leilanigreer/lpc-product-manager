@@ -20,7 +20,6 @@ export const loader = async ({ request }) => {
 
   return json({
     env,
-    // ... other data you might be returning
   });
 };
 
