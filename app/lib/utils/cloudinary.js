@@ -86,7 +86,7 @@ if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
   });
 }
 
-export const uploadToCloudinary = async (file, customPublicId = null, collection = null) => {
+export const uploadToCloudinary = async (file, customPublicId = null, collection = null, productPictureFolder = null) => {
   console.log('=== Cloudinary Upload START ===');
   
   if (!config.cloud_name) {
@@ -98,7 +98,8 @@ export const uploadToCloudinary = async (file, customPublicId = null, collection
     type: file.type,
     size: file.size,
     customPublicId,
-    collection
+    collection,
+    productPictureFolder
   });
 
   try {
@@ -113,9 +114,11 @@ export const uploadToCloudinary = async (file, customPublicId = null, collection
     formData.append('file', fileToUpload);
     formData.append('upload_preset', 'product-images'); // Using product-images upload preset
     
-    // Set the asset folder based on collection
+    // Set the asset folder based on collection and productPictureFolder
     if (collection) {
-      const assetFolder = 'products/' + collection;
+      const assetFolder = productPictureFolder 
+        ? `products/${collection}/${productPictureFolder}`
+        : `products/${collection}`;
       formData.append('asset_folder', assetFolder);
       
       // Debug log for form data entries
@@ -144,7 +147,7 @@ export const uploadToCloudinary = async (file, customPublicId = null, collection
     console.log('Upload form data:', {
       file: fileToUpload.name,
       upload_preset: 'product-images',
-      asset_folder: collection ? `products/${collection}` : undefined,
+      asset_folder: collection ? (productPictureFolder ? `products/${collection}/${productPictureFolder}` : `products/${collection}`) : undefined,
       public_id: customPublicId ? (customPublicId.startsWith('products/') ? customPublicId : `products/${customPublicId}`) : undefined
     });
 
