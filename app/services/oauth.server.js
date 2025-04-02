@@ -1,4 +1,11 @@
 import prisma from '../db.server.js';
+import { OAuth2Client } from 'google-auth-library';
+
+// Initialize the OAuth2 client
+const oauth2Client = new OAuth2Client({
+  clientId: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+});
 
 /**
  * Get or create OAuth token for a provider
@@ -18,8 +25,27 @@ export async function getOAuthToken(provider) {
 
     // Check if token is expired
     if (token.expiresAt && token.expiresAt < new Date()) {
-      console.log(`Token for provider ${provider} is expired`);
-      return null;
+      console.log(`Token for provider ${provider} is expired, refreshing...`);
+      
+      // Set credentials with refresh token
+      oauth2Client.setCredentials({
+        refresh_token: token.refreshToken,
+      });
+
+      // Refresh the token
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      
+      // Update the token in the database
+      const updatedToken = await prisma.oAuthToken.update({
+        where: { provider },
+        data: {
+          accessToken: credentials.access_token,
+          expiresAt: credentials.expiry_date ? new Date(credentials.expiry_date) : null,
+        },
+      });
+
+      console.log(`Successfully refreshed token for provider ${provider}`);
+      return updatedToken;
     }
 
     return token;
