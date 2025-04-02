@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { InlineStack, Text } from "@shopify/polaris";
 import ImageDropZone from './ImageDropZone';
-// import { uploadToCloudinary } from '../lib/utils/cloudinary';
+import { uploadToCloudinary } from '../lib/utils/cloudinary';
 import { uploadToGoogleDrive } from '../lib/utils/googleDrive';
 import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 
@@ -36,7 +36,17 @@ const AdditionalViews = ({
         });
       } catch (driveError) {
         console.error('Google Drive upload failed:', driveError);
-        throw driveError; // Re-throw to handle the error
+        throw driveError;
+      }
+
+      // Upload to Cloudinary
+      let cloudinaryData = null;
+      try {
+        const publicId = `${productData.productType}/${productData.productPictureFolder}/${baseSKU}-${label.toLowerCase().replace(/\s+/g, '-')}`;
+        cloudinaryData = await uploadToCloudinary(file, publicId, productData.productType, productData.productPictureFolder);
+      } catch (cloudinaryError) {
+        console.error('Cloudinary upload failed:', cloudinaryError);
+        // Don't throw here, as we still have Google Drive data
       }
 
       console.log('Additional view uploaded successfully:', {
@@ -44,12 +54,17 @@ const AdditionalViews = ({
         label,
         collection: productData.productType,
         folderName: productData.productPictureFolder,
-        driveData
+        driveData,
+        cloudinaryData
       });
 
-      // Update the form state with the Google Drive URL
+      // Update the form state with both URLs if available
       if (onImageUpload) {
-        onImageUpload(label, getGoogleDriveUrl(driveData.fileId), driveData);
+        onImageUpload(label, cloudinaryData?.url || getGoogleDriveUrl(driveData.fileId), {
+          ...driveData,
+          cloudinaryUrl: cloudinaryData?.url,
+          cloudinaryId: cloudinaryData?.publicId
+        });
       }
     } catch (error) {
       console.error('Error uploading additional view:', error);

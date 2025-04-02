@@ -52,9 +52,7 @@ export function generateProductCreationNotification({ product, databaseSave, sho
           <p>Please work your magic on these product photos</p>
           <p>Google Drive Folder: <a href="${googleDriveUrl}" class="link">${googleDriveUrl}</a></p>
           
-          <!-- Cloudinary placeholder (commented out until implemented)
-          <p>Cloudinary URL: [Cloudinary URL will go here]</p>
-          -->
+          <p>Cloudinary URL: ${databaseSave.mainProduct.cloudinaryUrl ? `<a href="${databaseSave.mainProduct.cloudinaryUrl}" class="link">${databaseSave.mainProduct.cloudinaryUrl}</a>` : 'Not available yet'}</p>
         </div>
       </body>
     </html>

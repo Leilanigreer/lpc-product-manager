@@ -5,7 +5,7 @@ import { Text, BlockStack, Box, InlineStack, Card } from '@shopify/polaris';
 import { isDevelopment } from '../lib/config/environment';
 import ImageDropZone from './ImageDropZone';
 import AdditionalViews from './AdditionalViews';
-// import { uploadToCloudinary } from '../lib/utils/cloudinary';
+import { uploadToCloudinary } from '../lib/utils/cloudinary';
 import { isPutter } from '../lib/utils/shapeUtils';
 import { uploadToGoogleDrive } from '../lib/utils/googleDrive';
 import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
@@ -38,7 +38,17 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
         });
       } catch (driveError) {
         console.error('Google Drive upload failed:', driveError);
-        throw driveError; // Re-throw to handle the error
+        throw driveError;
+      }
+
+      // Upload to Cloudinary
+      let cloudinaryData = null;
+      try {
+        const publicId = `${productData.productType}/${productData.productPictureFolder}/${variant.sku}${isPutterVariant ? `-${label.toLowerCase().replace(/\s+/g, '-')}` : ''}`;
+        cloudinaryData = await uploadToCloudinary(file, publicId, productData.productType, productData.productPictureFolder);
+      } catch (cloudinaryError) {
+        console.error('Cloudinary upload failed:', cloudinaryError);
+        // Don't throw here, as we still have Google Drive data
       }
       
       console.log('Image uploaded successfully:', {
@@ -47,17 +57,27 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
         isPutter: isPutterVariant,
         collection: productData.productType,
         folderName: productData.productPictureFolder,
-        driveData
+        driveData,
+        cloudinaryData
       });
 
-      // Update the product data with the Google Drive URL and drive data
+      // Update the product data with both URLs if available
       if (onImageUpload) {
-        onImageUpload(variant.sku, label, getGoogleDriveUrl(driveData.fileId), driveData);
+        onImageUpload(
+          variant.sku,
+          label,
+          cloudinaryData?.url || getGoogleDriveUrl(driveData.fileId),
+          {
+            ...driveData,
+            cloudinaryUrl: cloudinaryData?.url,
+            cloudinaryId: cloudinaryData?.publicId
+          }
+        );
       }
     } catch (error) {
       console.error('Error uploading image:', error);
     }
-  }, [variant, productData, onImageUpload]);
+  }, [variant.sku, variant.shapeType, onImageUpload, productData.productPictureFolder, productData.productType]);
 
   // Get the uploaded image URL for a specific label
   const getUploadedImageUrl = useCallback((label) => {
