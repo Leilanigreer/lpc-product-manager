@@ -18,13 +18,6 @@ const AdditionalViews = ({
       const file = files[0];
       const baseSKU = formState.baseSKU;
       
-      console.log('Starting additional view upload:', {
-        baseSKU,
-        label,
-        folderName: productData.productPictureFolder,
-        productType: productData.productType
-      });
-      
       // Upload to Google Drive
       let driveData = null;
       try {
@@ -49,15 +42,6 @@ const AdditionalViews = ({
         // Don't throw here, as we still have Google Drive data
       }
 
-      console.log('Additional view uploaded successfully:', {
-        baseSKU,
-        label,
-        collection: productData.productType,
-        folderName: productData.productPictureFolder,
-        driveData,
-        cloudinaryData
-      });
-
       // Update the form state with both URLs if available
       if (onImageUpload) {
         onImageUpload(label, cloudinaryData?.url || getGoogleDriveUrl(driveData.fileId), {
@@ -72,11 +56,11 @@ const AdditionalViews = ({
   }, [formState.baseSKU, onImageUpload, productData.productPictureFolder, productData.productType]);
 
   const handleDropAccepted = useCallback((files) => {
-    console.log('Files accepted:', files);
+    // No need for console logs here
   }, []);
 
   const handleDropRejected = useCallback((files) => {
-    console.log('Files rejected:', files);
+    // No need for console logs here
   }, []);
 
   // Get the uploaded image URL for a specific label

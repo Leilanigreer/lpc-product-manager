@@ -86,21 +86,62 @@ if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
   });
 }
 
+// Helper function to get folder path from Cloudinary
+export const getCloudinaryFolderPath = async (assetFolder) => {
+  try {
+    // Create Basic Auth header
+    const authHeader = 'Basic ' + Buffer.from(`${config.api_key}:${config.api_secret}`).toString('base64');
+    
+    // Construct the URL with the provided assetFolder
+    const url = `https://api.cloudinary.com/v1_1/${config.cloud_name}/folders/search?expression=path=${assetFolder}`;
+
+    // Make the GET request
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader
+      }
+    });
+
+    // Get the response text first
+    const responseText = await response.text();
+
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse response:', parseError);
+      console.error('Response text:', responseText);
+      return null;
+    }
+
+    if (!response.ok) {
+      console.error('Search failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: result
+      });
+      throw new Error(`Failed to get folder path: ${response.statusText} - ${JSON.stringify(result)}`);
+    }
+    
+    if (!result.folders || result.folders.length === 0) {
+      return null;
+    }
+
+    // Get the external_id from the first folder in the results
+    return result.folders[0].external_id;
+  } catch (error) {
+    console.error('Error getting folder path:', error);
+    console.error('Error stack:', error.stack);
+    return null;
+  }
+};
+
 export const uploadToCloudinary = async (file, customPublicId = null, collection = null, productPictureFolder = null) => {
-  console.log('=== Cloudinary Upload START ===');
-  
   if (!config.cloud_name) {
     throw new Error('Cloudinary is not properly configured');
   }
-
-  console.log('Received file:', {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    customPublicId,
-    collection,
-    productPictureFolder
-  });
 
   try {
     // Create form data for upload
@@ -120,11 +161,6 @@ export const uploadToCloudinary = async (file, customPublicId = null, collection
         ? `products/${collection}/${productPictureFolder}`
         : `products/${collection}`;
       formData.append('asset_folder', assetFolder);
-      
-      // Debug log for form data entries
-      for (let pair of formData.entries()) {
-        console.log('Form Data Entry:', pair[0], '=', pair[1]);
-      }
     }
     
     // If custom public ID is provided, add it to the form data
@@ -134,30 +170,15 @@ export const uploadToCloudinary = async (file, customPublicId = null, collection
       if (!fullPublicId.startsWith('products/')) {
         fullPublicId = `products/${fullPublicId}`;
       }
-      // If collection is provided and not already in the path, add it
-      if (collection && !fullPublicId.includes(`/${collection}/`)) {
-        const parts = fullPublicId.split('/');
-        parts.splice(1, 0, collection);
-        fullPublicId = parts.join('/');
-      }
       formData.append('public_id', fullPublicId);
     }
 
-    // Log the form data for debugging (excluding sensitive info)
-    console.log('Upload form data:', {
-      file: fileToUpload.name,
-      upload_preset: 'product-images',
-      asset_folder: collection ? (productPictureFolder ? `products/${collection}/${productPictureFolder}` : `products/${collection}`) : undefined,
-      public_id: customPublicId ? (customPublicId.startsWith('products/') ? customPublicId : `products/${customPublicId}`) : undefined
-    });
-
-    // Upload to Cloudinary
-    console.log('Initiating Cloudinary upload');
+    // Make the upload request
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${config.cloud_name}/auto/upload`,
       {
         method: 'POST',
-        body: formData,
+        body: formData
       }
     );
 
@@ -168,46 +189,21 @@ export const uploadToCloudinary = async (file, customPublicId = null, collection
         statusText: response.statusText,
         error: errorData
       });
-      throw new Error(`Upload failed: ${response.statusText} - ${errorData.error?.message || ''}`);
+      throw new Error(`Upload failed: ${response.statusText} - ${JSON.stringify(errorData)}`);
     }
 
     const result = await response.json();
-    
-    // Log the response to determine which folder mode is being used
-    console.log('Cloudinary upload response:', {
-      url: result.secure_url,
-      publicId: result.public_id,
-      format: result.format,
-      size: result.bytes,
-      width: result.width,
-      height: result.height,
-      folder: result.folder,
-      asset_folder: result.asset_folder,
-      display_name: result.display_name,
-      folderMode: result.asset_folder ? 'dynamic' : 'fixed'
-    });
-
-    console.log('=== Cloudinary Upload END ===');
-    return {
-      url: result.secure_url,
-      publicId: result.public_id
-    };
+    return result;
   } catch (error) {
-    console.error('Cloudinary upload error:', {
-      message: error.message,
-      stack: error.stack
-    });
-    console.log('=== Cloudinary Upload END (with error) ===');
+    console.error('Cloudinary upload error:', error);
     throw error;
   }
 };
 
 export const deleteFromCloudinary = async (publicId) => {
-  console.log('=== Cloudinary Delete START ===');
-  console.log('Deleting publicId:', publicId);
-
   try {
-    const timestamp = Math.round(new Date().getTime() / 1000);
+    // Generate signature for the delete request
+    const timestamp = Math.floor(Date.now() / 1000);
     const signature = await generateSignature({
       public_id: publicId,
       timestamp: timestamp,
