@@ -4,6 +4,7 @@ import ImageDropZone from './ImageDropZone';
 import { uploadToCloudinary } from '../lib/utils/cloudinary';
 import { uploadToGoogleDrive } from '../lib/utils/googleDrive';
 import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
+import { isDevelopment } from '../lib/config/environment';
 
 const AdditionalViews = ({ 
   formState,
@@ -28,7 +29,9 @@ const AdditionalViews = ({
           label: label.toLowerCase().replace(/\s+/g, '-')
         });
       } catch (driveError) {
-        console.error('Google Drive upload failed:', driveError);
+        if (isDevelopment) {
+          console.error('Google Drive upload failed:', driveError);
+        }
         throw driveError;
       }
 
@@ -38,7 +41,9 @@ const AdditionalViews = ({
         const publicId = `${productData.productType}/${productData.productPictureFolder}/${baseSKU}-${label.toLowerCase().replace(/\s+/g, '-')}`;
         cloudinaryData = await uploadToCloudinary(file, publicId, productData.productType, productData.productPictureFolder);
       } catch (cloudinaryError) {
-        console.error('Cloudinary upload failed:', cloudinaryError);
+        if (isDevelopment) {
+          console.error('Cloudinary upload failed:', cloudinaryError);
+        }
         // Don't throw here, as we still have Google Drive data
       }
 
@@ -51,7 +56,9 @@ const AdditionalViews = ({
         });
       }
     } catch (error) {
-      console.error('Error uploading additional view:', error);
+      if (isDevelopment) {
+        console.error('Error uploading additional view:', error);
+      }
     }
   }, [formState.baseSKU, onImageUpload, productData.productPictureFolder, productData.productType]);
 

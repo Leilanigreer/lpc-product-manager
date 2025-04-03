@@ -29,7 +29,9 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
           label: isPutterVariant ? label : undefined
         });
       } catch (driveError) {
-        console.error('Google Drive upload failed:', driveError);
+        if (isDevelopment) {
+          console.error('Google Drive upload failed:', driveError);
+        }
         throw driveError;
       }
 
@@ -39,7 +41,9 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
         const publicId = `${productData.productType}/${productData.productPictureFolder}/${variant.sku}${isPutterVariant ? `-${label.toLowerCase().replace(/\s+/g, '-')}` : ''}`;
         cloudinaryData = await uploadToCloudinary(file, publicId, productData.productType, productData.productPictureFolder);
       } catch (cloudinaryError) {
-        console.error('Cloudinary upload failed:', cloudinaryError);
+        if (isDevelopment) {
+          console.error('Cloudinary upload failed:', cloudinaryError);
+        }
         // Don't throw here, as we still have Google Drive data
       }
       
@@ -57,9 +61,11 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
         );
       }
     } catch (error) {
-      console.error('Error uploading image:', error);
+      if (isDevelopment) {
+        console.error('Error uploading image:', error);
+      }
     }
-  }, [variant.sku, variant.shapeType, onImageUpload, productData.productPictureFolder, productData.productType]);
+  }, [variant, productData, onImageUpload]);
 
   // Get the uploaded image URL for a specific label
   const getUploadedImageUrl = useCallback((label) => {
