@@ -18,13 +18,10 @@ const ACTION_TYPES = {
 
 const formReducer = (state, action) => {
   const { type, payload, initialState } = action;
-  console.log('FormReducer - Action:', { type, payload });
 
   switch (type) {
     case ACTION_TYPES.UPDATE_COLLECTION: {
       const { collection, productSets } = payload;
-      console.log('UPDATE_COLLECTION payload:', payload);
-      console.log('Collection being set:', collection);
     
       // Initialize all shapes with base state only
       const allShapes = initialState.shapes.reduce((acc, shape) => ({

@@ -247,14 +247,6 @@ export default function CreateProduct() {
       // Use the already sanitized mainHandle for the folder name
       data.productPictureFolder = data.mainHandle;
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Product Creation] Generated Product Data:', {
-          productType: data.productType,
-          mainHandle: data.mainHandle,
-          variantCount: data.variants.length
-        });
-      }
-
       setProductData(data);
     } catch (error) {
       console.error("[Product Creation] Data Generation Failed:", {
