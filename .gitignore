@@ -32,4 +32,4 @@ client_secret_116539325084-f4iukk2u7q8bd11vij5lrfthbibc3hgv.apps.googleuserconte
 
 debug-google-creds.js
 
-test-google-auth.js
+test-google-auth.jsscripts/get-refresh-token.js
