@@ -191,7 +191,11 @@ export default function CreateProduct() {
 
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log('Form State Updated:', formState);
+      console.log('[Product Creation] Form State Updated:', {
+        collection: formState.collection,
+        productType: formState.productType,
+        shapes: Object.keys(formState.allShapes || {})
+      });
     }
   }, [formState]);
 
@@ -209,7 +213,8 @@ export default function CreateProduct() {
     handleChange,
     onSuccess: () => {
       setProductData(null);
-      setGenerationError(null);    }
+      setGenerationError(null);    
+    }
   });  
 
   React.useEffect(() => {
@@ -242,9 +247,17 @@ export default function CreateProduct() {
       // Use the already sanitized mainHandle for the folder name
       data.productPictureFolder = data.mainHandle;
 
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Product Creation] Generated Product Data:', {
+          productType: data.productType,
+          mainHandle: data.mainHandle,
+          variantCount: data.variants.length
+        });
+      }
+
       setProductData(data);
     } catch (error) {
-      console.error("Product data generation failed:", {
+      console.error("[Product Creation] Data Generation Failed:", {
         error: error.message,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         formState: {
