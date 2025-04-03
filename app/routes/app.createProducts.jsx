@@ -14,6 +14,7 @@ import { createShopifyProduct } from "../lib/server/shopifyOperations.server.js"
 import { saveProductToDatabase } from "../lib/server/productOperations.server.js";
 import { sendInternalEmail } from "../services/email.server";
 import { generateProductCreationNotification } from "../templates/product-creation-notification";
+import { getCloudinaryFolderPath } from "../lib/utils/cloudinary";
 import {
   CollectionSelector,
   FontSelector,
@@ -34,6 +35,7 @@ import {
   Banner, 
 } from "@shopify/polaris";
 
+
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
   return dataLoader({ request });
@@ -48,11 +50,20 @@ export const action = async ({ request }) => {
     const shopifyResponse = await createShopifyProduct(admin, productData);
     const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse);
 
+    console.log('Product data:', productData.mainHandle);
+    console.log('Product type:', productData.productType);
+    console.log('Cloudinary folder path:', `products/${productData.productType}/${productData.mainHandle}`);
+
+    // Get Cloudinary folder external ID only when needed for notification
+    const cloudinaryFolderId = await getCloudinaryFolderPath(`products/${productData.productType}/${productData.mainHandle}`);
+    console.log('Cloudinary folder ID for notification:', cloudinaryFolderId);
+
     // Send notification email about new product creation
     const htmlContent = generateProductCreationNotification({
       product: shopifyResponse.product,
       databaseSave: dbSaveResult,
-      shop: shopifyResponse.shop
+      shop: shopifyResponse.shop,
+      cloudinaryFolderId: cloudinaryFolderId
     });
 
     await sendInternalEmail(

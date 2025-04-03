@@ -6,12 +6,12 @@
  * @param {Object} data.shop - The shop data
  * @returns {string} The HTML content for the email
  */
-export function generateProductCreationNotification({ product, databaseSave, shop }) {
+export function generateProductCreationNotification({ product, databaseSave, shop, cloudinaryFolderId }) {
   const shopDomain = shop.myshopifyDomain?.replace('.myshopify.com', '');
   const productId = product.id.split('/').pop(); // Extract ID from gid://shopify/Product/123456789
   const adminUrl = `https://admin.shopify.com/store/${shopDomain}/products/${productId}`;
   const googleDriveUrl = databaseSave.mainProduct.googleDriveFolderUrl;
-
+  const cloudinaryUrl = `https://console.cloudinary.com/console/c-978fe81eba4503099559efedf96dd2/media_library/folders/${cloudinaryFolderId}?view_mode=mosaic`;
   return `
     <!DOCTYPE html>
     <html>
@@ -52,9 +52,10 @@ export function generateProductCreationNotification({ product, databaseSave, sho
           <p>Please work your magic on these product photos</p>
           <p>Google Drive Folder: <a href="${googleDriveUrl}" class="link">${googleDriveUrl}</a></p>
           
-          <p>Cloudinary URL: ${databaseSave.mainProduct.cloudinaryUrl ? `<a href="${databaseSave.mainProduct.cloudinaryUrl}" class="link">${databaseSave.mainProduct.cloudinaryUrl}</a>` : 'Not available yet'}</p>
+          <p>Cloudinary URL: ${cloudinaryUrl ? `<a href="${cloudinaryUrl}" class="link">${cloudinaryUrl}</a>` : 'Not available yet'}</p>
         </div>
       </body>
     </html>
   `;
 } 
+

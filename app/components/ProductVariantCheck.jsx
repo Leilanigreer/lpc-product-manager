@@ -18,14 +18,6 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
       const file = files[0];
       const isPutterVariant = isPutter({ shapeType: variant.shapeType });
       
-      console.log('Starting image upload:', {
-        sku: variant.sku,
-        label,
-        isPutter: isPutterVariant,
-        folderName: productData.productPictureFolder,
-        productType: productData.productType
-      });
-      
       // Upload to Google Drive with appropriate file naming based on variant type
       let driveData = null;
       try {
@@ -51,16 +43,6 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
         // Don't throw here, as we still have Google Drive data
       }
       
-      console.log('Image uploaded successfully:', {
-        sku: variant.sku,
-        label,
-        isPutter: isPutterVariant,
-        collection: productData.productType,
-        folderName: productData.productPictureFolder,
-        driveData,
-        cloudinaryData
-      });
-
       // Update the product data with both URLs if available
       if (onImageUpload) {
         onImageUpload(
