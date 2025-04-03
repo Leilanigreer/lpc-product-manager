@@ -29,13 +29,15 @@
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
     "generate": "shopify app generate",
-    "import-isacord": "node scripts/import-isacord.js"
+    "import-isacord": "node scripts/import-isacord.js",
+    "get-refresh-token": "node scripts/get-refresh-token.js"
   },
   "type": "module",
   "engines": {
     "node": "^18.20 || ^20.10 || >=21.0.0"
   },
   "dependencies": {
+    "@cloudinary/url-gen": "^1.21.0",
     "@prisma/client": "^5.22.0",
     "@remix-run/dev": "^2.15.1",
     "@remix-run/node": "^2.15.1",
@@ -48,7 +50,8 @@
     "@shopify/shopify-app-remix": "^3.3.2",
     "@shopify/shopify-app-session-storage-prisma": "^5.0.2",
     "@shopify/storefront-api-client": "^1.0.2",
-    "dotenv": "^16.4.5",
+    "cloudinary": "^2.6.0",
+    "googleapis": "^146.0.0",
     "isbot": "^5.1.0",
     "lodash": "^4.17.21",
     "prisma": "^5.22.0",
@@ -64,10 +67,12 @@
     "@types/react": "^18.2.31",
     "@types/react-dom": "^18.2.14",
     "cross-env": "^7.0.3",
+    "dotenv": "^16.4.7",
     "dotenv-cli": "^7.4.4",
     "eslint": "^8.42.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.2.4",
+    "server-destroy": "^1.0.1",
     "typescript": "^5.2.2",
     "vite": "^5.1.3"
   },
