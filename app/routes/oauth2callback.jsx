@@ -1,6 +1,5 @@
 import { json } from '@remix-run/node';
 import { useEffect } from 'react';
-import { useNavigate } from '@remix-run/react';
 
 export async function loader({ request }) {
   const url = new URL(request.url);
