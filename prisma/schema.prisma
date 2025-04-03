@@ -321,8 +321,9 @@ model ProductSetDataLPC {
   mainHandle           String
   setImages            ProductImage[]          @relation("SetImages")
   variants             ProductVariantDataLPC[]
-  googleDriveFolderUrl String? // URL to the Google Drive folder containing all product images
   createdAt            DateTime                @default(now())
+  googleDriveFolderUrl String? // URL to the Google Drive folder containing all product images
+  cloudinaryFolderId   String? // ID of the Cloudinary folder containing all product images
   updatedAt            DateTime                @updatedAt
 
   @@index([fontId])

@@ -46,7 +46,7 @@ const mapImageType = (label) => {
  * @param {Object} shopifyResponse - Response from Shopify API after product creation
  * @returns {Promise<Object>} Created product records
  */
-export const saveProductToDatabase = async (productData, shopifyResponse) => {
+export const saveProductToDatabase = async (productData, shopifyResponse, cloudinaryFolderId) => {
   try {
     // Filter out "Create my own set" variant
     const filteredVariants = productData.variants.filter(
@@ -99,6 +99,9 @@ export const saveProductToDatabase = async (productData, shopifyResponse) => {
         // Add Google Drive folder URL if available
         ...(productData.googleDriveFolderUrl && {
           googleDriveFolderUrl: productData.googleDriveFolderUrl
+        }),
+        ...(cloudinaryFolderId && {
+          cloudinaryFolderId: cloudinaryFolderId
         })
       }
     });
