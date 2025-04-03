@@ -12,16 +12,6 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/drive'],
 });
 
-// Only log credentials check in development
-if (process.env.NODE_ENV === 'development') {
-  console.log('Google Drive credentials check:', {
-    hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
-    hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
-    hasProjectId: !!process.env.GOOGLE_PROJECT_ID,
-    hasRootFolderId: !!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID
-  });
-}
-
 // Create the Google Drive client
 const drive = google.drive({ version: 'v3', auth });
 
