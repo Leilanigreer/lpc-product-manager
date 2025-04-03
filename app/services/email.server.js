@@ -18,33 +18,37 @@ async function initializeOAuthClient() {
       throw new Error('No OAuth token found in database');
     }
 
-    console.log('Initializing OAuth client with token:', {
-      hasRefreshToken: !!token.refreshToken,
-      hasAccessToken: !!token.accessToken,
-      expiresAt: token.expiresAt
-    });
-
     // Set credentials
     oauth2Client.setCredentials({
       refresh_token: token.refreshToken,
       access_token: token.accessToken,
-      expiry_date: token.expiresAt?.getTime()
+      expiry_date: token.expiresAt.getTime()
     });
 
-    // Set up token refresh handler
-    oauth2Client.on('tokens', async (tokens) => {
-      console.log('Token refresh event received:', {
-        hasRefreshToken: !!tokens.refresh_token,
-        hasAccessToken: !!tokens.access_token,
-        expiresIn: tokens.expiry_date
-      });
-      await updateOAuthToken('google', tokens);
-    });
-
-    // Initialize Gmail API
+    // Create Gmail API instance
     gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-    console.log('Gmail API initialized successfully');
-    return gmail;
+
+    // Listen for token refresh events
+    oauth2Client.on('tokens', async (tokens) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Token refresh event received:', {
+          hasAccessToken: !!tokens.access_token,
+          hasRefreshToken: !!tokens.refresh_token,
+          expiryDate: tokens.expiry_date
+        });
+      }
+
+      // Update token in database
+      await updateOAuthToken('google', {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token || token.refreshToken,
+        expiresAt: new Date(tokens.expiry_date)
+      });
+    });
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Gmail API initialized successfully');
+    }
   } catch (error) {
     console.error('Error initializing OAuth client:', error);
     throw error;
