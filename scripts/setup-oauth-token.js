@@ -28,44 +28,35 @@ async function setupOAuthToken() {
     const oauth2Client = new OAuth2Client({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      redirectUri: 'http://localhost:3001/oauth2callback'
     });
 
-    // Exchange the authorization code for tokens
+    // Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(code);
-    
+
     if (!tokens.refresh_token) {
       console.error('No refresh token received from Google');
       process.exit(1);
     }
 
-    // Create or update the OAuth token
-    const token = await prisma.oAuthToken.upsert({
+    // Store tokens in database
+    await prisma.oAuthToken.upsert({
       where: { provider: 'google' },
       update: {
-        refreshToken: tokens.refresh_token,
         accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
         expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null
       },
       create: {
         provider: 'google',
-        refreshToken: tokens.refresh_token,
         accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
         expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null
       }
     });
 
-    console.log('Successfully set up OAuth token:', {
-      id: token.id,
-      provider: token.provider,
-      hasRefreshToken: !!token.refreshToken,
-      hasAccessToken: !!token.accessToken,
-      expiresAt: token.expiresAt
-    });
-
-    process.exit(0);
+    console.log('Successfully set up OAuth token');
   } catch (error) {
-    console.error('Error setting up OAuth token:', error);
+    console.error('Error setting up OAuth token:', error.message);
     process.exit(1);
   }
 }
