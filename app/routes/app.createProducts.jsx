@@ -35,7 +35,6 @@ import {
   Banner, 
 } from "@shopify/polaris";
 
-
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
   return dataLoader({ request });
@@ -50,13 +49,8 @@ export const action = async ({ request }) => {
     const shopifyResponse = await createShopifyProduct(admin, productData);
     const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse);
 
-    console.log('Product data:', productData.mainHandle);
-    console.log('Product type:', productData.productType);
-    console.log('Cloudinary folder path:', `products/${productData.productType}/${productData.mainHandle}`);
-
     // Get Cloudinary folder external ID only when needed for notification
     const cloudinaryFolderId = await getCloudinaryFolderPath(`products/${productData.productType}/${productData.mainHandle}`);
-    console.log('Cloudinary folder ID for notification:', cloudinaryFolderId);
 
     // Send notification email about new product creation
     const htmlContent = generateProductCreationNotification({
@@ -78,7 +72,10 @@ export const action = async ({ request }) => {
       success: true
     };
   } catch (error) {
-    console.error('Detailed Error:', error);
+    console.error('Product creation failed:', {
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
     return new Response(
       JSON.stringify({
         errors: [typeof error === 'string' ? error : error.message || "An unexpected error occurred"]
@@ -237,7 +234,6 @@ export default function CreateProduct() {
       }
 
       if (!formState?.collection?.value) {
-        console.error('Collection validation failed:', formState.collection);
         throw new Error('Invalid collection configuration');
       }
 
@@ -248,9 +244,9 @@ export default function CreateProduct() {
 
       setProductData(data);
     } catch (error) {
-      console.error("Error generating product data:", {
-        error,
-        stack: error.stack,
+      console.error("Product data generation failed:", {
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         formState: {
           collection: formState.collection,
           shapes: Object.keys(formState.allShapes || {})
