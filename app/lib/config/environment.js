@@ -1,4 +1,4 @@
-// app/lib/environment.js
+// app/lib/config/environment.js
 
 /**
  * Environment types

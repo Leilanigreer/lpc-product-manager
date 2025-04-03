@@ -1,12 +1,23 @@
 import { authenticate } from "../shopify.server";
 
 export const action = async ({ request }) => {
-  const { shop, payload, topic } = await authenticate.webhook(request);
+  try {
+    const { shop, topic } = await authenticate.webhook(request);
 
-  // Implement handling of mandatory compliance topics
-  // See: https://shopify.dev/docs/apps/build/privacy-law-compliance
-  console.log(`Received ${topic} webhook for ${shop}`);
-  console.log(JSON.stringify(payload, null, 2));
+    // Implement handling of mandatory compliance topics
+    // See: https://shopify.dev/docs/apps/build/privacy-law-compliance
+    
+    // Log only in development and without sensitive data
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Processing ${topic} webhook for ${shop}`);
+    }
 
-  return new Response();
+    return new Response();
+  } catch (error) {
+    console.error('Error processing customer data request webhook:', {
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    return new Response(null, { status: 500 });
+  }
 };
