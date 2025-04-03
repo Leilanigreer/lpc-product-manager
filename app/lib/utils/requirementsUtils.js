@@ -8,7 +8,6 @@
  */
 export const resolveRequirements = (collection, selectedStyle) => {
   if (!collection) {
-    console.log('No collection provided to resolveRequirements');
     return {
       needsSecondaryLeather: false,
       needsStitchingColor: false,
@@ -16,29 +15,11 @@ export const resolveRequirements = (collection, selectedStyle) => {
     };
   }
 
-  // Log incoming data for debugging
-  console.log('Resolving requirements for:', {
-    collection: {
-      id: collection.value,
-      needsSecondaryLeather: collection.needsSecondaryLeather,
-      needsStitchingColor: collection.needsStitchingColor,
-      needsColorDesignation: collection.needsColorDesignation
-    },
-    styleOverrides: selectedStyle ? {
-      overrideSecondaryLeather: selectedStyle.overrideSecondaryLeather,
-      overrideStitchingColor: selectedStyle.overrideStitchingColor,
-      overrideColorDesignation: selectedStyle.overrideColorDesignation
-    } : 'No style overrides'
-  });
-
-  const requirements = {
+  return {
     needsSecondaryLeather: selectedStyle?.overrideSecondaryLeather ?? collection.needsSecondaryLeather ?? false,
     needsStitchingColor: selectedStyle?.overrideStitchingColor ?? collection.needsStitchingColor ?? false,
     needsColorDesignation: selectedStyle?.overrideColorDesignation ?? collection.needsColorDesignation ?? false
   };
-
-  console.log('Resolved requirements:', requirements);
-  return requirements;
 };
 
 export const getEffectiveRequirements = (formState) => {

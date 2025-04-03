@@ -80,14 +80,6 @@ export async function updateOAuthToken(provider, tokens) {
       return null;
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Updating OAuth token for provider ${provider}:`, {
-        hasAccessToken: !!tokens.accessToken,
-        hasRefreshToken: !!tokens.refreshToken,
-        expiresAt: tokens.expiresAt
-      });
-    }
-
     const updatedToken = await prisma.oAuthToken.upsert({
       where: { provider },
       update: {
@@ -103,13 +95,9 @@ export async function updateOAuthToken(provider, tokens) {
       }
     });
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Successfully updated OAuth token for provider ${provider}`);
-    }
-
     return updatedToken;
   } catch (error) {
-    console.error(`Error updating OAuth token for provider ${provider}:`, error);
+    console.error(`Error updating OAuth token for provider ${provider}:`, error.message);
     throw error;
   }
 } 
