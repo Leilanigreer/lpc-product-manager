@@ -12,13 +12,6 @@ export const extractExistingProducts = (productSets) => {
     return [];
   }
 
-  // Log first product set structure for debugging
-  console.log('ProductSet structure:', {
-    baseSKU: productSets[0]?.baseSKU,
-    collections: productSets[0]?.collections,
-    variantCount: productSets[0]?.variants?.length
-  });
-
   const products = productSets
     .filter(set => set.baseSKU && set.collections?.[0]) // Ensure we have required fields
     .map(set => ({

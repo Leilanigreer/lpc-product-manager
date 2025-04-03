@@ -7,16 +7,7 @@
  * @returns {boolean} True if valid
  */
 const validateShapeProperties = (shape, debug = false) => {
-  if (debug) {
-    console.group('Shape Properties Validation');
-    console.log('Validating shape:', shape);
-  }
-
   if (!shape || typeof shape !== 'object') {
-    if (debug) {
-      console.warn('Invalid shape object:', shape);
-      console.groupEnd();
-    }
     return false;
   }
 
@@ -50,29 +41,10 @@ const validateShapeProperties = (shape, debug = false) => {
 
   const isValid = Object.entries(requiredFields).every(([field, config]) => {
     const value = shape[field];
-    const isValid = value !== undefined && 
-                   value !== null && 
-                   config.validate(value);
-
-    if (debug && !isValid) {
-      console.warn(`Field "${field}" validation failed:`, {
-        expected: config.type,
-        got: typeof value,
-        value,
-        shape
-      });
-    }
-    return isValid;
+    return value !== undefined && 
+           value !== null && 
+           config.validate(value);
   });
-
-  if (debug) {
-    if (isValid) {
-      console.log('Shape properties validation passed');
-    } else {
-      console.warn('Shape properties validation failed');
-    }
-    console.groupEnd();
-  }
 
   return isValid;
 };
@@ -85,7 +57,6 @@ const validateShapeProperties = (shape, debug = false) => {
  */
 export const validateShapeSelection = (formState, debug = false) => {
   if (!formState?.allShapes || typeof formState.allShapes !== 'object') {
-    if (debug) console.warn('Invalid allShapes object:', formState?.allShapes);
     return {
       isValid: false,
       error: 'Shape configuration is missing'
@@ -110,7 +81,6 @@ export const validateShapeSelection = (formState, debug = false) => {
  */
 export const validateShapeWeights = (formState, debug = false) => {
   if (!formState?.allShapes || typeof formState.allShapes !== 'object') {
-    if (debug) console.warn('Invalid allShapes object:', formState?.allShapes);
     return {
       isValid: false,
       error: 'Shape configuration is missing'
@@ -143,18 +113,9 @@ export const validateShapeWeights = (formState, debug = false) => {
  * @returns {Object} Validation result
  */
 export const validateShapes = (formState, debug = false) => {
-  if (debug) {
-    console.group('Shape Validation');
-    console.log('Current formState:', formState);
-  }
-
   // Validate at least one shape is selected
   const selectionResult = validateShapeSelection(formState, debug);
   if (!selectionResult.isValid) {
-    if (debug) {
-      console.warn('Shape selection validation failed:', selectionResult.error);
-      console.groupEnd();
-    }
     return selectionResult;
   }
 
@@ -162,42 +123,24 @@ export const validateShapes = (formState, debug = false) => {
   const selectedShapes = Object.values(formState.allShapes)
     .filter(shape => shape.isSelected);
 
-  if (debug) {
-    console.log('Selected shapes:', selectedShapes);
-  }
-
   // Validate properties of selected shapes
   const invalidProperties = selectedShapes.filter(shape => 
     !validateShapeProperties(shape, debug)
   );
 
   if (invalidProperties.length > 0) {
-    const error = {
+    return {
       isValid: false,
       error: `Invalid properties for shapes: ${
         invalidProperties.map(s => s.label).join(', ')
       }`
     };
-    if (debug) {
-      console.warn('Invalid shape properties:', invalidProperties);
-      console.groupEnd();
-    }
-    return error;
   }
 
   // Validate weights
   const weightValidation = validateShapeWeights(formState, debug);
   if (!weightValidation.isValid) {
-    if (debug) {
-      console.warn('Weight validation failed:', weightValidation.error);
-      console.groupEnd();
-    }
     return weightValidation;
-  }
-
-  if (debug) {
-    console.log('All shape validations passed');
-    console.groupEnd();
   }
 
   return { isValid: true, error: null };
