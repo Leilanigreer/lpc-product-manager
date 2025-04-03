@@ -23,10 +23,7 @@ export const resolveRequirements = (collection, selectedStyle) => {
 };
 
 export const getEffectiveRequirements = (formState) => {
-  console.log('Getting effective requirements for formState:', formState);
-
   if (!formState?.collection) {
-    console.log('No collection in formState');
     return {
       needsSecondaryLeather: false,
       needsStitchingColor: false,
@@ -36,18 +33,14 @@ export const getEffectiveRequirements = (formState) => {
 
   // For global style mode, use global style requirements
   if (formState.styleMode === 'global' && formState.globalStyle) {
-    console.log('Using global style requirements');
     return resolveRequirements(formState.collection, formState.globalStyle);
   }
 
   // For other cases, use collection-level requirements
-  console.log('Using collection-level requirements');
   return resolveRequirements(formState.collection, null);
 };
 
 export const calculateFinalRequirements = (formState) => {
-  console.log('Calculating final requirements for formState:', formState);
-
   // Get base requirements
   const baseRequirements = getEffectiveRequirements(formState);
 
@@ -87,6 +80,5 @@ export const calculateFinalRequirements = (formState) => {
     ...templates
   };
 
-  console.log('Final calculated requirements:', finalRequirements);
   return finalRequirements;
 };
