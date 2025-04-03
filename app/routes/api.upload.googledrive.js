@@ -7,11 +7,8 @@ export async function action({ request }) {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  console.log('Google Drive API endpoint hit');
-
   try {
     // Check for Google Drive configuration
-    console.log('Checking Google Drive configuration');
     if (!process.env.GOOGLE_PRIVATE_KEY) {
       console.error('Missing GOOGLE_PRIVATE_KEY');
       return json({ error: "Missing GOOGLE_PRIVATE_KEY" }, { status: 500 });
@@ -32,7 +29,6 @@ export async function action({ request }) {
       maxPartSize: 10_000_000, // 10MB limit
     });
     
-    console.log('Parsing multipart form data');
     const formData = await unstable_parseMultipartFormData(request, uploadHandler);
     
     // Extract data
@@ -41,16 +37,6 @@ export async function action({ request }) {
     const folderName = formData.get('folderName');
     const sku = formData.get('sku');
     const label = formData.get('label');
-
-    console.log('Form data received:', {
-      hasFile: !!file,
-      fileName: file?.name,
-      fileSize: file?.size,
-      collection,
-      folderName,
-      sku,
-      label
-    });
 
     // Validate required fields
     if (!file) {
@@ -69,19 +55,15 @@ export async function action({ request }) {
     }
 
     // Make sure we can access the file contents
-    // For Remix, we need to ensure we can get the file data as a buffer
     if (typeof file.arrayBuffer !== 'function') {
       console.error('File object does not support arrayBuffer method');
       return json({ error: "Unsupported file format" }, { status: 400 });
     }
 
-    console.log('Calling uploadToGoogleDrive function');
     const result = await uploadToGoogleDrive(file, { collection, folderName, sku, label });
-    
-    console.log('Drive upload successful, returning result');
     return json(result);
   } catch (error) {
-    console.error("Google Drive upload error:", error);
+    console.error("Google Drive upload error:", error.message);
     console.error("Error stack:", error.stack);
     
     return json({ 
