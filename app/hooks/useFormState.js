@@ -18,13 +18,10 @@ const ACTION_TYPES = {
 
 const formReducer = (state, action) => {
   const { type, payload, initialState } = action;
-  console.log('FormReducer - Action:', { type, payload });
 
   switch (type) {
     case ACTION_TYPES.UPDATE_COLLECTION: {
-      const { collection, productDataLPC } = payload;
-      console.log('UPDATE_COLLECTION payload:', payload);
-      console.log('Collection being set:', collection);
+      const { collection, productSets } = payload;
     
       // Initialize all shapes with base state only
       const allShapes = initialState.shapes.reduce((acc, shape) => ({
@@ -33,7 +30,7 @@ const formReducer = (state, action) => {
       }), {});
 
       // Process existing products during collection selection
-      const existingProducts = extractExistingProducts(productDataLPC);
+      const existingProducts = extractExistingProducts(productSets);
       const filteredProducts = filterProductsByCollection(existingProducts, collection.value);
 
       // Create new state with collection and reset relevant fields

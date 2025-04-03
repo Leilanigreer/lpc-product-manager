@@ -121,7 +121,6 @@ export const createCustomVariants = (formState, skuInfo) => {
     .filter(shape => shape.isSelected && shape.shapeType === 'WOOD')
     .reduce((acc, shape) => {
       if (shouldCollapseWoodVariants(shape, processedWoodShapes, formState)) {
-        console.log(`Collapsing wood variant: ${shape.label}`);
         return acc;
       }
 

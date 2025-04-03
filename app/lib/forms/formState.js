@@ -7,6 +7,7 @@ export const createInitialShapeState = (shape) => ({
   abbreviation: shape.abbreviation,
   shapeType: shape.shapeType,
   displayOrder: shape.displayOrder,
+  isActive: shape.isActive,
   
   // Selection state
   isSelected: false,

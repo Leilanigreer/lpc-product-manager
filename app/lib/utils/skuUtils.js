@@ -3,30 +3,31 @@
 import _ from 'lodash';
 
 /**
- * Extracts unique products with SKUs from ProductDataLPC
+ * Extracts unique products with SKUs from ProductSetDataLPC
+ * @param {Array<Object>} productSets - Array of ProductSetDataLPC records
+ * @returns {Array<Object>} Array of unique products with baseSKU and collection
  */
-export const extractExistingProducts = (productDataLPC) => {
-  console.log('ProductDataLPC structure:', productDataLPC?.[0]);
-
-  if (!productDataLPC?.length) {
+export const extractExistingProducts = (productSets) => {
+  if (!productSets?.length) {
     return [];
   }
 
-  const products = productDataLPC
-    .map(product => ({
-      baseSKU: product.baseSKU,
-      collection: product.collection // Keep full collection reference
+  const products = productSets
+    .filter(set => set.baseSKU && set.collections?.[0]) // Ensure we have required fields
+    .map(set => ({
+      baseSKU: set.baseSKU,
+      collection: set.collections[0]?.collection // Get collection from the first collection entry
     }))
-    .filter(product => product.baseSKU);
+    .filter(product => product.baseSKU && product.collection); // Double-check we have both fields
 
   return _.uniqBy(products, 'baseSKU');
 };
 
 /**
  * Filters products by collection ID
- * @param {Array} existingProducts - Products with SKUs
+ * @param {Array<Object>} existingProducts - Products with SKUs
  * @param {string} collectionValue - Collection ID to filter by 
- * @returns {Array} Filtered products
+ * @returns {Array<Object>} Filtered products
  */
 export const filterProductsByCollection = (existingProducts, collectionValue) => {
   return existingProducts.filter(product => product.collection?.value === collectionValue);
@@ -34,11 +35,12 @@ export const filterProductsByCollection = (existingProducts, collectionValue) =>
 
 /**
  * Formats SKU based on base parts, version, and shape data
- * @param {Array} baseParts - Array of SKU parts
+ * @param {Array<string>} baseParts - Array of SKU parts
  * @param {number} version - Version number
  * @param {string} shapeValue - ID of the shape from allShapes
  * @param {Object} formState - Current form state containing allShapes
  * @param {Object} options - Additional options for SKU formatting
+ * @param {boolean} options.isCustom - Whether this is a custom variant
  * @returns {Object} Object containing baseSKU and fullSKU
  */
 export const formatSKU = (baseParts, version, shapeValue, formState, options = {}) => {
@@ -67,7 +69,6 @@ export const formatSKU = (baseParts, version, shapeValue, formState, options = {
   const filteredParts = baseParts.filter(Boolean);
   const baseSKU = filteredParts.join('-');
   const versionedBaseSKU = version ? `${baseSKU}-V${version}` : baseSKU;
-  
   
   // Handle custom variants and styles
   let fullSKU = versionedBaseSKU;

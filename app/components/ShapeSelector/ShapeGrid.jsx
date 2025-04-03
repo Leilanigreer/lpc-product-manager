@@ -43,7 +43,8 @@ const ShapeGrid = ({
         isSelected,
         showStyleFields: isSelected && collection.needsStyle && !isPutterShape && styleMode === 'independent',
         showEmbroideryFields: isSelected && collection.needsStyle && !isPutterShape && threadMode.embroidery === 'perShape',
-        showColorDesignation: isSelected && shapeState?.needsColorDesignation
+        showColorDesignation: isSelected && shapeState?.needsColorDesignation,
+        isPutterShape
       };
       return acc;
     }, {});
@@ -60,7 +61,7 @@ const ShapeGrid = ({
     const columns = [
       { id: 'shape', width: COLUMN_WIDTHS.shapeColumn }
     ];
-
+    
     if (anyShapeHas.style) {
       columns.push({ id: 'style', width: COLUMN_WIDTHS.styleColumn });
     }

@@ -54,6 +54,18 @@ const customAddDocumentResponseHeaders = (request, headers) => {
   try {
     // Apply Shopify's default headers
     shopify.addDocumentResponseHeaders(request, headers);
+    
+    // Add CSP headers for embedded app
+    headers.set(
+      "Content-Security-Policy",
+      "frame-ancestors https://*.myshopify.com https://admin.shopify.com;"
+    );
+    
+    // Add sandbox permissions for embedded app
+    headers.set(
+      "X-Frame-Options",
+      "ALLOW-FROM https://*.myshopify.com https://admin.shopify.com"
+    );
   } catch (error) {
     console.error('Error adding headers:', error);
   }

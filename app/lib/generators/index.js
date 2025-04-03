@@ -41,6 +41,7 @@ export const generateProductData = async (formState, commonDescription) => {
       seoDescription: generateSEODescription(formState),
       tags: generateTags(formState),
       variants,
+      additionalViews: [], // Initialize empty array for additional views
       
       // Database fields
       collection: formState.collection,

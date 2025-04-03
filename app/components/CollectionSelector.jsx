@@ -5,13 +5,14 @@ import { Select, Card, InlineStack, Box, Text, BlockStack } from "@shopify/polar
  * Collection Selector component that handles collection selection and style mode configuration
  * @param {Object} props
  * @param {Array} props.shopifyCollections - Available collections from the database
+ * @param {Object} props.productSets - Product sets from the database
  * @param {Object} props.formState - Current form state including collection and style settings
  * @param {Function} props.onChange - Callback when form state changes
  */
 
 const CollectionSelector = ({ 
   shopifyCollections,
-  productDataLPC,
+  productSets,
   formState,
   onChange
 }) => {
@@ -59,7 +60,7 @@ const CollectionSelector = ({
     if (selectedCollection) {
       onChange('updateCollection', {
         collection: selectedCollection, 
-        productDataLPC 
+        productSets 
       });
     }
   };

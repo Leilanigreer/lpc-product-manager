@@ -7,13 +7,11 @@ const DEFAULT_PRICE = {
 
 export const calculatePrice = (shapeValue, formState, platform = 'shopify') => {
   if (!shapeValue || !formState?.collection?.priceTier) {
-    console.warn('Missing required data for price calculation');
     return DEFAULT_PRICE[platform];
   }
 
   const shape = formState.allShapes[shapeValue];
   if (!shape?.shapeType) {
-    console.warn('Invalid shape data:', shapeValue);
     return DEFAULT_PRICE[platform];
   }
 

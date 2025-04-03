@@ -23,6 +23,7 @@ export const createRegularVariants = (formState, skuInfo) => {
         const variant = {
           shapeValue: shape.value,
           shape: shape.label,
+          shapeType: shape.shapeType || 'DEFAULT',
           style: shape.style || null,
           colorDesignation: shape.colorDesignation || null,
           sku: variantSku.fullSKU,
