@@ -19,33 +19,45 @@ export async function getOAuthToken(provider) {
     });
 
     if (!token) {
-      console.log(`No OAuth token found for provider: ${provider}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`No OAuth token found for provider: ${provider}`);
+      }
       return null;
     }
 
     // Check if token is expired
     if (token.expiresAt && token.expiresAt < new Date()) {
-      console.log(`Token for provider ${provider} is expired, refreshing...`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Token for provider ${provider} is expired, refreshing...`);
+      }
       
       // Set credentials with refresh token
       oauth2Client.setCredentials({
         refresh_token: token.refreshToken,
+        access_token: token.accessToken,
+        expiry_date: token.expiresAt.getTime()
       });
 
-      // Refresh the token
+      // Force token refresh
       const { credentials } = await oauth2Client.refreshAccessToken();
       
-      // Update the token in the database
-      const updatedToken = await prisma.oAuthToken.update({
-        where: { provider },
-        data: {
-          accessToken: credentials.access_token,
-          expiresAt: credentials.expiry_date ? new Date(credentials.expiry_date) : null,
-        },
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Successfully refreshed token for provider ${provider}`);
+      }
+
+      // Update token in database
+      await updateOAuthToken(provider, {
+        accessToken: credentials.access_token,
+        refreshToken: credentials.refresh_token || token.refreshToken,
+        expiresAt: new Date(credentials.expiry_date)
       });
 
-      console.log(`Successfully refreshed token for provider ${provider}`);
-      return updatedToken;
+      return {
+        ...token,
+        accessToken: credentials.access_token,
+        refreshToken: credentials.refresh_token || token.refreshToken,
+        expiresAt: new Date(credentials.expiry_date)
+      };
     }
 
     return token;
@@ -63,37 +75,39 @@ export async function getOAuthToken(provider) {
  */
 export async function updateOAuthToken(provider, tokens) {
   try {
-    if (!tokens.refresh_token) {
+    if (!tokens.refreshToken) {
       console.warn('No refresh token provided in updateOAuthToken');
-      return;
+      return null;
     }
 
-    const expiresAt = tokens.expiry_date 
-      ? new Date(tokens.expiry_date)
-      : new Date(Date.now() + (tokens.expires_in * 1000));
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Updating OAuth token for provider ${provider}:`, {
+        hasAccessToken: !!tokens.accessToken,
+        hasRefreshToken: !!tokens.refreshToken,
+        expiresAt: tokens.expiresAt
+      });
+    }
 
-    console.log(`Updating OAuth token for provider ${provider}:`, {
-      hasRefreshToken: !!tokens.refresh_token,
-      hasAccessToken: !!tokens.access_token,
-      expiresAt
-    });
-
-    await prisma.oAuthToken.upsert({
+    const updatedToken = await prisma.oAuthToken.upsert({
       where: { provider },
       update: {
-        refreshToken: tokens.refresh_token,
-        accessToken: tokens.access_token,
-        expiresAt,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresAt: tokens.expiresAt
       },
       create: {
         provider,
-        refreshToken: tokens.refresh_token,
-        accessToken: tokens.access_token,
-        expiresAt,
-      },
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresAt: tokens.expiresAt
+      }
     });
 
-    console.log(`Successfully updated OAuth token for provider ${provider}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Successfully updated OAuth token for provider ${provider}`);
+    }
+
+    return updatedToken;
   } catch (error) {
     console.error(`Error updating OAuth token for provider ${provider}:`, error);
     throw error;
