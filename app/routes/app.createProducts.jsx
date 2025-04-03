@@ -47,10 +47,10 @@ export const action = async ({ request }) => {
 
   try {
     const shopifyResponse = await createShopifyProduct(admin, productData);
-    const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse);
 
-    // Get Cloudinary folder external ID only when needed for notification
     const cloudinaryFolderId = await getCloudinaryFolderPath(`products/${productData.productType}/${productData.mainHandle}`);
+
+    const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse, cloudinaryFolderId);
 
     // Send notification email about new product creation
     const htmlContent = generateProductCreationNotification({
