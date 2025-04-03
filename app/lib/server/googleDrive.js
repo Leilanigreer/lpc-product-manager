@@ -12,29 +12,21 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/drive'],
 });
 
-console.log('Google Auth credentials check:', {
-  hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
-  clientEmailLength: process.env.GOOGLE_CLIENT_EMAIL?.length,
-  hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
-  privateKeyLength: process.env.GOOGLE_PRIVATE_KEY?.length,
-  // Show the beginning of the client email to verify it looks correct
-  // (without showing the entire email for security)
-  clientEmailStart: process.env.GOOGLE_CLIENT_EMAIL?.substring(0, 8) + '...'
-});
-
-console.log('Google Drive credentials check in server code:');
-console.log('- GOOGLE_CLIENT_EMAIL:', process.env.GOOGLE_CLIENT_EMAIL ? 'set' : 'not set');
-console.log('- GOOGLE_PRIVATE_KEY length:', process.env.GOOGLE_PRIVATE_KEY?.length || 0);
-console.log('- GOOGLE_PROJECT_ID:', process.env.GOOGLE_PROJECT_ID ? 'set' : 'not set');
-console.log('- GOOGLE_DRIVE_ROOT_FOLDER_ID:', process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID ? 'set' : 'not set');
+// Only log credentials check in development
+if (process.env.NODE_ENV === 'development') {
+  console.log('Google Drive credentials check:', {
+    hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+    hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
+    hasProjectId: !!process.env.GOOGLE_PROJECT_ID,
+    hasRootFolderId: !!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID
+  });
+}
 
 // Create the Google Drive client
 const drive = google.drive({ version: 'v3', auth });
 
 // Helper function to find or create a folder
 async function findOrCreateFolder(parentId, folderName, isCollection = false) {
-  console.log(`\nSearching for folder "${folderName}" in parent "${parentId}"`);
-  
   // List all folders in the parent
   const listResponse = await drive.files.list({
     q: `mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`,
@@ -53,7 +45,6 @@ async function findOrCreateFolder(parentId, folderName, isCollection = false) {
   });
 
   if (response.data.files && response.data.files.length > 0) {
-    console.log(`Found existing folder "${folderName}"`);
     const folderId = response.data.files[0].id;
     // Get the webViewLink for the folder
     const folderDetails = await drive.files.get({
@@ -69,7 +60,6 @@ async function findOrCreateFolder(parentId, folderName, isCollection = false) {
 
   // If folder doesn't exist, create it (only for non-collection folders)
   if (!isCollection) {
-    console.log(`Creating new folder "${folderName}"`);
     const fileMetadata = {
       name: folderName,
       mimeType: 'application/vnd.google-apps.folder',
@@ -82,7 +72,6 @@ async function findOrCreateFolder(parentId, folderName, isCollection = false) {
       supportsAllDrives: true,
     });
 
-    console.log(`Created new folder "${folderName}"`);
     return {
       id: folder.data.id,
       webViewLink: folder.data.webViewLink
@@ -94,12 +83,6 @@ async function findOrCreateFolder(parentId, folderName, isCollection = false) {
 
 export async function uploadToGoogleDrive(file, { collection, folderName, sku, label }) {
   try {
-    console.log('\n=== Starting Google Drive Upload ===');
-    console.log('File:', file.name);
-    console.log('Collection:', collection);
-    console.log('Folder:', folderName);
-    console.log('SKU:', sku);
-    
     const ROOT_FOLDER_ID = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
     if (!ROOT_FOLDER_ID) {
       throw new Error('GOOGLE_DRIVE_ROOT_FOLDER_ID is not configured');
@@ -107,12 +90,11 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     
     // First verify the root folder exists
     try {
-      const rootFolder = await drive.files.get({
+      await drive.files.get({
         fileId: ROOT_FOLDER_ID,
         fields: 'id, name, webViewLink',
         supportsAllDrives: true,
       });
-      console.log(`Root folder verified: ${rootFolder.data.name}`);
     } catch (folderError) {
       throw new Error(`Could not verify root folder: ${folderError.message}`);
     }
@@ -161,19 +143,11 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
       body: Readable.from(fileBuffer)
     };
     
-    console.log(`Uploading file: ${fullFileName}`);
     const uploadedFile = await drive.files.create({
       resource: fileMetadata,
       media: media,
       fields: 'id, webViewLink',
       supportsAllDrives: true,
-    });
-    
-    console.log('File uploaded successfully:', {
-      fileName,
-      fileId: uploadedFile.data.id,
-      webViewLink: uploadedFile.data.webViewLink,
-      folderPath: `${collection}/${folderName}/Originals`
     });
     
     return {
@@ -190,7 +164,7 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
       }
     };
   } catch (error) {
-    console.error('Upload failed:', error.message);
+    console.error('Google Drive upload failed:', error.message);
     throw new Error(`Google Drive upload failed: ${error.message}`);
   }
 }
