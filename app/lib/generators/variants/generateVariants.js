@@ -32,7 +32,9 @@ export const generateVariants = async (formState, skuInfo) => {
   try {
     // Input validation
     if (!formState?.collection || !formState?.allShapes) {
-      console.error("Missing required form state for variant generation");
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Missing required form state for variant generation");
+      }
       return [];
     }
 
@@ -41,7 +43,9 @@ export const generateVariants = async (formState, skuInfo) => {
       .filter(shape => shape.isSelected);
 
     if (selectedShapes.length === 0) {
-      console.error("No shapes selected for variant generation");
+      if (process.env.NODE_ENV === 'development') {
+        console.error("No shapes selected for variant generation");
+      }
       return [];
     }
 
@@ -78,7 +82,9 @@ export const generateVariants = async (formState, skuInfo) => {
     return allVariants.sort((a, b) => a.position - b.position);
  
   } catch (error) {
-    console.error('Error generating variants:', error);
-    throw error;
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error generating variants:', error);
+    }
+    return [];
   }
 };
