@@ -10,17 +10,23 @@ export async function action({ request }) {
   try {
     // Check for Google Drive configuration
     if (!process.env.GOOGLE_PRIVATE_KEY) {
-      console.error('Missing GOOGLE_PRIVATE_KEY');
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Missing GOOGLE_PRIVATE_KEY');
+      }
       return json({ error: "Missing GOOGLE_PRIVATE_KEY" }, { status: 500 });
     }
     
     if (!process.env.GOOGLE_CLIENT_EMAIL) {
-      console.error('Missing GOOGLE_CLIENT_EMAIL');
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Missing GOOGLE_CLIENT_EMAIL');
+      }
       return json({ error: "Missing GOOGLE_CLIENT_EMAIL" }, { status: 500 });
     }
     
     if (!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID) {
-      console.error('Missing GOOGLE_DRIVE_ROOT_FOLDER_ID');
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Missing GOOGLE_DRIVE_ROOT_FOLDER_ID');
+      }
       return json({ error: "Missing GOOGLE_DRIVE_ROOT_FOLDER_ID" }, { status: 500 });
     }
 

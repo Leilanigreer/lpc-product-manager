@@ -111,18 +111,22 @@ export const getCloudinaryFolderPath = async (assetFolder) => {
     try {
       result = JSON.parse(responseText);
     } catch (parseError) {
-      console.error('Failed to parse response:', parseError);
-      console.error('Response text:', responseText);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to parse response:', parseError);
+        console.error('Response text:', responseText);
+      }
       return null;
     }
 
     if (!response.ok) {
-      console.error('Search failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: result
-      });
-      throw new Error(`Failed to get folder path: ${response.statusText} - ${JSON.stringify(result)}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Search failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          result
+        });
+      }
+      return null;
     }
     
     if (!result.folders || result.folders.length === 0) {
