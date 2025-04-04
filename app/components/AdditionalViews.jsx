@@ -49,11 +49,17 @@ const AdditionalViews = ({
 
       // Update the form state with both URLs if available
       if (onImageUpload) {
-        onImageUpload(label, cloudinaryData?.url || getGoogleDriveUrl(driveData.fileId), {
-          ...driveData,
-          cloudinaryUrl: cloudinaryData?.url,
-          cloudinaryId: cloudinaryData?.publicId
-        });
+        const displayUrl = cloudinaryData?.secure_url || getGoogleDriveUrl(driveData.fileId);
+        
+        onImageUpload(
+          baseSKU,
+          label,
+          displayUrl,
+          {
+            driveData,
+            cloudinaryData
+          }
+        );
       }
     } catch (error) {
       if (isDevelopment) {
@@ -74,7 +80,7 @@ const AdditionalViews = ({
   const getUploadedImageUrl = useCallback((label) => {
     if (!productData.additionalViews) return null;
     const image = productData.additionalViews.find(img => img.label === label);
-    return image?.url || null;
+    return image?.displayUrl || null;
   }, [productData.additionalViews]);
 
   // Check if any non-putter shapes are selected
