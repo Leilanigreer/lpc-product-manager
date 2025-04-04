@@ -101,18 +101,18 @@ const AdditionalViews = ({
       <ImageDropZone
         size="additional"
         label="Back View"
-        onDrop={(files) => handleDrop(files, 'Back')}
+        onDrop={(files) => handleDrop(files, 'Back View')}
         onDropAccepted={handleDropAccepted}
         onDropRejected={handleDropRejected}
-        uploadedImageUrl={getUploadedImageUrl('Back')}
+        uploadedImageUrl={getUploadedImageUrl('Back View')}
       />
       <ImageDropZone
         size="additional"
         label="Inside View"
-        onDrop={(files) => handleDrop(files, 'Inside')}
+        onDrop={(files) => handleDrop(files, 'Inside View')}
         onDropAccepted={handleDropAccepted}
         onDropRejected={handleDropRejected}
-        uploadedImageUrl={getUploadedImageUrl('Inside')}
+        uploadedImageUrl={getUploadedImageUrl('Inside View')}
       />
     </InlineStack>
   );
