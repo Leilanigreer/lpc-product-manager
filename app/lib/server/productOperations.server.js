@@ -11,33 +11,28 @@ const mapImageType = (label) => {
   // Convert label to uppercase for consistent comparison
   const upperLabel = label.toUpperCase();
   
-  // Primary views (front views)
-  if (upperLabel === 'FRONT' || upperLabel === 'SIDE FRONT') {
-    return 'PRIMARY';
+  // Map specific labels to their corresponding image types
+  switch (upperLabel) {
+    case 'FRONT':
+      return 'PRIMARY';
+    case 'SIDE FRONT':
+      return 'PRIMARY';
+    case 'SIDE BACK':
+      return 'SECONDARY';
+    case 'BACK':
+      return 'SECONDARY';
+    case 'TOP':
+      return 'TERTIARY';
+    case 'OPEN BACK':
+      return 'TERTIARY';
+    case 'BACK VIEW':
+      return 'BACK';
+    case 'INSIDE VIEW':
+      return 'INSIDE';
+    default:
+      console.warn(`No matching image type found for label: ${label}, using label as type`);
+      return upperLabel.replace(/\s+/g, '_');
   }
-  
-  // Secondary views (side/back views for putters)
-  if (upperLabel === 'SIDE BACK' || upperLabel === 'BACK') {
-    return 'SECONDARY';
-  }
-  
-  // Tertiary views (open back/top views for putters)
-  if (upperLabel === 'OPEN BACK' || upperLabel === 'TOP') {
-    return 'TERTIARY';
-  }
-  
-  // Additional views
-  if (upperLabel === 'BACK VIEW') {
-    return 'BACK';
-  }
-  
-  if (upperLabel === 'INSIDE VIEW') {
-    return 'INSIDE';
-  }
-  
-  // Default to PRIMARY if no match found
-  console.warn(`No matching image type found for label: ${label}, defaulting to PRIMARY`);
-  return 'PRIMARY';
 };
 
 /**
@@ -64,47 +59,67 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
     }
 
     // Create the parent product set first
+    const createData = {
+      shopifyProductId: shopifyResponse.product.id,
+      baseSKU: filteredVariants[0].baseSKU,
+      offeringType: productData.offeringType,
+      mainHandle: productData.mainHandle,
+      collections: {
+        create: {
+          collectionId: collection.value
+        }
+      },
+      font: {
+        connect: { id: productData.selectedFont }
+      },
+      leatherColor1: {
+        connect: { id: productData.selectedLeatherColor1 }
+      },
+      ...(collection.needsSecondaryLeather && productData.selectedLeatherColor2 && {
+        leatherColor2: {
+          connect: { id: productData.selectedLeatherColor2 }
+        }
+      }),
+      stitchingThreads: {
+        create: Object.entries(productData.stitchingThreads).map(([_, thread]) => ({
+          stitchingThread: {
+            connect: { id: thread.value }
+          },
+          amann: {
+            connect: { id: thread.amannNumbers[0].value }
+          }
+        }))
+      },
+      // Add Google Drive folder URL if available
+      ...(productData.googleDriveFolderUrl && {
+        googleDriveFolderUrl: productData.googleDriveFolderUrl
+      }),
+      // Add cloudinaryFolderId if it exists
+      ...(cloudinaryFolderId && {
+        cloudinaryFolderId: cloudinaryFolderId
+      })
+    };
+
     const productSet = await prisma.productSetDataLPC.create({
-      data: {
-        shopifyProductId: shopifyResponse.product.id,
-        baseSKU: filteredVariants[0].baseSKU,
-        offeringType: productData.offeringType,
-        mainHandle: productData.mainHandle,
-        collections: {
-          create: {
-            collectionId: collection.value
-          }
-        },
-        font: {
-          connect: { id: productData.selectedFont }
-        },
-        leatherColor1: {
-          connect: { id: productData.selectedLeatherColor1 }
-        },
-        ...(collection.needsSecondaryLeather && productData.selectedLeatherColor2 && {
-          leatherColor2: {
-            connect: { id: productData.selectedLeatherColor2 }
-          }
-        }),
-        stitchingThreads: {
-          create: Object.entries(productData.stitchingThreads).map(([_, thread]) => ({
-            stitchingThread: {
-              connect: { id: thread.value }
-            },
-            amann: {
-              connect: { id: thread.amannNumbers[0].value }
-            }
-          }))
-        },
-        // Add Google Drive folder URL if available
-        ...(productData.googleDriveFolderUrl && {
-          googleDriveFolderUrl: productData.googleDriveFolderUrl
-        }),
-        ...(cloudinaryFolderId && {
-          cloudinaryFolderId: cloudinaryFolderId
-        })
-      }
+      data: createData
     });
+
+    // Create set images from additional views if they exist
+    if (productData.additionalViews && productData.additionalViews.length > 0) {
+      const setImages = productData.additionalViews.map(image => ({
+        setId: productSet.id,
+        imageType: mapImageType(image.label),
+        marketplace: 'ORIGINAL',
+        cloudinaryUrl: image.cloudinaryData?.url,
+        cloudinaryPublicId: image.cloudinaryData?.public_id,
+        googleDriveUrl: image.driveData?.webViewLink,
+        googleDriveId: image.driveData?.fileId,
+      }));
+
+      await prisma.productImage.createMany({
+        data: setImages
+      });
+    }
 
     // Group regular and custom variants by their base characteristics
     const variantGroups = filteredVariants.reduce((groups, variant) => {
@@ -158,10 +173,11 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
         const variantImages = regular.images?.map(image => ({
           imageType: mapImageType(image.label),
           marketplace: 'ORIGINAL',
-          cloudinaryUrl: image.url,
-          cloudinaryId: image.driveData?.fileId,
+          cloudinaryUrl: image.cloudinaryData?.url,
+          cloudinaryPublicId: image.cloudinaryData?.public_id,
           googleDriveUrl: image.driveData?.webViewLink,
-          googleDriveId: image.driveData?.fileId
+          googleDriveId: image.driveData?.fileId,
+          setId: productSet.id
         })) || [];
 
         const variantData = {

@@ -357,7 +357,7 @@ export const getProductSets = async () => {
             imageType: true,
             marketplace: true,
             cloudinaryUrl: true,
-            cloudinaryId: true
+            cloudinaryPublicId: true
           }
         },
         variants: {
@@ -414,7 +414,7 @@ export const getProductSets = async () => {
                 imageType: true,
                 marketplace: true,
                 cloudinaryUrl: true,
-                cloudinaryId: true
+                cloudinaryPublicId: true
               }
             }
           }
@@ -496,7 +496,7 @@ export const getProductSets = async () => {
           type: image.imageType,
           marketplace: image.marketplace,
           url: image.cloudinaryUrl,
-          cloudinaryId: image.cloudinaryId
+          cloudinaryPublicId: image.cloudinaryPublicId
         })),
         variants: variants.map(variant => ({
           id: variant.id,
@@ -538,7 +538,7 @@ export const getProductSets = async () => {
             type: image.imageType,
             marketplace: image.marketplace,
             url: image.cloudinaryUrl,
-            cloudinaryId: image.cloudinaryId
+            cloudinaryPublicId: image.cloudinaryPublicId
           }))
         })),
         createdAt,
