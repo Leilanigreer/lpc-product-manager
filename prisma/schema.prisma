@@ -284,21 +284,20 @@ enum Marketplace {
 }
 
 model ProductImage {
-  id             String                 @id @default(cuid())
-  setId          String?
-  set            ProductSetDataLPC?     @relation("SetImages", fields: [setId], references: [id], onDelete: Cascade)
-  variantId      String?
-  variant        ProductVariantDataLPC? @relation("VariantImages", fields: [variantId], references: [id], onDelete: Cascade)
-  imageType      ImageType
-  marketplace    Marketplace
-  cloudinaryUrl  String?
-  cloudinaryId   String?
-  googleDriveUrl String?
-  googleDriveId  String?
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  id                 String                 @id @default(cuid())
+  setId              String?
+  set                ProductSetDataLPC?     @relation("SetImages", fields: [setId], references: [id], onDelete: Cascade)
+  variantId          String?
+  variant            ProductVariantDataLPC? @relation("VariantImages", fields: [variantId], references: [id], onDelete: Cascade)
+  imageType          ImageType
+  marketplace        Marketplace
+  cloudinaryUrl      String?
+  cloudinaryPublicId String?
+  googleDriveUrl     String?
+  googleDriveId      String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
 
-  @@unique([setId, imageType, marketplace])
   @@unique([variantId, imageType, marketplace])
   @@index([setId])
   @@index([variantId])
