@@ -124,7 +124,7 @@ export default function CreateProduct() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
 
-  const handleImageUpload = useCallback((sku, label, url, driveData) => {
+  const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
     if (!productData) return;
 
     setProductData(prevData => {
@@ -149,15 +149,17 @@ export default function CreateProduct() {
           // Update existing image
           variant.images[existingImageIndex] = { 
             label, 
-            url,
-            driveData: driveData || null
+            displayUrl,
+            driveData: driveData || null,
+            cloudinaryData: cloudinaryData || null
           };
         } else {
           // Add new image
           variant.images.push({ 
             label, 
-            url,
-            driveData: driveData || null
+            displayUrl,
+            driveData: driveData || null,
+            cloudinaryData: cloudinaryData || null
           });
         }
       } else {
@@ -172,15 +174,17 @@ export default function CreateProduct() {
           // Update existing image
           newData.additionalViews[existingImageIndex] = { 
             label, 
-            url,
-            driveData: driveData || null
+            displayUrl,
+            driveData: driveData || null,
+            cloudinaryData: cloudinaryData || null
           };
         } else {
           // Add new image
           newData.additionalViews.push({ 
             label, 
-            url,
-            driveData: driveData || null
+            displayUrl,
+            driveData: driveData || null,
+            cloudinaryData: cloudinaryData || null
           });
         }
       }

@@ -40,6 +40,9 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
       try {
         const publicId = `${productData.productType}/${productData.productPictureFolder}/${variant.sku}${isPutterVariant ? `-${label.toLowerCase().replace(/\s+/g, '-')}` : ''}`;
         cloudinaryData = await uploadToCloudinary(file, publicId, productData.productType, productData.productPictureFolder);
+        console.log('Cloudinary data in ProductVariantCheck:', {
+          cloudinaryData: cloudinaryData
+        });
       } catch (cloudinaryError) {
         if (isDevelopment) {
           console.error('Cloudinary upload failed:', cloudinaryError);
@@ -49,14 +52,17 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
       
       // Update the product data with both URLs if available
       if (onImageUpload) {
+        console.log('Passing to onImageUpload:', {
+          cloudinaryData: cloudinaryData,
+          driveData: driveData
+        });
         onImageUpload(
           variant.sku,
           label,
           cloudinaryData?.url || getGoogleDriveUrl(driveData.fileId),
           {
-            ...driveData,
-            cloudinaryUrl: cloudinaryData?.url,
-            cloudinaryId: cloudinaryData?.publicId
+            driveData,
+            cloudinaryData
           }
         );
       }
@@ -71,7 +77,7 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
   const getUploadedImageUrl = useCallback((label) => {
     if (!variant.images) return null;
     const image = variant.images.find(img => img.label === label);
-    return image?.url || null;
+    return image?.displayUrl || null;
   }, [variant.images]);
 
   // Skip image upload for custom variants
@@ -226,11 +232,11 @@ const ProductVariantCheck = ({ productData, onImageUpload }) => {
   };
 
   // Handle additional view uploads
-  const handleAdditionalViewUpload = (label, url) => {
+  const handleAdditionalViewUpload = (sku, label, displayUrl, data) => {
     if (!onImageUpload) return;
     
     // For additional views, we'll use the baseSKU as the identifier
-    onImageUpload(baseSKU, label, url);
+    onImageUpload(sku, label, displayUrl, data);
   };
 
   return (
