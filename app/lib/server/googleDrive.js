@@ -8,11 +8,47 @@ console.log('GOOGLE_PRIVATE_KEY exists:', !!process.env.GOOGLE_PRIVATE_KEY);
 console.log('GOOGLE_PROJECT_ID exists:', !!process.env.GOOGLE_PROJECT_ID);
 console.log('GOOGLE_DRIVE_ROOT_FOLDER_ID exists:', !!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID);
 
+// Process private key to handle different formats
+function processPrivateKey(privateKey) {
+  if (!privateKey) return null;
+  
+  // If the key already has proper formatting, return it as is
+  if (privateKey.includes('-----BEGIN') && privateKey.includes('-----END')) {
+    // Replace escaped newlines with actual newlines if needed
+    return privateKey.replace(/\\n/g, '\n');
+  }
+  
+  // If the key doesn't have proper formatting, try to fix it
+  try {
+    // Try to decode if it's base64 encoded
+    if (!privateKey.includes('-----BEGIN')) {
+      try {
+        const decoded = Buffer.from(privateKey, 'base64').toString('utf8');
+        if (decoded.includes('-----BEGIN')) {
+          return decoded;
+        }
+      } catch (e) {
+        // Not a base64 encoded key
+      }
+    }
+    
+    // If we still don't have a properly formatted key, try to construct one
+    if (!privateKey.includes('-----BEGIN')) {
+      // This is a simplified approach and might need adjustment
+      return `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
+    }
+  } catch (e) {
+    // If all else fails, return the original key
+  }
+  
+  return privateKey;
+}
+
 // Create the Google Auth client with detailed error logging
 const auth = new google.auth.GoogleAuth({
   credentials: {
     client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    private_key: processPrivateKey(process.env.GOOGLE_PRIVATE_KEY),
     project_id: process.env.GOOGLE_PROJECT_ID,
   },
   scopes: ['https://www.googleapis.com/auth/drive'],
