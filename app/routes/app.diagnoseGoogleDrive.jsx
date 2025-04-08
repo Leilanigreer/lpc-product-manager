@@ -11,13 +11,46 @@ import {
   Banner,
   Text,
   List,
-  Code,
+  Box,
 } from "@shopify/polaris";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
   return json({});
 };
+
+function Code({ children, multiline = false }) {
+  if (multiline) {
+    return (
+      <Box
+        as="pre"
+        padding="400"
+        background="bg-surface-active"
+        borderWidth="025"
+        borderColor="border"
+        borderRadius="100"
+        overflowX="auto"
+      >
+        <code>{children}</code>
+      </Box>
+    );
+  }
+  
+  return (
+    <Box
+      as="span"
+      padding="025"
+      paddingInlineStart="100"
+      paddingInlineEnd="100"
+      background="bg-surface-active"
+      borderWidth="025"
+      borderColor="border"
+      borderRadius="100"
+    >
+      <code>{children}</code>
+    </Box>
+  );
+}
 
 export default function DiagnoseGoogleDrive() {
   const fetcher = useFetcher();
