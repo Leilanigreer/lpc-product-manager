@@ -4,8 +4,10 @@ import { google } from 'googleapis/build/src/index.js';
 // Log authentication details
 console.log('Google Drive Authentication Debug:');
 console.log('GOOGLE_CLIENT_EMAIL exists:', !!process.env.GOOGLE_CLIENT_EMAIL);
+console.log('GOOGLE_CLIENT_EMAIL value:', process.env.GOOGLE_CLIENT_EMAIL);
 console.log('GOOGLE_PRIVATE_KEY exists:', !!process.env.GOOGLE_PRIVATE_KEY);
 console.log('GOOGLE_PROJECT_ID exists:', !!process.env.GOOGLE_PROJECT_ID);
+console.log('GOOGLE_PROJECT_ID value:', process.env.GOOGLE_PROJECT_ID);
 console.log('GOOGLE_DRIVE_ROOT_FOLDER_ID exists:', !!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID);
 
 // Process private key to handle different formats
@@ -200,10 +202,10 @@ export async function testGoogleDriveAuth() {
     
     // Log environment variables (without exposing the actual values)
     console.log('Environment variables check:');
-    console.log('- GOOGLE_CLIENT_EMAIL length:', process.env.GOOGLE_CLIENT_EMAIL ? process.env.GOOGLE_CLIENT_EMAIL.length : 0);
+    console.log('- GOOGLE_CLIENT_EMAIL:', process.env.GOOGLE_CLIENT_EMAIL);
     console.log('- GOOGLE_PRIVATE_KEY length:', process.env.GOOGLE_PRIVATE_KEY ? process.env.GOOGLE_PRIVATE_KEY.length : 0);
-    console.log('- GOOGLE_PROJECT_ID length:', process.env.GOOGLE_PROJECT_ID ? process.env.GOOGLE_PROJECT_ID.length : 0);
-    console.log('- GOOGLE_DRIVE_ROOT_FOLDER_ID length:', process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID ? process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID.length : 0);
+    console.log('- GOOGLE_PROJECT_ID:', process.env.GOOGLE_PROJECT_ID);
+    console.log('- GOOGLE_DRIVE_ROOT_FOLDER_ID:', process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID);
     
     // Log the processed private key format
     const processedKey = processPrivateKey(process.env.GOOGLE_PRIVATE_KEY);
@@ -214,6 +216,19 @@ export async function testGoogleDriveAuth() {
     
     // Try to get the about information which requires authentication
     console.log('Attempting to authenticate with Google Drive API...');
+    
+    // First, try to get the access token to see if authentication is successful
+    try {
+      const client = await auth.getClient();
+      console.log('Successfully obtained access token');
+      console.log('Access token type:', client.credentials.token_type);
+      console.log('Access token expiry:', new Date(client.credentials.expiry_date).toISOString());
+    } catch (tokenError) {
+      console.error('Failed to obtain access token:', tokenError.message);
+      throw tokenError;
+    }
+    
+    // If we got the access token, try to get the about information
     const about = await drive.about.get({
       fields: 'user,storageQuota',
     });
@@ -238,6 +253,13 @@ export async function testGoogleDriveAuth() {
     // Check if the error is related to the private key
     if (error.message.includes('DECODER routines') || error.message.includes('private key')) {
       console.error('Private key format issue detected. Please check the format of your GOOGLE_PRIVATE_KEY environment variable.');
+    }
+    
+    // Check if the error is related to the service account
+    if (error.message.includes('account not found') || error.message.includes('invalid_grant')) {
+      console.error('Service account issue detected. Please check that the service account exists and has the necessary permissions.');
+      console.error('Service account email:', process.env.GOOGLE_CLIENT_EMAIL);
+      console.error('Project ID:', process.env.GOOGLE_PROJECT_ID);
     }
     
     return {
