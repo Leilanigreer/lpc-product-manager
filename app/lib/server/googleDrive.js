@@ -86,7 +86,7 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
         supportsAllDrives: true,
       });
     } catch (folderError) {
-      throw new Error(`Could not verify root folder: ${folderError.message}`);
+      throw new Error(`Could not verify root folder: ${ROOT_FOLDER_ID} - ${folderError.message}`);
     }
 
     // Find or create the collection folder
