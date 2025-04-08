@@ -192,11 +192,19 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
           },
           weight: parseFloat(regular.weight),
           ...embroideryThreadData,
-          ...(collection.needsStyle && regular.style && {
-            style: {
-              connect: { id: regular.style.value }
-            }
-          }),
+          ...(collection.needsStyle && (
+            productData.styleMode === 'global' 
+              ? productData.globalStyle && {
+                  style: {
+                    connect: { id: productData.globalStyle.value }
+                  }
+                }
+              : regular.style && {
+                  style: {
+                    connect: { id: regular.style.value }
+                  }
+                }
+          )),
           ...(regular.colorDesignation && {
             colorDesignation: {
               connect: { id: regular.colorDesignation.value }
