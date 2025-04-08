@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
-import { testGoogleDriveAuth } from "../lib/server/googleDrive";
 import {
   Page,
   Layout,
@@ -11,26 +10,14 @@ import {
   Button,
   Banner,
   Text,
-  List,
-  Code,
 } from "@shopify/polaris";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
-  
-  // Get environment variable status
-  const envStatus = {
-    GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
-    GOOGLE_PRIVATE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
-    GOOGLE_PROJECT_ID: !!process.env.GOOGLE_PROJECT_ID,
-    GOOGLE_DRIVE_ROOT_FOLDER_ID: !!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID,
-  };
-  
-  return json({ envStatus });
+  return json({});
 };
 
 export default function TestGoogleDrive() {
-  const { envStatus } = useLoaderData();
   const fetcher = useFetcher();
   const [authResult, setAuthResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -88,43 +75,6 @@ export default function TestGoogleDrive() {
                   <p>Authenticated as: {authResult.user.emailAddress}</p>
                 </Banner>
               )}
-              
-              {authResult && (
-                <Card>
-                  <BlockStack gap="400">
-                    <Text as="h3" variant="headingMd">
-                      Authentication Result
-                    </Text>
-                    
-                    <Code>
-                      {JSON.stringify(authResult, null, 2)}
-                    </Code>
-                  </BlockStack>
-                </Card>
-              )}
-              
-              <Card>
-                <BlockStack gap="400">
-                  <Text as="h3" variant="headingMd">
-                    Environment Variables
-                  </Text>
-                  
-                  <List>
-                    <List.Item>
-                      GOOGLE_CLIENT_EMAIL: {envStatus.GOOGLE_CLIENT_EMAIL ? "Set" : "Not set"}
-                    </List.Item>
-                    <List.Item>
-                      GOOGLE_PRIVATE_KEY: {envStatus.GOOGLE_PRIVATE_KEY ? "Set" : "Not set"}
-                    </List.Item>
-                    <List.Item>
-                      GOOGLE_PROJECT_ID: {envStatus.GOOGLE_PROJECT_ID ? "Set" : "Not set"}
-                    </List.Item>
-                    <List.Item>
-                      GOOGLE_DRIVE_ROOT_FOLDER_ID: {envStatus.GOOGLE_DRIVE_ROOT_FOLDER_ID ? "Set" : "Not set"}
-                    </List.Item>
-                  </List>
-                </BlockStack>
-              </Card>
             </BlockStack>
           </Card>
         </Layout.Section>
