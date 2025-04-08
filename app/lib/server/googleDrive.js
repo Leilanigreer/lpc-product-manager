@@ -2,6 +2,21 @@
 import { google } from 'googleapis/build/src/index.js';
 import { Readable } from 'node:stream';
 
+// Log authentication details
+console.log('Google Drive Authentication Debug:');
+console.log('GOOGLE_CLIENT_EMAIL exists:', !!process.env.GOOGLE_CLIENT_EMAIL);
+console.log('GOOGLE_PRIVATE_KEY exists:', !!process.env.GOOGLE_PRIVATE_KEY);
+console.log('GOOGLE_PROJECT_ID exists:', !!process.env.GOOGLE_PROJECT_ID);
+console.log('GOOGLE_DRIVE_ROOT_FOLDER_ID exists:', !!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID);
+
+// Check private key format
+if (process.env.GOOGLE_PRIVATE_KEY) {
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+  console.log('Private key starts with "-----BEGIN PRIVATE KEY-----":', privateKey.startsWith('-----BEGIN PRIVATE KEY-----'));
+  console.log('Private key contains newlines:', privateKey.includes('\\n'));
+  console.log('Private key length:', privateKey.length);
+}
+
 // Create the Google Auth client with detailed error logging
 const auth = new google.auth.GoogleAuth({
   credentials: {
@@ -78,14 +93,23 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
       throw new Error('GOOGLE_DRIVE_ROOT_FOLDER_ID is not configured');
     }
     
+    console.log('Attempting to verify root folder:', ROOT_FOLDER_ID);
+    
     // First verify the root folder exists
     try {
-      await drive.files.get({
+      const folderResponse = await drive.files.get({
         fileId: ROOT_FOLDER_ID,
         fields: 'id, name, webViewLink',
         supportsAllDrives: true,
       });
+      console.log('Root folder verification successful:', folderResponse.data);
     } catch (folderError) {
+      console.error('Root folder verification failed:', folderError);
+      console.error('Error details:', {
+        message: folderError.message,
+        code: folderError.code,
+        stack: folderError.stack
+      });
       throw new Error(`Could not verify root folder: ${ROOT_FOLDER_ID} - ${folderError.message}`);
     }
 
@@ -156,5 +180,39 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
   } catch (error) {
     console.error('Google Drive upload failed:', error.message);
     throw new Error(`Google Drive upload failed: ${error.message}`);
+  }
+}
+
+// Function to test authentication
+export async function testGoogleDriveAuth() {
+  try {
+    console.log('Testing Google Drive authentication...');
+    
+    // Try to get the about information which requires authentication
+    const about = await drive.about.get({
+      fields: 'user,storageQuota',
+    });
+    
+    console.log('Authentication successful!');
+    console.log('Authenticated as:', about.data.user.emailAddress);
+    console.log('Storage quota:', about.data.storageQuota);
+    
+    return {
+      success: true,
+      user: about.data.user,
+      quota: about.data.storageQuota
+    };
+  } catch (error) {
+    console.error('Authentication test failed:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    
+    return {
+      success: false,
+      error: error.message
+    };
   }
 }
