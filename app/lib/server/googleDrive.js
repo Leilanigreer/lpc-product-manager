@@ -9,75 +9,27 @@ console.log('GOOGLE_PROJECT_ID exists:', !!process.env.GOOGLE_PROJECT_ID);
 console.log('GOOGLE_DRIVE_ROOT_FOLDER_ID exists:', !!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID);
 
 // Process private key to handle different formats
-function processPrivateKey(privateKey) {
+export function processPrivateKey(privateKey) {
   if (!privateKey) {
     console.log('Private key is missing');
     return null;
   }
   
+  // Remove any surrounding quotes if they exist
+  let processedKey = privateKey.trim();
+  if (processedKey.startsWith('"') && processedKey.endsWith('"')) {
+    processedKey = processedKey.slice(1, -1);
+  }
+  
+  // Replace escaped newlines with actual newlines
+  processedKey = processedKey.replace(/\\n/g, '\n');
+  
   console.log('Private key format check:');
-  console.log('- Contains BEGIN marker:', privateKey.includes('-----BEGIN'));
-  console.log('- Contains END marker:', privateKey.includes('-----END'));
-  console.log('- Contains newlines:', privateKey.includes('\n'));
-  console.log('- Contains escaped newlines:', privateKey.includes('\\n'));
+  console.log('- Contains BEGIN marker:', processedKey.includes('-----BEGIN'));
+  console.log('- Contains END marker:', processedKey.includes('-----END'));
+  console.log('- Contains newlines:', processedKey.includes('\n'));
   
-  // If the key already has proper formatting, return it as is
-  if (privateKey.includes('-----BEGIN') && privateKey.includes('-----END')) {
-    console.log('Key has proper BEGIN/END markers, replacing escaped newlines if needed');
-    // Replace escaped newlines with actual newlines if needed
-    return privateKey.replace(/\\n/g, '\n');
-  }
-  
-  // If the key doesn't have proper formatting, try to fix it
-  try {
-    // Try to decode if it's base64 encoded
-    if (!privateKey.includes('-----BEGIN')) {
-      console.log('Attempting to decode as base64');
-      try {
-        const decoded = Buffer.from(privateKey, 'base64').toString('utf8');
-        if (decoded.includes('-----BEGIN')) {
-          console.log('Successfully decoded base64 key');
-          return decoded;
-        } else {
-          console.log('Decoded but no BEGIN marker found');
-        }
-      } catch (e) {
-        console.log('Not a base64 encoded key:', e.message);
-      }
-    }
-    
-    // If we still don't have a properly formatted key, try to construct one
-    if (!privateKey.includes('-----BEGIN')) {
-      console.log('Attempting to construct proper key format');
-      // Check if the key contains newlines or escaped newlines
-      if (privateKey.includes('\\n')) {
-        // Replace escaped newlines with actual newlines
-        const processedKey = privateKey.replace(/\\n/g, '\n');
-        if (processedKey.includes('-----BEGIN')) {
-          console.log('Successfully processed key with escaped newlines');
-          return processedKey;
-        }
-      }
-      
-      // If the key doesn't have newlines, add them
-      if (!privateKey.includes('\n')) {
-        // Split the key into chunks of 64 characters
-        const chunks = [];
-        for (let i = 0; i < privateKey.length; i += 64) {
-          chunks.push(privateKey.substring(i, i + 64));
-        }
-        
-        const formattedKey = `-----BEGIN PRIVATE KEY-----\n${chunks.join('\n')}\n-----END PRIVATE KEY-----`;
-        console.log('Constructed properly formatted key');
-        return formattedKey;
-      }
-    }
-  } catch (e) {
-    console.error('Error processing private key:', e.message);
-  }
-  
-  console.log('Returning original key as fallback');
-  return privateKey;
+  return processedKey;
 }
 
 // Create the Google Auth client with detailed error logging

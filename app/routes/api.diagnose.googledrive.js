@@ -33,7 +33,7 @@ export async function loader({ request }) {
       }
     };
     
-    // Try to process the private key
+    // Try to process the private key using the imported function
     let processedKeyInfo = null;
     if (process.env.GOOGLE_PRIVATE_KEY) {
       try {
@@ -57,13 +57,37 @@ export async function loader({ request }) {
       }
     }
     
+    // Also try the direct approach suggested by Google
+    let directProcessedKeyInfo = null;
+    if (process.env.GOOGLE_PRIVATE_KEY) {
+      try {
+        // Use the direct approach suggested by Google
+        const directProcessedKey = process.env.GOOGLE_PRIVATE_KEY.split(String.raw`\n`).join('\n');
+        
+        directProcessedKeyInfo = {
+          success: true,
+          containsBeginMarker: directProcessedKey.includes('-----BEGIN'),
+          containsEndMarker: directProcessedKey.includes('-----END'),
+          containsNewlines: directProcessedKey.includes('\n'),
+          firstChars: directProcessedKey.substring(0, 20) + '...',
+          lastChars: '...' + directProcessedKey.substring(directProcessedKey.length - 20)
+        };
+      } catch (error) {
+        directProcessedKeyInfo = {
+          success: false,
+          error: error.message
+        };
+      }
+    }
+    
     return json({
       success: true,
       environment: process.env.NODE_ENV,
       nodeVersion: process.version,
       platform: process.platform,
       envVars,
-      processedKeyInfo
+      processedKeyInfo,
+      directProcessedKeyInfo
     });
   } catch (error) {
     console.error("Google Drive diagnostic error:", error);
