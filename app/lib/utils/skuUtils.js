@@ -76,19 +76,25 @@ export const formatSKU = (baseParts, version, shapeValue, formState, options = {
   if (shapeData.abbreviation) {
     if (options.isCustom) {
       const shapeAbbrev = shapeData.shapeType === 'WOOD' ? 'Fairway' : shapeData.abbreviation;
-      const styleAbbrev = shapeData.style?.abbreviation || formState.globalStyle?.abbreviation
-      if (styleAbbrev) {
-        // Handle style-specific custom SKUs
-        if (shapeData.needsColorDesignation && shapeData.colorDesignation?.abbreviation) {
-          // With color designation (e.g., QClassic)
-          fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${shapeData.colorDesignation.abbreviation}-${styleAbbrev}-Custom`;
-        } else {
-          // Regular style custom
-          fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${styleAbbrev}-Custom`;
-        }
-      } else {
-        // Regular custom
+      
+      // Skip style abbreviation for putters
+      if (shapeData.shapeType === 'PUTTER' || shapeData.shapeType === 'LAB_PUTTER') {
         fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-Custom`;
+      } else {
+        const styleAbbrev = shapeData.style?.abbreviation || formState.globalStyle?.abbreviation;
+        if (styleAbbrev) {
+          // Handle style-specific custom SKUs
+          if (shapeData.needsColorDesignation && shapeData.colorDesignation?.abbreviation) {
+            // With color designation (e.g., QClassic)
+            fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${shapeData.colorDesignation.abbreviation}-${styleAbbrev}-Custom`;
+          } else {
+            // Regular style custom
+            fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${styleAbbrev}-Custom`;
+          }
+        } else {
+          // Regular custom
+          fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-Custom`;
+        }
       }
     } else {
       // Regular variant

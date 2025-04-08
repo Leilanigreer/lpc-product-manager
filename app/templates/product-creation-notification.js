@@ -4,14 +4,17 @@
  * @param {Object} data.product - The Shopify product data
  * @param {Object} data.databaseSave - The database save result
  * @param {Object} data.shop - The shop data
+ * @param {string} data.cloudinaryFolderId - The Cloudinary folder ID
+ * @param {boolean} data.hasImages - Whether the product has any images
  * @returns {string} The HTML content for the email
  */
-export function generateProductCreationNotification({ product, databaseSave, shop, cloudinaryFolderId }) {
+export function generateProductCreationNotification({ product, databaseSave, shop, cloudinaryFolderId, hasImages }) {
   const shopDomain = shop.myshopifyDomain?.replace('.myshopify.com', '');
   const productId = product.id.split('/').pop(); // Extract ID from gid://shopify/Product/123456789
   const adminUrl = `https://admin.shopify.com/store/${shopDomain}/products/${productId}`;
   const googleDriveUrl = databaseSave.mainProduct.googleDriveFolderUrl;
-  const cloudinaryUrl = `https://console.cloudinary.com/console/c-978fe81eba4503099559efedf96dd2/media_library/folders/${cloudinaryFolderId}?view_mode=mosaic`;
+  const cloudinaryUrl = hasImages ? `https://console.cloudinary.com/console/c-978fe81eba4503099559efedf96dd2/media_library/folders/${cloudinaryFolderId}?view_mode=mosaic` : null;
+
   return `
     <!DOCTYPE html>
     <html>
@@ -41,6 +44,10 @@ export function generateProductCreationNotification({ product, databaseSave, sho
           .link:hover {
             text-decoration: underline;
           }
+          .warning {
+            color: #d82c0d;
+            font-weight: 500;
+          }
         </style>
       </head>
       <body>
@@ -49,10 +56,14 @@ export function generateProductCreationNotification({ product, databaseSave, sho
           
           <p>Admin URL: <a href="${adminUrl}" class="link">${adminUrl}</a></p>
           
-          <p>Please work your magic on these product photos</p>
-          <p>Google Drive Folder: <a href="${googleDriveUrl}" class="link">${googleDriveUrl}</a></p>
-          
-          <p>Cloudinary URL: ${cloudinaryUrl ? `<a href="${cloudinaryUrl}" class="link">${cloudinaryUrl}</a>` : 'Not available yet'}</p>
+          ${hasImages ? `
+            <p>Please work your magic on these product photos</p>
+            <p>Google Drive Folder: <a href="${googleDriveUrl}" class="link">${googleDriveUrl}</a></p>
+            <p>Cloudinary URL: <a href="${cloudinaryUrl}" class="link">${cloudinaryUrl}</a></p>
+          ` : `
+            <p class="warning">No images have been uploaded for this product yet.</p>
+            <p>Ask Karl to upload images to the Google Drive folder.</p>
+          `}
         </div>
       </body>
     </html>
