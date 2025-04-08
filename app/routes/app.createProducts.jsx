@@ -48,7 +48,12 @@ export const action = async ({ request }) => {
   try {
     const shopifyResponse = await createShopifyProduct(admin, productData);
 
-    const cloudinaryFolderId = await getCloudinaryFolderPath(`products/${productData.productType}/${productData.mainHandle}`);
+    // Only get Cloudinary folder ID if there are images
+    let cloudinaryFolderId = null;
+    if (productData.additionalViews?.length > 0 || 
+        Object.values(productData.variants || {}).some(v => v.images?.length > 0)) {
+      cloudinaryFolderId = await getCloudinaryFolderPath(`products/${productData.productType}/${productData.mainHandle}`);
+    }
 
     const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse, cloudinaryFolderId);
 
@@ -57,7 +62,8 @@ export const action = async ({ request }) => {
       product: shopifyResponse.product,
       databaseSave: dbSaveResult,
       shop: shopifyResponse.shop,
-      cloudinaryFolderId: cloudinaryFolderId
+      cloudinaryFolderId: cloudinaryFolderId,
+      hasImages: !!cloudinaryFolderId
     });
 
     await sendInternalEmail(
