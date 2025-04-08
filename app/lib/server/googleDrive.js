@@ -9,19 +9,59 @@ console.log('GOOGLE_PRIVATE_KEY exists:', !!process.env.GOOGLE_PRIVATE_KEY);
 console.log('GOOGLE_PROJECT_ID exists:', !!process.env.GOOGLE_PROJECT_ID);
 console.log('GOOGLE_DRIVE_ROOT_FOLDER_ID exists:', !!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID);
 
-// Check private key format
-if (process.env.GOOGLE_PRIVATE_KEY) {
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
-  console.log('Private key starts with "-----BEGIN PRIVATE KEY-----":', privateKey.startsWith('-----BEGIN PRIVATE KEY-----'));
-  console.log('Private key contains newlines:', privateKey.includes('\\n'));
-  console.log('Private key length:', privateKey.length);
+// Process private key to handle different formats
+function processPrivateKey(privateKey) {
+  if (!privateKey) return null;
+  
+  // Log key format for debugging
+  console.log('Private key format check:');
+  console.log('- Starts with BEGIN:', privateKey.includes('-----BEGIN'));
+  console.log('- Contains newlines:', privateKey.includes('\\n'));
+  console.log('- Contains actual newlines:', privateKey.includes('\n'));
+  console.log('- Length:', privateKey.length);
+  
+  // If the key already has proper formatting, return it as is
+  if (privateKey.includes('-----BEGIN') && privateKey.includes('-----END')) {
+    // Replace escaped newlines with actual newlines if needed
+    return privateKey.replace(/\\n/g, '\n');
+  }
+  
+  // If the key doesn't have proper formatting, try to fix it
+  // This is a fallback for environments where the key might be stored differently
+  try {
+    // Try to decode if it's base64 encoded
+    if (!privateKey.includes('-----BEGIN')) {
+      try {
+        const decoded = Buffer.from(privateKey, 'base64').toString('utf8');
+        if (decoded.includes('-----BEGIN')) {
+          console.log('Successfully decoded base64 private key');
+          return decoded;
+        }
+      } catch (e) {
+        console.log('Not a base64 encoded key');
+      }
+    }
+    
+    // If we still don't have a properly formatted key, try to construct one
+    // This is a last resort and might not work in all cases
+    if (!privateKey.includes('-----BEGIN')) {
+      console.log('Attempting to format private key');
+      // This is a simplified approach and might need adjustment
+      return `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
+    }
+  } catch (e) {
+    console.error('Error processing private key:', e);
+  }
+  
+  // If all else fails, return the original key
+  return privateKey;
 }
 
 // Create the Google Auth client with detailed error logging
 const auth = new google.auth.GoogleAuth({
   credentials: {
     client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    private_key: processPrivateKey(process.env.GOOGLE_PRIVATE_KEY),
     project_id: process.env.GOOGLE_PROJECT_ID,
   },
   scopes: ['https://www.googleapis.com/auth/drive'],

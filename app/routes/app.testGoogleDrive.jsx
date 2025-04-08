@@ -17,10 +17,20 @@ import {
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
-  return json({});
+  
+  // Get environment variable status
+  const envStatus = {
+    GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
+    GOOGLE_PRIVATE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
+    GOOGLE_PROJECT_ID: !!process.env.GOOGLE_PROJECT_ID,
+    GOOGLE_DRIVE_ROOT_FOLDER_ID: !!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID,
+  };
+  
+  return json({ envStatus });
 };
 
 export default function TestGoogleDrive() {
+  const { envStatus } = useLoaderData();
   const fetcher = useFetcher();
   const [authResult, setAuthResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -101,16 +111,16 @@ export default function TestGoogleDrive() {
                   
                   <List>
                     <List.Item>
-                      GOOGLE_CLIENT_EMAIL: {process.env.GOOGLE_CLIENT_EMAIL ? "Set" : "Not set"}
+                      GOOGLE_CLIENT_EMAIL: {envStatus.GOOGLE_CLIENT_EMAIL ? "Set" : "Not set"}
                     </List.Item>
                     <List.Item>
-                      GOOGLE_PRIVATE_KEY: {process.env.GOOGLE_PRIVATE_KEY ? "Set" : "Not set"}
+                      GOOGLE_PRIVATE_KEY: {envStatus.GOOGLE_PRIVATE_KEY ? "Set" : "Not set"}
                     </List.Item>
                     <List.Item>
-                      GOOGLE_PROJECT_ID: {process.env.GOOGLE_PROJECT_ID ? "Set" : "Not set"}
+                      GOOGLE_PROJECT_ID: {envStatus.GOOGLE_PROJECT_ID ? "Set" : "Not set"}
                     </List.Item>
                     <List.Item>
-                      GOOGLE_DRIVE_ROOT_FOLDER_ID: {process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID ? "Set" : "Not set"}
+                      GOOGLE_DRIVE_ROOT_FOLDER_ID: {envStatus.GOOGLE_DRIVE_ROOT_FOLDER_ID ? "Set" : "Not set"}
                     </List.Item>
                   </List>
                 </BlockStack>
