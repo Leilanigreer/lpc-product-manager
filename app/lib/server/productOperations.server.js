@@ -197,7 +197,7 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
               connect: { id: regular.style.value }
             }
           }),
-          ...(collection.needsColorDesignation && regular.colorDesignation && {
+          ...(regular.colorDesignation && {
             colorDesignation: {
               connect: { id: regular.colorDesignation.value }
             }
