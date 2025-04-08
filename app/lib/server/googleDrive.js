@@ -10,10 +10,20 @@ console.log('GOOGLE_DRIVE_ROOT_FOLDER_ID exists:', !!process.env.GOOGLE_DRIVE_RO
 
 // Process private key to handle different formats
 function processPrivateKey(privateKey) {
-  if (!privateKey) return null;
+  if (!privateKey) {
+    console.log('Private key is missing');
+    return null;
+  }
+  
+  console.log('Private key format check:');
+  console.log('- Contains BEGIN marker:', privateKey.includes('-----BEGIN'));
+  console.log('- Contains END marker:', privateKey.includes('-----END'));
+  console.log('- Contains newlines:', privateKey.includes('\n'));
+  console.log('- Contains escaped newlines:', privateKey.includes('\\n'));
   
   // If the key already has proper formatting, return it as is
   if (privateKey.includes('-----BEGIN') && privateKey.includes('-----END')) {
+    console.log('Key has proper BEGIN/END markers, replacing escaped newlines if needed');
     // Replace escaped newlines with actual newlines if needed
     return privateKey.replace(/\\n/g, '\n');
   }
@@ -22,25 +32,51 @@ function processPrivateKey(privateKey) {
   try {
     // Try to decode if it's base64 encoded
     if (!privateKey.includes('-----BEGIN')) {
+      console.log('Attempting to decode as base64');
       try {
         const decoded = Buffer.from(privateKey, 'base64').toString('utf8');
         if (decoded.includes('-----BEGIN')) {
+          console.log('Successfully decoded base64 key');
           return decoded;
+        } else {
+          console.log('Decoded but no BEGIN marker found');
         }
       } catch (e) {
-        // Not a base64 encoded key
+        console.log('Not a base64 encoded key:', e.message);
       }
     }
     
     // If we still don't have a properly formatted key, try to construct one
     if (!privateKey.includes('-----BEGIN')) {
-      // This is a simplified approach and might need adjustment
-      return `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
+      console.log('Attempting to construct proper key format');
+      // Check if the key contains newlines or escaped newlines
+      if (privateKey.includes('\\n')) {
+        // Replace escaped newlines with actual newlines
+        const processedKey = privateKey.replace(/\\n/g, '\n');
+        if (processedKey.includes('-----BEGIN')) {
+          console.log('Successfully processed key with escaped newlines');
+          return processedKey;
+        }
+      }
+      
+      // If the key doesn't have newlines, add them
+      if (!privateKey.includes('\n')) {
+        // Split the key into chunks of 64 characters
+        const chunks = [];
+        for (let i = 0; i < privateKey.length; i += 64) {
+          chunks.push(privateKey.substring(i, i + 64));
+        }
+        
+        const formattedKey = `-----BEGIN PRIVATE KEY-----\n${chunks.join('\n')}\n-----END PRIVATE KEY-----`;
+        console.log('Constructed properly formatted key');
+        return formattedKey;
+      }
     }
   } catch (e) {
-    // If all else fails, return the original key
+    console.error('Error processing private key:', e.message);
   }
   
+  console.log('Returning original key as fallback');
   return privateKey;
 }
 
@@ -210,7 +246,22 @@ export async function testGoogleDriveAuth() {
   try {
     console.log('Testing Google Drive authentication...');
     
+    // Log environment variables (without exposing the actual values)
+    console.log('Environment variables check:');
+    console.log('- GOOGLE_CLIENT_EMAIL length:', process.env.GOOGLE_CLIENT_EMAIL ? process.env.GOOGLE_CLIENT_EMAIL.length : 0);
+    console.log('- GOOGLE_PRIVATE_KEY length:', process.env.GOOGLE_PRIVATE_KEY ? process.env.GOOGLE_PRIVATE_KEY.length : 0);
+    console.log('- GOOGLE_PROJECT_ID length:', process.env.GOOGLE_PROJECT_ID ? process.env.GOOGLE_PROJECT_ID.length : 0);
+    console.log('- GOOGLE_DRIVE_ROOT_FOLDER_ID length:', process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID ? process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID.length : 0);
+    
+    // Log the processed private key format
+    const processedKey = processPrivateKey(process.env.GOOGLE_PRIVATE_KEY);
+    console.log('Processed private key format:');
+    console.log('- Contains BEGIN marker:', processedKey ? processedKey.includes('-----BEGIN') : false);
+    console.log('- Contains END marker:', processedKey ? processedKey.includes('-----END') : false);
+    console.log('- Contains newlines:', processedKey ? processedKey.includes('\n') : false);
+    
     // Try to get the about information which requires authentication
+    console.log('Attempting to authenticate with Google Drive API...');
     const about = await drive.about.get({
       fields: 'user,storageQuota',
     });
@@ -229,8 +280,13 @@ export async function testGoogleDriveAuth() {
     console.error('Error details:', {
       message: error.message,
       code: error.code,
-      stack: error.stack
+      stack: process.env.NODE_ENV === 'development' ? error.stack : 'Stack trace hidden in production'
     });
+    
+    // Check if the error is related to the private key
+    if (error.message.includes('DECODER routines') || error.message.includes('private key')) {
+      console.error('Private key format issue detected. Please check the format of your GOOGLE_PRIVATE_KEY environment variable.');
+    }
     
     return {
       success: false,
