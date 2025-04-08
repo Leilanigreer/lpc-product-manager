@@ -48,6 +48,8 @@ export const generateProductData = async (formState, commonDescription) => {
       selectedFont: formState.selectedFont,
       offeringType: formState.selectedOfferingType,
       limitedEditionQuantity: formState.limitedEditionQuantity || null,
+      styleMode: formState.styleMode,
+      globalStyle: formState.globalStyle || null,
       
       // Color and thread selections
       selectedLeatherColor1: formState.leatherColors.primary.value,
