@@ -1,5 +1,6 @@
 // app/lib/server/googleDrive.js
 import { google } from 'googleapis/build/src/index.js';
+import { Readable } from 'node:stream';
 
 // Log authentication details
 console.log('Google Drive Authentication Debug:');
@@ -166,7 +167,7 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     
     const media = {
       mimeType: file.type,
-      body: fileBuffer
+      body: Readable.from(fileBuffer)
     };
     
     const uploadedFile = await drive.files.create({
