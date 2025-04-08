@@ -13,29 +13,11 @@ const getEnvironmentConfig = () => {
 
   // For server-side, use process.env
   if (typeof process !== 'undefined' && process.env) {
-    // For Railway (staging and production)
-    if (process.env.RAILWAY_ENVIRONMENT_NAME) {
-      return {
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET,
-      };
-    }
-
-    // For local development
-    if (process.env.NODE_ENV === 'development') {
-      return {
-        cloud_name: process.env.SHOPIFY_CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.SHOPIFY_CLOUDINARY_API_KEY,
-        api_secret: process.env.SHOPIFY_CLOUDINARY_API_SECRET,
-      };
-    }
-
-    // Fallback to standard env vars
+    // Use SHOPIFY_CLOUDINARY_* variables for all environments
     return {
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
+      cloud_name: process.env.SHOPIFY_CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.SHOPIFY_CLOUDINARY_API_KEY,
+      api_secret: process.env.SHOPIFY_CLOUDINARY_API_SECRET,
     };
   }
 
