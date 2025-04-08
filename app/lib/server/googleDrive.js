@@ -1,6 +1,5 @@
 // app/lib/server/googleDrive.js
 import { google } from 'googleapis/build/src/index.js';
-import { Readable } from 'node:stream';
 
 // Log authentication details
 console.log('Google Drive Authentication Debug:');
@@ -9,59 +8,11 @@ console.log('GOOGLE_PRIVATE_KEY exists:', !!process.env.GOOGLE_PRIVATE_KEY);
 console.log('GOOGLE_PROJECT_ID exists:', !!process.env.GOOGLE_PROJECT_ID);
 console.log('GOOGLE_DRIVE_ROOT_FOLDER_ID exists:', !!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID);
 
-// Process private key to handle different formats
-function processPrivateKey(privateKey) {
-  if (!privateKey) return null;
-  
-  // Log key format for debugging
-  console.log('Private key format check:');
-  console.log('- Starts with BEGIN:', privateKey.includes('-----BEGIN'));
-  console.log('- Contains newlines:', privateKey.includes('\\n'));
-  console.log('- Contains actual newlines:', privateKey.includes('\n'));
-  console.log('- Length:', privateKey.length);
-  
-  // If the key already has proper formatting, return it as is
-  if (privateKey.includes('-----BEGIN') && privateKey.includes('-----END')) {
-    // Replace escaped newlines with actual newlines if needed
-    return privateKey.replace(/\\n/g, '\n');
-  }
-  
-  // If the key doesn't have proper formatting, try to fix it
-  // This is a fallback for environments where the key might be stored differently
-  try {
-    // Try to decode if it's base64 encoded
-    if (!privateKey.includes('-----BEGIN')) {
-      try {
-        const decoded = Buffer.from(privateKey, 'base64').toString('utf8');
-        if (decoded.includes('-----BEGIN')) {
-          console.log('Successfully decoded base64 private key');
-          return decoded;
-        }
-      } catch (e) {
-        console.log('Not a base64 encoded key');
-      }
-    }
-    
-    // If we still don't have a properly formatted key, try to construct one
-    // This is a last resort and might not work in all cases
-    if (!privateKey.includes('-----BEGIN')) {
-      console.log('Attempting to format private key');
-      // This is a simplified approach and might need adjustment
-      return `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
-    }
-  } catch (e) {
-    console.error('Error processing private key:', e);
-  }
-  
-  // If all else fails, return the original key
-  return privateKey;
-}
-
 // Create the Google Auth client with detailed error logging
 const auth = new google.auth.GoogleAuth({
   credentials: {
     client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: processPrivateKey(process.env.GOOGLE_PRIVATE_KEY),
+    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     project_id: process.env.GOOGLE_PROJECT_ID,
   },
   scopes: ['https://www.googleapis.com/auth/drive'],
@@ -133,23 +84,18 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
       throw new Error('GOOGLE_DRIVE_ROOT_FOLDER_ID is not configured');
     }
     
-    console.log('Attempting to verify root folder:', ROOT_FOLDER_ID);
-    
-    // First verify the root folder exists
+    // Simple verification check for the root folder
+    let isVerified = false;
     try {
-      const folderResponse = await drive.files.get({
+      await drive.files.get({
         fileId: ROOT_FOLDER_ID,
-        fields: 'id, name, webViewLink',
+        fields: 'id',
         supportsAllDrives: true,
       });
-      console.log('Root folder verification successful:', folderResponse.data);
+      isVerified = true;
+      console.log('Root folder verification successful');
     } catch (folderError) {
-      console.error('Root folder verification failed:', folderError);
-      console.error('Error details:', {
-        message: folderError.message,
-        code: folderError.code,
-        stack: folderError.stack
-      });
+      console.error('Root folder verification failed:', folderError.message);
       throw new Error(`Could not verify root folder: ${ROOT_FOLDER_ID} - ${folderError.message}`);
     }
 
@@ -194,7 +140,7 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     
     const media = {
       mimeType: file.type,
-      body: Readable.from(fileBuffer)
+      body: fileBuffer
     };
     
     const uploadedFile = await drive.files.create({
