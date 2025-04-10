@@ -5,7 +5,7 @@ import { Text, BlockStack, Box, InlineStack, Card } from '@shopify/polaris';
 import { isDevelopment } from '../lib/config/environment';
 import ImageDropZone from './ImageDropZone';
 import AdditionalViews from './AdditionalViews';
-import { uploadToCloudinary, updateCloudinaryImage, uploadToCloudinaryWithSignature } from '../lib/utils/cloudinary';  
+import { uploadToCloudinaryWithSignature } from '../lib/utils/cloudinary';  
 import { isPutter } from '../lib/utils/shapeUtils';
 import { uploadToGoogleDrive, updateToGoogleDrive } from '../lib/utils/googleDrive';
 import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
