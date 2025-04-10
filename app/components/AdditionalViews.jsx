@@ -1,8 +1,8 @@
 import React, { useCallback } from 'react';
 import { InlineStack, Text } from "@shopify/polaris";
 import ImageDropZone from './ImageDropZone';
-import { uploadToCloudinary } from '../lib/utils/cloudinary';
-import { uploadToGoogleDrive } from '../lib/utils/googleDrive';
+import { uploadToCloudinaryWithSignature } from '../lib/utils/cloudinary';
+import { uploadToGoogleDrive, updateToGoogleDrive } from '../lib/utils/googleDrive';
 import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 import { isDevelopment } from '../lib/config/environment';
 
@@ -22,12 +22,21 @@ const AdditionalViews = ({
       // Upload to Google Drive
       let driveData = null;
       try {
-        driveData = await uploadToGoogleDrive(file, {
-          collection: productData.productType,
-          folderName: productData.productPictureFolder,
-          sku: baseSKU,
-          label: label.toLowerCase().replace(/\s+/g, '-')
-        });
+        // Check if an image with this label already exists
+        const existingImage = productData.additionalViews?.find(img => img.label === label);
+        
+        if (existingImage?.driveData?.fileId) {
+          // Update existing file
+          driveData = await updateToGoogleDrive(file, existingImage.driveData.fileId);
+        } else {
+          // Upload new file
+          driveData = await uploadToGoogleDrive(file, {
+            collection: productData.productType,
+            folderName: productData.productPictureFolder,
+            sku: baseSKU,
+            label: label.toLowerCase().replace(/\s+/g, '-')
+          });
+        }
       } catch (driveError) {
         if (isDevelopment) {
           console.error('Google Drive upload failed:', driveError);
@@ -39,12 +48,17 @@ const AdditionalViews = ({
       let cloudinaryData = null;
       try {
         const publicId = `${productData.productType}/${productData.productPictureFolder}/${baseSKU}-${label.toLowerCase().replace(/\s+/g, '-')}`;
-        cloudinaryData = await uploadToCloudinary(file, publicId, productData.productType, productData.productPictureFolder);
+        
+          cloudinaryData = await uploadToCloudinaryWithSignature(
+            file, 
+            publicId, 
+            productData.productType, 
+            productData.productPictureFolder
+          );
       } catch (cloudinaryError) {
         if (isDevelopment) {
           console.error('Cloudinary upload failed:', cloudinaryError);
         }
-        // Don't throw here, as we still have Google Drive data
       }
 
       // Update the form state with both URLs if available
@@ -66,7 +80,7 @@ const AdditionalViews = ({
         console.error('Error uploading additional view:', error);
       }
     }
-  }, [formState.baseSKU, onImageUpload, productData.productPictureFolder, productData.productType]);
+  }, [formState.baseSKU, onImageUpload, productData.productPictureFolder, productData.productType, productData.additionalViews]);
 
   const handleDropAccepted = useCallback((files) => {
     // No need for console logs here

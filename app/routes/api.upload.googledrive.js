@@ -1,6 +1,6 @@
 // app/routes/api.upload.googledrive.js
 import { json, unstable_parseMultipartFormData, unstable_createMemoryUploadHandler } from "@remix-run/node";
-import { uploadToGoogleDrive, testGoogleDriveAuth } from "../lib/server/googleDrive";
+import { uploadToGoogleDrive, testGoogleDriveAuth, updateToGoogleDrive } from "../lib/server/googleDrive";
 
 export async function action({ request }) {
   if (request.method !== "POST") {
@@ -49,7 +49,16 @@ export async function action({ request }) {
     const folderName = formData.get('folderName');
     const sku = formData.get('sku');
     const label = formData.get('label');
+    const fileId = formData.get('fileId');
 
+    // If fileId is provided, this is an update operation
+    if (fileId) {
+      console.log("Updating existing file:", fileId);
+      const result = await updateToGoogleDrive(file, fileId);
+      return json(result);
+    }
+
+    // Otherwise, proceed with new upload
     console.log("Upload parameters:", { collection, folderName, sku, label });
     console.log("File received:", file ? { 
       name: file.name, 

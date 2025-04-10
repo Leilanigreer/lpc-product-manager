@@ -196,6 +196,42 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
   }
 }
 
+export async function updateToGoogleDrive(file, fileId) {
+  try {
+    // Convert file to buffer
+    let fileBuffer;
+    if (file.buffer && Buffer.isBuffer(file.buffer)) {
+      fileBuffer = file.buffer;
+    } else if (typeof file.arrayBuffer === 'function') {
+      fileBuffer = Buffer.from(await file.arrayBuffer());
+    } else {
+      throw new Error('File object does not support conversion to buffer');
+    }
+    
+    // Update the file
+    const media = {
+      mimeType: file.type,
+      body: Readable.from(fileBuffer)
+    };
+    
+    const updatedFile = await drive.files.update({
+      fileId: fileId,
+      media: media,
+      fields: 'id, webViewLink',
+      supportsAllDrives: true,
+    });
+    
+    return {
+      success: true,
+      fileId: updatedFile.data.id,
+      webViewLink: updatedFile.data.webViewLink
+    };
+  } catch (error) {
+    console.error('Google Drive update failed:', error.message);
+    throw new Error(`Google Drive update failed: ${error.message}`);
+  }
+}
+
 // Function to test authentication
 export async function testGoogleDriveAuth() {
   try {
