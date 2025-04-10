@@ -5,9 +5,9 @@ import { Text, BlockStack, Box, InlineStack, Card } from '@shopify/polaris';
 import { isDevelopment } from '../lib/config/environment';
 import ImageDropZone from './ImageDropZone';
 import AdditionalViews from './AdditionalViews';
-import { uploadToCloudinary } from '../lib/utils/cloudinary';
+import { uploadToCloudinary, updateCloudinaryImage, uploadToCloudinaryWithSignature } from '../lib/utils/cloudinary';  
 import { isPutter } from '../lib/utils/shapeUtils';
-import { uploadToGoogleDrive } from '../lib/utils/googleDrive';
+import { uploadToGoogleDrive, updateToGoogleDrive } from '../lib/utils/googleDrive';
 import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 
 const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
@@ -21,13 +21,22 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
       // Upload to Google Drive with appropriate file naming based on variant type
       let driveData = null;
       try {
-        driveData = await uploadToGoogleDrive(file, {
-          collection: productData.productType,
-          folderName: productData.productPictureFolder,
-          sku: variant.sku,
-          // For putters, include the label in the filename
-          label: isPutterVariant ? label : undefined
-        });
+        // Check if an image with this label already exists
+        const existingImage = variant.images?.find(img => img.label === label);
+        
+        if (existingImage?.driveData?.fileId) {
+          // Update existing file
+          driveData = await updateToGoogleDrive(file, existingImage.driveData.fileId);
+        } else {
+          // Upload new file
+          driveData = await uploadToGoogleDrive(file, {
+            collection: productData.productType,
+            folderName: productData.productPictureFolder,
+            sku: variant.sku,
+            // For putters, include the label in the filename
+            label: isPutterVariant ? label : undefined
+          });
+        }
       } catch (driveError) {
         if (isDevelopment) {
           console.error('Google Drive upload failed:', driveError);
@@ -39,27 +48,37 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
       let cloudinaryData = null;
       try {
         const publicId = `${productData.productType}/${productData.productPictureFolder}/${variant.sku}${isPutterVariant ? `-${label.toLowerCase().replace(/\s+/g, '-')}` : ''}`;
-        cloudinaryData = await uploadToCloudinary(file, publicId, productData.productType, productData.productPictureFolder);
-        console.log('Cloudinary data in ProductVariantCheck:', {
-          cloudinaryData: cloudinaryData
-        });
+                
+        cloudinaryData = await uploadToCloudinaryWithSignature(
+          file,
+          publicId, 
+          productData.productType,
+          productData.productPictureFolder
+        );
+        
+        if (isDevelopment) {
+          console.log('Cloudinary data in ProductVariantCheck:', {
+            cloudinaryData: cloudinaryData
+          });
+        }
       } catch (cloudinaryError) {
         if (isDevelopment) {
           console.error('Cloudinary upload failed:', cloudinaryError);
         }
-        // Don't throw here, as we still have Google Drive data
       }
       
       // Update the product data with both URLs if available
       if (onImageUpload) {
-        console.log('Passing to onImageUpload:', {
-          cloudinaryData: cloudinaryData,
-          driveData: driveData
-        });
+        if (isDevelopment) {
+          console.log('Passing to onImageUpload:', {
+            cloudinaryData: cloudinaryData,
+            driveData: driveData
+          });
+        }
         onImageUpload(
           variant.sku,
           label,
-          cloudinaryData?.url || getGoogleDriveUrl(driveData.fileId),
+          cloudinaryData?.secure_url || getGoogleDriveUrl(driveData.fileId),
           {
             driveData,
             cloudinaryData
@@ -115,7 +134,7 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
     if (isPutterVariant) {
       // For putters, use the variant's shape to determine the views
       if (variant.shape === 'Blade') {
-        return ['Side Front', 'Side Back', 'Top' ];
+        return ['Top', 'Side Front', 'Side Back'];
       } else if (variant.shape === 'Mallet') {
         return ['Front', 'Back', 'Open Back'];
       }

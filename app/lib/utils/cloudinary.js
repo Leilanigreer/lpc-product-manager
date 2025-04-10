@@ -1,3 +1,4 @@
+// app/lib/utils/cloudinary.js
 import { Cloudinary } from "@cloudinary/url-gen";
 
 // Helper function to get environment-specific variables
@@ -46,7 +47,6 @@ if (missingConfig.length > 0) {
   throw new Error(`Missing required Cloudinary configuration: ${missingConfig.join(', ')}`);
 }
 
-// Configure Cloudinary with the new SDK
 const cld = new Cloudinary({
   cloud: {
     cloudName: config.cloud_name
@@ -186,62 +186,126 @@ export const uploadToCloudinary = async (file, customPublicId = null, collection
   }
 };
 
-export const deleteFromCloudinary = async (publicId) => {
+export const updateCloudinaryImage = async (publicId, newImage) => {
   try {
-    // Generate signature for the delete request
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signature = await generateSignature({
-      public_id: publicId,
-      timestamp: timestamp,
-      api_key: config.api_key
-    });
+    // Create form data for upload
+    const formData = new FormData();
+    
+    // Create a new File object with the same public_id
+    const fileToUpload = new File([newImage], `${publicId}.${newImage.name.split('.').pop()}`, { type: newImage.type });
+    
+    formData.append('file', fileToUpload);
+    formData.append('upload_preset', 'product-images');
+    formData.append('public_id', publicId);
+    formData.append('overwrite', 'true');
+    formData.append('invalidate', 'true');
 
+    // Make the upload request
     const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${config.cloud_name}/image/destroy`,
+      `https://api.cloudinary.com/v1_1/${config.cloud_name}/auto/upload`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          public_id: publicId,
-          signature: signature,
-          api_key: config.api_key,
-          timestamp: timestamp
-        }),
+        body: formData
       }
     );
 
     if (!response.ok) {
-      throw new Error(`Delete failed: ${response.statusText}`);
+      const errorData = await response.json();
+      console.error('Cloudinary update failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
+      throw new Error(`Update failed: ${response.statusText} - ${JSON.stringify(errorData)}`);
     }
 
     const result = await response.json();
-    console.log('Delete result:', result);
-    console.log('=== Cloudinary Delete END ===');
     return result;
   } catch (error) {
-    console.error('Cloudinary delete error:', error);
-    console.error('Error stack:', error.stack);
-    console.log('=== Cloudinary Delete END (with error) ===');
-    throw new Error('Failed to delete image');
+    console.error('Cloudinary update error:', error);
+    throw error;
   }
-};
-
-// Helper function to generate signature for upload and delete operations
-const generateSignature = async (params) => {
-  const sortedParams = Object.keys(params)
-    .sort()
-    .map(key => `${key}=${params[key]}`)
-    .join('&');
-
-  const signatureString = sortedParams + config.api_secret;
-  const encoder = new TextEncoder();
-  const data = encoder.encode(signatureString);
-  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
 // Export the Cloudinary instance for URL generation
 export { cld }; 
+
+// Add this to your existing cloudinary.js file
+
+export const uploadToCloudinaryWithSignature = async (file, publicId, collection = null, productPictureFolder = null) => {
+  if (!config.cloud_name) {
+    throw new Error('Cloudinary is not properly configured');
+  }
+
+  try {
+    console.log('=== Cloudinary Signed Upload START ===');
+    console.log('Uploading to Cloudinary:', { publicId, collection, productPictureFolder });
+    
+    // Request signature from server
+    const signatureResponse = await fetch('/api/cloudinary/signature', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        publicId,
+        collection,
+        productPictureFolder
+      })
+    });
+
+    if (!signatureResponse.ok) {
+      const error = await signatureResponse.json();
+      throw new Error(`Failed to get signature: ${error.error || signatureResponse.statusText}`);
+    }
+
+    const signatureData = await signatureResponse.json();
+    console.log('Received signature data:', signatureData);
+    
+    // Create form data for upload
+    const formData = new FormData();
+    
+    // Add the file
+    formData.append('file', file);
+    
+    // Add API key and signature (mandatory for signed uploads)
+    formData.append('api_key', signatureData.apiKey);
+    formData.append('signature', signatureData.signature);
+    
+    // Add all other parameters EXACTLY as they were signed on the server
+    if (signatureData.params) {
+      Object.entries(signatureData.params).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+    }
+    
+    // Make the upload request
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${config.cloud_name}/image/upload`,
+      {
+        method: 'POST',
+        body: formData
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Cloudinary upload failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
+      throw new Error(`Upload failed: ${response.statusText} - ${JSON.stringify(errorData)}`);
+    }
+
+    const result = await response.json();
+    console.log('Upload successful:', result);
+    console.log('=== Cloudinary Signed Upload END ===');
+    return result;
+  } catch (error) {
+    console.error('Cloudinary signed upload error:', error);
+    console.error('Error stack:', error.stack);
+    console.log('=== Cloudinary Signed Upload END (with error) ===');
+    throw error;
+  }
+};
