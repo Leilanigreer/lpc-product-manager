@@ -3,7 +3,7 @@
 client_id = "df58a5b13484ffc9b63eb3e420dca6f9"
 name = "LPC Product Management - Dev"
 handle = "lpc-product-management-dev-1"
-application_url = "https://desert-tired-views-airports.trycloudflare.com"
+application_url = "https://lives-explains-thehun-upcoming.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_produ
 
 [auth]
 redirect_urls = [
-  "https://desert-tired-views-airports.trycloudflare.com/auth/callback",
-  "https://desert-tired-views-airports.trycloudflare.com/auth/shopify/callback",
-  "https://desert-tired-views-airports.trycloudflare.com/api/auth/callback"
+  "https://lives-explains-thehun-upcoming.trycloudflare.com/auth/callback",
+  "https://lives-explains-thehun-upcoming.trycloudflare.com/auth/shopify/callback",
+  "https://lives-explains-thehun-upcoming.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
