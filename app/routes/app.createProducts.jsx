@@ -109,6 +109,22 @@ export default function CreateProduct() {
     error 
   } = useLoaderData();
 
+  const previewRef = React.useRef(null);
+
+  const scrollToPreview = () => {
+    if (previewRef.current) {
+      const element = previewRef.current;
+      const elementRect = element.getBoundingClientRect();
+      const offsetTop = elementRect.top + window.scrollY;
+      const topPosition = offsetTop - 20; // Small 20px offset from top for better visibility
+
+      window.scrollTo({
+        top: topPosition,
+        behavior: 'smooth',
+      });
+    }
+  };
+
   const completeInitialState = useMemo(() => {
     // Initialize allShapes with all available shapes
     const allShapes = shapes.reduce((acc, shape) => ({
@@ -258,6 +274,9 @@ export default function CreateProduct() {
       data.productPictureFolder = data.mainHandle;
 
       setProductData(data);
+      
+      // Scroll to the preview section after data is generated
+      setTimeout(scrollToPreview, 100);
     } catch (error) {
       console.error("[Product Creation] Data Generation Failed:", {
         error: error.message,
@@ -383,10 +402,12 @@ export default function CreateProduct() {
               {productData && (
                 <Card>
                   <BlockStack gap="400">
-                    <ProductVariantCheck 
-                      productData={productData} 
-                      onImageUpload={handleImageUpload}
-                    />
+                    <div ref={previewRef}>
+                      <ProductVariantCheck 
+                        productData={productData} 
+                        onImageUpload={handleImageUpload}
+                      />
+                    </div>
                     
                     {submissionError && (
                       <Banner status="critical">
