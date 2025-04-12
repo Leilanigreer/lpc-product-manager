@@ -17,21 +17,21 @@ export async function action({ request }) {
     // Create timestamp
     const timestamp = Math.floor(Date.now() / 1000).toString();
     
-    // Build parameters object
+    // Build parameters object in the exact order Cloudinary expects
     const params = {
-      public_id: publicId,
-      timestamp: timestamp,
-      overwrite: "true",
+      asset_folder: collection && productPictureFolder 
+        ? `products/${collection}/${productPictureFolder}`
+        : collection 
+          ? `products/${collection}`
+          : undefined,
       invalidate: "true",
-      upload_preset: "product-images"
+      overwrite: "true",
+      public_id: publicId,
+      timestamp: timestamp
     };
-    
-    // Add asset_folder if both collection and productPictureFolder are provided
-    if (collection && productPictureFolder) {
-      params.asset_folder = `products/${collection}/${productPictureFolder}`;
-    } else if (collection) {
-      params.asset_folder = `products/${collection}`;
-    }
+
+    // Remove undefined values
+    Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
     
     // Create signature string: sort keys alphabetically and join with &
     const signatureString = Object.keys(params)
@@ -45,11 +45,11 @@ export async function action({ request }) {
       .update(signatureString)
       .digest('hex');
     
+    // Return all parameters needed for the form data
     return json({
+      ...params,
       signature,
-      timestamp,
-      params,
-      apiKey: process.env.SHOPIFY_CLOUDINARY_API_KEY
+      api_key: process.env.SHOPIFY_CLOUDINARY_API_KEY
     });
   } catch (error) {
     console.error("Signature generation error:", error);
