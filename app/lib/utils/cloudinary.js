@@ -268,16 +268,15 @@ export const uploadToCloudinaryWithSignature = async (file, publicId, collection
     // Add the file
     formData.append('file', file);
     
-    // Add API key and signature (mandatory for signed uploads)
-    formData.append('api_key', signatureData.apiKey);
-    formData.append('signature', signatureData.signature);
-    
-    // Add all other parameters EXACTLY as they were signed on the server
-    if (signatureData.params) {
-      Object.entries(signatureData.params).forEach(([key, value]) => {
+    // Add all parameters from the signature response
+    Object.entries(signatureData).forEach(([key, value]) => {
+      if (key !== 'signature' && value !== undefined) {
         formData.append(key, value);
-      });
-    }
+      }
+    });
+    
+    // Add the signature last
+    formData.append('signature', signatureData.signature);
     
     // Make the upload request
     const response = await fetch(
