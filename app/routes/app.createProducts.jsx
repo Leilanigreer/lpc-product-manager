@@ -141,11 +141,10 @@ export default function CreateProduct() {
   }, [shapes, productSets]);
 
   const fetcher = useFetcher();
-  const [formState, handleChange] = useFormState(completeInitialState);
   const [productData, setProductData] = useState(null);
+  const [formState, handleChange] = useFormState(completeInitialState, setProductData);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
-
   const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
     if (!productData) return;
 
