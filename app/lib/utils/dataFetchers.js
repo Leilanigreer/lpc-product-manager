@@ -119,13 +119,21 @@ export const getFonts = async () => {
 
 export const getShapes = async () => {
   try {
-    const shapes = await prisma.Shape.findMany();
-    return shapes.map(({ id, name, displayOrder, abbreviation, shapeType}) =>({
+    const shapes = await prisma.Shape.findMany({
+      where: {
+        isActive: true
+      },
+      orderBy: {
+        displayOrder: 'asc'
+      }
+    });
+    return shapes.map(({ id, name, displayOrder, abbreviation, shapeType, isActive }) => ({
       value: id, 
       label: name,
       displayOrder,
       abbreviation,
-      shapeType,
+      shapeType: shapeType || 'OTHER',
+      isActive: isActive ?? true
     }));
   } catch (error) {
     console.error("Error fetching shapes:", error);
@@ -287,16 +295,20 @@ export const getCommonDescription = async () => {
   }
 };
 
-export const getProductDataLPC = async () => {
+export const getProductSets = async () => {
   try {
-    const productDataLPC = await prisma.productDataLPC.findMany({
+    const productSets = await prisma.productSetDataLPC.findMany({
       include: {
-        collection: {
-          select: {
-            id: true,
-            title: true,
-            handle: true,
-            shopifyId: true
+        collections: {
+          include: {
+            collection: {
+              select: {
+                id: true,
+                title: true,
+                handle: true,
+                shopifyId: true
+              }
+            }
           }
         },
         font: {
@@ -304,13 +316,6 @@ export const getProductDataLPC = async () => {
             id: true,
             name: true,
             url_id: true
-          }
-        },
-        shape: {
-          select: {
-            id: true,
-            name: true,
-            abbreviation: true
           }
         },
         leatherColor1: {
@@ -346,40 +351,72 @@ export const getProductDataLPC = async () => {
             }
           }
         },
-        embroideryThread: {
+        setImages: {
           select: {
             id: true,
-            name: true,
-            abbreviation: true
+            imageType: true,
+            marketplace: true,
+            cloudinaryUrl: true,
+            cloudinaryPublicId: true
           }
         },
-        isacord: {
-          select: {
-            id: true,
-            number: true,
-            thread: {
+        variants: {
+          include: {
+            shape: {
+              select: {
+                id: true,
+                name: true,
+                abbreviation: true,
+                isActive: true,
+                shapeType: true,
+                displayOrder: true
+              }
+            },
+            embroideryThread: {
               select: {
                 id: true,
                 name: true,
                 abbreviation: true
               }
+            },
+            isacord: {
+              select: {
+                id: true,
+                number: true,
+                thread: {
+                  select: {
+                    id: true,
+                    name: true,
+                    abbreviation: true
+                  }
+                }
+              }
+            },
+            style: {
+              select: {
+                id: true,
+                name: true,
+                abbreviation: true,
+                url_id: true
+              }
+            },
+            colorDesignation: {
+              select: {
+                id: true,
+                name: true,
+                abbreviation: true,
+                url_id: true
+              }
+            },
+            variantImages: {
+              select: {
+                id: true,
+                imageType: true,
+                marketplace: true,
+                cloudinaryUrl: true,
+                cloudinaryPublicId: true
+              }
             }
-          }
-        },
-        style: {
-          select: {
-            id: true,
-            name: true,
-            abbreviation: true,
-            url_id: true
-          }
-        },
-        colorDesignation: {
-          select: {
-            id: true,
-            name: true,
-            abbreviation: true,
-            url_id: true
           }
         }
       },
@@ -388,60 +425,52 @@ export const getProductDataLPC = async () => {
       }
     });
 
-    return productDataLPC.map(({
+    return productSets.map(({
       id,
       shopifyProductId,
-      shopifyVariantId,
-      shopifyInventoryId,
-      SKU,
       baseSKU,
-      collection,
+      collections,
       offeringType,
       font,
-      shape,
-      weight,
       leatherColor1,
       leatherColor2,
       stitchingThreads,
-      embroideryThread,
-      isacord,
-      style,
-      colorDesignation,
       mainHandle,
+      setImages,
+      variants,
       createdAt,
       updatedAt
     }) => {
       // Validate required fields
-      if (!collection || !font || !shape || !leatherColor1) {
-        console.warn(`Missing required fields for ProductDataLPC ID: ${id}`);
+      if (!collections.length || !font || !leatherColor1) {
+        console.warn(`Missing required fields for ProductSetDataLPC ID: ${id}`);
         return null;
       }
+
+      const primaryCollection = collections[0]?.collection;
 
       return {
         value: id,
         shopifyProductId,
-        shopifyVariantId,
-        shopifyInventoryId,
-        SKU,
         baseSKU,
         collection: {
+          value: primaryCollection.id,
+          label: primaryCollection.title,
+          handle: primaryCollection.handle || '',
+          shopifyId: primaryCollection.shopifyId
+        },
+        collections: collections.map(({ collection }) => ({
           value: collection.id,
           label: collection.title,
-          handle: collection.handle || '',  
+          handle: collection.handle || '',
           shopifyId: collection.shopifyId
-        },
+        })),
         offeringType,
         font: {
           value: font.id,
           label: font.name,
           url_id: font.url_id
         },
-        shape: {
-          value: shape.id,
-          label: shape.name,
-          abbreviation: shape.abbreviation
-        },
-        weight: weight ? parseFloat(weight) : null,
         leatherColor1: {
           value: leatherColor1.id,
           label: leatherColor1.name,
@@ -461,34 +490,63 @@ export const getProductDataLPC = async () => {
           amannValue: relation.amann.id,
           amannLabel: relation.amann.number
         })),
-        embroideryThread: embroideryThread && isacord ? {
-          value: embroideryThread.id,
-          label: embroideryThread.name,
-          abbreviation: embroideryThread.abbreviation,
-          isacordNumber: {
-            value: isacord.id,
-            label: isacord.number
-          }
-        } : null,
-        style: style ? {
-          value: style.id,
-          label: style.name,
-          abbreviation: style.abbreviation,
-          url_id: style.url_id
-        } : null,
-        colorDesignation: colorDesignation ? {
-          value: colorDesignation.id,
-          label: colorDesignation.name,
-          abbreviation: colorDesignation.abbreviation,
-          url_id: colorDesignation.url_id
-        } : null,
         mainHandle,
+        setImages: setImages.map(image => ({
+          id: image.id,
+          type: image.imageType,
+          marketplace: image.marketplace,
+          url: image.cloudinaryUrl,
+          cloudinaryPublicId: image.cloudinaryPublicId
+        })),
+        variants: variants.map(variant => ({
+          id: variant.id,
+          shopifyVariantId: variant.shopifyVariantId,
+          shopifyInventoryId: variant.shopifyInventoryId,
+          SKU: variant.SKU,
+          weight: parseFloat(variant.weight),
+          shape: {
+            value: variant.shape.id,
+            label: variant.shape.name,
+            abbreviation: variant.shape.abbreviation,
+            isActive: variant.shape.isActive,
+            shapeType: variant.shape.shapeType,
+            displayOrder: variant.shape.displayOrder
+          },
+          embroideryThread: variant.embroideryThread && variant.isacord ? {
+            value: variant.embroideryThread.id,
+            label: variant.embroideryThread.name,
+            abbreviation: variant.embroideryThread.abbreviation,
+            isacordNumber: {
+              value: variant.isacord.id,
+              label: variant.isacord.number
+            }
+          } : null,
+          style: variant.style ? {
+            value: variant.style.id,
+            label: variant.style.name,
+            abbreviation: variant.style.abbreviation,
+            url_id: variant.style.url_id
+          } : null,
+          colorDesignation: variant.colorDesignation ? {
+            value: variant.colorDesignation.id,
+            label: variant.colorDesignation.name,
+            abbreviation: variant.colorDesignation.abbreviation,
+            url_id: variant.colorDesignation.url_id
+          } : null,
+          images: variant.variantImages.map(image => ({
+            id: image.id,
+            type: image.imageType,
+            marketplace: image.marketplace,
+            url: image.cloudinaryUrl,
+            cloudinaryPublicId: image.cloudinaryPublicId
+          }))
+        })),
         createdAt,
         updatedAt
       };
     }).filter(Boolean); // Remove any null entries from the mapping
   } catch (error) {
-    console.error("Error fetching ProductDataLPC:", error);
+    console.error("Error fetching ProductSets:", error);
     throw error;
   }
 };

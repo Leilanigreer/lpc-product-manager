@@ -38,6 +38,7 @@ const ThreadColorSelector = ({
   const showsIndependentOption = formState.collection?.needsStyle;
   const isIndependentMode = formState.threadMode?.embroidery === 'perShape';
   const embroideryMode = formState.threadMode?.embroidery || 'global';
+  const collection = formState.collection.label;
 
   // Prepare Isacord thread options
   const isacordOptions = useMemo(() => {
@@ -215,7 +216,7 @@ const ThreadColorSelector = ({
                 <Combobox.TextField
                 prefix={<Icon source={SearchIcon} />}
                 onChange={setIsacordInputValue}
-                label="Select Isacord Number"
+                label={collection == 'Quilted' ? "Select Isacord Number - Used in Title and SKU" : "Select Isacord Number"}
                 value={embroideryMode === 'perShape' 
                   ? "Independent for each shape" 
                   : isacordInputValue}
@@ -245,7 +246,7 @@ const ThreadColorSelector = ({
                 <Combobox.TextField
                   prefix={<Icon source={SearchIcon} />}
                   onChange={setAmannInputValue}
-                  label="Add Amann Number"
+                  label={collection == 'Argyle' ? "Add Amann Number - Used in Title and SKU" : "Add Amann Number"}
                   value={amannInputValue}
                   placeholder="Search by number or color name"
                   autoComplete="off"

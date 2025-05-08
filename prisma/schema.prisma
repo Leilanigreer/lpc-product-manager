@@ -26,17 +26,17 @@ model Session {
 }
 
 model LeatherColor {
-  id                      String           @id @default(cuid())
+  id                      String                  @id @default(cuid())
   name                    String
   abbreviation            String
   url_id                  String?
-  isLimitedEditionLeather Boolean          @default(false)
-  createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
-  colorTags               ColorTag[]       @relation("LeatherColorToTag")
-  first_leather_color     ProductDataLPC[] @relation("PrimaryLeatherColor")
-  second_leather_color    ProductDataLPC[] @relation("SecondaryLeatherColor")
-  color_designation       ProductDataLPC[] @relation("ColorDesignation")
+  isLimitedEditionLeather Boolean                 @default(false)
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  colorTags               ColorTag[]              @relation("LeatherColorToTag")
+  first_leather_color     ProductSetDataLPC[]     @relation("PrimaryLeatherColor")
+  second_leather_color    ProductSetDataLPC[]     @relation("SecondaryLeatherColor")
+  color_designation       ProductVariantDataLPC[] @relation("ColorDesignation")
 }
 
 model StitchingThread {
@@ -51,27 +51,27 @@ model StitchingThread {
 }
 
 model EmbroideryThread {
-  id             String           @id @default(cuid())
-  name           String
-  abbreviation   String
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  colorTags      ColorTag[]       @relation("EmbroideryThreadToTag")
-  isacordNumbers IsacordNumber[]
-  ProductDataLPC ProductDataLPC[]
+  id                    String                  @id @default(cuid())
+  name                  String
+  abbreviation          String
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  colorTags             ColorTag[]              @relation("EmbroideryThreadToTag")
+  isacordNumbers        IsacordNumber[]
+  ProductVariantDataLPC ProductVariantDataLPC[]
 }
 
 model IsacordNumber {
-  id              String            @id @default(cuid())
-  number          String
-  threadId        String?
-  wawakColorName  String?
-  wawakItemNumber String?
-  isStockThread   Boolean           @default(false)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  thread          EmbroideryThread? @relation(fields: [threadId], references: [id])
-  ProductDataLPC  ProductDataLPC[]
+  id                    String                  @id @default(cuid())
+  number                String
+  threadId              String?
+  wawakColorName        String?
+  wawakItemNumber       String?
+  isStockThread         Boolean                 @default(false)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  thread                EmbroideryThread?       @relation(fields: [threadId], references: [id])
+  ProductVariantDataLPC ProductVariantDataLPC[]
 
   @@index([threadId])
 }
@@ -99,12 +99,12 @@ model ColorTag {
 }
 
 model Font {
-  id             String           @id @default(cuid())
-  name           String
-  url_id         String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  ProductDataLPC ProductDataLPC[]
+  id                String              @id @default(cuid())
+  name              String
+  url_id            String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  ProductSetDataLPC ProductSetDataLPC[]
 }
 
 enum ShapeType {
@@ -112,18 +112,20 @@ enum ShapeType {
   WOOD // -10 from base
   HYBRID // -15 from base
   PUTTER // Fixed price or base, whichever is higher
+  LAB_PUTTER // Fixed price or base, whichever is higher
   OTHER // Keep for flexibility
 }
 
 model Shape {
-  id             String           @id @default(cuid())
-  name           String
-  displayOrder   Int              @default(0) // Controls ordering
-  abbreviation   String?
-  shapeType      ShapeType        @default(OTHER) // For wood/putter & pricing logic
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  ProductDataLPC ProductDataLPC[]
+  id                    String                  @id @default(cuid())
+  name                  String
+  displayOrder          Int                     @default(0)
+  abbreviation          String?
+  shapeType             ShapeType               @default(OTHER)
+  isActive              Boolean                 @default(true)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  ProductVariantDataLPC ProductVariantDataLPC[]
 }
 
 enum StyleNamePattern {
@@ -133,18 +135,18 @@ enum StyleNamePattern {
 }
 
 model Style {
-  id                 String            @id @default(cuid())
-  name               String
-  abbreviation       String
-  url_id             String?
-  useOppositeLeather Boolean           @default(false) // For "Fat" style logic
-  leatherPhrase      String? // For "50/50" style phrase
-  namePattern        StyleNamePattern  @default(STANDARD)
-  customNamePattern  String?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  ProductDataLPC     ProductDataLPC[]
-  collections        StyleCollection[]
+  id                    String                  @id @default(cuid())
+  name                  String
+  abbreviation          String
+  url_id                String?
+  useOppositeLeather    Boolean                 @default(false)
+  leatherPhrase         String?
+  namePattern           StyleNamePattern        @default(STANDARD)
+  customNamePattern     String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  ProductVariantDataLPC ProductVariantDataLPC[]
+  collections           StyleCollection[]
 }
 
 model StyleCollection {
@@ -191,12 +193,13 @@ model ShopifyCollection {
   needsColorDesignation   Boolean                @default(false)
   needsStyle              Boolean                @default(false)
   defaultStyleNamePattern StyleNamePattern       @default(STANDARD)
-  stylePerCollection      Boolean                @default(false) // For handling grouped styles
+  stylePerCollection      Boolean                @default(false)
   showInDropdown          Boolean                @default(true)
+  googleDriveFolderId     String? // Added field for Google Drive folder ID
   createdAt               DateTime               @default(now())
   updatedAt               DateTime               @updatedAt
   admin_graphql_api_id    String
-  ProductDataLPC          ProductDataLPC[]
+  productSets             ProductSetCollection[]
   styles                  StyleCollection[]
   titleFormat             CollectionTitleFormat?
   PriceTier               PriceTier?             @relation(fields: [priceTierId], references: [id])
@@ -252,60 +255,139 @@ model ShapeTypeAdjustment {
 }
 
 model ProductStitching {
-  id                String          @id @default(cuid())
-  productDataLPCId  String
-  productDataLPC    ProductDataLPC  @relation(fields: [productDataLPCId], references: [id], onDelete: Cascade)
+  id                String            @id @default(cuid())
+  setId             String
+  set               ProductSetDataLPC @relation(fields: [setId], references: [id], onDelete: Cascade)
   stitchingThreadId String
-  stitchingThread   StitchingThread @relation(fields: [stitchingThreadId], references: [id])
+  stitchingThread   StitchingThread   @relation(fields: [stitchingThreadId], references: [id])
   amannId           String
-  amann             AmannNumber     @relation(fields: [amannId], references: [id])
+  amann             AmannNumber       @relation(fields: [amannId], references: [id])
 
-  @@index([productDataLPCId])
+  @@index([setId])
   @@index([stitchingThreadId])
   @@index([amannId])
 }
 
-model ProductDataLPC {
-  id                 String             @id @default(cuid())
-  shopifyProductId   String
+enum ImageType {
+  PRIMARY // For drivers, fairways, hybrids and putters (front view)
+  SECONDARY // For putters (side view)
+  TERTIARY // For putters (top view)
+  BACK // Universal back view
+  INSIDE // Universal inside view
+}
+
+enum Marketplace {
+  SHOPIFY
+  ETSY
+  EBAY
+  ORIGINAL
+}
+
+model ProductImage {
+  id                 String                 @id @default(cuid())
+  setId              String?
+  set                ProductSetDataLPC?     @relation("SetImages", fields: [setId], references: [id], onDelete: Cascade)
+  variantId          String?
+  variant            ProductVariantDataLPC? @relation("VariantImages", fields: [variantId], references: [id], onDelete: Cascade)
+  imageType          ImageType
+  marketplace        Marketplace
+  cloudinaryUrl      String?
+  cloudinaryPublicId String?
+  googleDriveUrl     String?
+  googleDriveId      String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@unique([variantId, imageType, marketplace])
+  @@index([setId])
+  @@index([variantId])
+  @@index([marketplace])
+}
+
+model ProductSetDataLPC {
+  id                   String                  @id @default(cuid())
+  shopifyProductId     String
+  baseSKU              String
+  collections          ProductSetCollection[]
+  offeringType         String
+  fontId               String
+  font                 Font                    @relation(fields: [fontId], references: [id])
+  leatherColor1Id      String
+  leatherColor1        LeatherColor            @relation("PrimaryLeatherColor", fields: [leatherColor1Id], references: [id])
+  leatherColor2Id      String?
+  leatherColor2        LeatherColor?           @relation("SecondaryLeatherColor", fields: [leatherColor2Id], references: [id])
+  stitchingThreads     ProductStitching[]
+  mainHandle           String
+  setImages            ProductImage[]          @relation("SetImages")
+  variants             ProductVariantDataLPC[]
+  createdAt            DateTime                @default(now())
+  googleDriveFolderUrl String? // URL to the Google Drive folder containing all product images
+  cloudinaryFolderId   String? // ID of the Cloudinary folder containing all product images
+  updatedAt            DateTime                @updatedAt
+
+  @@index([fontId])
+  @@index([leatherColor1Id])
+  @@index([leatherColor2Id])
+}
+
+model ProductVariantDataLPC {
+  id                 String            @id @default(cuid())
+  setId              String
+  set                ProductSetDataLPC @relation(fields: [setId], references: [id], onDelete: Cascade)
   shopifyVariantId   String
   shopifyInventoryId String
   SKU                String
-  baseSKU            String?
-  collectionId       String
-  collection         ShopifyCollection  @relation(fields: [collectionId], references: [id])
-  offeringType       String
-  fontId             String
-  font               Font               @relation(fields: [fontId], references: [id])
   shapeId            String
-  shape              Shape              @relation(fields: [shapeId], references: [id])
-  weight             Decimal            @db.Decimal(10, 2)
-  leatherColor1Id    String
-  leatherColor1      LeatherColor       @relation("PrimaryLeatherColor", fields: [leatherColor1Id], references: [id])
-  leatherColor2Id    String?
-  leatherColor2      LeatherColor?      @relation("SecondaryLeatherColor", fields: [leatherColor2Id], references: [id])
-  // Single embroidery thread with its isacord number
+  shape              Shape             @relation(fields: [shapeId], references: [id])
+  weight             Decimal           @db.Decimal(10, 2)
   embroideryThreadId String?
-  embroideryThread   EmbroideryThread?  @relation(fields: [embroideryThreadId], references: [id])
+  embroideryThread   EmbroideryThread? @relation(fields: [embroideryThreadId], references: [id])
   isacordId          String?
-  isacord            IsacordNumber?     @relation(fields: [isacordId], references: [id])
-  // Multiple stitching threads with their amann numbers
-  stitchingThreads   ProductStitching[]
+  isacord            IsacordNumber?    @relation(fields: [isacordId], references: [id])
   styleId            String?
-  style              Style?             @relation(fields: [styleId], references: [id])
+  style              Style?            @relation(fields: [styleId], references: [id])
   colorDesignationId String?
-  colorDesignation   LeatherColor?      @relation("ColorDesignation", fields: [colorDesignationId], references: [id])
-  mainHandle         String
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  colorDesignation   LeatherColor?     @relation("ColorDesignation", fields: [colorDesignationId], references: [id])
+  variantImages      ProductImage[]    @relation("VariantImages")
 
-  @@index([collectionId])
-  @@index([fontId])
+  // Custom variant fields
+  customShopifyVariantId   String?
+  customShopifyInventoryId String?
+  customSKU                String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([setId])
   @@index([shapeId])
-  @@index([leatherColor1Id])
-  @@index([leatherColor2Id])
   @@index([embroideryThreadId])
   @@index([isacordId])
   @@index([styleId])
   @@index([colorDesignationId])
+}
+
+model ProductSetCollection {
+  id           String            @id @default(cuid())
+  setId        String
+  collectionId String
+  set          ProductSetDataLPC @relation(fields: [setId], references: [id], onDelete: Cascade)
+  collection   ShopifyCollection @relation(fields: [collectionId], references: [id])
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([setId, collectionId])
+  @@index([setId])
+  @@index([collectionId])
+}
+
+model OAuthToken {
+  id           String    @id @default(cuid())
+  provider     String // e.g., "google"
+  refreshToken String    @db.Text
+  accessToken  String?   @db.Text
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([provider])
 }

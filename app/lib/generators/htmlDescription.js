@@ -30,18 +30,12 @@ const wrapDescription = (collectionDescription, includeCommon, commonDescription
  * @returns {string} Formatted HTML description
  */
 export const generateDescriptionHTML = (formState, commonDescription) => {
-  if (!formState?.collection) {
-    console.warn('No collection data in formState');
+  if (!formState?.collection?.description) {
     return '';
   }
 
   try {
     const { description, commonDescription: includeCommon } = formState.collection;
-
-    if (!description) {
-      console.warn('No description found in collection data');
-      return '';
-    }
 
     // Extract active common description content
     const commonContent = Array.isArray(commonDescription) 
@@ -55,7 +49,7 @@ export const generateDescriptionHTML = (formState, commonDescription) => {
     ).replace(/\s+/g, " ").trim();
 
   } catch (error) {
-    console.error('Error generating HTML description:', error);
+    console.error('Error generating HTML description:', error.message);
     return '';
   }
 };

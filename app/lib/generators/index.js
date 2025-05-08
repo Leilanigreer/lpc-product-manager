@@ -41,12 +41,15 @@ export const generateProductData = async (formState, commonDescription) => {
       seoDescription: generateSEODescription(formState),
       tags: generateTags(formState),
       variants,
+      additionalViews: [], // Initialize empty array for additional views
       
       // Database fields
       collection: formState.collection,
       selectedFont: formState.selectedFont,
       offeringType: formState.selectedOfferingType,
       limitedEditionQuantity: formState.limitedEditionQuantity || null,
+      styleMode: formState.styleMode,
+      globalStyle: formState.globalStyle || null,
       
       // Color and thread selections
       selectedLeatherColor1: formState.leatherColors.primary.value,

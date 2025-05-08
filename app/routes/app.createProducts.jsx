@@ -1,6 +1,6 @@
 // app/routes/app.createProducts.jsx
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
@@ -12,6 +12,9 @@ import { useFormState } from "../hooks/useFormState";
 import { useFormNotifications } from "../hooks/useFormNotifications.js";
 import { createShopifyProduct } from "../lib/server/shopifyOperations.server.js";
 import { saveProductToDatabase } from "../lib/server/productOperations.server.js";
+import { sendInternalEmail } from "../services/email.server";
+import { generateProductCreationNotification } from "../templates/product-creation-notification";
+import { getCloudinaryFolderPath } from "../lib/utils/cloudinary";
 import {
   CollectionSelector,
   FontSelector,
@@ -44,16 +47,41 @@ export const action = async ({ request }) => {
 
   try {
     const shopifyResponse = await createShopifyProduct(admin, productData);
-    const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse);
 
-    // Instead of json(), return object directly
+    // Only get Cloudinary folder ID if there are images
+    let cloudinaryFolderId = null;
+    if (productData.additionalViews?.length > 0 || 
+        Object.values(productData.variants || {}).some(v => v.images?.length > 0)) {
+      cloudinaryFolderId = await getCloudinaryFolderPath(`products/${productData.productType}/${productData.mainHandle}`);
+    }
+
+    const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse, cloudinaryFolderId);
+
+    // Send notification email about new product creation
+    const htmlContent = generateProductCreationNotification({
+      product: shopifyResponse.product,
+      databaseSave: dbSaveResult,
+      shop: shopifyResponse.shop,
+      cloudinaryFolderId: cloudinaryFolderId,
+      hasImages: !!cloudinaryFolderId
+    });
+
+    await sendInternalEmail(
+      `Karl just created ${shopifyResponse.product.title}`,
+      `Karl just created a new set on the website.`,
+      htmlContent
+    );
+
     return {
       ...shopifyResponse,
       databaseSave: dbSaveResult,
       success: true
     };
   } catch (error) {
-    console.error('Detailed Error:', error);
+    console.error('Product creation failed:', {
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
     return new Response(
       JSON.stringify({
         errors: [typeof error === 'string' ? error : error.message || "An unexpected error occurred"]
@@ -77,9 +105,25 @@ export default function CreateProduct() {
     shapes, 
     shopifyCollections,
     commonDescription, 
-    productDataLPC, 
+    productSets, 
     error 
   } = useLoaderData();
+
+  const previewRef = React.useRef(null);
+
+  const scrollToPreview = () => {
+    if (previewRef.current) {
+      const element = previewRef.current;
+      const elementRect = element.getBoundingClientRect();
+      const offsetTop = elementRect.top + window.scrollY;
+      const topPosition = offsetTop - 20; // Small 20px offset from top for better visibility
+
+      window.scrollTo({
+        top: topPosition,
+        behavior: 'smooth',
+      });
+    }
+  };
 
   const completeInitialState = useMemo(() => {
     // Initialize allShapes with all available shapes
@@ -92,18 +136,91 @@ export default function CreateProduct() {
       ...initialFormState,
       shapes, // Add shapes array for reference
       allShapes, // Add initialized shape states
+      existingProducts: productSets // Update reference to use productSets
     };
-  }, [shapes]);
+  }, [shapes, productSets]);
 
   const fetcher = useFetcher();
-  const [formState, handleChange] = useFormState(completeInitialState);
   const [productData, setProductData] = useState(null);
+  const [formState, handleChange] = useFormState(completeInitialState, setProductData);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
+  const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
+    if (!productData) return;
+
+    setProductData(prevData => {
+      const newData = { ...prevData };
+      
+      // If this is the first image upload and we have drive data with a product folder URL,
+      // set the Google Drive folder URL for the entire product
+      if (driveData?.folderPath?.productFolderUrl && !newData.googleDriveFolderUrl) {
+        newData.googleDriveFolderUrl = driveData.folderPath.productFolderUrl;
+      }
+      
+      // If the SKU matches a variant's SKU, update the variant's images
+      const variant = newData.variants.find(v => v.sku === sku);
+      if (variant) {
+        // Initialize images array if it doesn't exist
+        variant.images = variant.images || [];
+        
+        // Check if an image with this label already exists
+        const existingImageIndex = variant.images.findIndex(img => img.label === label);
+        
+        if (existingImageIndex >= 0) {
+          // Update existing image
+          variant.images[existingImageIndex] = { 
+            label, 
+            displayUrl,
+            driveData: driveData || null,
+            cloudinaryData: cloudinaryData || null
+          };
+        } else {
+          // Add new image
+          variant.images.push({ 
+            label, 
+            displayUrl,
+            driveData: driveData || null,
+            cloudinaryData: cloudinaryData || null
+          });
+        }
+      } else {
+        // This is an additional view
+        // Initialize additionalViews array if it doesn't exist
+        newData.additionalViews = newData.additionalViews || [];
+        
+        // Check if an image with this label already exists
+        const existingImageIndex = newData.additionalViews.findIndex(img => img.label === label);
+        
+        if (existingImageIndex >= 0) {
+          // Update existing image
+          newData.additionalViews[existingImageIndex] = { 
+            label, 
+            displayUrl,
+            driveData: driveData || null,
+            cloudinaryData: cloudinaryData || null
+          };
+        } else {
+          // Add new image
+          newData.additionalViews.push({ 
+            label, 
+            displayUrl,
+            driveData: driveData || null,
+            cloudinaryData: cloudinaryData || null
+          });
+        }
+      }
+      
+      return newData;
+    });
+  }, [productData]);
 
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log('Form State Updated:', formState);
+      console.log('[Product Creation] Form State Updated:', {
+        collection: formState.collection,
+        productType: formState.productType,
+        shapes: Object.keys(formState.allShapes || {})
+      });
     }
   }, [formState]);
 
@@ -121,7 +238,8 @@ export default function CreateProduct() {
     handleChange,
     onSuccess: () => {
       setProductData(null);
-      setGenerationError(null);    }
+      setGenerationError(null);    
+    }
   });  
 
   React.useEffect(() => {
@@ -146,23 +264,22 @@ export default function CreateProduct() {
       }
 
       if (!formState?.collection?.value) {
-        console.error('Collection validation failed:', formState.collection);
         throw new Error('Invalid collection configuration');
       }
 
       const data = await generateProductData(formState, commonDescription);
-      console.log('Generated product data:', {
-        hasData: Boolean(data),
-        title: data?.title,
-        variantCount: data?.variants?.length,
-        variants: data?.variants
-      });
+      
+      // Use the already sanitized mainHandle for the folder name
+      data.productPictureFolder = data.mainHandle;
 
       setProductData(data);
+      
+      // Scroll to the preview section after data is generated
+      setTimeout(scrollToPreview, 100);
     } catch (error) {
-      console.error("Error generating product data:", {
-        error,
-        stack: error.stack,
+      console.error("[Product Creation] Data Generation Failed:", {
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         formState: {
           collection: formState.collection,
           shapes: Object.keys(formState.allShapes || {})
@@ -221,49 +338,48 @@ export default function CreateProduct() {
         )}
 
         <Layout.Section>
+          <BlockStack gap="400">
+
           <Card>
             <BlockStack gap="400">
               <CollectionSelector
                 shopifyCollections={shopifyCollections}
-                productDataLPC={productDataLPC}
+                productSets={productSets}
                 formState={formState}
                 onChange={handleChange}
-              />
+                />
               <ProductTypeSelector
                 formState={formState}
                 onChange={handleChange}
-              />
+                />
               <LeatherColorSelector
                 leatherColors={leatherColors}
                 formState={formState}
                 onChange={handleChange}
-              />
+                />
               <FontSelector
                 fonts={fonts}
                 formState={formState}
                 onChange={handleChange}
-              />
+                />
               <ThreadColorSelector
                 stitchingThreadColors={stitchingThreadColors}
                 embroideryThreadColors={embroideryThreadColors}
                 formState={formState}
                 onChange={handleChange}
-              />
+                />
             </BlockStack>
           </Card>
 
           <Card>
+            <BlockStack gap="400">
             <ShapeSelector
               shapes={shapes}
               leatherColors={leatherColors}
               embroideryThreadColors={embroideryThreadColors}
               formState={formState}
               handleChange={handleChange}
-            />
-          </Card>
-
-          <Card>
-            <BlockStack gap="400">
+              />
               {generationError && (
                 <Banner status="critical">
                   {generationError}
@@ -271,35 +387,45 @@ export default function CreateProduct() {
               )}
               
               <Button
+                primary
+                size="large"
                 onClick={handleGenerateData}
                 loading={isGenerating}
                 disabled={!formState.collection || isGenerating}
-              >
+                >
                 Preview Product Data
               </Button>
-
-              {productData && (
-                <>
-                  <ProductVariantCheck productData={productData} />
-                  
-                  {submissionError && (
-                    <Banner status="critical">
-                      {submissionError}
-                    </Banner>
-                  )}
-                  
-                  <Button
-                    primary
-                    loading={isSubmitting}
-                    disabled={isSubmitting}
-                    onClick={handleSubmit}
-                  >
-                    Create Product
-                  </Button>
-                </>
-              )}
             </BlockStack>
           </Card>
+
+              {productData && (
+                <Card>
+                  <BlockStack gap="400">
+                    <div ref={previewRef}>
+                      <ProductVariantCheck 
+                        productData={productData} 
+                        onImageUpload={handleImageUpload}
+                      />
+                    </div>
+                    
+                    {submissionError && (
+                      <Banner status="critical">
+                        {submissionError}
+                      </Banner>
+                    )}
+                    
+                    <Button
+                      primary
+                      loading={isSubmitting}
+                      disabled={isSubmitting}
+                      onClick={handleSubmit}
+                      >
+                      Create Product
+                    </Button>
+                  </BlockStack>
+                </Card>
+              )}
+              </BlockStack>
         </Layout.Section>
       </Layout>
     </Page>

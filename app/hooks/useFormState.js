@@ -13,18 +13,31 @@ const ACTION_TYPES = {
   UPDATE_SHAPE: 'UPDATE_SHAPE',
   UPDATE_SHAPE_FIELD: 'UPDATE_SHAPE_FIELD',
   UPDATE_SIMPLE: 'UPDATE_SIMPLE',
-  RESET_FORM: 'RESET_FORM'
+  RESET_FORM: 'RESET_FORM',
+  RESET_PREVIEW: 'RESET_PREVIEW'
 };
 
 const formReducer = (state, action) => {
   const { type, payload, initialState } = action;
-  console.log('FormReducer - Action:', { type, payload });
+
+  // Helper function to reset preview data if it exists
+  const resetPreviewIfExists = (newState) => {
+    if (newState.productPreview) {
+      return {
+        ...newState,
+        productPreview: {
+          ...newState.productPreview,
+          variants: [],
+          additionalViews: []
+        }
+      };
+    }
+    return newState;
+  };
 
   switch (type) {
     case ACTION_TYPES.UPDATE_COLLECTION: {
-      const { collection, productDataLPC } = payload;
-      console.log('UPDATE_COLLECTION payload:', payload);
-      console.log('Collection being set:', collection);
+      const { collection, productSets } = payload;
     
       // Initialize all shapes with base state only
       const allShapes = initialState.shapes.reduce((acc, shape) => ({
@@ -33,7 +46,7 @@ const formReducer = (state, action) => {
       }), {});
 
       // Process existing products during collection selection
-      const existingProducts = extractExistingProducts(productDataLPC);
+      const existingProducts = extractExistingProducts(productSets);
       const filteredProducts = filterProductsByCollection(existingProducts, collection.value);
 
       // Create new state with collection and reset relevant fields
@@ -49,11 +62,11 @@ const formReducer = (state, action) => {
         existingProducts: filteredProducts // Store processed products in state
       };
 
-      // Calculate final requirements based on new collection
-      return {
+      // Calculate final requirements and reset preview
+      return resetPreviewIfExists({
         ...newState,
         finalRequirements: calculateFinalRequirements(newState)
-      };
+      });
     }
 
     case ACTION_TYPES.UPDATE_STYLE_MODE: {
@@ -106,7 +119,7 @@ const formReducer = (state, action) => {
         newAllShapes[shapeValue] = updatedShape;
       });
     
-      // Create new state
+      // Create new state and reset preview
       const newState = {
         ...state,
         styleMode: mode,
@@ -115,23 +128,24 @@ const formReducer = (state, action) => {
         allShapes: newAllShapes
       };
     
-      return {
+      return resetPreviewIfExists({
         ...newState,
         finalRequirements: calculateFinalRequirements(newState)
-      };
+      });
     }
 
     case ACTION_TYPES.UPDATE_GLOBAL_STYLE: {
       if (state.styleMode !== 'global') return state;
 
-      return {
+      const newState = {
         ...state,
-        globalStyle: payload.style,
-        finalRequirements: calculateFinalRequirements({
-          ...state,
-          globalStyle: payload.style
-        })
+        globalStyle: payload.style
       };
+
+      return resetPreviewIfExists({
+        ...newState,
+        finalRequirements: calculateFinalRequirements(newState)
+      });
     }
 
     case ACTION_TYPES.UPDATE_THREAD_MODE: {
@@ -152,7 +166,7 @@ const formReducer = (state, action) => {
         });
       }
 
-      return {
+      const newState = {
         ...state,
         threadMode: {
           ...state.threadMode,
@@ -161,29 +175,31 @@ const formReducer = (state, action) => {
         globalEmbroideryThread: mode === 'perShape' ? null : state.globalEmbroideryThread,
         allShapes: newAllShapes
       };
+
+      return resetPreviewIfExists(newState);
     }
 
     case ACTION_TYPES.UPDATE_GLOBAL_EMBROIDERY: {
-      return state.threadMode?.embroidery === 'global'
-        ? {
-            ...state,
-            globalEmbroideryThread: payload
-          }
-        : state;
+      if (state.threadMode?.embroidery !== 'global') return state;
+
+      return resetPreviewIfExists({
+        ...state,
+        globalEmbroideryThread: payload
+      });
     }
 
     case ACTION_TYPES.UPDATE_STITCHING_THREADS: {
-      return {
+      return resetPreviewIfExists({
         ...state,
         stitchingThreads: payload
-      };
+      });
     }
 
     case ACTION_TYPES.UPDATE_LEATHER_COLORS: {
-      return {
+      return resetPreviewIfExists({
         ...state,
         leatherColors: payload
-      };
+      });
     }
 
     case ACTION_TYPES.UPDATE_SHAPE: {
@@ -212,10 +228,10 @@ const formReducer = (state, action) => {
         newAllShapes[shape.value] = createInitialShapeState(shape);
       }
 
-      return {
+      return resetPreviewIfExists({
         ...state,
         allShapes: newAllShapes
-      };
+      });
     }
 
     case ACTION_TYPES.UPDATE_SHAPE_FIELD: {
@@ -257,18 +273,18 @@ const formReducer = (state, action) => {
         });
       }
 
-      return {
+      return resetPreviewIfExists({
         ...state,
         allShapes: newAllShapes
-      };
+      });
     }
 
     case ACTION_TYPES.UPDATE_SIMPLE: {
       const { field, value } = payload;
-      return {
+      return resetPreviewIfExists({
         ...state,
         [field]: value
-      };
+      });
     }
 
     case ACTION_TYPES.RESET_FORM: {
@@ -277,10 +293,10 @@ const formReducer = (state, action) => {
         shapes: state.shapes 
       };
       
-      return {
+      return resetPreviewIfExists({
         ...resetState,
         finalRequirements: calculateFinalRequirements(resetState)
-      };
+      });
     }
 
     default:
@@ -289,7 +305,7 @@ const formReducer = (state, action) => {
   }
 };
 
-export const useFormState = (initialState) => {
+export const useFormState = (initialState, onFormChange) => {
   const [state, dispatch] = useReducer(formReducer, initialState);
 
   const handleChange = useCallback((field, value) => {
@@ -300,8 +316,14 @@ export const useFormState = (initialState) => {
         type: ACTION_TYPES.RESET_FORM,
         initialState
       });
+      // Call onFormChange to clear productData
+      onFormChange?.(null);
       return;
     }
+
+    // Call onFormChange to clear productData whenever form changes
+    onFormChange?.(null);
+
     const actionMap = {
       updateCollection: () => ({
         type: ACTION_TYPES.UPDATE_COLLECTION,
