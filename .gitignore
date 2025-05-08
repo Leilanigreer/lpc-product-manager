@@ -25,3 +25,14 @@ database.sqlite
 .shopify.lock
 
 /shopify.app.dev.toml
+
+lpcgolf-product-images-f6c82c76c2ea.json
+
+client_secret_116539325084-f4iukk2u7q8bd11vij5lrfthbibc3hgv.apps.googleusercontent.com.json
+
+debug-google-creds.js
+
+test-google-auth.jsscripts/get-refresh-token.js
+
+/app/lib/server/googleDrive-copy.js
+/app/routes/api.upload.googledrive-copy.js

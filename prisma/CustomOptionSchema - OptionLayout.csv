@@ -1,0 +1,14 @@
+,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,
+Option,This drives what displays to the admin for configuration,,,,,,,,,,,,,,,,,,
+ID,Type,Option Name,Nickname,Required,Option Description,in-cart name,Add on Price / Attached SKU,Allowed Types,Min selectedable,Max ,Default,Image,Allow multiple Selections,Color (#HEX?),Placeholder Text,Min Char Limit,Max Char limit,Min Number,Max Number
+,File upload,T,T,T,T,T,T,T,F,F,F,F,F,F,F,F,F,F,F
+,Checkbox,T,T,T,T,T,T,F,T,T,T,F,F,F,F,F,F,F,F
+,Dropdown,T,T,T,T,T,T,F,F,F,T,F,F,F,F,F,F,F,F
+,Image swatch,T,T,T,T,T,T,F,F,F,T,T,T,F,F,F,F,F,F
+,Color swatch,T,T,T,T,T,T,F,F,F,T,F,T,T,F,F,F,F,F
+,Radio button,T,T,T,T,T,T,F,F,F,T,F,F,F,F,F,F,F,F
+,Button,T,T,T,T,T,T,F,F,F,T,F,F,F,F,F,F,F,F
+,Text box,T,T,T,T,T,T,F,F,F,F,F,F,F,T,T,T,F,F
+,Number field,T,T,T,T,T,T,F,F,F,F,F,F,F,T,F,F,T,T
+,Date picker,T,T,T,T,T,T,F,F,F,F,F,F,F,F,F,F,F,F
