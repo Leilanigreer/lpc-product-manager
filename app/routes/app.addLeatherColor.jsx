@@ -4,8 +4,9 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { json } from "@remix-run/node";
 import { loader as dataLoader } from "../lib/loaders";
 import { authenticate } from "../shopify.server";
-import { Page, Layout, InlineStack, Text, Card, Select, TextField, Checkbox, BlockStack, Tag, Combobox, Listbox, Icon, Box } from "@shopify/polaris";
+import { Page, Layout, InlineStack, Text, Card, Select, TextField, Checkbox, BlockStack, Tag, Combobox, Listbox, Icon, Box, Button, Banner, Modal, InlineError } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
+import ImageDropZone from '../components/ImageDropZone';
 
 
 
@@ -35,6 +36,40 @@ export default function AddLeatherColor () {
   const [selectedColorTags, setSelectedColorTags] = useState([]);
   // State for Combobox input
   const [colorTagInput, setColorTagInput] = useState("");
+  // State for error messages
+  const [error, setError] = useState("");
+  // State for modal visibility
+  const [modalOpen, setModalOpen] = useState(false);
+  // State for abbreviation
+  const [generatedAbbr, setGeneratedAbbr] = useState("");
+  // State for formatted name
+  const [formattedName, setFormattedName] = useState("");
+
+  // Utility: Title Case
+  const toTitleCase = (str) => {
+    return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+  };
+
+  // Utility: Generate Abbreviation
+  const generateAbbreviation = (name, existingAbbrs) => {
+    if (!name) return "";
+    const words = name.split(" ").filter(Boolean);
+    let abbr = words.map(w => w[0].toUpperCase()).join("");
+    if (!existingAbbrs.includes(abbr)) return abbr;
+    // Try adding second letter (lowercase) of each word
+    let i = 1;
+    while (true) {
+      let nextAbbr = words.map(w => w[0].toUpperCase() + (w[i] ? w[i].toLowerCase() : "")).join("");
+      if (!existingAbbrs.includes(nextAbbr)) return nextAbbr;
+      i++;
+      // Fallback: if we run out of letters, append a number
+      if (i > Math.max(...words.map(w => w.length))) {
+        let n = 2;
+        while (existingAbbrs.includes(abbr + n)) n++;
+        return abbr + n;
+      }
+    }
+  };
 
   // Filtered options for Combobox
   const filteredColorTagOptions = useMemo(() => {
@@ -50,8 +85,10 @@ export default function AddLeatherColor () {
   // Handler for text input
   const handleLeatherColorNameChange = useCallback(
     (value) => {
-      setLeatherColorName(value);
-      console.log('New leather color name:', value);
+      const formatted = toTitleCase(value);
+      setLeatherColorName(formatted);
+      setFormattedName(formatted);
+      setError("");
     },
     []
   );
@@ -69,12 +106,53 @@ export default function AddLeatherColor () {
     setSelectedColorTags((prev) => prev.filter((v) => v !== tagValue));
   }, []);
 
+  // Handler for Create button
+  const handleCreate = useCallback(() => {
+    const name = toTitleCase(leatherColorName.trim());
+    setFormattedName(name);
+    // Check uniqueness
+    const nameExists = leatherColors.some(lc => lc.label && lc.label.toLowerCase() === name.toLowerCase());
+    if (!name) {
+      setError("Please enter a leather color name.");
+      return;
+    }
+    if (nameExists) {
+      setError("This leather color name already exists.");
+      return;
+    }
+    // Generate abbreviation
+    const existingAbbrs = leatherColors.map(lc => lc.abbreviation);
+    const abbr = generateAbbreviation(name, existingAbbrs);
+    setGeneratedAbbr(abbr);
+    setModalOpen(true);
+    setError("");
+  }, [leatherColorName, leatherColors]);
+
+  // Handler for confirming in modal
+  const handleConfirm = useCallback(() => {
+    setModalOpen(false);
+    // Here you would submit the form or call the backend
+    // For now, just reset the form
+    setLeatherColorName("");
+    setSelectedColorTags([]);
+    setColorTagInput("");
+    setGeneratedAbbr("");
+    setFormattedName("");
+    setError("");
+    // Optionally show a success message
+  }, []);
+
+  // Handler for closing modal
+  const handleModalClose = useCallback(() => {
+    setModalOpen(false);
+  }, []);
+
   return (
     <Page>
-      <TitleBar title="Updated Collection Pricing" />
+      <TitleBar title="Add a New Leather Color" />
       <Layout>
-        <Card>
-          <InlineStack>
+        <Layout.Section variant="oneHalf">
+          <Card>
             <BlockStack gap="400">
               <Text variant="headingMd">Add New Leather Color</Text>
               <TextField
@@ -84,7 +162,7 @@ export default function AddLeatherColor () {
                 autoComplete="off"
                 placeholder="Enter new leather color name"
               />
-              <Text variant="bodyMd" as="span">Select color tags:</Text>
+              {error && <InlineError message={error} fieldID="leatherColorName" />}
               <Box width="100%">
                 <Combobox
                   activator={
@@ -122,10 +200,47 @@ export default function AddLeatherColor () {
                   ) : null;
                 })}
               </InlineStack>
+              {/* <ImageDropZone
+                size="additional"
+                label="Leather Image"
+                // onDrop={handleLeatherImageDrop} // <-- To be implemented
+                // uploadedImageUrl={leatherImageUrl} // <-- To be implemented
+              />
+              <Banner status="info" title="Feature in development">
+                Image upload for leather colors is coming soon! You can continue filling out the rest of the form.
+              </Banner> */}
+              <Button primary onClick={handleCreate}> Create </Button>
             </BlockStack>
-          </InlineStack>
-        </Card>
+          </Card>
+        </Layout.Section>
       </Layout>
+      <Modal
+        open={modalOpen}
+        onClose={handleModalClose}
+        title="Confirm New Leather Color"
+        primaryAction={{
+          content: "Confirm",
+          onAction: handleConfirm,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: handleModalClose,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="200">
+            {/* <Text variant="headingMd">Please confirm the details:</Text> */}
+            <Text><b>Name:</b> {formattedName}</Text>
+            <Text><b>Abbreviation:</b> {generatedAbbr}</Text>
+            <Text><b>Tags:</b> {selectedColorTags.map(tagValue => {
+              const tagObj = colorTags.find(t => t.value === tagValue);
+              return tagObj ? tagObj.label : tagValue;
+            }).join(", ") || "None"}</Text>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }
