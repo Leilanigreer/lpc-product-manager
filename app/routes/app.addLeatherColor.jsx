@@ -4,7 +4,8 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { json } from "@remix-run/node";
 import { loader as dataLoader } from "../lib/loaders";
 import { authenticate } from "../shopify.server";
-import { Page, Layout, InlineStack, Text, Card, Select } from "@shopify/polaris";
+import { Page, Layout, InlineStack, Text, Card, Select, TextField, Checkbox, BlockStack, Tag, Combobox, Listbox, Icon, Box } from "@shopify/polaris";
+import { SearchIcon } from '@shopify/polaris-icons';
 
 
 
@@ -28,39 +29,45 @@ export default function AddLeatherColor () {
       colorTags,
   } = useLoaderData();
 
-  const leatherColorOptions = useMemo(() => [
-    { label: 'Select a leather color ...', value: '' },
-    ...(leatherColors
-      ?.map(color => ({
-        label: color.label,
-        value: color.abbreviation
-      })) || []
-    )
-  ], [leatherColors]);
+  // State for new leather color name
+  const [leatherColorName, setLeatherColorName] = useState("");
+  // State for selected color tags (array of values)
+  const [selectedColorTags, setSelectedColorTags] = useState([]);
+  // State for Combobox input
+  const [colorTagInput, setColorTagInput] = useState("");
 
-  const colorTagOptions = useMemo(() => [
-    { label: 'Select a color tag ...', value: '' },
-    ...(colorTags
-      ?.map(tag => ({
-        label: tag.label,
-        value: tag.value
-      })) || []
-    )
-  ], [colorTags]);
+  // Filtered options for Combobox
+  const filteredColorTagOptions = useMemo(() => {
+    const search = colorTagInput.toLowerCase();
+    return colorTags.filter(tag =>
+      tag.label.toLowerCase().includes(search) && !selectedColorTags.includes(tag.value)
+    ).map(tag => ({
+      label: tag.label,
+      value: tag.value
+    }));
+  }, [colorTags, colorTagInput, selectedColorTags]);
 
-  const handleLeatherColorChange = useCallback(
+  // Handler for text input
+  const handleLeatherColorNameChange = useCallback(
     (value) => {
-      console.log('Selected leather color:', value);
+      setLeatherColorName(value);
+      console.log('New leather color name:', value);
     },
     []
   );
 
-  const handleColorTagChange = useCallback(
-    (value) => {
-      console.log('Selected color tag:', value);
-    },
-    []
-  );
+  // Handler for selecting a tag from Combobox
+  const handleColorTagSelect = useCallback((value) => {
+    if (!selectedColorTags.includes(value)) {
+      setSelectedColorTags(prev => [...prev, value]);
+    }
+    setColorTagInput("");
+  }, [selectedColorTags]);
+
+  // Handler for removing a selected tag
+  const handleRemoveColorTag = useCallback((tagValue) => {
+    setSelectedColorTags((prev) => prev.filter((v) => v !== tagValue));
+  }, []);
 
   return (
     <Page>
@@ -68,19 +75,54 @@ export default function AddLeatherColor () {
       <Layout>
         <Card>
           <InlineStack>
-            <Text>
-              Hello World
-              <Select
-              label="Select a leather color"
-              options={leatherColorOptions}
-              onChange={handleLeatherColorChange}
+            <BlockStack gap="400">
+              <Text variant="headingMd">Add New Leather Color</Text>
+              <TextField
+                label="Leather color name"
+                value={leatherColorName}
+                onChange={handleLeatherColorNameChange}
+                autoComplete="off"
+                placeholder="Enter new leather color name"
               />
-              <Select
-              label="Select a color tag"
-              options={colorTagOptions}
-              onChange={handleColorTagChange}
-              />
-            </Text>
+              <Text variant="bodyMd" as="span">Select color tags:</Text>
+              <Box width="100%">
+                <Combobox
+                  activator={
+                    <Combobox.TextField
+                      prefix={<Icon source={SearchIcon} />}
+                      onChange={setColorTagInput}
+                      label="Add color tag(s)"
+                      value={colorTagInput}
+                      placeholder="Search or select color tags"
+                      autoComplete="off"
+                    />
+                  }
+                >
+                  {filteredColorTagOptions.length > 0 && (
+                    <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
+                      <Listbox onSelect={handleColorTagSelect}>
+                        {filteredColorTagOptions.map(option => (
+                          <Listbox.Option key={option.value} value={option.value}>
+                            {option.label}
+                          </Listbox.Option>
+                        ))}
+                      </Listbox>
+                    </div>
+                  )}
+                </Combobox>
+              </Box>
+              {/* Display selected tags as removable tags */}
+              <InlineStack gap="200" wrap>
+                {selectedColorTags.map((tagValue) => {
+                  const tagObj = colorTags.find((t) => t.value === tagValue);
+                  return tagObj ? (
+                    <Tag key={tagValue} onRemove={() => handleRemoveColorTag(tagValue)}>
+                      {tagObj.label}
+                    </Tag>
+                  ) : null;
+                })}
+              </InlineStack>
+            </BlockStack>
           </InlineStack>
         </Card>
       </Layout>
