@@ -9,7 +9,9 @@ import {
   getShopifyCollections,
   getCommonDescription, 
   getProductSets,
-  getColorTags
+  getColorTags,
+  getIsacordNumbers,
+  getAmannNumbers
 } from "../utils/dataFetchers";
 
 export const loader = async () => {  
@@ -24,6 +26,8 @@ export const loader = async () => {
       commonDescription,
       productSets,
       colorTags,
+      isacordNumbers,
+       amannNumbers,
     ] = await Promise.all([
       getLeatherColors(),
       getStitchingThreadColors(),
@@ -33,7 +37,9 @@ export const loader = async () => {
       getShopifyCollections(),
       getCommonDescription(),
       getProductSets(),
-      getColorTags()
+      getColorTags(),
+      getIsacordNumbers(),
+      getAmannNumbers()
     ]);
 
     return {
@@ -46,6 +52,8 @@ export const loader = async () => {
       commonDescription,
       productSets,
       colorTags,
+      isacordNumbers,
+       amannNumbers,
       error: null
     };
   } catch (error) {
@@ -61,6 +69,8 @@ export const loader = async () => {
         commonDescription: [],
         productSets: [],
         colorTags: [],
+        isacordNumbers: [],
+         amannNumbers: [],
         error: error.message
       }), 
       { status: 500,
