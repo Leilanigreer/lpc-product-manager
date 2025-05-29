@@ -18,11 +18,13 @@ export const getLeatherColors = async () => {
       label: name,
       abbreviation,
       url_id,
-      colorTags: colorTags.map(tag => ({
-        value: tag.id,
-        label: tag.name
-      }))
-    }));
+      colorTags: colorTags
+        .map(tag => ({
+          value: tag.id,
+          label: tag.name
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label))
+    })).sort((a, b) => a.label.localeCompare(b.label));
   } catch (error) {
     console.error("Error fetching leather colors:", error);
     throw error;
@@ -59,7 +61,8 @@ export const getStitchingThreadColors = async () => {
         value: number.id,
         label: number.number
       }))
-    }));
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
   } catch (error) {
    console.error("Error fetching stitching thread colors:", error);
     throw error;
@@ -96,7 +99,8 @@ export const getEmbroideryThreadColors = async () => {
         value: number.id,
         label: number.number
       }))
-    }));
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
   } catch (error) {
     console.error("Error fetching embroidery thread colors:", error);
     throw error;
@@ -106,11 +110,13 @@ export const getEmbroideryThreadColors = async () => {
 export const getFonts = async () => {
   try {
     const fonts = await prisma.Font.findMany();
-    return fonts.map(({ id, name, url_id }) => ({
-      value: id, 
-      label: name,
-      url_id 
-    }));
+    return fonts
+      .map(({ id, name, url_id }) => ({
+        value: id, 
+        label: name,
+        url_id 
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   } catch (error) {
     console.error("Error fetching fonts:", error);
     throw error;
@@ -188,83 +194,87 @@ export const getShopifyCollections = async () => {
       }
     });
     
-    return shopifyCollections.map(({ 
-      id, 
-      shopifyId, 
-      admin_graphql_api_id, 
-      title,
-      handle,
-      skuPattern,
-      threadType,
-      description,
-      commonDescription,
-      needsSecondaryLeather,
-      needsStitchingColor,
-      needsColorDesignation,
-      needsStyle,
-      defaultStyleNamePattern,
-      stylePerCollection,
-      showInDropdown,
-      styles,
-      titleFormat,
-      PriceTier
-    }) => ({
-      value: id,
-      shopifyId,
-      admin_graphql_api_id,
-      label: title,
-      handle,
-      skuPattern,
-      threadType,
-      description,
-      commonDescription,
-      needsSecondaryLeather,
-      needsStitchingColor,
-      needsColorDesignation,
-      needsStyle,
-      defaultStyleNamePattern,
-      stylePerCollection,
-      showInDropdown,
-      styles: styles.map(sc => ({
-        value: sc.style.id,
-        id: sc.style.id,
-        label: sc.style.name,
-        abbreviation: sc.style.abbreviation,
-        url_id: sc.style.url_id,
-        useOppositeLeather: sc.style.useOppositeLeather,
-        leatherPhrase: sc.style.leatherPhrase,
-        namePattern: sc.style.namePattern,
-        customNamePattern: sc.style.customNamePattern,
-        overrideSecondaryLeather: sc.overrideSecondaryLeather,
-        overrideStitchingColor: sc.overrideStitchingColor,
-        overrideColorDesignation: sc.overrideColorDesignation,
-        skuPattern: sc.skuPattern,
-        titleTemplate: sc.titleTemplate,
-        seoTemplate: sc.seoTemplate,
-        handleTemplate: sc.handleTemplate,
-        validation: sc.validation,
-        overrideNamePattern: sc.overrideNamePattern,
-        overrideCustomNamePattern: sc.overrideCustomNamePattern
-      })),
-      titleFormat: titleFormat ? {
-        titleTemplate: titleFormat.titleTemplate,
-        seoTemplate: titleFormat.seoTemplate,
-        handleTemplate: titleFormat.handleTemplate,
-        validation: titleFormat.validation
-      }: null,
-      priceTier: PriceTier ? {
-        value: PriceTier.id,
-        name: PriceTier.name,
-        shopifyPrice: parseFloat(PriceTier.shopifyPrice),
-        marketplacePrice: parseFloat(PriceTier.marketplacePrice),
-        adjustments: PriceTier.adjustments.map(adj => ({
-          shapeType: adj.shapeType,
-          shopifyAdjustment: parseFloat(adj.shopifyAdjustment),
-          marketAdjustment: parseFloat(adj.marketAdjustment),
-          isBasePrice: adj.isBasePrice,
-        }))
-      } : null,
-    }));
+    return shopifyCollections
+      .map(({ 
+        id, 
+        shopifyId, 
+        admin_graphql_api_id, 
+        title,
+        handle,
+        skuPattern,
+        threadType,
+        description,
+        commonDescription,
+        needsSecondaryLeather,
+        needsStitchingColor,
+        needsColorDesignation,
+        needsStyle,
+        defaultStyleNamePattern,
+        stylePerCollection,
+        showInDropdown,
+        styles,
+        titleFormat,
+        PriceTier
+      }) => ({
+        value: id,
+        shopifyId,
+        admin_graphql_api_id,
+        label: title,
+        handle,
+        skuPattern,
+        threadType,
+        description,
+        commonDescription,
+        needsSecondaryLeather,
+        needsStitchingColor,
+        needsColorDesignation,
+        needsStyle,
+        defaultStyleNamePattern,
+        stylePerCollection,
+        showInDropdown,
+        styles: styles
+          .map(sc => ({
+            value: sc.style.id,
+            id: sc.style.id,
+            label: sc.style.name,
+            abbreviation: sc.style.abbreviation,
+            url_id: sc.style.url_id,
+            useOppositeLeather: sc.style.useOppositeLeather,
+            leatherPhrase: sc.style.leatherPhrase,
+            namePattern: sc.style.namePattern,
+            customNamePattern: sc.style.customNamePattern,
+            overrideSecondaryLeather: sc.overrideSecondaryLeather,
+            overrideStitchingColor: sc.overrideStitchingColor,
+            overrideColorDesignation: sc.overrideColorDesignation,
+            skuPattern: sc.skuPattern,
+            titleTemplate: sc.titleTemplate,
+            seoTemplate: sc.seoTemplate,
+            handleTemplate: sc.handleTemplate,
+            validation: sc.validation,
+            overrideNamePattern: sc.overrideNamePattern,
+            overrideCustomNamePattern: sc.overrideCustomNamePattern
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label)),
+        titleFormat: titleFormat ? {
+          titleTemplate: titleFormat.titleTemplate,
+          seoTemplate: titleFormat.seoTemplate,
+          handleTemplate: titleFormat.handleTemplate,
+          validation: titleFormat.validation
+        }: null,
+        priceTier: PriceTier ? {
+          value: PriceTier.id,
+          name: PriceTier.name,
+          shopifyPrice: parseFloat(PriceTier.shopifyPrice),
+          marketplacePrice: parseFloat(PriceTier.marketplacePrice),
+          adjustments: PriceTier.adjustments.map(adj => ({
+            shapeType: adj.shapeType,
+            shopifyAdjustment: parseFloat(adj.shopifyAdjustment),
+            marketAdjustment: parseFloat(adj.marketAdjustment),
+            isBasePrice: adj.isBasePrice,
+          }))
+        } : null,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   } catch (error) {
     console.error("Error Fetching Shopify Collections from Prisma", error);
     throw error;
@@ -574,22 +584,24 @@ export const getStyles = async () => {
       }
     });
     
-    return styles.map(({ id, name, abbreviation, url_id, collections }) => ({
-      value: id,
-      label: name,
-      abbreviation,
-      url_id,
-      collections: collections.map(sc => ({
-        handle: sc.collection.handle,
-        needsSecondaryLeather: sc.overrideSecondaryLeather ?? sc.collection.needsSecondaryLeather,
-        needsStitchingColor: sc.overrideStitchingColor ?? sc.collection.needsStitchingColor,
-        needsColorDesignation: sc.overrideColorDesignation ?? sc.collection.needsColorDesignation,
-        titleTemplate: sc.titleTemplate,
-        seoTemplate: sc.seoTemplate,
-        handleTemplate: sc.handleTemplate,
-        validation: sc.validation
+    return styles
+      .map(({ id, name, abbreviation, url_id, collections }) => ({
+        value: id,
+        label: name,
+        abbreviation,
+        url_id,
+        collections: collections.map(sc => ({
+          handle: sc.collection.handle,
+          needsSecondaryLeather: sc.overrideSecondaryLeather ?? sc.collection.needsSecondaryLeather,
+          needsStitchingColor: sc.overrideStitchingColor ?? sc.collection.needsStitchingColor,
+          needsColorDesignation: sc.overrideColorDesignation ?? sc.collection.needsColorDesignation,
+          titleTemplate: sc.titleTemplate,
+          seoTemplate: sc.seoTemplate,
+          handleTemplate: sc.handleTemplate,
+          validation: sc.validation
+        }))
       }))
-    }));
+      .sort((a, b) => a.label.localeCompare(b.label));
   } catch (error) {
     console.error("Error fetching styles:", error);
     throw error;
@@ -715,7 +727,6 @@ export const getAmannNumbers = async () => {
   }
 };
 
-// This fetcher is now optional since the data is included in getStitchingThreadColors, getEmbroideryThreadColors and getLeatherColors
 export const getColorTags = async () => {
   try {
     const colorTags = await prisma.ColorTag.findMany({
@@ -763,7 +774,8 @@ export const getColorTags = async () => {
         abbreviation: leather.abbreviation,
         url_id: leather.url_id
       }))
-    }));
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));;
   } catch (error) {
     console.error("Error fetching color tags:", error);
     throw error;
