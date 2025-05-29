@@ -37,6 +37,7 @@ export default function App() {
           Home
         </Link>
         <Link to="/app/createProducts">Create a new product</Link>
+        <Link to="/app/addLeatherColor">Add Leather Color</Link>
         <Link to="/app/updatePricing">Update Pricing</Link>
       </NavMenu>
       <Outlet />
