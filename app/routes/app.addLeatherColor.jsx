@@ -46,7 +46,6 @@ export const action = async ({ request }) => {
 };
 
 export default function AddLeatherColor () {
-  console.log('[AddLeatherColor] Component rendered');
   const {
       leatherColors,
       colorTags,
@@ -69,10 +68,14 @@ export default function AddLeatherColor () {
   const [formattedName, setFormattedName] = useState("");
   // State for stock type
   const [isLimitedEditionLeather, setIsLimitedEditionLeather] = useState(false);
+  // Add showSuccessBanner state
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
   React.useEffect(() => {
-    console.log('[AddLeatherColor] Component mounted');
-  }, []);
+    if (fetcher.data && fetcher.data.success) {
+      setShowSuccessBanner(true);
+    }
+  }, [fetcher.data?.success]);
 
   // Utility: Title Case
   const toTitleCase = (str) => {
@@ -137,14 +140,6 @@ export default function AddLeatherColor () {
 
   // Handler for Create button
   const handleCreate = useCallback(() => {
-    console.log('[AddLeatherColor] handleCreate called with:', {
-      leatherColorName,
-      generatedAbbr,
-      isLimitedEditionLeather,
-      selectedColorTags,
-      colorTagInput,
-      formattedName
-    });
     const name = toTitleCase(leatherColorName.trim());
     setFormattedName(name);
     // Check uniqueness
@@ -167,7 +162,6 @@ export default function AddLeatherColor () {
 
   // Handler for confirming in modal
   const handleConfirm = useCallback(() => {
-    console.log('[AddLeatherColor] handleConfirm called');
     // Prepare form data
     const formData = new FormData();
     formData.append('name', formattedName);
@@ -189,19 +183,30 @@ export default function AddLeatherColor () {
 
   // Handler for closing modal
   const handleModalClose = useCallback(() => {
-    alert('[AddLeatherColor] handleModalClose called');
-    console.log('[AddLeatherColor] handleModalClose called');
     setModalOpen(false);
   }, []);
 
   return (
     <Page>
-      {console.log('[AddLeatherColor] Render return')}
       <TitleBar title="Add a New Leather Color" />
       {/* Optionally show fetcher state */}
-      {fetcher.state === 'submitting' && <Banner status="info">Submitting...</Banner>}
-      {fetcher.data && fetcher.data.success && <Banner status="success">Leather color created!</Banner>}
-      {fetcher.data && fetcher.data.error && <Banner status="critical">{fetcher.data.error}</Banner>}
+      {fetcher.state === 'submitting' && (
+        <Box paddingBlock="400">
+          <Banner status="info">Submitting...</Banner>
+        </Box>
+      )}
+      {fetcher.data && fetcher.data.success && showSuccessBanner && (
+        <Box paddingBlock="400">
+          <Banner status="success" onDismiss={() => setShowSuccessBanner(false)}>
+            Leather color created!
+          </Banner>
+        </Box>
+      )}
+      {fetcher.data && fetcher.data.error && (
+        <Box paddingBlock="400">
+          <Banner status="critical">{fetcher.data.error}</Banner>
+        </Box>
+      )}
       <Layout>
         <Layout.Section variant="oneHalf">
           <Card>
@@ -300,14 +305,14 @@ export default function AddLeatherColor () {
               <Banner status="info" title="Feature in development">
                 Image upload for leather colors is coming soon! You can continue filling out the rest of the form.
               </Banner> */}
-              <Button primary onClick={() => { alert('[AddLeatherColor] Create button clicked'); console.log('[AddLeatherColor] Create button clicked'); handleCreate(); }}> Create </Button>
+              <Button primary onClick={handleCreate}> Create </Button>
             </BlockStack>
           </Card>
         </Layout.Section>
       </Layout>
       <Modal
         open={modalOpen}
-        onClose={() => { console.log('[AddLeatherColor] Modal onClose called'); handleModalClose(); }}
+        onClose={handleModalClose}
         title="Confirm New Leather Color"
         primaryAction={{
           content: "Confirm",
