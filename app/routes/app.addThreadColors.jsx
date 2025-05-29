@@ -37,6 +37,11 @@ export const action = async ({ request }) => {
   return json({ success: true });
 };
 
+// Utility: Title Case
+const toTitleCase = (str) => {
+  return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+};
+
 export default function AddThreadColors() {
   const {
     colorTags,
@@ -135,6 +140,16 @@ export default function AddThreadColors() {
     setStitchColorTags(prev => prev.filter(v => v !== tagValue));
   };
 
+  // Handlers for embroidery and stitching name fields with title case
+  const handleEmbNameChange = (value) => {
+    const formatted = toTitleCase(value);
+    setEmbName(formatted);
+  };
+  const handleStitchNameChange = (value) => {
+    const formatted = toTitleCase(value);
+    setStitchName(formatted);
+  };
+
   return (
     <Page>
       <TitleBar title="Add Thread Colors" />
@@ -147,7 +162,7 @@ export default function AddThreadColors() {
                 <TextField
                   label="Name"
                   value={embName}
-                  onChange={setEmbName}
+                  onChange={handleEmbNameChange}
                   autoComplete="off"
                 />
                 <Select
@@ -206,7 +221,7 @@ export default function AddThreadColors() {
                 <TextField
                   label="Name"
                   value={stitchName}
-                  onChange={setStitchName}
+                  onChange={handleStitchNameChange}
                   autoComplete="off"
                 />
                 <TextField
