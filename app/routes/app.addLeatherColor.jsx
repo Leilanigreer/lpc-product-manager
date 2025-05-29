@@ -4,7 +4,7 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { json } from "@remix-run/node";
 import { loader as dataLoader } from "../lib/loaders";
 import { authenticate } from "../shopify.server";
-import { Page, Layout, InlineStack, Text, Card, Select, TextField, Checkbox, BlockStack, Tag, Combobox, Listbox, Icon, Box, Button, Banner, Modal, InlineError } from "@shopify/polaris";
+import { Page, Layout, InlineStack, Text, Card, Select, TextField, Checkbox, BlockStack, Tag, Combobox, Listbox, Icon, Box, Button, Banner, Modal, InlineError, RadioButton } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
 import ImageDropZone from '../components/ImageDropZone';
 
@@ -44,6 +44,8 @@ export default function AddLeatherColor () {
   const [generatedAbbr, setGeneratedAbbr] = useState("");
   // State for formatted name
   const [formattedName, setFormattedName] = useState("");
+  // State for stock type
+  const [isLimitedEditionLeather, setIsLimitedEditionLeather] = useState(false);
 
   // Utility: Title Case
   const toTitleCase = (str) => {
@@ -138,6 +140,7 @@ export default function AddLeatherColor () {
     setColorTagInput("");
     setGeneratedAbbr("");
     setFormattedName("");
+    setIsLimitedEditionLeather(false);
     setError("");
     // Optionally show a success message
   }, []);
@@ -155,14 +158,53 @@ export default function AddLeatherColor () {
           <Card>
             <BlockStack gap="400">
               <Text variant="headingMd">Add New Leather Color</Text>
-              <TextField
-                label="Leather color name"
-                value={leatherColorName}
-                onChange={handleLeatherColorNameChange}
-                autoComplete="off"
-                placeholder="Enter new leather color name"
-              />
-              {error && <InlineError message={error} fieldID="leatherColorName" />}
+              <BlockStack gap="100">
+                {/* Labels Row */}
+                <InlineStack gap="800" align="start" wrap={false}>
+                  <Box width="50%">
+                    <Text variant="bodyMd" as="label" fontWeight="medium" htmlFor="leatherColorNameInput">
+                      Leather color name
+                    </Text>
+                  </Box>
+                  <Box width="50%">
+                    <Text variant="bodyMd" as="label" fontWeight="medium">
+                      Stock Type
+                    </Text>
+                  </Box>
+                </InlineStack>
+                {/* Fields Row */}
+                <InlineStack gap="800" align="start" wrap={false}>
+                  <Box width="50%">
+                    <TextField
+                      id="leatherColorNameInput"
+                      label=""
+                      value={leatherColorName}
+                      onChange={handleLeatherColorNameChange}
+                      autoComplete="off"
+                      placeholder="Enter new leather color name"
+                    />
+                    {error && <InlineError message={error} fieldID="leatherColorName" />}
+                  </Box>
+                  <Box width="50%">
+                    <InlineStack gap="400" wrap={false}>
+                      <RadioButton
+                        label="Standard Stock"
+                        checked={!isLimitedEditionLeather}
+                        id="standardStock"
+                        name="stockType"
+                        onChange={() => setIsLimitedEditionLeather(false)}
+                      />
+                      <RadioButton
+                        label="Limited Edition"
+                        checked={isLimitedEditionLeather}
+                        id="limitedEdition"
+                        name="stockType"
+                        onChange={() => setIsLimitedEditionLeather(true)}
+                      />
+                    </InlineStack>
+                  </Box>
+                </InlineStack>
+              </BlockStack>
               <Box width="100%">
                 <Combobox
                   activator={
@@ -238,6 +280,7 @@ export default function AddLeatherColor () {
               const tagObj = colorTags.find(t => t.value === tagValue);
               return tagObj ? tagObj.label : tagValue;
             }).join(", ") || "None"}</Text>
+            <Text><b>Stock Type:</b> {isLimitedEditionLeather ? "Limited Edition" : "Standard Stock"}</Text>
           </BlockStack>
         </Modal.Section>
       </Modal>
