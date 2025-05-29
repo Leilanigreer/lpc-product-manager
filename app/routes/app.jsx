@@ -39,6 +39,7 @@ export default function App() {
         <Link to="/app/createProducts">Create a new product</Link>
         <Link to="/app/addLeatherColor">Add Leather Color</Link>
         <Link to="/app/updatePricing">Update Pricing</Link>
+        <Link to="/app/addThreadColors">Add Thread Colors</Link>
       </NavMenu>
       <Outlet />
     </PolarisProvider>
