@@ -4,9 +4,9 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { json } from "@remix-run/node";
 import { loader as dataLoader } from "../lib/loaders";
 import { authenticate } from "../shopify.server";
-import { Page, Layout, InlineStack, Text, Card, Select, TextField, Checkbox, BlockStack, Tag, Combobox, Listbox, Icon, Box, Button, Banner, Modal, InlineError, RadioButton } from "@shopify/polaris";
+import { Page, Layout, InlineStack, Text, Card, TextField, BlockStack, Tag, Combobox, Listbox, Icon, Box, Button, Banner, Modal, InlineError, RadioButton } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
-import ImageDropZone from '../components/ImageDropZone';
+// import ImageDropZone from '../components/ImageDropZone';
 import { createLeatherColorWithTags } from "../lib/server/leatherColorOperations.server.js";
 
 
@@ -72,10 +72,10 @@ export default function AddLeatherColor () {
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
   React.useEffect(() => {
-    if (fetcher.data && fetcher.data.success) {
+    if (fetcher.data) {
       setShowSuccessBanner(true);
     }
-  }, [fetcher.data?.success]);
+  }, [fetcher.data]);
 
   // Utility: Title Case
   const toTitleCase = (str) => {
@@ -90,8 +90,11 @@ export default function AddLeatherColor () {
     if (!existingAbbrs.includes(abbr)) return abbr;
     // Try adding second letter (lowercase) of each word
     let i = 1;
+    const makeAbbr = (words, i) =>
+      words.map(w => w[0].toUpperCase() + (w[i] ? w[i].toLowerCase() : "")).join("");
+
     while (true) {
-      let nextAbbr = words.map(w => w[0].toUpperCase() + (w[i] ? w[i].toLowerCase() : "")).join("");
+      let nextAbbr = makeAbbr(words, i);
       if (!existingAbbrs.includes(nextAbbr)) return nextAbbr;
       i++;
       // Fallback: if we run out of letters, append a number
@@ -158,7 +161,7 @@ export default function AddLeatherColor () {
     setGeneratedAbbr(abbr);
     setModalOpen(true);
     setError("");
-  }, [leatherColorName, leatherColors, generatedAbbr, isLimitedEditionLeather, selectedColorTags, colorTagInput, formattedName]);
+  }, [leatherColorName, leatherColors]);
 
   // Handler for confirming in modal
   const handleConfirm = useCallback(() => {
@@ -179,7 +182,7 @@ export default function AddLeatherColor () {
     setFormattedName("");
     setIsLimitedEditionLeather(false);
     setError("");
-  }, [formattedName, generatedAbbr, isLimitedEditionLeather, selectedColorTags]);
+  }, [formattedName, generatedAbbr, isLimitedEditionLeather, selectedColorTags, fetcher]);
 
   // Handler for closing modal
   const handleModalClose = useCallback(() => {
@@ -189,7 +192,6 @@ export default function AddLeatherColor () {
   return (
     <Page>
       <TitleBar title="Add a New Leather Color" />
-      {/* Optionally show fetcher state */}
       {fetcher.state === 'submitting' && (
         <Box paddingBlock="400">
           <Banner status="info">Submitting...</Banner>
@@ -198,7 +200,7 @@ export default function AddLeatherColor () {
       {fetcher.data && fetcher.data.success && showSuccessBanner && (
         <Box paddingBlock="400">
           <Banner status="success" onDismiss={() => setShowSuccessBanner(false)}>
-            Leather color created!
+            Leather color {fetcher.data.leatherColor?.name} created!
           </Banner>
         </Box>
       )}
@@ -327,7 +329,6 @@ export default function AddLeatherColor () {
       >
         <Modal.Section>
           <BlockStack gap="200">
-            {/* <Text variant="headingMd">Please confirm the details:</Text> */}
             <Text><b>Name:</b> {formattedName}</Text>
             <Text><b>Abbreviation:</b> {generatedAbbr}</Text>
             <Text><b>Tags:</b> {selectedColorTags.map(tagValue => {
