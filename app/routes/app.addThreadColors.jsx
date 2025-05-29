@@ -45,7 +45,7 @@ const toTitleCase = (str) => {
 export default function AddThreadColors() {
   const {
     colorTags,
-    // isacordNumbers,
+    isacordNumbers,
     // amannNumbers,
     // stitchingThreadColors,
     // embroideryThreadColors,
@@ -55,6 +55,7 @@ export default function AddThreadColors() {
   // Embroidery form state
   const [embName, setEmbName] = useState("");
   const [embIsacord, setEmbIsacord] = useState("");
+  const [embIsacordInput, setEmbIsacordInput] = useState("");
   const [embColorTags, setEmbColorTags] = useState([]);
   const [embColorTagInput, setEmbColorTagInput] = useState("");
   const [embAbbreviation, setEmbAbbreviation] = useState("");
@@ -88,7 +89,7 @@ export default function AddThreadColors() {
   // Prepare options for Select components (static for now)
   const isacordOptions = [
     { label: "Select Isacord Number", value: "" },
-    // ...isacordNumbers.map(num => ({ label: num.label, value: num.value }))
+    ...isacordNumbers.map(num => ({ label: num.label, value: num.value }))
   ];
   const colorTagOptions = useMemo(() =>
     colorTags?.map(tag => ({ label: tag.label, value: tag.value })) || [],
@@ -117,6 +118,14 @@ export default function AddThreadColors() {
       value: tag.value
     }));
   }, [colorTags, stitchColorTagInput, stitchColorTags]);
+
+  // Filtered options for Isacord numbers
+  const filteredIsacordOptions = useMemo(() => {
+    const search = embIsacordInput.toLowerCase();
+    return isacordNumbers.filter(num =>
+      num.label.toLowerCase().includes(search)
+    );
+  }, [isacordNumbers, embIsacordInput]);
 
   // Handlers for embroidery color tags
   const handleEmbColorTagSelect = (value) => {
@@ -150,6 +159,12 @@ export default function AddThreadColors() {
     setStitchName(formatted);
   };
 
+  // Handler for Isacord selection
+  const handleIsacordSelect = (value) => {
+    setEmbIsacord(value);
+    setEmbIsacordInput("");
+  };
+
   return (
     <Page>
       <TitleBar title="Add Thread Colors" />
@@ -165,12 +180,35 @@ export default function AddThreadColors() {
                   onChange={handleEmbNameChange}
                   autoComplete="off"
                 />
-                <Select
-                  label="Isacord Number"
-                  options={isacordOptions}
-                  value={embIsacord}
-                  onChange={setEmbIsacord}
-                />
+                <Combobox
+                  activator={
+                    <Combobox.TextField
+                      prefix={<Icon source={SearchIcon} />}
+                      onChange={setEmbIsacordInput}
+                      label="Isacord Number"
+                      value={embIsacordInput}
+                      placeholder="Search or select Isacord Number"
+                      autoComplete="off"
+                    />
+                  }
+                >
+                  {filteredIsacordOptions.length > 0 && (
+                    <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
+                      <Listbox onSelect={handleIsacordSelect}>
+                        {filteredIsacordOptions.map(option => (
+                          <Listbox.Option key={option.value} value={option.value}>
+                            {option.label}
+                          </Listbox.Option>
+                        ))}
+                      </Listbox>
+                    </div>
+                  )}
+                </Combobox>
+                {embIsacord && (
+                  <InlineStack gap="200" wrap>
+                    <Tag onRemove={() => setEmbIsacord("")}>{isacordNumbers.find(num => num.value === embIsacord)?.label || embIsacord}</Tag>
+                  </InlineStack>
+                )}
                 <Combobox
                   activator={
                     <Combobox.TextField
