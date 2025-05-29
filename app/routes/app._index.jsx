@@ -42,6 +42,16 @@ export default function Index() {
                       </BlockStack>
                     </Card>
                   </Grid.Cell >
+                  <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
+                    <Card title="Add Leather Color">
+                      <BlockStack gap="400">
+                        <Text variant="bodyMd">
+                          Add a new leather color for product creation
+                        </Text>
+                        <Button icon={PlusIcon} onClick={() => navigate("app/addLeatherColor")}>Add Leather Color</Button>
+                      </BlockStack>
+                    </Card>
+                  </Grid.Cell>
                 {/* Add more feature descriptions as needed */}
                 </Grid>
                 <Card>
