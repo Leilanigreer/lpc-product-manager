@@ -7,6 +7,7 @@ import { authenticate } from "../shopify.server";
 import { Page, Layout, InlineStack, Text, Card, Select, TextField, Checkbox, BlockStack, Tag, Combobox, Listbox, Icon, Box, Button, Banner, Modal, InlineError, RadioButton } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
 import ImageDropZone from '../components/ImageDropZone';
+import { createLeatherColorWithTags } from "../lib/server/leatherColorOperations.server.js";
 
 
 
@@ -19,16 +20,38 @@ export const loader = async ({ request }) => {
 
 export const action = async ({ request }) => {
   await authenticate.admin(request);
-  
-  // Temporarily disabled for testing form
-  return json({ success: true });
+  const formData = await request.formData();
+  console.log('[AddLeatherColor] Received formData:', Array.from(formData.entries()));
+  const name = formData.get("name");
+  const abbreviation = formData.get("abbreviation");
+  const isLimitedEditionLeather = formData.get("isLimitedEditionLeather") === "true";
+  const colorTagIds = formData.getAll("colorTagIds");
+  console.log('[AddLeatherColor] Parsed values:', { name, abbreviation, isLimitedEditionLeather, colorTagIds });
+
+  if (!name || !abbreviation) {
+    return json({ success: false, error: "Missing required fields." }, { status: 400 });
+  }
+
+  try {
+    const leatherColor = await createLeatherColorWithTags(
+      { name, abbreviation, isLimitedEditionLeather },
+      colorTagIds
+    );
+    console.log('[AddLeatherColor] Created leatherColor:', leatherColor);
+    return json({ success: true, leatherColor });
+  } catch (error) {
+    console.error('[AddLeatherColor] Error in action:', error);
+    return json({ success: false, error: error.message }, { status: 500 });
+  }
 };
 
 export default function AddLeatherColor () {
+  console.log('[AddLeatherColor] Component rendered');
   const {
       leatherColors,
       colorTags,
   } = useLoaderData();
+  const fetcher = useFetcher();
 
   // State for new leather color name
   const [leatherColorName, setLeatherColorName] = useState("");
@@ -46,6 +69,10 @@ export default function AddLeatherColor () {
   const [formattedName, setFormattedName] = useState("");
   // State for stock type
   const [isLimitedEditionLeather, setIsLimitedEditionLeather] = useState(false);
+
+  React.useEffect(() => {
+    console.log('[AddLeatherColor] Component mounted');
+  }, []);
 
   // Utility: Title Case
   const toTitleCase = (str) => {
@@ -110,6 +137,14 @@ export default function AddLeatherColor () {
 
   // Handler for Create button
   const handleCreate = useCallback(() => {
+    console.log('[AddLeatherColor] handleCreate called with:', {
+      leatherColorName,
+      generatedAbbr,
+      isLimitedEditionLeather,
+      selectedColorTags,
+      colorTagInput,
+      formattedName
+    });
     const name = toTitleCase(leatherColorName.trim());
     setFormattedName(name);
     // Check uniqueness
@@ -128,13 +163,21 @@ export default function AddLeatherColor () {
     setGeneratedAbbr(abbr);
     setModalOpen(true);
     setError("");
-  }, [leatherColorName, leatherColors]);
+  }, [leatherColorName, leatherColors, generatedAbbr, isLimitedEditionLeather, selectedColorTags, colorTagInput, formattedName]);
 
   // Handler for confirming in modal
   const handleConfirm = useCallback(() => {
+    console.log('[AddLeatherColor] handleConfirm called');
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('name', formattedName);
+    formData.append('abbreviation', generatedAbbr);
+    formData.append('isLimitedEditionLeather', isLimitedEditionLeather ? 'true' : 'false');
+    selectedColorTags.forEach(tagId => formData.append('colorTagIds', tagId));
+    console.log('[AddLeatherColor] Submitting formData:', Array.from(formData.entries()));
+    fetcher.submit(formData, { method: 'post' });
     setModalOpen(false);
-    // Here you would submit the form or call the backend
-    // For now, just reset the form
+    // Reset form state after submission
     setLeatherColorName("");
     setSelectedColorTags([]);
     setColorTagInput("");
@@ -142,17 +185,23 @@ export default function AddLeatherColor () {
     setFormattedName("");
     setIsLimitedEditionLeather(false);
     setError("");
-    // Optionally show a success message
-  }, []);
+  }, [formattedName, generatedAbbr, isLimitedEditionLeather, selectedColorTags]);
 
   // Handler for closing modal
   const handleModalClose = useCallback(() => {
+    alert('[AddLeatherColor] handleModalClose called');
+    console.log('[AddLeatherColor] handleModalClose called');
     setModalOpen(false);
   }, []);
 
   return (
     <Page>
+      {console.log('[AddLeatherColor] Render return')}
       <TitleBar title="Add a New Leather Color" />
+      {/* Optionally show fetcher state */}
+      {fetcher.state === 'submitting' && <Banner status="info">Submitting...</Banner>}
+      {fetcher.data && fetcher.data.success && <Banner status="success">Leather color created!</Banner>}
+      {fetcher.data && fetcher.data.error && <Banner status="critical">{fetcher.data.error}</Banner>}
       <Layout>
         <Layout.Section variant="oneHalf">
           <Card>
@@ -251,14 +300,14 @@ export default function AddLeatherColor () {
               <Banner status="info" title="Feature in development">
                 Image upload for leather colors is coming soon! You can continue filling out the rest of the form.
               </Banner> */}
-              <Button primary onClick={handleCreate}> Create </Button>
+              <Button primary onClick={() => { alert('[AddLeatherColor] Create button clicked'); console.log('[AddLeatherColor] Create button clicked'); handleCreate(); }}> Create </Button>
             </BlockStack>
           </Card>
         </Layout.Section>
       </Layout>
       <Modal
         open={modalOpen}
-        onClose={handleModalClose}
+        onClose={() => { console.log('[AddLeatherColor] Modal onClose called'); handleModalClose(); }}
         title="Confirm New Leather Color"
         primaryAction={{
           content: "Confirm",
