@@ -75,6 +75,8 @@ export default function AddThreadColors() {
   const [stitchGeneratedAbbr, setStitchGeneratedAbbr] = useState("");
   const [stitchFormattedName, setStitchFormattedName] = useState("");
 
+  // Add state for intent
+  const [stitchIntent, setStitchIntent] = useState(null);
 
   // Filtered options for embroidery color tags
   const filteredEmbColorTagOptions = useMemo(() => {
@@ -227,19 +229,51 @@ export default function AddThreadColors() {
   const handleStitchSave = () => {
     const name = toTitleCase(stitchName.trim());
     setStitchFormattedName(name);
-    // Check uniqueness
-    const nameExists = (stitchingThreadColors || []).some(tc => tc.label && tc.label.toLowerCase() === name.toLowerCase());
+    const amannTrimmed = (stitchAmann || "").trim();
     if (!name) {
       setStitchError("Please enter a thread color name.");
       return;
     }
-    if (nameExists) {
-      setStitchError("This stitching thread color name already exists.");
+    if (!amannTrimmed) {
+      setStitchError("Please enter an Amann number.");
       return;
     }
-    // Generate abbreviation (with S suffix)
-    const existingAbbrs = (stitchingThreadColors || []).map(tc => tc.abbreviation);
-    const abbr = generateStitchAbbreviation(name, existingAbbrs);
+    // Find if Amann number exists and which name it is linked to
+    let amannExists = false;
+    let amannLinkedName = null;
+    (stitchingThreadColors || []).forEach(tc => {
+      (tc.amannNumbers || []).forEach(num => {
+        if ((num.label || "").trim().toLowerCase() === amannTrimmed.toLowerCase()) {
+          amannExists = true;
+          amannLinkedName = tc.label;
+        }
+      });
+    });
+    // Find if name exists and get its abbreviation
+    const existingThread = (stitchingThreadColors || []).find(tc => tc.label && tc.label.toLowerCase() === name.toLowerCase());
+    const nameExists = !!existingThread;
+    if (amannExists) {
+      if (amannLinkedName && amannLinkedName.toLowerCase() === name.toLowerCase()) {
+        setStitchError("This Amann number is already linked to this thread color.");
+        return;
+      } else {
+        setStitchError(`This Amann number is already linked to a different thread color: ${amannLinkedName}`);
+        return;
+      }
+    }
+    let abbr;
+    if (nameExists) {
+      abbr = existingThread.abbreviation;
+    } else {
+      // Both are new: create both
+      const existingAbbrs = (stitchingThreadColors || []).map(tc => tc.abbreviation);
+      abbr = generateStitchAbbreviation(name, existingAbbrs);
+    }
+    if (nameExists) {
+      setStitchIntent({ action: 'linkAmann', name });
+    } else {
+      setStitchIntent({ action: 'createBoth', name });
+    }
     setStitchGeneratedAbbr(abbr);
     setStitchModalOpen(true);
     setStitchError("");
@@ -254,6 +288,7 @@ export default function AddThreadColors() {
     setStitchGeneratedAbbr("");
     setStitchFormattedName("");
     setStitchError("");
+    setStitchIntent(null);
   };
   const handleStitchModalClose = () => {
     setStitchModalOpen(false);
