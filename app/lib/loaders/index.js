@@ -10,7 +10,7 @@ import {
   getCommonDescription, 
   getProductSets,
   getColorTags,
-  getIsacordNumbers,
+  getUnlinkedIsacordNumbers,
   getAmannNumbers
 } from "../utils/dataFetchers";
 
@@ -26,7 +26,7 @@ export const loader = async () => {
       commonDescription,
       productSets,
       colorTags,
-      isacordNumbers,
+      unlinkedIsacordNumbers,
        amannNumbers,
     ] = await Promise.all([
       getLeatherColors(),
@@ -38,7 +38,7 @@ export const loader = async () => {
       getCommonDescription(),
       getProductSets(),
       getColorTags(),
-      getIsacordNumbers(),
+      getUnlinkedIsacordNumbers(),
       getAmannNumbers()
     ]);
 
@@ -52,7 +52,7 @@ export const loader = async () => {
       commonDescription,
       productSets,
       colorTags,
-      isacordNumbers,
+      unlinkedIsacordNumbers,
        amannNumbers,
       error: null
     };
@@ -69,7 +69,7 @@ export const loader = async () => {
         commonDescription: [],
         productSets: [],
         colorTags: [],
-        isacordNumbers: [],
+        unlinkedIsacordNumbers: [],
          amannNumbers: [],
         error: error.message
       }), 

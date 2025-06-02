@@ -561,9 +561,11 @@ export const getProductSets = async () => {
   }
 };
 
-export const getIsacordNumbers = async () => {
+export const getUnlinkedIsacordNumbers = async () => {
   try {
-    const isacordNumbers = await prisma.isacordNumber.findMany();
+    const isacordNumbers = await prisma.isacordNumber.findMany({
+      where: { threadId: null }
+    });
     return isacordNumbers.map(({ id, number }) => ({
       value: id,
       label: number

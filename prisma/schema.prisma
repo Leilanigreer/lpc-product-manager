@@ -27,8 +27,8 @@ model Session {
 
 model LeatherColor {
   id                      String                  @id @default(cuid())
-  name                    String
-  abbreviation            String
+  name                    String                  @unique
+  abbreviation            String                  @unique
   url_id                  String?
   isLimitedEditionLeather Boolean                 @default(false)
   createdAt               DateTime                @default(now())
@@ -41,8 +41,8 @@ model LeatherColor {
 
 model StitchingThread {
   id               String             @id @default(cuid())
-  name             String
-  abbreviation     String
+  name             String             @unique
+  abbreviation     String             @unique
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   colorTags        ColorTag[]         @relation("StitchingThreadToTag")
@@ -52,8 +52,8 @@ model StitchingThread {
 
 model EmbroideryThread {
   id                    String                  @id @default(cuid())
-  name                  String
-  abbreviation          String
+  name                  String                  @unique
+  abbreviation          String                  @unique
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
   colorTags             ColorTag[]              @relation("EmbroideryThreadToTag")
@@ -63,7 +63,7 @@ model EmbroideryThread {
 
 model IsacordNumber {
   id                    String                  @id @default(cuid())
-  number                String
+  number                String                  @unique
   threadId              String?
   wawakColorName        String?
   wawakItemNumber       String?
@@ -78,7 +78,7 @@ model IsacordNumber {
 
 model AmannNumber {
   id               String             @id @default(cuid())
-  number           String
+  number           String             @unique
   threadId         String
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
@@ -100,7 +100,7 @@ model ColorTag {
 
 model Font {
   id                String              @id @default(cuid())
-  name              String
+  name              String              @unique
   url_id            String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -118,9 +118,9 @@ enum ShapeType {
 
 model Shape {
   id                    String                  @id @default(cuid())
-  name                  String
+  name                  String                  @unique
   displayOrder          Int                     @default(0)
-  abbreviation          String?
+  abbreviation          String?                 @unique
   shapeType             ShapeType               @default(OTHER)
   isActive              Boolean                 @default(true)
   createdAt             DateTime                @default(now())
@@ -136,8 +136,8 @@ enum StyleNamePattern {
 
 model Style {
   id                    String                  @id @default(cuid())
-  name                  String
-  abbreviation          String
+  name                  String                  @unique
+  abbreviation          String                  @unique
   url_id                String?
   useOppositeLeather    Boolean                 @default(false)
   leatherPhrase         String?
