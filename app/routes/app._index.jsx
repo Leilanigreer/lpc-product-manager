@@ -48,7 +48,7 @@ export default function Index() {
                         <Text variant="bodyMd">
                           Add a new leather color for product creation
                         </Text>
-                        <Button icon={PlusIcon} onClick={() => navigate("app/addLeatherColor")}>Add Leather Color</Button>
+                        <Button icon={PlusIcon} onClick={() => navigate("/app/addLeatherColor")}>Add Leather Color</Button>
                       </BlockStack>
                     </Card>
                   </Grid.Cell>
@@ -58,7 +58,7 @@ export default function Index() {
                         <Text variant="bodyMd">
                           Add a new thread color for product creation
                         </Text>
-                        <Button icon={PlusIcon} onClick={() => navigate("app/addThreadColors")}>Add Thread Colors</Button>
+                        <Button icon={PlusIcon} onClick={() => navigate("/app/addThreadColors")}>Add Thread Colors</Button>
                       </BlockStack>
                     </Card>
                   </Grid.Cell>
