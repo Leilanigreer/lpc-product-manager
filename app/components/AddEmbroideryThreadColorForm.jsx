@@ -33,6 +33,10 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
   const [embError, setEmbError] = useState("");
   const [embGeneratedAbbr, setEmbGeneratedAbbr] = useState("");
   const [embFormattedName, setEmbFormattedName] = useState("");
+  // Add state for update confirmation modal
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
+  const [updateError, setUpdateError] = useState("");
 
   // Utility: get all embroidery thread names for dropdown
   const embroideryThreadOptions = useMemo(() =>
@@ -245,6 +249,55 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
     setDeletedColorTags([]);
   }, [embMode]);
 
+  // Compute changes for update
+  const originalThread = (embroideryThreadColors || []).find(tc => tc.value === embSelectedThreadId);
+  const originalIsacordIds = (originalThread?.isacordNumbers || []).map(num => num.value) || [];
+  const originalColorTagIds = (originalThread?.colorTags || []).map(tag => tag.value) || [];
+  const addIsacordIds = embLinkedIsacordNumbers.filter(id => !originalIsacordIds.includes(id));
+  const removeIsacordIds = deletedIsacordNumbers;
+  const addColorTagIds = embLinkedColorTags.filter(id => !originalColorTagIds.includes(id));
+  const removeColorTagIds = deletedColorTags;
+  const hasUpdateChanges = addIsacordIds.length > 0 || removeIsacordIds.length > 0 || addColorTagIds.length > 0 || removeColorTagIds.length > 0;
+
+  // Handler for Update button (open modal)
+  const handleUpdateClick = () => {
+    setUpdateModalOpen(true);
+    setUpdateError("");
+  };
+
+  // Handler for confirming update in modal
+  const handleUpdateConfirm = () => {
+    if (!embSelectedThreadId) {
+      setUpdateError("No thread selected.");
+      return;
+    }
+    const formData = new FormData();
+    formData.append("type", "updateEmbroidery");
+    formData.append("threadId", embSelectedThreadId);
+    addIsacordIds.forEach(id => formData.append("addIsacordIds", id));
+    removeIsacordIds.forEach(id => formData.append("removeIsacordIds", id));
+    addColorTagIds.forEach(id => formData.append("addColorTagIds", id));
+    removeColorTagIds.forEach(id => formData.append("removeColorTagIds", id));
+    fetcher.submit(formData, { method: "post" });
+    setUpdateModalOpen(false);
+  };
+  const handleUpdateModalClose = () => {
+    setUpdateModalOpen(false);
+  };
+
+  // Show backend errors as a banner (for update)
+  useEffect(() => {
+    if (fetcher.data && fetcher.data.error) {
+      setUpdateError(fetcher.data.error);
+    } else if (fetcher.data && fetcher.data.success) {
+      setUpdateSuccess(true);
+      setTimeout(() => setUpdateSuccess(false), 2000);
+      setUpdateError("");
+      setDeletedIsacordNumbers([]);
+      setDeletedColorTags([]);
+    }
+  }, [fetcher.data]);
+
   return (
     <Card>
       <BlockStack gap="400">
@@ -399,7 +452,15 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
               })}
             </InlineStack>
             {/* Save button (update mode) */}
-            <Button primary onClick={() => {/* TODO: handle update submit */}}>Update Embroidery Thread Color</Button>
+            <Button
+              primary
+              onClick={handleUpdateClick}
+              disabled={!hasUpdateChanges}
+            >
+              Update Embroidery Thread Color
+            </Button>
+            {updateError && <Text color="critical">{updateError}</Text>}
+            {updateSuccess && <Text color="success">Update successful!</Text>}
           </BlockStack>
         ) : (
           <BlockStack gap="400">
@@ -505,6 +566,44 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
             <Text><b>Tags:</b> {embColorTags.map(tagValue => {
               const tagObj = colorTags.find(t => t.value === tagValue);
               return tagObj ? tagObj.label : tagValue;
+            }).join(", ") || "None"}</Text>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+      {/* Update Confirmation Modal */}
+      <Modal
+        open={updateModalOpen}
+        onClose={handleUpdateModalClose}
+        title="Confirm Update to Embroidery Thread Color"
+        primaryAction={{
+          content: "Confirm Update",
+          onAction: handleUpdateConfirm,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: handleUpdateModalClose,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="200">
+            <Text variant="bodyMd"><b>Thread Name:</b> {originalThread?.label}</Text>
+            <Text variant="bodyMd"><b>Add Isacord Numbers:</b> {addIsacordIds.map(id => {
+              const numObj = (originalThread?.allIsacordOptions || allIsacordOptions).find(num => num.value === id);
+              return numObj ? numObj.label : id;
+            }).join(", ") || "None"}</Text>
+            <Text variant="bodyMd"><b>Remove Isacord Numbers:</b> {removeIsacordIds.map(id => {
+              const numObj = (originalThread?.allIsacordOptions || allIsacordOptions).find(num => num.value === id);
+              return numObj ? numObj.label : id;
+            }).join(", ") || "None"}</Text>
+            <Text variant="bodyMd"><b>Add Color Tags:</b> {addColorTagIds.map(id => {
+              const tagObj = colorTags.find(t => t.value === id);
+              return tagObj ? tagObj.label : id;
+            }).join(", ") || "None"}</Text>
+            <Text variant="bodyMd"><b>Remove Color Tags:</b> {removeColorTagIds.map(id => {
+              const tagObj = colorTags.find(t => t.value === id);
+              return tagObj ? tagObj.label : id;
             }).join(", ") || "None"}</Text>
           </BlockStack>
         </Modal.Section>
