@@ -1,12 +1,12 @@
 import React from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { Page, Layout } from "@shopify/polaris";
+import { Page, Layout, Banner, Box } from "@shopify/polaris";
 import AddEmbroideryThreadColorForm from "../components/AddEmbroideryThreadColorForm";
 import AddStitchingThreadColorForm from "../components/AddStitchingThreadColorForm";
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
-import { updateEmbroideryThreadColorWithTagsAndNumbers } from "../lib/server/threadColorOperations.server";
+import { updateEmbroideryThreadColorWithTagsAndNumbers, createEmbroideryThreadColorWithTags } from "../lib/server/threadColorOperations.server";
 
 export default function AddThreadColors() {
   const {
@@ -17,9 +17,36 @@ export default function AddThreadColors() {
   } = useLoaderData();
   const fetcher = useFetcher();
 
+  // Banner state
+  const [showBanner, setShowBanner] = React.useState(false);
+  const [bannerType, setBannerType] = React.useState("");
+
+  React.useEffect(() => {
+    if (fetcher.data && fetcher.data.success) {
+      setShowBanner(true);
+      if (fetcher.data.threadColor && fetcher.data.threadColor.id) {
+        setBannerType(fetcher.data.threadColor.abbreviation ? "add" : "update");
+      } else {
+        setBannerType("update");
+      }
+    }
+  }, [fetcher.data]);
+
   return (
     <Page>
       <TitleBar title="Add Thread Colors" />
+      {showBanner && (
+        <Box paddingBlock="400">
+          <Banner
+            status="success"
+            onDismiss={() => setShowBanner(false)}
+          >
+            {bannerType === "add"
+              ? `Thread color ${fetcher.data.threadColor.name} added successfully!`
+              : `Thread color ${fetcher.data.threadColor.name} updated successfully!`}
+          </Banner>
+        </Box>
+      )}
       <Layout>
         <Layout.Section variant="oneHalf">
           <AddEmbroideryThreadColorForm
@@ -73,6 +100,26 @@ export const action = async ({ request }) => {
       };
     } catch (error) {
       console.error('[action] updateEmbroidery error', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+  if (type === "embroidery") {
+    // Parse form data for add
+    const name = formData.get("name");
+    const abbreviation = formData.get("abbreviation");
+    const isacordNumber = formData.get("isacordNumber");
+    const colorTagIds = formData.getAll("colorTagIds");
+    try {
+      const created = await createEmbroideryThreadColorWithTags({ name, abbreviation, isacordNumber }, colorTagIds);
+      return {
+        success: true,
+        threadColor: created,
+      };
+    } catch (error) {
+      console.error('[action] addEmbroidery error', error);
       return {
         success: false,
         error: error.message,

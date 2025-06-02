@@ -193,6 +193,12 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
       setEmbError("Please select an Isacord number.");
       return;
     }
+    // Validation: name must not already exist (case-insensitive)
+    const nameExists = (embroideryThreadColors || []).some(tc => tc.label.trim().toLowerCase() === name.toLowerCase());
+    if (nameExists) {
+      setEmbError("A thread color with this name already exists.");
+      return;
+    }
     // Generate abbreviation (with E suffix)
     const existingAbbrs = (embroideryThreadColors || []).map(tc => tc.abbreviation);
     const abbr = generateEmbAbbreviation(name, existingAbbrs);

@@ -2,6 +2,53 @@ import prisma from "../../db.server.js";
 import { Prisma } from "@prisma/client";
 
 /**
+ * Updates an existing Embroidery Thread Color's linked Isacord numbers and ColorTags.
+ * @param {Object} params
+ * @param {string} params.threadId - The ID of the embroidery thread to update
+ * @param {string[]} params.addIsacordIds - Isacord number IDs to add
+ * @param {string[]} params.removeIsacordIds - Isacord number IDs to remove
+ * @param {string[]} params.addColorTagIds - ColorTag IDs to add
+ * @param {string[]} params.removeColorTagIds - ColorTag IDs to remove
+ * @returns {Promise<Object>} The updated Embroidery Thread Color with tags and isacord numbers
+ */
+export async function updateEmbroideryThreadColorWithTagsAndNumbers({
+  threadId,
+  addIsacordIds = [],
+  removeIsacordIds = [],
+  addColorTagIds = [],
+  removeColorTagIds = [],
+}) {
+  console.log('[threadColorOperations] updateEmbroideryThreadColorWithTagsAndNumbers called with:', {
+    threadId, addIsacordIds, removeIsacordIds, addColorTagIds, removeColorTagIds
+  });
+  try {
+    // Update the thread color
+    const updated = await prisma.embroideryThread.update({
+      where: { id: threadId },
+      data: {
+        isacordNumbers: {
+          connect: addIsacordIds.map(id => ({ id })),
+          disconnect: removeIsacordIds.map(id => ({ id })),
+        },
+        colorTags: {
+          connect: addColorTagIds.map(id => ({ id })),
+          disconnect: removeColorTagIds.map(id => ({ id })),
+        },
+      },
+      include: {
+        colorTags: true,
+        isacordNumbers: true,
+      },
+    });
+    return updated;
+  } catch (error) {
+    console.error('[threadColorOperations] Error updating embroidery thread:', error);
+    throw error;
+  }
+} 
+
+
+/**
  * Creates a new Embroidery Thread Color and associates it with ColorTags.
  * @param {Object} data - Thread color data (name, abbreviation, isacordNumber, etc.)
  * @param {string[]} colorTagIds - Array of ColorTag IDs to associate
@@ -24,56 +71,31 @@ export async function createEmbroideryThreadColorWithTags(data, colorTagIds) {
         throw new Error('Isacord number already linked to another thread.');
       }
     }
-    // Use findUnique if name is unique, otherwise use findFirst
-    let existingThread;
-    try {
-      existingThread = await prisma.embroideryThread.findUnique({
-        where: { name: data.name }
-      });
-    } catch (e) {
-      // fallback for dev environments where migration/client may be out of sync
-      existingThread = await prisma.embroideryThread.findFirst({
-        where: { name: data.name }
-      });
-    }
-
+    // Check for name uniqueness
+    const existingThread = await prisma.embroideryThread.findUnique({
+      where: { name: data.name }
+    });
     if (existingThread) {
-      // Only update: add the new Isacord number and any new tags
-      await prisma.embroideryThread.update({
-        where: { id: existingThread.id },
-        data: {
-          isacordNumbers: {
-            connect: [{ id: data.isacordNumber }]
-          },
-          colorTags: {
-            connect: colorTagIds.map(id => ({ id }))
-          }
-        }
-      });
-      return await prisma.embroideryThread.findUnique({
-        where: { id: existingThread.id },
-        include: { colorTags: true, isacordNumbers: true }
-      });
-    } else {
-      // Create new
-      const thread = await prisma.embroideryThread.create({
-        data: {
-          name: data.name,
-          abbreviation: data.abbreviation,
-          colorTags: {
-            connect: colorTagIds.map(id => ({ id }))
-          },
-          isacordNumbers: data.isacordNumber ? {
-            connect: [{ id: data.isacordNumber }]
-          } : undefined
-        },
-        include: {
-          colorTags: true,
-          isacordNumbers: true
-        }
-      });
-      return thread;
+      throw new Error('Embroidery thread color name already exists.');
     }
+    // Create new
+    const thread = await prisma.embroideryThread.create({
+      data: {
+        name: data.name,
+        abbreviation: data.abbreviation,
+        colorTags: {
+          connect: colorTagIds.map(id => ({ id }))
+        },
+        isacordNumbers: data.isacordNumber ? {
+          connect: [{ id: data.isacordNumber }]
+        } : undefined
+      },
+      include: {
+        colorTags: true,
+        isacordNumbers: true
+      }
+    });
+    return thread;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       if (error.meta && error.meta.target) {
@@ -83,7 +105,7 @@ export async function createEmbroideryThreadColorWithTags(data, colorTagIds) {
       }
       throw new Error('Unique constraint violation.');
     }
-    console.error('[threadColorOperations] Error creating/linking EmbroideryThread:', error);
+    console.error('[threadColorOperations] Error creating EmbroideryThread:', error);
     throw error;
   }
 }
@@ -195,4 +217,4 @@ export async function linkIsacordNumberToEmbroideryThread(threadId, isacordNumbe
     console.error('[threadColorOperations] Error linking Isacord number:', error);
     throw error;
   }
-} 
+}
