@@ -87,7 +87,6 @@ export const action = async ({ request }) => {
     const removeIsacordIds = formData.getAll("removeIsacordIds");
     const addColorTagIds = formData.getAll("addColorTagIds");
     const removeColorTagIds = formData.getAll("removeColorTagIds");
-    console.log('[action] updateEmbroidery', { threadId, addIsacordIds, removeIsacordIds, addColorTagIds, removeColorTagIds });
     try {
       const updated = await updateEmbroideryThreadColorWithTagsAndNumbers({
         threadId,
@@ -135,7 +134,6 @@ export const action = async ({ request }) => {
     const removeAmannIds = formData.getAll("removeAmannIds");
     const addColorTagIds = formData.getAll("addColorTagIds");
     const removeColorTagIds = formData.getAll("removeColorTagIds");
-    console.log('[action] updateStitching', { threadId, addAmannIds, removeAmannIds, addColorTagIds, removeColorTagIds });
     try {
       const updated = await updateStitchingThreadColorWithTagsAndNumbers({
         threadId,

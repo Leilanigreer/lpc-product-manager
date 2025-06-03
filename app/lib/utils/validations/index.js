@@ -128,9 +128,6 @@ export const validateProductForm = (formState, { debug = false } = {}) => {
   const isValid = errors.length === 0 && 
                  Object.entries(validations).every(([key, value]) => {
                    const valid = isValidResult(value);
-                   if (debug && !valid) {
-                     console.log(`Validation failed for: ${key}`, value);
-                   }
                    return valid;
                  });
 
