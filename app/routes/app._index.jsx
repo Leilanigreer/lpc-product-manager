@@ -48,7 +48,17 @@ export default function Index() {
                         <Text variant="bodyMd">
                           Add a new leather color for product creation
                         </Text>
-                        <Button icon={PlusIcon} onClick={() => navigate("app/addLeatherColor")}>Add Leather Color</Button>
+                        <Button icon={PlusIcon} onClick={() => navigate("/app/addLeatherColor")}>Add Leather Color</Button>
+                      </BlockStack>
+                    </Card>
+                  </Grid.Cell>
+                  <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
+                    <Card title="Add Thread Colors">
+                      <BlockStack gap="400">
+                        <Text variant="bodyMd">
+                          Add a new thread color for product creation
+                        </Text>
+                        <Button icon={PlusIcon} onClick={() => navigate("/app/addThreadColors")}>Add Thread Colors</Button>
                       </BlockStack>
                     </Card>
                   </Grid.Cell>
@@ -64,7 +74,7 @@ export default function Index() {
                         • Discontinue Leather Color: Change collection to Last Chance, update Price and modify Postgres Database
                       </Text>
                       <Text variant="bodyMd">
-                        • Add new inputs: Leather Colors, Thread Colors, Styles
+                        • Add new Styles: Add new styles to the database
                       </Text>
                       <Text variant="bodyMd">
                         • Manage Quantities across selling channels: Etsy, Ebay, Amazon, Walmart and more

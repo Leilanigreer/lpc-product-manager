@@ -80,7 +80,6 @@ const formReducer = (state, action) => {
         // Find the shape definition
         const shapeDefinition = state.shapes.find(s => s.value === shapeValue);
         if (!shapeDefinition) {
-          console.warn(`Shape definition not found for ID: ${shapeValue}`);
           return;
         }
     
@@ -300,7 +299,6 @@ const formReducer = (state, action) => {
     }
 
     default:
-      console.warn('Unknown action type:', type);
       return state;
   }
 };
@@ -309,8 +307,6 @@ export const useFormState = (initialState, onFormChange) => {
   const [state, dispatch] = useReducer(formReducer, initialState);
 
   const handleChange = useCallback((field, value) => {
-    console.log('handleChange called with:', { field, value });
-
     if (field === 'resetForm') {
       dispatch({
         type: ACTION_TYPES.RESET_FORM,

@@ -69,12 +69,6 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
       
       // Update the product data with both URLs if available
       if (onImageUpload) {
-        if (isDevelopment) {
-          console.log('Passing to onImageUpload:', {
-            cloudinaryData: cloudinaryData,
-            driveData: driveData
-          });
-        }
         onImageUpload(
           variant.sku,
           label,

@@ -53,21 +53,6 @@ const cld = new Cloudinary({
   }
 });
 
-// Only log configuration in development
-if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-  console.log('Cloudinary Configuration:', {
-    cloud_name: config.cloud_name,
-    api_key: config.api_key ? '***' : undefined,
-    api_secret: config.api_secret ? '***' : undefined,
-    environment: {
-      NODE_ENV: process.env.NODE_ENV,
-      RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME,
-      isProduction: process.env.NODE_ENV === 'production',
-      isStaging: process.env.RAILWAY_ENVIRONMENT_NAME === 'staging',
-    }
-  });
-}
-
 // Helper function to get folder path from Cloudinary
 export const getCloudinaryFolderPath = async (assetFolder) => {
   try {

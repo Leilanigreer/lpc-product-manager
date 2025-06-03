@@ -561,6 +561,91 @@ export const getProductSets = async () => {
   }
 };
 
+export const getUnlinkedIsacordNumbers = async () => {
+  try {
+    const isacordNumbers = await prisma.isacordNumber.findMany({
+      where: { threadId: null }
+    });
+    return isacordNumbers.map(({ id, number }) => ({
+      value: id,
+      label: number
+    }));
+  } catch (error) {
+    console.error("Error fetching Isacord numbers:", error);
+    throw error;
+  }
+};
+
+export const getUnlinkedAmannNumbers = async () => {
+  try {
+    const amannNumbers = await prisma.amannNumber.findMany({
+      where: { threadId: null }
+    });
+    return amannNumbers.map(({ id, number }) => ({
+      value: id,
+      label: number
+    }));
+  } catch (error) {
+    console.error("Error fetching Amann numbers:", error);
+    throw error;
+  }
+};
+
+export const getColorTags = async () => {
+  try {
+    const colorTags = await prisma.ColorTag.findMany({
+      include: {
+        embroideryColors: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true
+          }
+        },
+        stitchingColors: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true
+          }
+        },
+        leatherColors: {
+          select: {
+            id: true,
+            name: true,
+            abbreviation: true,
+            url_id: true
+          }
+        }
+      }
+    });
+    return colorTags.map(({ id, name, stitchingColors, embroideryColors, leatherColors }) => ({
+      value: id,
+      label: name,
+      stitchingColors: stitchingColors.map(stitchingThread => ({
+        value: stitchingThread.id,
+        label: stitchingThread.name,
+        abbreviation: stitchingThread.abbreviation
+      })),
+      embroideryColors: embroideryColors.map(embroideryThread => ({
+        value: embroideryThread.id,
+        label: embroideryThread.name,
+        abbreviation: embroideryThread.abbreviation
+      })),
+      leatherColors: leatherColors.map(leather => ({
+        value: leather.id,
+        label: leather.name,
+        abbreviation: leather.abbreviation,
+        url_id: leather.url_id
+      }))
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));;
+  } catch (error) {
+    console.error("Error fetching color tags:", error);
+    throw error;
+  }
+};
+
 // This fetcher is now optional since the data is included in getShopifyCollections
 export const getStyles = async () => {
   try {
@@ -669,115 +754,6 @@ export const getCollectionTitleFormats = async () => {
     }));
   } catch (error) {
     console.error("Error fetching collection title formats:", error);
-    throw error;
-  }
-};
-
-// This fetcher is now optional since the data is included in getEmbroideryThreadColors
-export const getIsacordNumbers = async () => {
-  try {
-    const isacordNumbers = await prisma.isacordNumber.findMany({
-      include: {
-        thread: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      }
-    });
-    return isacordNumbers.map(({ id, number, thread }) => ({
-      value: id,
-      label: number,
-      thread: {
-        value: thread.id,
-        label: thread.name
-      }
-    }));
-  } catch (error) {
-    console.error("Error fetching Isacord numbers:", error);
-    throw error;
-  }
-};
-
-// This fetcher is now optional since the data is included in getStitchingThreadColors
-export const getAmannNumbers = async () => {
-  try {
-    const amannNumbers = await prisma.amannNumber.findMany({
-      include: {
-        thread: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      }
-    });
-    return amannNumbers.map(({ id, number, thread }) => ({
-      value: id,
-      label: number,
-      thread: {
-        value: thread.id,
-        label: thread.name
-      }
-    }));
-  } catch (error) {
-    console.error("Error fetching Amann numbers:", error);
-    throw error;
-  }
-};
-
-export const getColorTags = async () => {
-  try {
-    const colorTags = await prisma.ColorTag.findMany({
-      include: {
-        embroideryColors: {
-          select: {
-            id: true,
-            name: true,
-            abbreviation: true
-          }
-        },
-        stitchingColors: {
-          select: {
-            id: true,
-            name: true,
-            abbreviation: true
-          }
-        },
-        leatherColors: {
-          select: {
-            id: true,
-            name: true,
-            abbreviation: true,
-            url_id: true
-          }
-        }
-      }
-    });
-    return colorTags.map(({ id, name, stitchingColors, embroideryColors, leatherColors }) => ({
-      value: id,
-      label: name,
-      stitchingColors: stitchingColors.map(stitchingThread => ({
-        value: stitchingThread.id,
-        label: stitchingThread.name,
-        abbreviation: stitchingThread.abbreviation
-      })),
-      embroideryColors: embroideryColors.map(embroideryThread => ({
-        value: embroideryThread.id,
-        label: embroideryThread.name,
-        abbreviation: embroideryThread.abbreviation
-      })),
-      leatherColors: leatherColors.map(leather => ({
-        value: leather.id,
-        label: leather.name,
-        abbreviation: leather.abbreviation,
-        url_id: leather.url_id
-      }))
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));;
-  } catch (error) {
-    console.error("Error fetching color tags:", error);
     throw error;
   }
 };
