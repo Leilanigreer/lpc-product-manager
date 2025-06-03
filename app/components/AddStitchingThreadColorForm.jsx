@@ -47,10 +47,8 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
   const [stitchColorTagInput, setStitchColorTagInput] = useState("");
   const [stitchModalOpen, setStitchModalOpen] = useState(false);
   const [stitchNameError, setStitchNameError] = useState("");
-  const [stitchAmannError, setStitchAmannError] = useState("");
   const [stitchGeneratedAbbr, setStitchGeneratedAbbr] = useState("");
   const [stitchFormattedName, setStitchFormattedName] = useState("");
-  const [stitchIntent, setStitchIntent] = useState(null);
   // Update mode state
   const [selectedThreadId, setSelectedThreadId] = useState("");
   const [linkedAmannNumbers, setLinkedAmannNumbers] = useState([]); // ids
@@ -172,10 +170,8 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
     setStitchColorTagInput("");
     setStitchModalOpen(false);
     setStitchNameError("");
-    setStitchAmannError("");
     setStitchGeneratedAbbr("");
     setStitchFormattedName("");
-    setStitchIntent(null);
   }, [mode]);
   // Compute changes for update
   const originalThread = (stitchingThreadColors || []).find(tc => tc.value === selectedThreadId);
@@ -232,7 +228,6 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
       return;
     }
     if (!amannTrimmed) {
-      setStitchAmannError("Please select an Amann number.");
       return;
     }
     // Find if Amann number exists and which name it is linked to
@@ -251,10 +246,8 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
     const nameExists = !!existingThread;
     if (amannExists) {
       if (amannLinkedName && amannLinkedName.toLowerCase() === name.toLowerCase()) {
-        setStitchAmannError("This Amann number is already linked to this thread color.");
         return;
       } else {
-        setStitchAmannError(`This Amann number is already linked to a different thread color: ${amannLinkedName}`);
         return;
       }
     }
@@ -266,15 +259,9 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
       const existingAbbrs = (stitchingThreadColors || []).map(tc => tc.abbreviation);
       abbr = generateStitchAbbreviation(name, existingAbbrs);
     }
-    if (nameExists) {
-      setStitchIntent({ action: 'linkAmann', name });
-    } else {
-      setStitchIntent({ action: 'createBoth', name });
-    }
     setStitchGeneratedAbbr(abbr);
     setStitchModalOpen(true);
     setStitchNameError("");
-    setStitchAmannError("");
   };
 
   // Handler for confirming in modal (add mode)
@@ -295,8 +282,6 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
     setStitchGeneratedAbbr("");
     setStitchFormattedName("");
     setStitchNameError("");
-    setStitchAmannError("");
-    setStitchIntent(null);
   };
   const handleStitchModalClose = () => {
     setStitchModalOpen(false);
