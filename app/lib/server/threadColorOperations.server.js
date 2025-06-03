@@ -18,9 +18,6 @@ export async function updateEmbroideryThreadColorWithTagsAndNumbers({
   addColorTagIds = [],
   removeColorTagIds = [],
 }) {
-  console.log('[threadColorOperations] updateEmbroideryThreadColorWithTagsAndNumbers called with:', {
-    threadId, addIsacordIds, removeIsacordIds, addColorTagIds, removeColorTagIds
-  });
   try {
     // Update the thread color
     const updated = await prisma.embroideryThread.update({
@@ -54,9 +51,6 @@ export async function updateEmbroideryThreadColorWithTagsAndNumbers({
  * @returns {Promise<Object>} The created Embroidery Thread Color with tags
  */
 export async function createEmbroideryThreadColorWithTags(data, colorTagIds) {
-  console.log('[threadColorOperations] ENTER createEmbroideryThreadColorWithTags');
-  console.log('[threadColorOperations] Received data:', data);
-  console.log('[threadColorOperations] Received colorTagIds:', colorTagIds);
   try {
     // Check if the Isacord number is already linked
     if (data.isacordNumber) {
@@ -116,9 +110,6 @@ export async function createEmbroideryThreadColorWithTags(data, colorTagIds) {
  * @returns {Promise<Object>} The created Stitching Thread Color with tags and amann number
  */
 export async function createStitchingThreadColorWithTagsAndAmann(data, colorTagIds) {
-  console.log('[threadColorOperations] ENTER createStitchingThreadColorWithTagsAndAmann');
-  console.log('[threadColorOperations] Received data:', data);
-  console.log('[threadColorOperations] Received colorTagIds:', colorTagIds);
   try {
     // Check if the Amann number is already linked
     if (data.amannNumber) {
@@ -188,9 +179,6 @@ export async function updateStitchingThreadColorWithTagsAndNumbers({
   addColorTagIds = [],
   removeColorTagIds = [],
 }) {
-  console.log('[threadColorOperations] updateStitchingThreadColorWithTagsAndNumbers called with:', {
-    threadId, addAmannIds, removeAmannIds, addColorTagIds, removeColorTagIds
-  });
   try {
     // Update the thread color
     const updated = await prisma.stitchingThread.update({
