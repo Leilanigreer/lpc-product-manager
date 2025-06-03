@@ -36,3 +36,9 @@ test-google-auth.jsscripts/get-refresh-token.js
 
 /app/lib/server/googleDrive-copy.js
 /app/routes/api.upload.googledrive-copy.js
+
+# Ignore Cursor AI rules and specstory files
+.cursorrules
+.cursor/rules/
+.specstory
+.specstory/

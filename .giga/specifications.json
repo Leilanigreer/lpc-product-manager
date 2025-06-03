@@ -1,0 +1,22 @@
+[
+  {
+    "fileName": "main-overview.mdc",
+    "description": "High-level overview of the Shopify app architecture, including the product creation workflow, image management system, and option customization features"
+  },
+  {
+    "fileName": "data-models.mdc",
+    "description": "Detailed documentation of the core data models including ProductSetDataLPC, ProductImage, OptionSet, and their relationships, focusing on the database schema design and model interactions"
+  },
+  {
+    "fileName": "image-management-flow.mdc",
+    "description": "Comprehensive documentation of the dual-upload system for Cloudinary and Google Drive, including folder structures, file naming conventions, and image update workflows"
+  },
+  {
+    "fileName": "product-creation-workflow.mdc",
+    "description": "Detailed documentation of the product creation process, including shape selection, variant generation, price calculations, and the complete data flow from form submission to database storage"
+  },
+  {
+    "fileName": "option-customization-system.mdc",
+    "description": "Documentation of the custom option creation system, including option types, rules engine, conditional display logic, and integration with Shopify collections"
+  }
+]
