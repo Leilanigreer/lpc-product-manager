@@ -79,10 +79,13 @@ model IsacordNumber {
 model AmannNumber {
   id               String             @id @default(cuid())
   number           String             @unique
-  threadId         String
+  threadId         String?
+  WawakColorName   String?
+  WawakItemNumber  String?
+  isStockThread    Boolean            @default(false)
   createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  thread           StitchingThread    @relation(fields: [threadId], references: [id])
+  updatedAt        DateTime           @default(now())
+  thread           StitchingThread?   @relation(fields: [threadId], references: [id])
   ProductStitching ProductStitching[]
 
   @@index([threadId])
