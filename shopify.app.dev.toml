@@ -29,9 +29,9 @@ scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_produ
 
 [auth]
 redirect_urls = [
-  "https://lpc-product-management-staging.up.railway.app/auth/callback",
-  "https://lpc-product-management-staging.up.railway.app/auth/shopify/callback",
-  "https://lpc-product-management-staging.up.railway.app/api/auth/callback"
+  "https://lives-explains-thehun-upcoming.trycloudflare.com/auth/callback",
+  "https://lives-explains-thehun-upcoming.trycloudflare.com/auth/shopify/callback",
+  "https://lives-explains-thehun-upcoming.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

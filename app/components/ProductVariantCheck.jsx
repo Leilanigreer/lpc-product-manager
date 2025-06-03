@@ -38,6 +38,9 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
           });
         }
       } catch (driveError) {
+        if (isDevelopment) {
+          console.error('Google Drive upload failed:', driveError);
+        }
         throw driveError;
       }
 
@@ -52,7 +55,16 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
           productData.productType,
           productData.productPictureFolder
         );
+        
+        if (isDevelopment) {
+          console.log('Cloudinary data in ProductVariantCheck:', {
+            cloudinaryData: cloudinaryData
+          });
+        }
       } catch (cloudinaryError) {
+        if (isDevelopment) {
+          console.error('Cloudinary upload failed:', cloudinaryError);
+        }
       }
       
       // Update the product data with both URLs if available
@@ -68,6 +80,9 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
         );
       }
     } catch (error) {
+      if (isDevelopment) {
+        console.error('Error uploading image:', error);
+      }
     }
   }, [variant, productData, onImageUpload]);
 
