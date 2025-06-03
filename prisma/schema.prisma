@@ -31,6 +31,7 @@ model LeatherColor {
   abbreviation            String                  @unique
   url_id                  String?
   isLimitedEditionLeather Boolean                 @default(false)
+  isActive                Boolean                 @default(true)
   createdAt               DateTime                @default(now())
   updatedAt               DateTime                @updatedAt
   colorTags               ColorTag[]              @relation("LeatherColorToTag")
@@ -67,7 +68,6 @@ model IsacordNumber {
   threadId              String?
   wawakColorName        String?
   wawakItemNumber       String?
-  isStockThread         Boolean                 @default(false)
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
   thread                EmbroideryThread?       @relation(fields: [threadId], references: [id])
@@ -82,7 +82,6 @@ model AmannNumber {
   threadId         String?
   WawakColorName   String?
   WawakItemNumber  String?
-  isStockThread    Boolean            @default(false)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @default(now())
   thread           StitchingThread?   @relation(fields: [threadId], references: [id])
