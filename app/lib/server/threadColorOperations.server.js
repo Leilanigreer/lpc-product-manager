@@ -47,7 +47,6 @@ export async function updateEmbroideryThreadColorWithTagsAndNumbers({
   }
 } 
 
-
 /**
  * Creates a new Embroidery Thread Color and associates it with ColorTags.
  * @param {Object} data - Thread color data (name, abbreviation, isacordNumber, etc.)
@@ -111,110 +110,109 @@ export async function createEmbroideryThreadColorWithTags(data, colorTagIds) {
 }
 
 /**
- * Creates a new Stitching Thread Color and associates it with ColorTags.
+ * Creates a new Stitching Thread Color and associates it with ColorTags and an Amann number.
  * @param {Object} data - Thread color data (name, abbreviation, amannNumber, etc.)
  * @param {string[]} colorTagIds - Array of ColorTag IDs to associate
- * @returns {Promise<Object>} The created Stitching Thread Color with tags
+ * @returns {Promise<Object>} The created Stitching Thread Color with tags and amann number
  */
-export async function createStitchingThreadColorWithTags(data, colorTagIds) {
-  console.log('[threadColorOperations] createStitchingThreadColorWithTags called with:', { data, colorTagIds });
+export async function createStitchingThreadColorWithTagsAndAmann(data, colorTagIds) {
+  console.log('[threadColorOperations] ENTER createStitchingThreadColorWithTagsAndAmann');
+  console.log('[threadColorOperations] Received data:', data);
+  console.log('[threadColorOperations] Received colorTagIds:', colorTagIds);
   try {
+    // Check if the Amann number is already linked
+    if (data.amannNumber) {
+      const amann = await prisma.amannNumber.findUnique({
+        where: { id: data.amannNumber }
+      });
+      if (!amann) {
+        throw new Error('Amann number not found.');
+      }
+      if (amann.threadId) {
+        throw new Error('Amann number already linked to another thread.');
+      }
+    }
     // Check for name uniqueness
-    const existing = await prisma.stitchingThreadColor.findUnique({
+    const existingThread = await prisma.stitchingThread.findUnique({
       where: { name: data.name }
     });
-    if (existing) {
+    if (existingThread) {
       throw new Error('Stitching thread color name already exists.');
     }
-    // Check for amann number uniqueness
-    if (data.amannNumber) {
-      const amannExists = await prisma.stitchingThreadColor.findFirst({
-        where: { amannNumber: data.amannNumber }
-      });
-      if (amannExists) {
-        throw new Error('Amann number already linked to another thread color.');
-      }
-    }
-    const threadColor = await prisma.stitchingThreadColor.create({
+    // Create new
+    const thread = await prisma.stitchingThread.create({
       data: {
-        ...data,
+        name: data.name,
+        abbreviation: data.abbreviation,
         colorTags: {
           connect: colorTagIds.map(id => ({ id }))
-        }
+        },
+        amannNumbers: data.amannNumber ? {
+          connect: [{ id: data.amannNumber }]
+        } : undefined
       },
       include: {
-        colorTags: true
+        colorTags: true,
+        amannNumbers: true
       }
     });
-    console.log('[threadColorOperations] Created stitchingThreadColor:', threadColor);
-    return threadColor;
+    return thread;
   } catch (error) {
-    console.error("Error creating StitchingThreadColor:", error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (error.meta && error.meta.target) {
+        if (error.meta.target.includes('abbreviation')) {
+          throw new Error('Stitching thread abbreviation already exists.');
+        }
+      }
+      throw new Error('Unique constraint violation.');
+    }
+    console.error('[threadColorOperations] Error creating StitchingThread:', error);
     throw error;
   }
 }
 
 /**
- * Links an Amann number to an existing Stitching Thread Color.
- * @param {string} threadColorId - The ID of the existing stitching thread color
- * @param {string} amannNumber - The Amann number to link
- * @returns {Promise<Object>} The updated Stitching Thread Color
+ * Updates an existing Stitching Thread Color's linked Amann numbers and ColorTags.
+ * @param {Object} params
+ * @param {string} params.threadId - The ID of the stitching thread to update
+ * @param {string[]} params.addAmannIds - Amann number IDs to add
+ * @param {string[]} params.removeAmannIds - Amann number IDs to remove
+ * @param {string[]} params.addColorTagIds - ColorTag IDs to add
+ * @param {string[]} params.removeColorTagIds - ColorTag IDs to remove
+ * @returns {Promise<Object>} The updated Stitching Thread Color with tags and amann numbers
  */
-export async function linkAmannNumberToStitchingThreadColor(threadColorId, amannNumber) {
-  console.log('[threadColorOperations] linkAmannNumberToStitchingThreadColor called with:', { threadColorId, amannNumber });
+export async function updateStitchingThreadColorWithTagsAndNumbers({
+  threadId,
+  addAmannIds = [],
+  removeAmannIds = [],
+  addColorTagIds = [],
+  removeColorTagIds = [],
+}) {
+  console.log('[threadColorOperations] updateStitchingThreadColorWithTagsAndNumbers called with:', {
+    threadId, addAmannIds, removeAmannIds, addColorTagIds, removeColorTagIds
+  });
   try {
-    // Check for amann number uniqueness
-    const amannExists = await prisma.stitchingThreadColor.findFirst({
-      where: { amannNumber }
-    });
-    if (amannExists) {
-      throw new Error('Amann number already linked to another thread color.');
-    }
-    const updated = await prisma.stitchingThreadColor.update({
-      where: { id: threadColorId },
-      data: { amannNumber },
-      include: { colorTags: true }
-    });
-    console.log('[threadColorOperations] Updated stitchingThreadColor:', updated);
-    return updated;
-  } catch (error) {
-    console.error("Error linking Amann number:", error);
-    throw error;
-  }
-}
-
-/**
- * Links an Isacord number to an existing Embroidery Thread.
- * @param {string} threadId - The ID of the existing embroidery thread
- * @param {string} isacordNumberId - The Isacord number ID to link
- * @returns {Promise<Object>} The updated Embroidery Thread
- */
-export async function linkIsacordNumberToEmbroideryThread(threadId, isacordNumberId) {
-  console.log('[threadColorOperations] linkIsacordNumberToEmbroideryThread called with:', { threadId, isacordNumberId });
-  try {
-    // Check for isacord number uniqueness
-    const isacord = await prisma.isacordNumber.findUnique({
-      where: { id: isacordNumberId }
-    });
-    if (!isacord) {
-      throw new Error('Isacord number not found.');
-    }
-    if (isacord.threadId) {
-      throw new Error('Isacord number already linked to another thread.');
-    }
-    const updated = await prisma.embroideryThread.update({
+    // Update the thread color
+    const updated = await prisma.stitchingThread.update({
       where: { id: threadId },
       data: {
-        isacordNumbers: {
-          connect: [{ id: isacordNumberId }]
-        }
+        amannNumbers: {
+          connect: addAmannIds.map(id => ({ id })),
+          disconnect: removeAmannIds.map(id => ({ id })),
+        },
+        colorTags: {
+          connect: addColorTagIds.map(id => ({ id })),
+          disconnect: removeColorTagIds.map(id => ({ id })),
+        },
       },
-      include: { colorTags: true, isacordNumbers: true }
+      include: {
+        colorTags: true,
+        amannNumbers: true,
+      },
     });
-    console.log('[threadColorOperations] Updated embroideryThread:', updated);
     return updated;
   } catch (error) {
-    console.error('[threadColorOperations] Error linking Isacord number:', error);
+    console.error('[threadColorOperations] Error updating stitching thread:', error);
     throw error;
   }
 }

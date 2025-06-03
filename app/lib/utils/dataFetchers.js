@@ -576,9 +576,11 @@ export const getUnlinkedIsacordNumbers = async () => {
   }
 };
 
-export const getAmannNumbers = async () => {
+export const getUnlinkedAmannNumbers = async () => {
   try {
-    const amannNumbers = await prisma.amannNumber.findMany();
+    const amannNumbers = await prisma.amannNumber.findMany({
+      where: { threadId: null }
+    });
     return amannNumbers.map(({ id, number }) => ({
       value: id,
       label: number

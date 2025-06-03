@@ -6,7 +6,7 @@ import AddEmbroideryThreadColorForm from "../components/AddEmbroideryThreadColor
 import AddStitchingThreadColorForm from "../components/AddStitchingThreadColorForm";
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
-import { updateEmbroideryThreadColorWithTagsAndNumbers, createEmbroideryThreadColorWithTags } from "../lib/server/threadColorOperations.server";
+import { updateEmbroideryThreadColorWithTagsAndNumbers, createEmbroideryThreadColorWithTags, updateStitchingThreadColorWithTagsAndNumbers, createStitchingThreadColorWithTagsAndAmann } from "../lib/server/threadColorOperations.server";
 
 export default function AddThreadColors() {
   const {
@@ -14,6 +14,7 @@ export default function AddThreadColors() {
     unlinkedIsacordNumbers,
     stitchingThreadColors,
     embroideryThreadColors,
+    unlinkedAmannNumbers,
   } = useLoaderData();
   const fetcher = useFetcher();
 
@@ -61,6 +62,7 @@ export default function AddThreadColors() {
             colorTags={colorTags}
             stitchingThreadColors={stitchingThreadColors}
             fetcher={fetcher}
+            unlinkedAmannNumbers={unlinkedAmannNumbers}
           />
         </Layout.Section>
       </Layout>
@@ -120,6 +122,54 @@ export const action = async ({ request }) => {
       };
     } catch (error) {
       console.error('[action] addEmbroidery error', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+  if (type === "updateStitching") {
+    // Parse form data
+    const threadId = formData.get("threadId");
+    const addAmannIds = formData.getAll("addAmannIds");
+    const removeAmannIds = formData.getAll("removeAmannIds");
+    const addColorTagIds = formData.getAll("addColorTagIds");
+    const removeColorTagIds = formData.getAll("removeColorTagIds");
+    console.log('[action] updateStitching', { threadId, addAmannIds, removeAmannIds, addColorTagIds, removeColorTagIds });
+    try {
+      const updated = await updateStitchingThreadColorWithTagsAndNumbers({
+        threadId,
+        addAmannIds,
+        removeAmannIds,
+        addColorTagIds,
+        removeColorTagIds,
+      });
+      return {
+        success: true,
+        threadColor: updated,
+      };
+    } catch (error) {
+      console.error('[action] updateStitching error', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+  if (type === "stitching") {
+    // Parse form data for add
+    const name = formData.get("name");
+    const abbreviation = formData.get("abbreviation");
+    const amannNumber = formData.get("amannNumber");
+    const colorTagIds = formData.getAll("colorTagIds");
+    try {
+      const created = await createStitchingThreadColorWithTagsAndAmann({ name, abbreviation, amannNumber }, colorTagIds);
+      return {
+        success: true,
+        threadColor: created,
+      };
+    } catch (error) {
+      console.error('[action] addStitching error', error);
       return {
         success: false,
         error: error.message,

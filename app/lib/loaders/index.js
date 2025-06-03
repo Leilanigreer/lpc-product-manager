@@ -11,7 +11,7 @@ import {
   getProductSets,
   getColorTags,
   getUnlinkedIsacordNumbers,
-  getAmannNumbers
+  getUnlinkedAmannNumbers
 } from "../utils/dataFetchers";
 
 export const loader = async () => {  
@@ -27,7 +27,7 @@ export const loader = async () => {
       productSets,
       colorTags,
       unlinkedIsacordNumbers,
-       amannNumbers,
+      unlinkedAmannNumbers,
     ] = await Promise.all([
       getLeatherColors(),
       getStitchingThreadColors(),
@@ -39,7 +39,7 @@ export const loader = async () => {
       getProductSets(),
       getColorTags(),
       getUnlinkedIsacordNumbers(),
-      getAmannNumbers()
+      getUnlinkedAmannNumbers()
     ]);
 
     return {
@@ -53,7 +53,7 @@ export const loader = async () => {
       productSets,
       colorTags,
       unlinkedIsacordNumbers,
-       amannNumbers,
+      unlinkedAmannNumbers,
       error: null
     };
   } catch (error) {
@@ -70,7 +70,7 @@ export const loader = async () => {
         productSets: [],
         colorTags: [],
         unlinkedIsacordNumbers: [],
-         amannNumbers: [],
+        unlinkedAmannNumbers: [],
         error: error.message
       }), 
       { status: 500,
