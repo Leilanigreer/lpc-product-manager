@@ -105,10 +105,18 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
   // Filtered options for Isacord numbers (for update mode)
   const filteredUpdateIsacordOptions = useMemo(() => {
     const search = embIsacordInput.toLowerCase();
+    // Only show Isacord numbers that are either:
+    // 1. Unlinked (threadId === null)
+    // 2. Already linked to the selected thread
     return allIsacordOptions.filter(num =>
-      num.label.toLowerCase().includes(search) && !embLinkedIsacordNumbers.includes(num.value)
+      num.label.toLowerCase().includes(search) &&
+      (
+        num.threadId === null ||
+        num.threadId === embSelectedThreadId
+      ) &&
+      !embLinkedIsacordNumbers.includes(num.value)
     );
-  }, [allIsacordOptions, embIsacordInput, embLinkedIsacordNumbers]);
+  }, [allIsacordOptions, embIsacordInput, embLinkedIsacordNumbers, embSelectedThreadId]);
 
   // Handlers for embroidery color tags (add mode)
   const handleEmbColorTagSelect = (value) => {
@@ -466,7 +474,7 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
               Update Embroidery Thread Color
             </Button>
             {updateError && <Text color="critical">{updateError}</Text>}
-            {updateSuccess && <Text color="success">Update successful!</Text>}
+            {/* {updateSuccess && <Text color="success">Update successful!</Text>} */}
           </BlockStack>
         ) : (
           <BlockStack gap="400">

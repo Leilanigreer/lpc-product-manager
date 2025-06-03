@@ -106,10 +106,18 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
   // Filtered Amann options (update mode)
   const filteredUpdateAmannOptions = useMemo(() => {
     const search = stitchAmann.toLowerCase();
+    // Only show Amann numbers that are either:
+    // 1. Unlinked (threadId === null)
+    // 2. Already linked to the selected thread
     return allAmannOptions.filter(num =>
-      num.label.toLowerCase().includes(search) && !linkedAmannNumbers.includes(num.value)
+      num.label.toLowerCase().includes(search) &&
+      (
+        num.threadId === null ||
+        num.threadId === selectedThreadId
+      ) &&
+      !linkedAmannNumbers.includes(num.value)
     );
-  }, [allAmannOptions, stitchAmann, linkedAmannNumbers]);
+  }, [allAmannOptions, stitchAmann, linkedAmannNumbers, selectedThreadId]);
   // Handlers for color tags (add mode)
   const handleStitchColorTagSelect = (value) => {
     if (!stitchColorTags.includes(value)) {
@@ -477,7 +485,7 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
               Update Stitching Thread Color
             </Button>
             {updateError && <Text color="critical">{updateError}</Text>}
-            {updateSuccess && <Text color="success">Update successful!</Text>}
+            {/* {updateSuccess && <Text color="success">Update successful!</Text>} */}
           </BlockStack>
         ) : (
           <BlockStack gap="400">
