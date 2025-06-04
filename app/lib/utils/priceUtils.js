@@ -20,6 +20,11 @@ export const calculatePrice = (shapeValue, formState, platform = 'shopify') => {
     priceTier.shopifyPrice : 
     priceTier.marketplacePrice;
 
+  // DEBUG LOGS
+  console.log('[calculatePrice] shape.shapeType:', shape.shapeType);
+  console.log('[calculatePrice] priceTier.adjustments:', priceTier.adjustments);
+  console.log('[calculatePrice] adjustment shapeTypes:', priceTier.adjustments.map(a => a.shapeType));
+
   const adjustment = priceTier.adjustments.find(
     adj => adj.shapeType === shape.shapeType
   );

@@ -264,10 +264,13 @@ model ProductStitching {
   stitchingThread   StitchingThread   @relation(fields: [stitchingThreadId], references: [id])
   amannId           String
   amann             AmannNumber       @relation(fields: [amannId], references: [id])
+  effectiveDate     DateTime          @default(now())
+  isActive          Boolean           @default(true)
 
   @@index([setId])
   @@index([stitchingThreadId])
   @@index([amannId])
+  @@index([effectiveDate])
 }
 
 enum ImageType {
