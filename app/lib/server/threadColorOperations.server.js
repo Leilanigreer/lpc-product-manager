@@ -52,16 +52,16 @@ export async function updateEmbroideryThreadColorWithTagsAndNumbers({
  */
 export async function createEmbroideryThreadColorWithTags(data, colorTagIds) {
   try {
-    // Check if the Isacord number is already linked
-    if (data.isacordNumber) {
-      const isacord = await prisma.isacordNumber.findUnique({
-        where: { id: data.isacordNumber }
-      });
-      if (!isacord) {
-        throw new Error('Isacord number not found.');
-      }
-      if (isacord.threadId) {
-        throw new Error('Isacord number already linked to another thread.');
+    // Check if the Isacord numbers are already linked
+    if (data.isacordNumbers && data.isacordNumbers.length > 0) {
+      for (const isacordId of data.isacordNumbers) {
+        const isacord = await prisma.isacordNumber.findUnique({ where: { id: isacordId } });
+        if (!isacord) {
+          throw new Error('Isacord number not found.');
+        }
+        if (isacord.threadId) {
+          throw new Error('Isacord number already linked to another thread.');
+        }
       }
     }
     // Check for name uniqueness
@@ -79,8 +79,8 @@ export async function createEmbroideryThreadColorWithTags(data, colorTagIds) {
         colorTags: {
           connect: colorTagIds.map(id => ({ id }))
         },
-        isacordNumbers: data.isacordNumber ? {
-          connect: [{ id: data.isacordNumber }]
+        isacordNumbers: data.isacordNumbers && data.isacordNumbers.length > 0 ? {
+          connect: data.isacordNumbers.map(id => ({ id }))
         } : undefined
       },
       include: {
@@ -111,16 +111,16 @@ export async function createEmbroideryThreadColorWithTags(data, colorTagIds) {
  */
 export async function createStitchingThreadColorWithTagsAndAmann(data, colorTagIds) {
   try {
-    // Check if the Amann number is already linked
-    if (data.amannNumber) {
-      const amann = await prisma.amannNumber.findUnique({
-        where: { id: data.amannNumber }
-      });
-      if (!amann) {
-        throw new Error('Amann number not found.');
-      }
-      if (amann.threadId) {
-        throw new Error('Amann number already linked to another thread.');
+    // Check if the Amann numbers are already linked
+    if (data.amannNumbers && data.amannNumbers.length > 0) {
+      for (const amannId of data.amannNumbers) {
+        const amann = await prisma.amannNumber.findUnique({ where: { id: amannId } });
+        if (!amann) {
+          throw new Error('Amann number not found.');
+        }
+        if (amann.threadId) {
+          throw new Error('Amann number already linked to another thread.');
+        }
       }
     }
     // Check for name uniqueness
@@ -138,8 +138,8 @@ export async function createStitchingThreadColorWithTagsAndAmann(data, colorTagI
         colorTags: {
           connect: colorTagIds.map(id => ({ id }))
         },
-        amannNumbers: data.amannNumber ? {
-          connect: [{ id: data.amannNumber }]
+        amannNumbers: data.amannNumbers && data.amannNumbers.length > 0 ? {
+          connect: data.amannNumbers.map(id => ({ id }))
         } : undefined
       },
       include: {

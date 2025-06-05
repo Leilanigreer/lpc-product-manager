@@ -41,7 +41,7 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
   const [mode, setMode] = useState("add");
   // Add mode state
   const [stitchName, setStitchName] = useState("");
-  const [stitchAmann, setStitchAmann] = useState("");
+  const [stitchAmann, setStitchAmann] = useState([]);
   const [stitchAmannInput, setStitchAmannInput] = useState("");
   const [stitchColorTags, setStitchColorTags] = useState([]);
   const [stitchColorTagInput, setStitchColorTagInput] = useState("");
@@ -82,7 +82,7 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
       setLinkedColorTags((thread?.colorTags || []).map(tag => tag.value));
     } else if (mode === "add") {
       setStitchName("");
-      setStitchAmann("");
+      setStitchAmann([]);
       setStitchColorTags([]);
     }
   }, [mode, selectedThreadId, stitchingThreadColors]);
@@ -105,7 +105,7 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
   }, [unlinkedAmannNumbers, stitchAmannInput]);
   // Filtered Amann options (update mode)
   const filteredUpdateAmannOptions = useMemo(() => {
-    const search = stitchAmann.toLowerCase();
+    const search = stitchAmann.join(", ").toLowerCase();
     // Only show Amann numbers that are either:
     // 1. Unlinked (threadId === null)
     // 2. Already linked to the selected thread
@@ -149,7 +149,7 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
     if (!linkedAmannNumbers.includes(value)) {
       setLinkedAmannNumbers(prev => [...prev, value]);
     }
-    setStitchAmann("");
+    setStitchAmann([]);
   };
   const handleRemoveUpdateAmann = (id) => {
     if (deletedAmannNumbers.includes(id)) {
@@ -173,7 +173,7 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
     setUpdateError("");
     setUpdateSuccess(false);
     setStitchName("");
-    setStitchAmann("");
+    setStitchAmann([]);
     setStitchColorTags([]);
     setStitchColorTagInput("");
     setStitchModalOpen(false);
@@ -230,12 +230,8 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
   const handleStitchSave = () => {
     const name = toTitleCase(stitchName.trim());
     setStitchFormattedName(name);
-    const amannTrimmed = (stitchAmann || "").trim();
-    if (!name) {
-      setStitchNameError("Please enter a thread color name.");
-      return;
-    }
-    if (!amannTrimmed) {
+    if (!stitchAmann.length) {
+      setStitchNameError("Please select at least one Amann number.");
       return;
     }
     // Find if Amann number exists and which name it is linked to
@@ -243,7 +239,7 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
     let amannLinkedName = null;
     (stitchingThreadColors || []).forEach(tc => {
       (tc.amannNumbers || []).forEach(num => {
-        if ((num.label || "").trim().toLowerCase() === amannTrimmed.toLowerCase()) {
+        if ((num.label || "").trim().toLowerCase() === stitchAmann.join(", ").toLowerCase()) {
           amannExists = true;
           amannLinkedName = tc.label;
         }
@@ -279,12 +275,12 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
     formData.append('type', 'stitching');
     formData.append('name', stitchFormattedName);
     formData.append('abbreviation', stitchGeneratedAbbr);
-    if (stitchAmann) formData.append('amannNumber', stitchAmann);
+    stitchAmann.forEach(id => formData.append('amannNumbers', id));
     stitchColorTags.forEach(tagId => formData.append('colorTagIds', tagId));
     fetcher.submit(formData, { method: 'post' });
     setStitchModalOpen(false);
     setStitchName("");
-    setStitchAmann("");
+    setStitchAmann([]);
     setStitchAmannInput("");
     setStitchColorTags([]);
     setStitchGeneratedAbbr("");
@@ -314,8 +310,33 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
 
   // Handler for Amann number selection (add mode)
   const handleAddAmannSelect = (value) => {
-    setStitchAmann(value);
+    if (!stitchAmann.includes(value)) {
+      setStitchAmann(prev => [...prev, value]);
+    }
     setStitchAmannInput("");
+  };
+  const handleRemoveAddAmann = (id) => {
+    setStitchAmann(prev => prev.filter(v => v !== id));
+  };
+
+  // Add this handler above the return
+  const handleStitchNameBlur = () => {
+    const trimmed = stitchName.trim();
+    const formatted = toTitleCase(trimmed);
+    if (formatted !== stitchName) {
+      setStitchName(formatted);
+    }
+    // Re-run uniqueness check for trimmed, title-cased value
+    if (!formatted) {
+      setStitchNameError("");
+      return;
+    }
+    const nameExists = (stitchingThreadColors || []).some(tc => tc.label.trim().toLowerCase() === formatted.toLowerCase());
+    if (nameExists) {
+      setStitchNameError("A thread color with this name already exists.");
+    } else {
+      setStitchNameError("");
+    }
   };
 
   return (
@@ -382,8 +403,8 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
                   prefix={<Icon source={SearchIcon} />}
                   onChange={setStitchAmann}
                   label="Add Amann Number"
-                  value={stitchAmann}
-                  placeholder="Search or select Amann Number"
+                  value={stitchAmann.join(", ")}
+                  placeholder="Search or select Amann Numbers"
                   autoComplete="off"
                 />
               }
@@ -493,6 +514,7 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
               label="Name"
               value={stitchName}
               onChange={handleStitchNameChange}
+              onBlur={handleStitchNameBlur}
               autoComplete="off"
               error={stitchNameError}
             />
@@ -502,9 +524,9 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
                 <Combobox.TextField
                   prefix={<Icon source={SearchIcon} />}
                   onChange={setStitchAmannInput}
-                  label="Amann Number"
+                  label="Amann Numbers"
                   value={stitchAmannInput}
-                  placeholder="Search or select Amann Number"
+                  placeholder="Search or select Amann Numbers"
                   autoComplete="off"
                 />
               }
@@ -521,13 +543,13 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
                 </div>
               )}
             </Combobox>
-            {stitchAmann && (unlinkedAmannNumbers || []).some(num => num.value === stitchAmann) && (
-              <InlineStack gap="200" wrap>
-                <Tag onRemove={() => { setStitchAmann(""); setStitchAmannInput(""); }}>
-                  {(unlinkedAmannNumbers || []).find(num => num.value === stitchAmann)?.label || stitchAmann}
+            <InlineStack gap="200" wrap>
+              {stitchAmann.map(id => (
+                <Tag key={id} onRemove={() => handleRemoveAddAmann(id)}>
+                  {(unlinkedAmannNumbers || []).find(num => num.value === id)?.label || id}
                 </Tag>
-              </InlineStack>
-            )}
+              ))}
+            </InlineStack>
             {/* Color tags (add mode) */}
             <Combobox
               activator={
@@ -587,10 +609,7 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
           <BlockStack gap="200">
             <Text><b>Name:</b> {stitchFormattedName}</Text>
             <Text><b>Abbreviation:</b> {stitchGeneratedAbbr}</Text>
-            <Text>
-              <b>Amann Number:</b> 
-              {(unlinkedAmannNumbers.find(num => num.value === stitchAmann)?.label) || stitchAmann || "None"}
-            </Text>
+            <Text><b>Amann Numbers:</b> {stitchAmann.map(id => (unlinkedAmannNumbers || []).find(num => num.value === id)?.label || id).join(", ") || "None"}</Text>
             <Text><b>Tags:</b> {stitchColorTags.map(tagValue => {
               const tagObj = colorTags.find(t => t.value === tagValue);
               return tagObj ? tagObj.label : tagValue;

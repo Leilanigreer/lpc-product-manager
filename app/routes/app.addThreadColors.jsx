@@ -111,10 +111,10 @@ export const action = async ({ request }) => {
     // Parse form data for add
     const name = formData.get("name");
     const abbreviation = formData.get("abbreviation");
-    const isacordNumber = formData.get("isacordNumber");
+    const isacordNumbers = formData.getAll("isacordNumbers");
     const colorTagIds = formData.getAll("colorTagIds");
     try {
-      const created = await createEmbroideryThreadColorWithTags({ name, abbreviation, isacordNumber }, colorTagIds);
+      const created = await createEmbroideryThreadColorWithTags({ name, abbreviation, isacordNumbers }, colorTagIds);
       return {
         success: true,
         threadColor: created,
@@ -158,10 +158,10 @@ export const action = async ({ request }) => {
     // Parse form data for add
     const name = formData.get("name");
     const abbreviation = formData.get("abbreviation");
-    const amannNumber = formData.get("amannNumber");
+    const amannNumbers = formData.getAll("amannNumbers");
     const colorTagIds = formData.getAll("colorTagIds");
     try {
-      const created = await createStitchingThreadColorWithTagsAndAmann({ name, abbreviation, amannNumber }, colorTagIds);
+      const created = await createStitchingThreadColorWithTagsAndAmann({ name, abbreviation, amannNumbers }, colorTagIds);
       return {
         success: true,
         threadColor: created,

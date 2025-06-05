@@ -21,7 +21,7 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
   const [embMode, setEmbMode] = useState("add"); // "add" or "update"
   const [embSelectedThreadId, setEmbSelectedThreadId] = useState("");
   const [embName, setEmbName] = useState("");
-  const [embIsacord, setEmbIsacord] = useState("");
+  const [embIsacord, setEmbIsacord] = useState([]);
   const [embIsacordInput, setEmbIsacordInput] = useState("");
   const [embLinkedIsacordNumbers, setEmbLinkedIsacordNumbers] = useState([]); // For update mode
   const [originalLinkedIsacordNumbers, setOriginalLinkedIsacordNumbers] = useState([]); // Track original linked numbers
@@ -152,8 +152,13 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
 
   // Handlers for Isacord numbers (add mode)
   const handleIsacordSelect = (value) => {
-    setEmbIsacord(value);
+    if (!embIsacord.includes(value)) {
+      setEmbIsacord(prev => [...prev, value]);
+    }
     setEmbIsacordInput("");
+  };
+  const handleRemoveIsacord = (id) => {
+    setEmbIsacord(prev => prev.filter(v => v !== id));
   };
 
   // Handlers for Isacord numbers (update mode)
@@ -197,8 +202,8 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
       setEmbError("Please enter a thread color name.");
       return;
     }
-    if (!embIsacord) {
-      setEmbError("Please select an Isacord number.");
+    if (!embIsacord.length) {
+      setEmbError("Please select at least one Isacord number.");
       return;
     }
     // Validation: name must not already exist (case-insensitive)
@@ -222,12 +227,12 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
     formData.append('type', 'embroidery');
     formData.append('name', embFormattedName);
     formData.append('abbreviation', embGeneratedAbbr);
-    if (embIsacord) formData.append('isacordNumber', embIsacord);
+    embIsacord.forEach(id => formData.append('isacordNumbers', id));
     embColorTags.forEach(tagId => formData.append('colorTagIds', tagId));
     fetcher.submit(formData, { method: 'post' });
     setEmbModalOpen(false);
     setEmbName("");
-    setEmbIsacord("");
+    setEmbIsacord([]);
     setEmbColorTags([]);
     setEmbGeneratedAbbr("");
     setEmbFormattedName("");
@@ -248,7 +253,7 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
     // Clear all embroidery form state when embMode changes
     setEmbSelectedThreadId("");
     setEmbName("");
-    setEmbIsacord("");
+    setEmbIsacord([]);
     setEmbIsacordInput("");
     setEmbLinkedIsacordNumbers([]);
     setOriginalLinkedIsacordNumbers([]);
@@ -311,6 +316,26 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
       setDeletedColorTags([]);
     }
   }, [fetcher.data]);
+
+  // Add this handler above the return
+  const handleEmbNameBlur = () => {
+    const trimmed = embName.trim();
+    const formatted = toTitleCase(trimmed);
+    if (formatted !== embName) {
+      setEmbName(formatted);
+    }
+    // Re-run uniqueness check for trimmed, title-cased value
+    if (!formatted) {
+      setEmbError("");
+      return;
+    }
+    const nameExists = (embroideryThreadColors || []).some(tc => tc.label.trim().toLowerCase() === formatted.toLowerCase());
+    if (nameExists) {
+      setEmbError("A thread color with this name already exists.");
+    } else {
+      setEmbError("");
+    }
+  };
 
   return (
     <Card>
@@ -483,6 +508,7 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
               label="Name"
               value={embName}
               onChange={handleEmbNameChange}
+              onBlur={handleEmbNameBlur}
               autoComplete="off"
               error={embError}
             />
@@ -492,9 +518,9 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
                 <Combobox.TextField
                   prefix={<Icon source={SearchIcon} />}
                   onChange={setEmbIsacordInput}
-                  label="Isacord Number"
+                  label="Isacord Numbers"
                   value={embIsacordInput}
-                  placeholder="Search or select Isacord Number"
+                  placeholder="Search or select Isacord Numbers"
                   autoComplete="off"
                 />
               }
@@ -511,11 +537,13 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
                 </div>
               )}
             </Combobox>
-            {embIsacord && (
-              <InlineStack gap="200" wrap>
-                <Tag onRemove={() => setEmbIsacord("")}>{unlinkedIsacordNumbers.find(num => num.value === embIsacord)?.label || embIsacord}</Tag>
-              </InlineStack>
-            )}
+            <InlineStack gap="200" wrap>
+              {embIsacord.map(id => (
+                <Tag key={id} onRemove={() => handleRemoveIsacord(id)}>
+                  {unlinkedIsacordNumbers.find(num => num.value === id)?.label || id}
+                </Tag>
+              ))}
+            </InlineStack>
             {/* Color tags (add mode) */}
             <Combobox
               activator={
@@ -576,7 +604,7 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
           <BlockStack gap="200">
             <Text><b>Name:</b> {embFormattedName}</Text>
             <Text><b>Abbreviation:</b> {embGeneratedAbbr}</Text>
-            <Text><b>Isacord Number:</b> {unlinkedIsacordNumbers.find(num => num.value === embIsacord)?.label || embIsacord || "None"}</Text>
+            <Text><b>Isacord Numbers:</b> {embIsacord.map(id => unlinkedIsacordNumbers.find(num => num.value === id)?.label || id).join(", ") || "None"}</Text>
             <Text><b>Tags:</b> {embColorTags.map(tagValue => {
               const tagObj = colorTags.find(t => t.value === tagValue);
               return tagObj ? tagObj.label : tagValue;
