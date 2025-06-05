@@ -1,26 +1,14 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-<<<<<<<< HEAD:shopify.app.staging.toml
-client_id = "c8e389c6d9ff56717b5cfa3109f4c324"
-name = "LPC Product Mgmt - Staging"
-handle = "lpc-product-mgmt-staging"
-application_url = "https://lpc-product-management-staging.up.railway.app"
-embedded = true
-
-[build]
-automatically_update_urls_on_dev = false
-dev_store_url = "lpc-product-management-staging.myshopify.com"
-========
 client_id = "df58a5b13484ffc9b63eb3e420dca6f9"
 name = "LPC Product Management - Dev"
 handle = "lpc-product-management-dev-1"
-application_url = "https://lives-explains-thehun-upcoming.trycloudflare.com"
+application_url = "https://belt-cooler-pattern-aggressive.trycloudflare.com"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
 dev_store_url = "lpc-product-management-dev.myshopify.com"
->>>>>>>> origin/staging:shopify.app.dev.toml
 include_config_on_deploy = true
 
 [access_scopes]
@@ -29,9 +17,9 @@ scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_produ
 
 [auth]
 redirect_urls = [
-  "https://lives-explains-thehun-upcoming.trycloudflare.com/auth/callback",
-  "https://lives-explains-thehun-upcoming.trycloudflare.com/auth/shopify/callback",
-  "https://lives-explains-thehun-upcoming.trycloudflare.com/api/auth/callback"
+  "https://belt-cooler-pattern-aggressive.trycloudflare.com/auth/callback",
+  "https://belt-cooler-pattern-aggressive.trycloudflare.com/auth/shopify/callback",
+  "https://belt-cooler-pattern-aggressive.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

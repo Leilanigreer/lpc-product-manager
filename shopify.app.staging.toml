@@ -1,6 +1,5 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-<<<<<<<< HEAD:shopify.app.staging.toml
 client_id = "c8e389c6d9ff56717b5cfa3109f4c324"
 name = "LPC Product Mgmt - Staging"
 handle = "lpc-product-mgmt-staging"
@@ -10,17 +9,6 @@ embedded = true
 [build]
 automatically_update_urls_on_dev = false
 dev_store_url = "lpc-product-management-staging.myshopify.com"
-========
-client_id = "df58a5b13484ffc9b63eb3e420dca6f9"
-name = "LPC Product Management - Dev"
-handle = "lpc-product-management-dev-1"
-application_url = "https://lives-explains-thehun-upcoming.trycloudflare.com"
-embedded = true
-
-[build]
-automatically_update_urls_on_dev = true
-dev_store_url = "lpc-product-management-dev.myshopify.com"
->>>>>>>> origin/staging:shopify.app.dev.toml
 include_config_on_deploy = true
 
 [access_scopes]
