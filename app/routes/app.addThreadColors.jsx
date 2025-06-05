@@ -25,11 +25,7 @@ export default function AddThreadColors() {
   React.useEffect(() => {
     if (fetcher.data && fetcher.data.success) {
       setShowBanner(true);
-      if (fetcher.data.threadColor && fetcher.data.threadColor.id) {
-        setBannerType(fetcher.data.threadColor.abbreviation ? "add" : "update");
-      } else {
-        setBannerType("update");
-      }
+      setBannerType(fetcher.data.actionType || "update");
     }
   }, [fetcher.data]);
 
@@ -98,6 +94,7 @@ export const action = async ({ request }) => {
       return {
         success: true,
         threadColor: updated,
+        actionType: "update",
       };
     } catch (error) {
       console.error('[action] updateEmbroidery error', error);
@@ -118,6 +115,7 @@ export const action = async ({ request }) => {
       return {
         success: true,
         threadColor: created,
+        actionType: "add",
       };
     } catch (error) {
       console.error('[action] addEmbroidery error', error);
@@ -145,6 +143,7 @@ export const action = async ({ request }) => {
       return {
         success: true,
         threadColor: updated,
+        actionType: "update",
       };
     } catch (error) {
       console.error('[action] updateStitching error', error);
@@ -165,6 +164,7 @@ export const action = async ({ request }) => {
       return {
         success: true,
         threadColor: created,
+        actionType: "add",
       };
     } catch (error) {
       console.error('[action] addStitching error', error);
