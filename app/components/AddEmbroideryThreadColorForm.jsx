@@ -37,6 +37,10 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [updateError, setUpdateError] = useState("");
+  // Add state to track if a name collision occurred and the matching thread id
+  const [nameCollisionThreadId, setNameCollisionThreadId] = useState(null);
+  // Add state for thread name search input in update mode
+  const [threadNameSearchInput, setThreadNameSearchInput] = useState("");
 
   // Utility: get all embroidery thread names for dropdown
   const embroideryThreadOptions = useMemo(() =>
@@ -55,20 +59,44 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
     return [...linked, ...unlinked];
   }, [embroideryThreadColors, unlinkedIsacordNumbers]);
 
-  // When switching to update mode and selecting a thread, populate linked numbers/tags
+  // Effect 1: Reset state only when switching to 'add' mode
+  useEffect(() => {
+    if (embMode === "add") {
+      setThreadNameSearchInput("");
+      setEmbSelectedThreadId("");
+      setEmbName("");
+      setEmbIsacord([]);
+      setEmbIsacordInput("");
+      setEmbLinkedIsacordNumbers([]);
+      setOriginalLinkedIsacordNumbers([]);
+      setEmbColorTags([]);
+      setEmbLinkedColorTags([]);
+      setEmbColorTagInput("");
+      setEmbModalOpen(false);
+      setEmbError("");
+      setEmbGeneratedAbbr("");
+      setEmbFormattedName("");
+      setDeletedIsacordNumbers([]);
+      setDeletedColorTags([]);
+      setUpdateModalOpen(false);
+      setUpdateSuccess(false);
+      setUpdateError("");
+      setNameCollisionThreadId(null);
+    }
+  }, [embMode]);
+
+  // Effect 2: Populate state when switching to 'update' mode and embSelectedThreadId changes
   useEffect(() => {
     if (embMode === "update" && embSelectedThreadId) {
       const thread = (embroideryThreadColors || []).find(tc => tc.value === embSelectedThreadId);
+      setThreadNameSearchInput(thread?.label || "");
       setEmbName(thread?.label || "");
       const originalIds = (thread?.isacordNumbers || []).map(num => num.value);
       setOriginalLinkedIsacordNumbers(originalIds);
       setEmbLinkedIsacordNumbers(originalIds);
       setEmbLinkedColorTags((thread?.colorTags || []).map(tag => tag.value));
-    } else if (embMode === "add") {
-      setEmbName("");
-      setOriginalLinkedIsacordNumbers([]);
-      setEmbLinkedIsacordNumbers([]);
-      setEmbLinkedColorTags([]);
+      setDeletedIsacordNumbers([]);
+      setDeletedColorTags([]);
     }
   }, [embMode, embSelectedThreadId, embroideryThreadColors]);
 
@@ -186,6 +214,19 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
   const handleEmbNameChange = (value) => {
     const formatted = toTitleCase(value);
     setEmbName(formatted);
+    if (!formatted) {
+      setEmbError("");
+      setNameCollisionThreadId(null);
+      return;
+    }
+    const existing = (embroideryThreadColors || []).find(tc => tc.label.trim().toLowerCase() === formatted.toLowerCase());
+    if (existing) {
+      setEmbError("A thread color with this name already exists.");
+      setNameCollisionThreadId(existing.value);
+    } else {
+      setEmbError("");
+      setNameCollisionThreadId(null);
+    }
   };
 
   // Handler for embroidery thread selection (update mode)
@@ -197,21 +238,24 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
   const handleEmbSave = () => {
     const name = toTitleCase(embName.trim());
     setEmbFormattedName(name);
-    // Validation: require name and Isacord number
     if (!name) {
       setEmbError("Please enter a thread color name.");
+      setNameCollisionThreadId(null);
       return;
     }
     if (!embIsacord.length) {
       setEmbError("Please select at least one Isacord number.");
+      setNameCollisionThreadId(null);
       return;
     }
     // Validation: name must not already exist (case-insensitive)
-    const nameExists = (embroideryThreadColors || []).some(tc => tc.label.trim().toLowerCase() === name.toLowerCase());
-    if (nameExists) {
+    const existing = (embroideryThreadColors || []).find(tc => tc.label.trim().toLowerCase() === name.toLowerCase());
+    if (existing) {
       setEmbError("A thread color with this name already exists.");
+      setNameCollisionThreadId(existing.value);
       return;
     }
+    setNameCollisionThreadId(null);
     // Generate abbreviation (with E suffix)
     const existingAbbrs = (embroideryThreadColors || []).map(tc => tc.abbreviation);
     const abbr = generateEmbAbbreviation(name, existingAbbrs);
@@ -249,24 +293,38 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
     }
   }, [fetcher.data]);
 
-  useEffect(() => {
-    // Clear all embroidery form state when embMode changes
-    setEmbSelectedThreadId("");
-    setEmbName("");
-    setEmbIsacord([]);
-    setEmbIsacordInput("");
-    setEmbLinkedIsacordNumbers([]);
-    setOriginalLinkedIsacordNumbers([]);
-    setEmbColorTags([]);
-    setEmbLinkedColorTags([]);
-    setEmbColorTagInput("");
-    setEmbModalOpen(false);
-    setEmbError("");
-    setEmbGeneratedAbbr("");
-    setEmbFormattedName("");
-    setDeletedIsacordNumbers([]);
-    setDeletedColorTags([]);
-  }, [embMode]);
+  // Add this handler above the return
+  const handleEmbNameBlur = () => {
+    const trimmed = embName.trim();
+    const formatted = toTitleCase(trimmed);
+    if (formatted !== embName) {
+      setEmbName(formatted);
+    }
+    if (!formatted) {
+      setEmbError("");
+      setNameCollisionThreadId(null);
+      return;
+    }
+    const existing = (embroideryThreadColors || []).find(tc => tc.label.trim().toLowerCase() === formatted.toLowerCase());
+    if (existing) {
+      setEmbError("A thread color with this name already exists.");
+      setNameCollisionThreadId(existing.value);
+    } else {
+      setEmbError("");
+      setNameCollisionThreadId(null);
+    }
+  };
+
+  // Add handler for switching to update mode from name collision
+  const handleSwitchToUpdateFromName = () => {
+    if (nameCollisionThreadId) {
+      setEmbMode("update");
+      setEmbSelectedThreadId(nameCollisionThreadId);
+      setEmbName(embName); // Preserve the user's typed name
+      setEmbError("");
+      setNameCollisionThreadId(null);
+    }
+  };
 
   // Compute changes for update
   const originalThread = (embroideryThreadColors || []).find(tc => tc.value === embSelectedThreadId);
@@ -317,26 +375,6 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
     }
   }, [fetcher.data]);
 
-  // Add this handler above the return
-  const handleEmbNameBlur = () => {
-    const trimmed = embName.trim();
-    const formatted = toTitleCase(trimmed);
-    if (formatted !== embName) {
-      setEmbName(formatted);
-    }
-    // Re-run uniqueness check for trimmed, title-cased value
-    if (!formatted) {
-      setEmbError("");
-      return;
-    }
-    const nameExists = (embroideryThreadColors || []).some(tc => tc.label.trim().toLowerCase() === formatted.toLowerCase());
-    if (nameExists) {
-      setEmbError("A thread color with this name already exists.");
-    } else {
-      setEmbError("");
-    }
-  };
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -369,22 +407,27 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
         {/* Embroidery form fields based on mode */}
         {embMode === "update" ? (
           <BlockStack gap="400">
-            {/* Dropdown for existing thread names */}
+            {/* Dropdown for existing thread names (interactive, searchable) */}
             <Combobox
               activator={
                 <Combobox.TextField
                   label="Select Thread Name"
-                  value={embroideryThreadOptions.find(opt => opt.value === embSelectedThreadId)?.label || ""}
-                  onChange={() => {}}
+                  value={threadNameSearchInput}
+                  onChange={setThreadNameSearchInput}
                   placeholder="Choose a thread color name"
                   autoComplete="off"
-                  readOnly
                 />
               }
             >
               <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
-                <Listbox onSelect={handleEmbThreadSelect}>
-                  {embroideryThreadOptions.map(option => (
+                <Listbox onSelect={value => {
+                  setEmbSelectedThreadId(value);
+                  const selected = embroideryThreadOptions.find(opt => opt.value === value);
+                  setThreadNameSearchInput(selected ? selected.label : "");
+                }}>
+                  {embroideryThreadOptions.filter(opt =>
+                    opt.label.toLowerCase().includes(threadNameSearchInput.toLowerCase())
+                  ).map(option => (
                     <Listbox.Option key={option.value} value={option.value}>
                       {option.label}
                     </Listbox.Option>
@@ -512,6 +555,13 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
               autoComplete="off"
               error={embError}
             />
+            {nameCollisionThreadId && (
+              <div style={{ marginTop: 8 }}>
+                <Button onClick={handleSwitchToUpdateFromName} size="slim">
+                  This name already exists. Edit this color instead?
+                </Button>
+              </div>
+            )}
             {/* Isacord number dropdown (add mode) */}
             <Combobox
               activator={
