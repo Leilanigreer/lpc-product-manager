@@ -35,12 +35,13 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
   const [embFormattedName, setEmbFormattedName] = useState("");
   // Add state for update confirmation modal
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
-  const [updateSuccess, setUpdateSuccess] = useState(false);
   const [updateError, setUpdateError] = useState("");
   // Add state to track if a name collision occurred and the matching thread id
   const [nameCollisionThreadId, setNameCollisionThreadId] = useState(null);
   // Add state for thread name search input in update mode
   const [threadNameSearchInput, setThreadNameSearchInput] = useState("");
+  // Add state for Isacord reassignment modal
+  const [isacordReassignModal, setIsacordReassignModal] = useState({ open: false, num: null, linkedThread: null });
 
   // Utility: get all embroidery thread names for dropdown
   const embroideryThreadOptions = useMemo(() =>
@@ -55,8 +56,15 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
       (tc.isacordNumbers || []).map(num => ({ ...num, threadId: tc.value, threadName: tc.label }))
     );
     // Unlinked: from unlinkedIsacordNumbers
-    const unlinked = (unlinkedIsacordNumbers || []).map(num => ({ ...num, threadId: null }));
-    return [...linked, ...unlinked];
+    const unlinked = (unlinkedIsacordNumbers || []).map(num => ({ ...num, threadId: null, threadName: null }));
+    // Merge and deduplicate by value
+    const all = [...linked, ...unlinked];
+    const seen = new Set();
+    return all.filter(num => {
+      if (seen.has(num.value)) return false;
+      seen.add(num.value);
+      return true;
+    });
   }, [embroideryThreadColors, unlinkedIsacordNumbers]);
 
   // Effect 1: Reset state only when switching to 'add' mode
@@ -79,9 +87,9 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
       setDeletedIsacordNumbers([]);
       setDeletedColorTags([]);
       setUpdateModalOpen(false);
-      setUpdateSuccess(false);
       setUpdateError("");
       setNameCollisionThreadId(null);
+      setIsacordReassignModal({ open: false, num: null, linkedThread: null });
     }
   }, [embMode]);
 
@@ -125,26 +133,24 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
   // Filtered options for Isacord numbers (for add mode)
   const filteredIsacordOptions = useMemo(() => {
     const search = embIsacordInput.toLowerCase();
-    return unlinkedIsacordNumbers.filter(num =>
+    return allIsacordOptions.filter(num =>
       num.label.toLowerCase().includes(search)
-    );
-  }, [unlinkedIsacordNumbers, embIsacordInput]);
+    ).map(num => ({
+      ...num,
+      label: num.threadId && num.threadName ? `${num.label} (linked to ${num.threadName})` : num.label
+    }));
+  }, [allIsacordOptions, embIsacordInput]);
 
   // Filtered options for Isacord numbers (for update mode)
   const filteredUpdateIsacordOptions = useMemo(() => {
     const search = embIsacordInput.toLowerCase();
-    // Only show Isacord numbers that are either:
-    // 1. Unlinked (threadId === null)
-    // 2. Already linked to the selected thread
     return allIsacordOptions.filter(num =>
-      num.label.toLowerCase().includes(search) &&
-      (
-        num.threadId === null ||
-        num.threadId === embSelectedThreadId
-      ) &&
-      !embLinkedIsacordNumbers.includes(num.value)
-    );
-  }, [allIsacordOptions, embIsacordInput, embLinkedIsacordNumbers, embSelectedThreadId]);
+      num.label.toLowerCase().includes(search)
+    ).map(num => ({
+      ...num,
+      label: num.threadId && num.threadName ? `${num.label} (linked to ${num.threadName})` : num.label
+    }));
+  }, [allIsacordOptions, embIsacordInput]);
 
   // Handlers for embroidery color tags (add mode)
   const handleEmbColorTagSelect = (value) => {
@@ -180,6 +186,12 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
 
   // Handlers for Isacord numbers (add mode)
   const handleIsacordSelect = (value) => {
+    const numObj = allIsacordOptions.find(num => num.value === value);
+    if (numObj && numObj.threadId && !embIsacord.includes(value)) {
+      // Already linked to another thread, show modal
+      setIsacordReassignModal({ open: true, num: numObj, linkedThread: numObj.threadName });
+      return;
+    }
     if (!embIsacord.includes(value)) {
       setEmbIsacord(prev => [...prev, value]);
     }
@@ -191,6 +203,12 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
 
   // Handlers for Isacord numbers (update mode)
   const handleUpdateIsacordSelect = (value) => {
+    const numObj = allIsacordOptions.find(num => num.value === value);
+    if (numObj && numObj.threadId && numObj.threadId !== embSelectedThreadId && !embLinkedIsacordNumbers.includes(value)) {
+      // Already linked to another thread, show modal
+      setIsacordReassignModal({ open: true, num: numObj, linkedThread: numObj.threadName });
+      return;
+    }
     if (!embLinkedIsacordNumbers.includes(value)) {
       setEmbLinkedIsacordNumbers(prev => [...prev, value]);
     }
@@ -229,11 +247,6 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
     }
   };
 
-  // Handler for embroidery thread selection (update mode)
-  const handleEmbThreadSelect = (value) => {
-    setEmbSelectedThreadId(value);
-  };
-
   // Handler for Save Embroidery Thread Color
   const handleEmbSave = () => {
     const name = toTitleCase(embName.trim());
@@ -264,7 +277,7 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
     setEmbError("");
   };
 
-  // Handler for confirming in modal (for now, just close and reset)
+  // Handler for confirming in modal
   const handleEmbConfirm = () => {
     // Prepare form data
     const formData = new FormData();
@@ -273,6 +286,16 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
     formData.append('abbreviation', embGeneratedAbbr);
     embIsacord.forEach(id => formData.append('isacordNumbers', id));
     embColorTags.forEach(tagId => formData.append('colorTagIds', tagId));
+
+    // Add reassignment info for isacord numbers that are linked to another thread
+    embIsacord.forEach(id => {
+      const numObj = allIsacordOptions.find(num => num.value === id);
+      if (numObj && numObj.threadId) {
+        // Only add if linked to a different thread
+        formData.append('reassignIsacordNumbers[]', JSON.stringify({ isacordId: id, fromThreadId: numObj.threadId }));
+      }
+    });
+
     fetcher.submit(formData, { method: 'post' });
     setEmbModalOpen(false);
     setEmbName("");
@@ -355,6 +378,16 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
     removeIsacordIds.forEach(id => formData.append("removeIsacordIds", id));
     addColorTagIds.forEach(id => formData.append("addColorTagIds", id));
     removeColorTagIds.forEach(id => formData.append("removeColorTagIds", id));
+
+    // Add reassignment info for isacord numbers that are linked to another thread
+    addIsacordIds.forEach(id => {
+      const numObj = allIsacordOptions.find(num => num.value === id);
+      if (numObj && numObj.threadId && numObj.threadId !== embSelectedThreadId) {
+        // Only add if linked to a different thread
+        formData.append('reassignIsacordNumbers[]', JSON.stringify({ isacordId: id, fromThreadId: numObj.threadId }));
+      }
+    });
+
     fetcher.submit(formData, { method: "post" });
     setUpdateModalOpen(false);
   };
@@ -366,14 +399,28 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
   useEffect(() => {
     if (fetcher.data && fetcher.data.error) {
       setUpdateError(fetcher.data.error);
-    } else if (fetcher.data && fetcher.data.success) {
-      setUpdateSuccess(true);
-      setTimeout(() => setUpdateSuccess(false), 2000);
-      setUpdateError("");
-      setDeletedIsacordNumbers([]);
-      setDeletedColorTags([]);
     }
   }, [fetcher.data]);
+
+  // Handler for confirming Isacord reassignment
+  const handleConfirmIsacordReassign = () => {
+    const value = isacordReassignModal.num.value;
+    if (embMode === "add") {
+      if (!embIsacord.includes(value)) {
+        setEmbIsacord(prev => [...prev, value]);
+      }
+    } else if (embMode === "update") {
+      if (!embLinkedIsacordNumbers.includes(value)) {
+        setEmbLinkedIsacordNumbers(prev => [...prev, value]);
+      }
+    }
+    setIsacordReassignModal({ open: false, num: null, linkedThread: null });
+    setEmbIsacordInput("");
+  };
+  const handleCancelIsacordReassign = () => {
+    setIsacordReassignModal({ open: false, num: null, linkedThread: null });
+    setEmbIsacordInput("");
+  };
 
   return (
     <Card>
@@ -542,7 +589,6 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
               Update Embroidery Thread Color
             </Button>
             {updateError && <Text color="critical">{updateError}</Text>}
-            {/* {updateSuccess && <Text color="success">Update successful!</Text>} */}
           </BlockStack>
         ) : (
           <BlockStack gap="400">
@@ -588,11 +634,14 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
               )}
             </Combobox>
             <InlineStack gap="200" wrap>
-              {embIsacord.map(id => (
-                <Tag key={id} onRemove={() => handleRemoveIsacord(id)}>
-                  {unlinkedIsacordNumbers.find(num => num.value === id)?.label || id}
-                </Tag>
-              ))}
+              {embIsacord.map(id => {
+                const numObj = allIsacordOptions.find(num => num.value === id);
+                return (
+                  <Tag key={id} onRemove={() => handleRemoveIsacord(id)}>
+                    {numObj ? numObj.label : id}
+                  </Tag>
+                );
+              })}
             </InlineStack>
             {/* Color tags (add mode) */}
             <Combobox
@@ -654,7 +703,10 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
           <BlockStack gap="200">
             <Text><b>Name:</b> {embFormattedName}</Text>
             <Text><b>Abbreviation:</b> {embGeneratedAbbr}</Text>
-            <Text><b>Isacord Numbers:</b> {embIsacord.map(id => unlinkedIsacordNumbers.find(num => num.value === id)?.label || id).join(", ") || "None"}</Text>
+            <Text><b>Isacord Numbers:</b> {embIsacord.map(id => {
+              const numObj = allIsacordOptions.find(num => num.value === id);
+              return numObj ? numObj.label : id;
+            }).join(", ") || "None"}</Text>
             <Text><b>Tags:</b> {embColorTags.map(tagValue => {
               const tagObj = colorTags.find(t => t.value === tagValue);
               return tagObj ? tagObj.label : tagValue;
@@ -697,6 +749,34 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
               const tagObj = colorTags.find(t => t.value === id);
               return tagObj ? tagObj.label : id;
             }).join(", ") || "None"}</Text>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+      {/* Isacord reassignment modal */}
+      <Modal
+        open={isacordReassignModal.open}
+        onClose={handleCancelIsacordReassign}
+        title="Reassign Isacord Number?"
+        primaryAction={{
+          content: "Reassign",
+          onAction: handleConfirmIsacordReassign,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: handleCancelIsacordReassign,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="200">
+            <Text>
+              The Isacord number <b>{isacordReassignModal.num?.label}</b> is currently linked to <b>{isacordReassignModal.linkedThread}</b>.<br />
+              Do you want to reassign it to this thread color?
+            </Text>
+            <Text color="critical">
+              This will remove the Isacord number from the previous thread color.
+            </Text>
           </BlockStack>
         </Modal.Section>
       </Modal>

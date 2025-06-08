@@ -59,13 +59,14 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
   const [deletedColorTags, setDeletedColorTags] = useState([]); // ids
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [updateError, setUpdateError] = useState("");
-  const [updateSuccess, setUpdateSuccess] = useState(false);
   // Add state to track if a name collision occurred and the matching thread id
   const [nameCollisionThreadId, setNameCollisionThreadId] = useState(null);
-  // Add state to track a pending name for update mode
-  const [pendingNameForUpdate, setPendingNameForUpdate] = useState("");
   // Add state for thread name search input in update mode
   const [threadNameSearchInput, setThreadNameSearchInput] = useState("");
+  // Add state for Amann reassignment modal
+  const [amannReassignModal, setAmannReassignModal] = useState({ open: false, num: null, linkedThread: null });
+  // Add state for Amann number search input in update mode
+  const [stitchAmannInputUpdate, setStitchAmannInputUpdate] = useState("");
   // Utility: get all thread options
   const threadOptions = useMemo(() => (stitchingThreadColors || []).map(tc => ({ label: tc.label, value: tc.value })), [stitchingThreadColors]);
   // Utility: get all amann numbers (linked and unlinked)
@@ -94,12 +95,10 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
       setDeletedColorTags([]);
       setUpdateModalOpen(false);
       setUpdateError("");
-      setUpdateSuccess(false);
       setStitchNameError("");
       setStitchGeneratedAbbr("");
       setStitchFormattedName("");
       setNameCollisionThreadId(null);
-      setPendingNameForUpdate("");
     }
   }, [mode]);
   // Effect 2: Populate state when switching to 'update' mode and selectedThreadId changes
@@ -108,7 +107,6 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
       const thread = (stitchingThreadColors || []).find(tc => tc.value === selectedThreadId);
       setThreadNameSearchInput(thread?.label || "");
       setStitchName(thread?.label || "");
-      setPendingNameForUpdate(""); // Clear after use
       const originalIds = (thread?.amannNumbers || []).map(num => num.value);
       setOriginalLinkedAmannNumbers(originalIds);
       setLinkedAmannNumbers(originalIds);
@@ -128,25 +126,29 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
   // Filtered Amann options (add mode)
   const filteredAddAmannOptions = useMemo(() => {
     const search = stitchAmannInput.toLowerCase();
-    return (unlinkedAmannNumbers || []).filter(num =>
-      num.label.toLowerCase().includes(search)
-    );
-  }, [unlinkedAmannNumbers, stitchAmannInput]);
+    // Show all Amann numbers, with label indicating if linked to another thread
+    return allAmannOptions
+      .filter(num => num.label.toLowerCase().includes(search) && !stitchAmann.includes(num.value))
+      .map(num => ({
+        ...num,
+        label: num.threadId && num.threadName
+          ? `${num.label} (linked to ${num.threadName})`
+          : num.label
+      }));
+  }, [allAmannOptions, stitchAmannInput, stitchAmann]);
   // Filtered Amann options (update mode)
   const filteredUpdateAmannOptions = useMemo(() => {
-    const search = stitchAmann.join(", ").toLowerCase();
-    // Only show Amann numbers that are either:
-    // 1. Unlinked (threadId === null)
-    // 2. Already linked to the selected thread
-    return allAmannOptions.filter(num =>
-      num.label.toLowerCase().includes(search) &&
-      (
-        num.threadId === null ||
-        num.threadId === selectedThreadId
-      ) &&
-      !linkedAmannNumbers.includes(num.value)
-    );
-  }, [allAmannOptions, stitchAmann, linkedAmannNumbers, selectedThreadId]);
+    const search = stitchAmannInputUpdate.toLowerCase();
+    // Show all Amann numbers, with label indicating if linked to another thread
+    return allAmannOptions
+      .filter(num => num.label.toLowerCase().includes(search) && !linkedAmannNumbers.includes(num.value))
+      .map(num => ({
+        ...num,
+        label: num.threadId && num.threadId !== selectedThreadId && num.threadName
+          ? `${num.label} (linked to ${num.threadName})`
+          : num.label
+      }));
+  }, [allAmannOptions, stitchAmannInputUpdate, linkedAmannNumbers, selectedThreadId]);
   // Handlers for color tags (add mode)
   const handleStitchColorTagSelect = (value) => {
     if (!stitchColorTags.includes(value)) {
@@ -175,10 +177,15 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
   };
   // Handlers for amann numbers (update mode)
   const handleUpdateAmannSelect = (value) => {
+    setStitchAmannInputUpdate("");
+    const numObj = allAmannOptions.find(num => num.value === value);
+    if (numObj && numObj.threadId && numObj.threadId !== selectedThreadId && !linkedAmannNumbers.includes(value)) {
+      setAmannReassignModal({ open: true, num: numObj, linkedThread: numObj.threadName });
+      return;
+    }
     if (!linkedAmannNumbers.includes(value)) {
       setLinkedAmannNumbers(prev => [...prev, value]);
     }
-    setStitchAmann([]);
   };
   const handleRemoveUpdateAmann = (id) => {
     if (deletedAmannNumbers.includes(id)) {
@@ -216,6 +223,16 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
     removeAmannIds.forEach(id => formData.append("removeAmannIds", id));
     addColorTagIds.forEach(id => formData.append("addColorTagIds", id));
     removeColorTagIds.forEach(id => formData.append("removeColorTagIds", id));
+
+    // Add reassignment info for amann numbers that are linked to another thread
+    addAmannIds.forEach(id => {
+      const numObj = allAmannOptions.find(num => num.value === id);
+      if (numObj && numObj.threadId && numObj.threadId !== selectedThreadId) {
+        // Only add if linked to a different thread
+        formData.append('reassignAmannNumbers[]', JSON.stringify({ amannId: id, fromThreadId: numObj.threadId }));
+      }
+    });
+
     fetcher.submit(formData, { method: "post" });
     setUpdateModalOpen(false);
   };
@@ -227,9 +244,6 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
     if (fetcher.data && fetcher.data.error) {
       setUpdateError(fetcher.data.error);
     } else if (fetcher.data && fetcher.data.success) {
-      setUpdateSuccess(true);
-      setTimeout(() => setUpdateSuccess(false), 2000);
-      setUpdateError("");
       setDeletedAmannNumbers([]);
       setDeletedColorTags([]);
     }
@@ -252,17 +266,6 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
       return;
     }
     setNameCollisionThreadId(null);
-    // Find if Amann number exists and which name it is linked to
-    let amannExists = false;
-    let amannLinkedName = null;
-    (stitchingThreadColors || []).forEach(tc => {
-      (tc.amannNumbers || []).forEach(num => {
-        if ((num.label || "").trim().toLowerCase() === stitchAmann.join(", ").toLowerCase()) {
-          amannExists = true;
-          amannLinkedName = tc.label;
-        }
-      });
-    });
     let abbr;
     if (nameExists) {
       abbr = existingThread.abbreviation;
@@ -285,6 +288,16 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
     formData.append('abbreviation', stitchGeneratedAbbr);
     stitchAmann.forEach(id => formData.append('amannNumbers', id));
     stitchColorTags.forEach(tagId => formData.append('colorTagIds', tagId));
+
+    // Add reassignment info for amann numbers that are linked to another thread
+    stitchAmann.forEach(id => {
+      const numObj = allAmannOptions.find(num => num.value === id);
+      if (numObj && numObj.threadId) {
+        // Only add if linked to a different thread
+        formData.append('reassignAmannNumbers[]', JSON.stringify({ amannId: id, fromThreadId: numObj.threadId }));
+      }
+    });
+
     fetcher.submit(formData, { method: 'post' });
     setStitchModalOpen(false);
     setStitchName("");
@@ -321,6 +334,12 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
 
   // Handler for Amann number selection (add mode)
   const handleAddAmannSelect = (value) => {
+    const numObj = allAmannOptions.find(num => num.value === value);
+    if (numObj && numObj.threadId && !stitchAmann.includes(value)) {
+      // Already linked to another thread, show modal
+      setAmannReassignModal({ open: true, num: numObj, linkedThread: numObj.threadName });
+      return;
+    }
     if (!stitchAmann.includes(value)) {
       setStitchAmann(prev => [...prev, value]);
     }
@@ -356,13 +375,39 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
   // Add handler for switching to update mode from name collision
   const handleSwitchToUpdateFromName = () => {
     if (nameCollisionThreadId) {
-      setPendingNameForUpdate(stitchName); // Store the user's typed name
       setMode("update");
       setSelectedThreadId(nameCollisionThreadId);
       setStitchNameError("");
       setNameCollisionThreadId(null);
     }
   };
+
+  // Handler for confirming Amann reassignment
+  const handleConfirmAmannReassign = () => {
+    const value = amannReassignModal.num.value;
+    if (mode === "add") {
+      if (!stitchAmann.includes(value)) {
+        setStitchAmann(prev => [...prev, value]);
+      }
+    } else if (mode === "update") {
+      if (!linkedAmannNumbers.includes(value)) {
+        setLinkedAmannNumbers(prev => [...prev, value]);
+      }
+    }
+    setAmannReassignModal({ open: false, num: null, linkedThread: null });
+    setStitchAmannInput("");
+  };
+  const handleCancelAmannReassign = () => {
+    setAmannReassignModal({ open: false, num: null, linkedThread: null });
+    setStitchAmannInput("");
+  };
+
+  // When switching to update mode or changing selectedThreadId, reset stitchAmannInputUpdate
+  useEffect(() => {
+    if (mode === "update") {
+      setStitchAmannInputUpdate("");
+    }
+  }, [mode, selectedThreadId]);
 
   return (
     <Card>
@@ -449,9 +494,9 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
               activator={
                 <Combobox.TextField
                   prefix={<Icon source={SearchIcon} />}
-                  onChange={setStitchAmann}
+                  onChange={setStitchAmannInputUpdate}
                   label="Add Amann Number"
-                  value={stitchAmann.join(", ")}
+                  value={stitchAmannInputUpdate}
                   placeholder="Search or select Amann Numbers"
                   autoComplete="off"
                 />
@@ -554,7 +599,6 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
               Update Stitching Thread Color
             </Button>
             {updateError && <Text color="critical">{updateError}</Text>}
-            {/* {updateSuccess && <Text color="success">Update successful!</Text>} */}
           </BlockStack>
         ) : (
           <BlockStack gap="400">
@@ -584,11 +628,14 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
               )}
             </Combobox>
             <InlineStack gap="200" wrap>
-              {stitchAmann.map(id => (
-                <Tag key={id} onRemove={() => handleRemoveAddAmann(id)}>
-                  {(unlinkedAmannNumbers || []).find(num => num.value === id)?.label || id}
-                </Tag>
-              ))}
+              {stitchAmann.map(id => {
+                const numObj = allAmannOptions.find(num => num.value === id);
+                return (
+                  <Tag key={id} onRemove={() => handleRemoveAddAmann(id)}>
+                    {numObj ? numObj.label : id}
+                  </Tag>
+                );
+              })}
             </InlineStack>
             {/* Color tags (add mode) */}
             <Combobox
@@ -649,7 +696,12 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
           <BlockStack gap="200">
             <Text><b>Name:</b> {stitchFormattedName}</Text>
             <Text><b>Abbreviation:</b> {stitchGeneratedAbbr}</Text>
-            <Text><b>Amann Numbers:</b> {stitchAmann.map(id => (unlinkedAmannNumbers || []).find(num => num.value === id)?.label || id).join(", ") || "None"}</Text>
+            <Text>
+              <b>Amann Numbers:</b> {stitchAmann.map(id => {
+                const numObj = allAmannOptions.find(num => num.value === id);
+                return numObj ? numObj.label : id;
+              }).join(", ") || "None"}
+            </Text>
             <Text><b>Tags:</b> {stitchColorTags.map(tagValue => {
               const tagObj = colorTags.find(t => t.value === tagValue);
               return tagObj ? tagObj.label : tagValue;
@@ -692,6 +744,34 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
               const tagObj = colorTags.find(t => t.value === id);
               return tagObj ? tagObj.label : id;
             }).join(", ") || "None"}</Text>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+      {/* Amann reassignment modal */}
+      <Modal
+        open={amannReassignModal.open}
+        onClose={handleCancelAmannReassign}
+        title="Reassign Amann Number?"
+        primaryAction={{
+          content: "Reassign",
+          onAction: handleConfirmAmannReassign,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: handleCancelAmannReassign,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="200">
+            <Text>
+              The Amann number <b>{amannReassignModal.num?.label}</b> is currently linked to <b>{amannReassignModal.linkedThread}</b>.<br />
+              Do you want to reassign it to this thread color?
+            </Text>
+            <Text color="critical">
+              This will remove the Amann number from the previous thread color.
+            </Text>
           </BlockStack>
         </Modal.Section>
       </Modal>

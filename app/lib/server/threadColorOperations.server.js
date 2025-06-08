@@ -204,3 +204,41 @@ export async function updateStitchingThreadColorWithTagsAndNumbers({
     throw error;
   }
 }
+
+/**
+ * Unlinks an Isacord number from its current embroidery thread.
+ * @param {string} isacordId - The Isacord number ID to unlink
+ * @param {string} fromThreadId - The thread ID to unlink from (for safety)
+ * @returns {Promise<void>}
+ */
+export async function unlinkIsacordFromThread(isacordId, fromThreadId) {
+  // Only unlink if the isacord is currently linked to the specified thread
+  await prisma.isacordNumber.updateMany({
+    where: {
+      id: isacordId,
+      threadId: fromThreadId,
+    },
+    data: {
+      threadId: null,
+    },
+  });
+}
+
+/**
+ * Unlinks an Amann number from its current stitching thread.
+ * @param {string} amannId - The Amann number ID to unlink
+ * @param {string} fromThreadId - The thread ID to unlink from (for safety)
+ * @returns {Promise<void>}
+ */
+export async function unlinkAmannFromThread(amannId, fromThreadId) {
+  // Only unlink if the amann is currently linked to the specified thread
+  await prisma.amannNumber.updateMany({
+    where: {
+      id: amannId,
+      threadId: fromThreadId,
+    },
+    data: {
+      threadId: null,
+    },
+  });
+}

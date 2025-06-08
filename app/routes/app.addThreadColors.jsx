@@ -6,7 +6,7 @@ import AddEmbroideryThreadColorForm from "../components/AddEmbroideryThreadColor
 import AddStitchingThreadColorForm from "../components/AddStitchingThreadColorForm";
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
-import { updateEmbroideryThreadColorWithTagsAndNumbers, createEmbroideryThreadColorWithTags, updateStitchingThreadColorWithTagsAndNumbers, createStitchingThreadColorWithTagsAndAmann } from "../lib/server/threadColorOperations.server";
+import { updateEmbroideryThreadColorWithTagsAndNumbers, createEmbroideryThreadColorWithTags, updateStitchingThreadColorWithTagsAndNumbers, createStitchingThreadColorWithTagsAndAmann, unlinkIsacordFromThread, unlinkAmannFromThread } from "../lib/server/threadColorOperations.server";
 
 export default function AddThreadColors() {
   const {
@@ -83,7 +83,20 @@ export const action = async ({ request }) => {
     const removeIsacordIds = formData.getAll("removeIsacordIds");
     const addColorTagIds = formData.getAll("addColorTagIds");
     const removeColorTagIds = formData.getAll("removeColorTagIds");
+
+    // 1. Parse reassignments
+    const reassignments = (Array.isArray(formData.getAll("reassignIsacordNumbers[]"))
+      ? formData.getAll("reassignIsacordNumbers[]")
+      : formData.get("reassignIsacordNumbers[]") ? [formData.get("reassignIsacordNumbers[]")] : []
+    ).map(str => JSON.parse(str));
+
     try {
+      // 2. Unlink isacord numbers from old threads
+      for (const { isacordId, fromThreadId } of reassignments) {
+        await unlinkIsacordFromThread(isacordId, fromThreadId);
+      }
+
+      // 3. Now update the thread color
       const updated = await updateEmbroideryThreadColorWithTagsAndNumbers({
         threadId,
         addIsacordIds,
@@ -110,7 +123,21 @@ export const action = async ({ request }) => {
     const abbreviation = formData.get("abbreviation");
     const isacordNumbers = formData.getAll("isacordNumbers");
     const colorTagIds = formData.getAll("colorTagIds");
+
+    // 1. Parse reassignments
+    const reassignments = (Array.isArray(formData.getAll("reassignIsacordNumbers[]"))
+      ? formData.getAll("reassignIsacordNumbers[]")
+      : formData.get("reassignIsacordNumbers[]") ? [formData.get("reassignIsacordNumbers[]")] : []
+    ).map(str => JSON.parse(str));
+
     try {
+      // 2. Unlink isacord numbers from old threads
+      for (const { isacordId, fromThreadId } of reassignments) {
+        // You need to implement this function in your threadColorOperations.server.js
+        await unlinkIsacordFromThread(isacordId, fromThreadId);
+      }
+
+      // 3. Now create the new thread color
       const created = await createEmbroideryThreadColorWithTags({ name, abbreviation, isacordNumbers }, colorTagIds);
       return {
         success: true,
@@ -132,7 +159,20 @@ export const action = async ({ request }) => {
     const removeAmannIds = formData.getAll("removeAmannIds");
     const addColorTagIds = formData.getAll("addColorTagIds");
     const removeColorTagIds = formData.getAll("removeColorTagIds");
+
+    // 1. Parse reassignments
+    const reassignments = (Array.isArray(formData.getAll("reassignAmannNumbers[]"))
+      ? formData.getAll("reassignAmannNumbers[]")
+      : formData.get("reassignAmannNumbers[]") ? [formData.get("reassignAmannNumbers[]")] : []
+    ).map(str => JSON.parse(str));
+
     try {
+      // 2. Unlink amann numbers from old threads
+      for (const { amannId, fromThreadId } of reassignments) {
+        await unlinkAmannFromThread(amannId, fromThreadId);
+      }
+
+      // 3. Now update the thread color
       const updated = await updateStitchingThreadColorWithTagsAndNumbers({
         threadId,
         addAmannIds,
@@ -159,7 +199,20 @@ export const action = async ({ request }) => {
     const abbreviation = formData.get("abbreviation");
     const amannNumbers = formData.getAll("amannNumbers");
     const colorTagIds = formData.getAll("colorTagIds");
+
+    // 1. Parse reassignments
+    const reassignments = (Array.isArray(formData.getAll("reassignAmannNumbers[]"))
+      ? formData.getAll("reassignAmannNumbers[]")
+      : formData.get("reassignAmannNumbers[]") ? [formData.get("reassignAmannNumbers[]")] : []
+    ).map(str => JSON.parse(str));
+
     try {
+      // 2. Unlink amann numbers from old threads
+      for (const { amannId, fromThreadId } of reassignments) {
+        await unlinkAmannFromThread(amannId, fromThreadId);
+      }
+
+      // 3. Now create the new thread color
       const created = await createStitchingThreadColorWithTagsAndAmann({ name, abbreviation, amannNumbers }, colorTagIds);
       return {
         success: true,
