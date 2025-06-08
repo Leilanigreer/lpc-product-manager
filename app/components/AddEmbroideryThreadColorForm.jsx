@@ -11,10 +11,11 @@ import {
   Tag,
   Icon,
   Text,
-  Modal,
 } from "@shopify/polaris";
 import { SearchIcon, CheckCircleIcon, PlusCircleIcon, DeleteIcon } from '@shopify/polaris-icons';
 import { toTitleCase, generateEmbAbbreviation } from "../lib/utils/threadColorUtils";
+import ThreadCreateUpdateModal from "./ThreadCreateUpdateModal";
+import ThreadReassignNumberModal from "./ThreadReassignNumberModal";
 
 export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacordNumbers, embroideryThreadColors, fetcher }) {
   // Embroidery form state
@@ -684,102 +685,62 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
         )}
       </BlockStack>
       {/* Embroidery Confirmation Modal */}
-      <Modal
+      <ThreadCreateUpdateModal
         open={embModalOpen}
         onClose={handleEmbModalClose}
         title="Confirm New Embroidery Thread Color"
-        primaryAction={{
-          content: "Confirm",
-          onAction: handleEmbConfirm,
-        }}
+        primaryAction={{ content: "Confirm", onAction: handleEmbConfirm }}
         secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: handleEmbModalClose,
-          },
+          { content: "Cancel", onAction: handleEmbModalClose },
         ]}
       >
-        <Modal.Section>
-          <BlockStack gap="200">
-            <Text><b>Name:</b> {embFormattedName}</Text>
-            <Text><b>Abbreviation:</b> {embGeneratedAbbr}</Text>
-            <Text><b>Isacord Numbers:</b> {embIsacord.map(id => {
-              const numObj = allIsacordOptions.find(num => num.value === id);
-              return numObj ? numObj.label : id;
-            }).join(", ") || "None"}</Text>
-            <Text><b>Tags:</b> {embColorTags.map(tagValue => {
-              const tagObj = colorTags.find(t => t.value === tagValue);
-              return tagObj ? tagObj.label : tagValue;
-            }).join(", ") || "None"}</Text>
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        <Text><b>Name:</b> {embFormattedName}</Text>
+        <Text><b>Abbreviation:</b> {embGeneratedAbbr}</Text>
+        <Text><b>Isacord Numbers:</b> {embIsacord.map(id => {
+          const numObj = allIsacordOptions.find(num => num.value === id);
+          return numObj ? numObj.label : id;
+        }).join(", ") || "None"}</Text>
+        <Text><b>Tags:</b> {embColorTags.map(tagValue => {
+          const tagObj = colorTags.find(t => t.value === tagValue);
+          return tagObj ? tagObj.label : tagValue;
+        }).join(", ") || "None"}</Text>
+      </ThreadCreateUpdateModal>
       {/* Update Confirmation Modal */}
-      <Modal
+      <ThreadCreateUpdateModal
         open={updateModalOpen}
         onClose={handleUpdateModalClose}
         title="Confirm Update to Embroidery Thread Color"
-        primaryAction={{
-          content: "Confirm Update",
-          onAction: handleUpdateConfirm,
-        }}
+        primaryAction={{ content: "Confirm Update", onAction: handleUpdateConfirm }}
         secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: handleUpdateModalClose,
-          },
+          { content: "Cancel", onAction: handleUpdateModalClose },
         ]}
       >
-        <Modal.Section>
-          <BlockStack gap="200">
-            <Text variant="bodyMd"><b>Thread Name:</b> {originalThread?.label}</Text>
-            <Text variant="bodyMd"><b>Add Isacord Numbers:</b> {addIsacordIds.map(id => {
-              const numObj = (originalThread?.allIsacordOptions || allIsacordOptions).find(num => num.value === id);
-              return numObj ? numObj.label : id;
-            }).join(", ") || "None"}</Text>
-            <Text variant="bodyMd"><b>Remove Isacord Numbers:</b> {removeIsacordIds.map(id => {
-              const numObj = (originalThread?.allIsacordOptions || allIsacordOptions).find(num => num.value === id);
-              return numObj ? numObj.label : id;
-            }).join(", ") || "None"}</Text>
-            <Text variant="bodyMd"><b>Add Color Tags:</b> {addColorTagIds.map(id => {
-              const tagObj = colorTags.find(t => t.value === id);
-              return tagObj ? tagObj.label : id;
-            }).join(", ") || "None"}</Text>
-            <Text variant="bodyMd"><b>Remove Color Tags:</b> {removeColorTagIds.map(id => {
-              const tagObj = colorTags.find(t => t.value === id);
-              return tagObj ? tagObj.label : id;
-            }).join(", ") || "None"}</Text>
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        <Text variant="bodyMd"><b>Thread Name:</b> {originalThread?.label}</Text>
+        <Text variant="bodyMd"><b>Add Isacord Numbers:</b> {addIsacordIds.map(id => {
+          const numObj = (originalThread?.allIsacordOptions || allIsacordOptions).find(num => num.value === id);
+          return numObj ? numObj.label : id;
+        }).join(", ") || "None"}</Text>
+        <Text variant="bodyMd"><b>Remove Isacord Numbers:</b> {removeIsacordIds.map(id => {
+          const numObj = (originalThread?.allIsacordOptions || allIsacordOptions).find(num => num.value === id);
+          return numObj ? numObj.label : id;
+        }).join(", ") || "None"}</Text>
+        <Text variant="bodyMd"><b>Add Color Tags:</b> {addColorTagIds.map(id => {
+          const tagObj = colorTags.find(t => t.value === id);
+          return tagObj ? tagObj.label : id;
+        }).join(", ") || "None"}</Text>
+        <Text variant="bodyMd"><b>Remove Color Tags:</b> {removeColorTagIds.map(id => {
+          const tagObj = colorTags.find(t => t.value === id);
+          return tagObj ? tagObj.label : id;
+        }).join(", ") || "None"}</Text>
+      </ThreadCreateUpdateModal>
       {/* Isacord reassignment modal */}
-      <Modal
+      <ThreadReassignNumberModal
         open={isacordReassignModal.open}
         onClose={handleCancelIsacordReassign}
-        title="Reassign Isacord Number?"
-        primaryAction={{
-          content: "Reassign",
-          onAction: handleConfirmIsacordReassign,
-        }}
-        secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: handleCancelIsacordReassign,
-          },
-        ]}
-      >
-        <Modal.Section>
-          <BlockStack gap="200">
-            <Text>
-              The Isacord number <b>{isacordReassignModal.num?.label}</b> is currently linked to <b>{isacordReassignModal.linkedThread}</b>.<br />
-              Do you want to reassign it to this thread color?
-            </Text>
-            <Text color="critical">
-              This will remove the Isacord number from the previous thread color.
-            </Text>
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        numberLabel={isacordReassignModal.num?.label}
+        currentThread={isacordReassignModal.linkedThread}
+        onConfirm={handleConfirmIsacordReassign}
+      />
     </Card>
   );
 } 

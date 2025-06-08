@@ -10,11 +10,12 @@ import {
   Tag,
   Icon,
   Text,
-  Modal,
   Divider,
 } from "@shopify/polaris";
 import { SearchIcon, CheckCircleIcon, PlusCircleIcon, DeleteIcon } from '@shopify/polaris-icons';
 import { toTitleCase } from "../lib/utils/threadColorUtils";
+import ThreadCreateUpdateModal from "./ThreadCreateUpdateModal";
+import ThreadReassignNumberModal from "./ThreadReassignNumberModal";
 
 // Utility: Generate unique abbreviation for stitching (always ends with 'S')
 function generateStitchAbbreviation(name, stitchingAbbrsRaw) {
@@ -677,104 +678,64 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
         )}
       </BlockStack>
       {/* Stitching Confirmation Modal (Add) */}
-      <Modal
+      <ThreadCreateUpdateModal
         open={stitchModalOpen}
         onClose={handleStitchModalClose}
         title="Confirm New Stitching Thread Color"
-        primaryAction={{
-          content: "Confirm",
-          onAction: handleStitchConfirm,
-        }}
+        primaryAction={{ content: "Confirm", onAction: handleStitchConfirm }}
         secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: handleStitchModalClose,
-          },
+          { content: "Cancel", onAction: handleStitchModalClose },
         ]}
       >
-        <Modal.Section>
-          <BlockStack gap="200">
-            <Text><b>Name:</b> {stitchFormattedName}</Text>
-            <Text><b>Abbreviation:</b> {stitchGeneratedAbbr}</Text>
-            <Text>
-              <b>Amann Numbers:</b> {stitchAmann.map(id => {
-                const numObj = allAmannOptions.find(num => num.value === id);
-                return numObj ? numObj.label : id;
-              }).join(", ") || "None"}
-            </Text>
-            <Text><b>Tags:</b> {stitchColorTags.map(tagValue => {
-              const tagObj = colorTags.find(t => t.value === tagValue);
-              return tagObj ? tagObj.label : tagValue;
-            }).join(", ") || "None"}</Text>
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        <Text><b>Name:</b> {stitchFormattedName}</Text>
+        <Text><b>Abbreviation:</b> {stitchGeneratedAbbr}</Text>
+        <Text>
+          <b>Amann Numbers:</b> {stitchAmann.map(id => {
+            const numObj = allAmannOptions.find(num => num.value === id);
+            return numObj ? numObj.label : id;
+          }).join(", ") || "None"}
+        </Text>
+        <Text><b>Tags:</b> {stitchColorTags.map(tagValue => {
+          const tagObj = colorTags.find(t => t.value === tagValue);
+          return tagObj ? tagObj.label : tagValue;
+        }).join(", ") || "None"}</Text>
+      </ThreadCreateUpdateModal>
       {/* Update Confirmation Modal */}
-      <Modal
+      <ThreadCreateUpdateModal
         open={updateModalOpen}
         onClose={handleUpdateModalClose}
         title="Confirm Update to Stitching Thread Color"
-        primaryAction={{
-          content: "Confirm Update",
-          onAction: handleUpdateConfirm,
-        }}
+        primaryAction={{ content: "Confirm Update", onAction: handleUpdateConfirm }}
         secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: handleUpdateModalClose,
-          },
+          { content: "Cancel", onAction: handleUpdateModalClose },
         ]}
       >
-        <Modal.Section>
-          <BlockStack gap="200">
-            <Text variant="bodyMd"><b>Thread Name:</b> {originalThread?.label}</Text>
-            <Text variant="bodyMd"><b>Add Amann Numbers:</b> {addAmannIds.map(id => {
-              const numObj = (originalThread?.allAmannOptions || allAmannOptions).find(num => num.value === id);
-              return numObj ? numObj.label : id;
-            }).join(", ") || "None"}</Text>
-            <Text variant="bodyMd"><b>Remove Amann Numbers:</b> {removeAmannIds.map(id => {
-              const numObj = (originalThread?.allAmannOptions || allAmannOptions).find(num => num.value === id);
-              return numObj ? numObj.label : id;
-            }).join(", ") || "None"}</Text>
-            <Text variant="bodyMd"><b>Add Color Tags:</b> {addColorTagIds.map(id => {
-              const tagObj = colorTags.find(t => t.value === id);
-              return tagObj ? tagObj.label : id;
-            }).join(", ") || "None"}</Text>
-            <Text variant="bodyMd"><b>Remove Color Tags:</b> {removeColorTagIds.map(id => {
-              const tagObj = colorTags.find(t => t.value === id);
-              return tagObj ? tagObj.label : id;
-            }).join(", ") || "None"}</Text>
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        <Text variant="bodyMd"><b>Thread Name:</b> {originalThread?.label}</Text>
+        <Text variant="bodyMd"><b>Add Amann Numbers:</b> {addAmannIds.map(id => {
+          const numObj = (originalThread?.allAmannOptions || allAmannOptions).find(num => num.value === id);
+          return numObj ? numObj.label : id;
+        }).join(", ") || "None"}</Text>
+        <Text variant="bodyMd"><b>Remove Amann Numbers:</b> {removeAmannIds.map(id => {
+          const numObj = (originalThread?.allAmannOptions || allAmannOptions).find(num => num.value === id);
+          return numObj ? numObj.label : id;
+        }).join(", ") || "None"}</Text>
+        <Text variant="bodyMd"><b>Add Color Tags:</b> {addColorTagIds.map(id => {
+          const tagObj = colorTags.find(t => t.value === id);
+          return tagObj ? tagObj.label : id;
+        }).join(", ") || "None"}</Text>
+        <Text variant="bodyMd"><b>Remove Color Tags:</b> {removeColorTagIds.map(id => {
+          const tagObj = colorTags.find(t => t.value === id);
+          return tagObj ? tagObj.label : id;
+        }).join(", ") || "None"}</Text>
+      </ThreadCreateUpdateModal>
       {/* Amann reassignment modal */}
-      <Modal
+      <ThreadReassignNumberModal
         open={amannReassignModal.open}
         onClose={handleCancelAmannReassign}
-        title="Reassign Amann Number?"
-        primaryAction={{
-          content: "Reassign",
-          onAction: handleConfirmAmannReassign,
-        }}
-        secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: handleCancelAmannReassign,
-          },
-        ]}
-      >
-        <Modal.Section>
-          <BlockStack gap="200">
-            <Text>
-              The Amann number <b>{amannReassignModal.num?.label}</b> is currently linked to <b>{amannReassignModal.linkedThread}</b>.<br />
-              Do you want to reassign it to this thread color?
-            </Text>
-            <Text color="critical">
-              This will remove the Amann number from the previous thread color.
-            </Text>
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
+        numberLabel={amannReassignModal.num?.label}
+        currentThread={amannReassignModal.linkedThread}
+        onConfirm={handleConfirmAmannReassign}
+      />
     </Card>
   );
 } 
