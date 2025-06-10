@@ -11,31 +11,12 @@ import {
   Icon,
   Text,
   Divider,
+  RadioButton,
 } from "@shopify/polaris";
 import { SearchIcon, CheckCircleIcon, PlusCircleIcon, DeleteIcon } from '@shopify/polaris-icons';
-import { toTitleCase } from "../lib/utils/threadColorUtils";
+import { formatNameLive, formatNameOnBlur, validateNameUnique, generateStitchAbbreviation } from "../lib/utils/colorNameUtils";
 import ThreadCreateUpdateModal from "./ThreadCreateUpdateModal";
 import ThreadReassignNumberModal from "./ThreadReassignNumberModal";
-
-// Utility: Generate unique abbreviation for stitching (always ends with 'S')
-function generateStitchAbbreviation(name, stitchingAbbrsRaw) {
-  if (!name) return "";
-  const existingAbbrs = (stitchingAbbrsRaw || []).map(abbr => abbr.endsWith('S') ? abbr : abbr + 'S');
-  const words = name.split(" ").filter(Boolean);
-  const maxLen = Math.max(...words.map(w => w.length));
-  for (let i = 1; i <= maxLen; i++) {
-    const abbr = words.map(w => w.slice(0, i)).join("") + 'S';
-    if (!existingAbbrs.includes(abbr)) return abbr;
-  }
-  let n = 2;
-  while (true) {
-    for (let i = 1; i <= maxLen; i++) {
-      const abbr = words.map(w => w.slice(0, i)).join("") + 'S' + n;
-      if (!existingAbbrs.includes(abbr)) return abbr;
-    }
-    n++;
-  }
-}
 
 export default function AddStitchingThreadColorForm({ colorTags, stitchingThreadColors, fetcher, unlinkedAmannNumbers }) {
   // Mode: "add" or "update"
@@ -249,9 +230,51 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
       setDeletedColorTags([]);
     }
   }, [fetcher.data]);
+  // Handler for stitching name field (add mode)
+  const handleNameChange = (value) => {
+    const formatted = formatNameLive(value);
+    setStitchName(formatted);
+    if (!formatted) {
+      setStitchNameError("");
+      setNameCollisionThreadId(null);
+      return;
+    }
+    const isUnique = validateNameUnique(stitchingThreadColors || [], formatted, 'label');
+    if (!isUnique) {
+      const existingThread = (stitchingThreadColors || []).find(tc => formatNameOnBlur(tc.label) === formatNameOnBlur(formatted));
+      setStitchNameError("A thread color with this name already exists.");
+      setNameCollisionThreadId(existingThread?.value);
+    } else {
+      setStitchNameError("");
+      setNameCollisionThreadId(null);
+    }
+  };
+
+  // Handler for blur event (add mode)
+  const handleNameBlur = () => {
+    const formatted = formatNameOnBlur(stitchName);
+    if (formatted !== stitchName) {
+      setStitchName(formatted);
+    }
+    if (!formatted) {
+      setStitchNameError("");
+      setNameCollisionThreadId(null);
+      return;
+    }
+    const isUnique = validateNameUnique(stitchingThreadColors || [], formatted, 'label');
+    if (!isUnique) {
+      const existingThread = (stitchingThreadColors || []).find(tc => formatNameOnBlur(tc.label) === formatNameOnBlur(formatted));
+      setStitchNameError("A thread color with this name already exists.");
+      setNameCollisionThreadId(existingThread?.value);
+    } else {
+      setStitchNameError("");
+      setNameCollisionThreadId(null);
+    }
+  };
+
   // Handler for Save Stitching Thread Color
   const handleStitchSave = () => {
-    const name = toTitleCase(stitchName.trim());
+    const name = formatNameOnBlur(stitchName);
     setStitchFormattedName(name);
     if (!stitchAmann.length) {
       setStitchNameError("Please select at least one Amann number.");
@@ -259,22 +282,17 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
       return;
     }
     // Find if name exists and get its abbreviation
-    const existingThread = (stitchingThreadColors || []).find(tc => tc.label && tc.label.toLowerCase() === name.toLowerCase());
-    const nameExists = !!existingThread;
-    if (nameExists) {
+    const isUnique = validateNameUnique(stitchingThreadColors || [], name, 'label');
+    if (!isUnique) {
+      const existingThread = (stitchingThreadColors || []).find(tc => formatNameOnBlur(tc.label) === name);
       setStitchNameError("A thread color with this name already exists.");
-      setNameCollisionThreadId(existingThread.value);
+      setNameCollisionThreadId(existingThread?.value);
       return;
     }
     setNameCollisionThreadId(null);
-    let abbr;
-    if (nameExists) {
-      abbr = existingThread.abbreviation;
-    } else {
-      // Both are new: create both
-      const existingAbbrs = (stitchingThreadColors || []).map(tc => tc.abbreviation);
-      abbr = generateStitchAbbreviation(name, existingAbbrs);
-    }
+    // Both are new: create both
+    const existingAbbrs = (stitchingThreadColors || []).map(tc => tc.abbreviation);
+    const abbr = generateStitchAbbreviation(name, existingAbbrs);
     setStitchGeneratedAbbr(abbr);
     setStitchModalOpen(true);
     setStitchNameError("");
@@ -313,26 +331,6 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
     setStitchModalOpen(false);
   };
 
-  // Handler for stitching name field (add mode)
-  const handleStitchNameChange = (value) => {
-    const formatted = toTitleCase(value);
-    setStitchName(formatted);
-    if (!formatted) {
-      setStitchNameError("");
-      setNameCollisionThreadId(null);
-      return;
-    }
-    const existingThread = (stitchingThreadColors || []).find(tc => tc.label && tc.label.toLowerCase() === formatted.toLowerCase());
-    const nameExists = !!existingThread;
-    if (nameExists) {
-      setStitchNameError("A thread color with this name already exists.");
-      setNameCollisionThreadId(existingThread.value);
-    } else {
-      setStitchNameError("");
-      setNameCollisionThreadId(null);
-    }
-  };
-
   // Handler for Amann number selection (add mode)
   const handleAddAmannSelect = (value) => {
     const numObj = allAmannOptions.find(num => num.value === value);
@@ -348,29 +346,6 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
   };
   const handleRemoveAddAmann = (id) => {
     setStitchAmann(prev => prev.filter(v => v !== id));
-  };
-
-  // Add this handler above the return
-  const handleStitchNameBlur = () => {
-    const trimmed = stitchName.trim();
-    const formatted = toTitleCase(trimmed);
-    if (formatted !== stitchName) {
-      setStitchName(formatted);
-    }
-    if (!formatted) {
-      setStitchNameError("");
-      setNameCollisionThreadId(null);
-      return;
-    }
-    const existingThread = (stitchingThreadColors || []).find(tc => tc.label && tc.label.toLowerCase() === formatted.toLowerCase());
-    const nameExists = !!existingThread;
-    if (nameExists) {
-      setStitchNameError("A thread color with this name already exists.");
-      setNameCollisionThreadId(existingThread.value);
-    } else {
-      setStitchNameError("");
-      setNameCollisionThreadId(null);
-    }
   };
 
   // Add handler for switching to update mode from name collision
@@ -415,27 +390,21 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
       <BlockStack gap="400">
         <Text variant="headingMd">Add Stitching Thread Color</Text>
         {/* Radio buttons for mode selection */}
-        <InlineStack gap="400">
-          <label>
-            <input
-              type="radio"
-              name="stitchMode"
-              value="update"
-              checked={mode === "update"}
-              onChange={() => setMode("update")}
-            />
-            Update Linked Colors
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="stitchMode"
-              value="add"
-              checked={mode === "add"}
-              onChange={() => setMode("add")}
-            />
-            Add New Name
-          </label>
+        <InlineStack gap="400" wrap={false}>
+          <RadioButton
+            label="Update Linked Colors"
+            checked={mode === "update"}
+            id="stitchMode-update"
+            name="stitchMode"
+            onChange={() => setMode("update")}
+          />
+          <RadioButton
+            label="Add New Name"
+            checked={mode === "add"}
+            id="stitchMode-add"
+            name="stitchMode"
+            onChange={() => setMode("add")}
+          />
         </InlineStack>
         {/* Divider */}
         <Divider borderColor="border" />
@@ -444,8 +413,8 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
           <TextField
             label="Name"
             value={stitchName}
-            onChange={handleStitchNameChange}
-            onBlur={handleStitchNameBlur}
+            onChange={handleNameChange}
+            onBlur={handleNameBlur}
             autoComplete="off"
             error={stitchNameError}
           />

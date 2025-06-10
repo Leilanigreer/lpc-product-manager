@@ -11,9 +11,10 @@ import {
   Tag,
   Icon,
   Text,
+  RadioButton,
 } from "@shopify/polaris";
 import { SearchIcon, CheckCircleIcon, PlusCircleIcon, DeleteIcon } from '@shopify/polaris-icons';
-import { toTitleCase, generateEmbAbbreviation } from "../lib/utils/threadColorUtils";
+import { formatNameLive, formatNameOnBlur, validateNameUnique, generateEmbAbbreviation } from "../lib/utils/colorNameUtils";
 import ThreadCreateUpdateModal from "./ThreadCreateUpdateModal";
 import ThreadReassignNumberModal from "./ThreadReassignNumberModal";
 
@@ -230,18 +231,41 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
   };
 
   // Handler for embroidery name field (add mode)
-  const handleEmbNameChange = (value) => {
-    const formatted = toTitleCase(value);
+  const handleNameChange = (value) => {
+    const formatted = formatNameLive(value);
     setEmbName(formatted);
     if (!formatted) {
       setEmbError("");
       setNameCollisionThreadId(null);
       return;
     }
-    const existing = (embroideryThreadColors || []).find(tc => tc.label.trim().toLowerCase() === formatted.toLowerCase());
-    if (existing) {
+    const isUnique = validateNameUnique(embroideryThreadColors || [], formatted, 'label');
+    if (!isUnique) {
+      const existing = (embroideryThreadColors || []).find(tc => formatNameOnBlur(tc.label) === formatNameOnBlur(formatted));
       setEmbError("A thread color with this name already exists.");
-      setNameCollisionThreadId(existing.value);
+      setNameCollisionThreadId(existing?.value);
+    } else {
+      setEmbError("");
+      setNameCollisionThreadId(null);
+    }
+  };
+
+  // Handler for blur event (add mode)
+  const handleNameBlur = () => {
+    const formatted = formatNameOnBlur(embName);
+    if (formatted !== embName) {
+      setEmbName(formatted);
+    }
+    if (!formatted) {
+      setEmbError("");
+      setNameCollisionThreadId(null);
+      return;
+    }
+    const isUnique = validateNameUnique(embroideryThreadColors || [], formatted, 'label');
+    if (!isUnique) {
+      const existing = (embroideryThreadColors || []).find(tc => formatNameOnBlur(tc.label) === formatNameOnBlur(formatted));
+      setEmbError("A thread color with this name already exists.");
+      setNameCollisionThreadId(existing?.value);
     } else {
       setEmbError("");
       setNameCollisionThreadId(null);
@@ -250,7 +274,7 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
 
   // Handler for Save Embroidery Thread Color
   const handleEmbSave = () => {
-    const name = toTitleCase(embName.trim());
+    const name = formatNameOnBlur(embName);
     setEmbFormattedName(name);
     if (!name) {
       setEmbError("Please enter a thread color name.");
@@ -263,10 +287,11 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
       return;
     }
     // Validation: name must not already exist (case-insensitive)
-    const existing = (embroideryThreadColors || []).find(tc => tc.label.trim().toLowerCase() === name.toLowerCase());
-    if (existing) {
+    const isUnique = validateNameUnique(embroideryThreadColors || [], name, 'label');
+    if (!isUnique) {
+      const existing = (embroideryThreadColors || []).find(tc => formatNameOnBlur(tc.label) === name);
       setEmbError("A thread color with this name already exists.");
-      setNameCollisionThreadId(existing.value);
+      setNameCollisionThreadId(existing?.value);
       return;
     }
     setNameCollisionThreadId(null);
@@ -316,28 +341,6 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
       setEmbError(fetcher.data.error);
     }
   }, [fetcher.data]);
-
-  // Add this handler above the return
-  const handleEmbNameBlur = () => {
-    const trimmed = embName.trim();
-    const formatted = toTitleCase(trimmed);
-    if (formatted !== embName) {
-      setEmbName(formatted);
-    }
-    if (!formatted) {
-      setEmbError("");
-      setNameCollisionThreadId(null);
-      return;
-    }
-    const existing = (embroideryThreadColors || []).find(tc => tc.label.trim().toLowerCase() === formatted.toLowerCase());
-    if (existing) {
-      setEmbError("A thread color with this name already exists.");
-      setNameCollisionThreadId(existing.value);
-    } else {
-      setEmbError("");
-      setNameCollisionThreadId(null);
-    }
-  };
 
   // Add handler for switching to update mode from name collision
   const handleSwitchToUpdateFromName = () => {
@@ -428,27 +431,21 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
       <BlockStack gap="400">
         <Text variant="headingMd">Add Embroidery Thread Color</Text>
         {/* Radio buttons for mode selection */}
-        <InlineStack gap="400">
-          <label>
-            <input
-              type="radio"
-              name="embMode"
-              value="update"
-              checked={embMode === "update"}
-              onChange={() => setEmbMode("update")}
-            />
-            Update Linked Colors
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="embMode"
-              value="add"
-              checked={embMode === "add"}
-              onChange={() => setEmbMode("add")}
-            />
-            Add New Name
-          </label>
+        <InlineStack gap="400" wrap={false}>
+          <RadioButton
+            label="Update Linked Colors"
+            checked={embMode === "update"}
+            id="embMode-update"
+            name="embMode"
+            onChange={() => setEmbMode("update")}
+          />
+          <RadioButton
+            label="Add New Name"
+            checked={embMode === "add"}
+            id="embMode-add"
+            name="embMode"
+            onChange={() => setEmbMode("add")}
+          />
         </InlineStack>
         <Divider borderColor="border" />
 
@@ -597,8 +594,8 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
             <TextField
               label="Name"
               value={embName}
-              onChange={handleEmbNameChange}
-              onBlur={handleEmbNameBlur}
+              onChange={handleNameChange}
+              onBlur={handleNameBlur}
               autoComplete="off"
               error={embError}
             />

@@ -4,7 +4,7 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { json } from "@remix-run/node";
 import { loader as dataLoader } from "../lib/loaders";
 import { authenticate } from "../shopify.server";
-import { Page, Layout, Box, Banner } from "@shopify/polaris";
+import { Page, Layout, Box, Banner, Card, BlockStack } from "@shopify/polaris";
 import AddLeatherColorForm from "../components/AddLeatherColorForm";
 import { createLeatherColorWithTags } from "../lib/server/leatherColorOperations.server.js";
 
@@ -15,6 +15,7 @@ export const loader = async ({ request }) => {
 
 export const action = async ({ request }) => {
   await authenticate.admin(request);
+  // Only handle leather color creation
   const formData = await request.formData();
   const name = formData.get("name");
   const abbreviation = formData.get("abbreviation");
@@ -35,7 +36,7 @@ export const action = async ({ request }) => {
 };
 
 export default function AddLeatherColor () {
-  const { leatherColors, colorTags } = useLoaderData();
+  const { leatherColors, colorTags  } = useLoaderData();
   const fetcher = useFetcher();
   const [showSuccessBanner, setShowSuccessBanner] = React.useState(false);
   React.useEffect(() => {
@@ -45,6 +46,8 @@ export default function AddLeatherColor () {
   }, [fetcher.data]);
   return (
     <Page>
+      <BlockStack gap="400">
+      <Card>
       <TitleBar title="Add a New Leather Color" />
       {fetcher.state === 'submitting' && (
         <Box paddingBlock="400">
@@ -68,6 +71,8 @@ export default function AddLeatherColor () {
           <AddLeatherColorForm leatherColors={leatherColors} colorTags={colorTags} fetcher={fetcher} />
         </Layout.Section>
       </Layout>
+      </Card>
+      </BlockStack>
     </Page>
   );
 }
