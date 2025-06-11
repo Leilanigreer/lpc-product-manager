@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { FormLayout, TextField, Button, Text, BlockStack, Combobox, Listbox, Tag, InlineStack, Icon, Box, RadioButton, Divider } from "@shopify/polaris";
-import { SearchIcon } from "@shopify/polaris-icons";
+import { SearchIcon, CheckCircleIcon, PlusCircleIcon, DeleteIcon } from '@shopify/polaris-icons';
 import { formatNameLive, formatNameOnBlur, validateNameUnique } from "../lib/utils/colorNameUtils";
 
 export default function ColorTagManager({
@@ -26,6 +26,12 @@ export default function ColorTagManager({
   const [nameError, setNameError] = useState("");
   const [addModeConflictTag, setAddModeConflictTag] = useState(null);
   const [updateSearchInput, setUpdateSearchInput] = useState("");
+  const [deletedLeather, setDeletedLeather] = useState([]);
+  const [deletedStitching, setDeletedStitching] = useState([]);
+  const [deletedEmbroidery, setDeletedEmbroidery] = useState([]);
+  const [originalLeather, setOriginalLeather] = useState([]);
+  const [originalStitching, setOriginalStitching] = useState([]);
+  const [originalEmbroidery, setOriginalEmbroidery] = useState([]);
   const tagOptions = useMemo(() => (existingTags || []).map(tag => ({ label: tag.label, value: tag.value })), [existingTags]);
   // Reset fields on mode change
   useEffect(() => {
@@ -112,6 +118,51 @@ export default function ColorTagManager({
       setSelectedEmbroidery((addModeConflictTag.embroideryColors || []).map(e => e.value));
       setNameError("");
       setAddModeConflictTag(null);
+      setOriginalLeather((addModeConflictTag.leatherColors || []).map(l => l.value));
+      setOriginalStitching((addModeConflictTag.stitchingColors || []).map(s => s.value));
+      setOriginalEmbroidery((addModeConflictTag.embroideryColors || []).map(e => e.value));
+    }
+  };
+
+  const handleRemoveUpdateLeather = (id) => {
+    if (originalLeather.includes(id)) {
+      // Mark/unmark for deletion
+      if (deletedLeather.includes(id)) {
+        setDeletedLeather(deletedLeather.filter(v => v !== id));
+      } else {
+        setDeletedLeather([...deletedLeather, id]);
+      }
+    } else {
+      // Just remove from selected
+      setSelectedLeather(selectedLeather.filter(v => v !== id));
+    }
+  };
+
+  const handleRemoveUpdateStitching = (id) => {
+    if (originalStitching.includes(id)) {
+      // Mark/unmark for deletion
+      if (deletedStitching.includes(id)) {
+        setDeletedStitching(deletedStitching.filter(v => v !== id));
+      } else {
+        setDeletedStitching([...deletedStitching, id]);
+      }
+    } else {
+      // Just remove from selected
+      setSelectedStitching(selectedStitching.filter(v => v !== id));
+    }
+  };
+
+  const handleRemoveUpdateEmbroidery = (id) => {
+    if (originalEmbroidery.includes(id)) {
+      // Mark/unmark for deletion
+      if (deletedEmbroidery.includes(id)) {
+        setDeletedEmbroidery(deletedEmbroidery.filter(v => v !== id));
+      } else {
+        setDeletedEmbroidery([...deletedEmbroidery, id]);
+      }
+    } else {
+      // Just remove from selected
+      setSelectedEmbroidery(selectedEmbroidery.filter(v => v !== id));
     }
   };
 
@@ -125,15 +176,34 @@ export default function ColorTagManager({
           checked={mode === "add"}
           id="add-mode"
           name="mode"
-          onChange={() => setMode("add")}
+          onChange={() => {
+            setMode("add");
+            setName("");
+            setSelectedTagId(null);
+            setUpdateSearchInput("");
+            setSelectedStitching([]);
+            setSelectedEmbroidery([]);
+            setSelectedLeather([]);
+            setNameError("");
+            setAddModeConflictTag(null);
+          }}
         />
         <RadioButton
           label="Update"
           checked={mode === "update"}
           id="update-mode"
           name="mode"
-          onChange={() => setMode("update")}
-          // disabled={!initialTag}
+          onChange={() => {
+            setMode("update");
+            setName("");
+            setSelectedTagId(null);
+            setUpdateSearchInput("");
+            setSelectedStitching([]);
+            setSelectedEmbroidery([]);
+            setSelectedLeather([]);
+            setNameError("");
+            setAddModeConflictTag(null);
+          }}
         />
       </InlineStack>
       <Divider borderColor="border" />
@@ -178,6 +248,9 @@ export default function ColorTagManager({
                 setSelectedStitching(selected ? (selected.stitchingColors || []).map(s => s.value) : []);
                 setSelectedEmbroidery(selected ? (selected.embroideryColors || []).map(e => e.value) : []);
                 setUpdateSearchInput(selected ? selected.label : "");
+                setOriginalLeather((selected ? (selected.leatherColors || []).map(l => l.value) : []));
+                setOriginalStitching((selected ? (selected.stitchingColors || []).map(s => s.value) : []));
+                setOriginalEmbroidery((selected ? (selected.embroideryColors || []).map(e => e.value) : []));
               }}>
                 {tagOptions.filter(opt =>
                   opt.label.toLowerCase().includes(updateSearchInput.toLowerCase())
@@ -220,11 +293,21 @@ export default function ColorTagManager({
                 )}
               </Combobox>
               <InlineStack gap="200" wrap>
-                {selectedLeather.map((value) => {
-                  const option = leatherColors.find((o) => o.value === value);
+                {selectedLeather.map(id => {
+                  const option = leatherColors.find(o => o.value === id);
+                  const isOriginal = originalLeather.includes(id);
+                  const isDeleted = deletedLeather.includes(id);
                   return option ? (
-                    <Tag key={value} onRemove={() => setSelectedLeather(selectedLeather.filter((v) => v !== value))}>
-                      {option.label}
+                    <Tag key={id} onRemove={() => handleRemoveUpdateLeather(id)}>
+                      <InlineStack gap="100" align="center">
+                        <Icon
+                          source={isDeleted ? DeleteIcon : isOriginal ? CheckCircleIcon : PlusCircleIcon}
+                          color={isDeleted ? 'critical' : undefined}
+                        />
+                        <span style={isDeleted ? { textDecoration: 'line-through', opacity: 0.6 } : {}}>
+                          {option.label}
+                        </span>
+                      </InlineStack>
                     </Tag>
                   ) : null;
                 })}
@@ -260,11 +343,21 @@ export default function ColorTagManager({
                 )}
               </Combobox>
               <InlineStack gap="200" wrap>
-                {selectedStitching.map((value) => {
-                  const option = stitchingThreads.find((o) => o.value === value);
+                {selectedStitching.map(id => {
+                  const option = stitchingThreads.find(o => o.value === id);
+                  const isOriginal = originalStitching.includes(id);
+                  const isDeleted = deletedStitching.includes(id);
                   return option ? (
-                    <Tag key={value} onRemove={() => setSelectedStitching(selectedStitching.filter((v) => v !== value))}>
-                      {option.label}
+                    <Tag key={id} onRemove={() => handleRemoveUpdateStitching(id)}>
+                      <InlineStack gap="100" align="center">
+                        <Icon
+                          source={isDeleted ? DeleteIcon : isOriginal ? CheckCircleIcon : PlusCircleIcon}
+                          color={isDeleted ? 'critical' : undefined}
+                        />
+                        <span style={isDeleted ? { textDecoration: 'line-through', opacity: 0.6 } : {}}>
+                          {option.label}
+                        </span>
+                      </InlineStack>
                     </Tag>
                   ) : null;
                 })}
@@ -300,11 +393,21 @@ export default function ColorTagManager({
                 )}
               </Combobox>
               <InlineStack gap="200" wrap>
-                {selectedEmbroidery.map((value) => {
-                  const option = embroideryThreads.find((o) => o.value === value);
+                {selectedEmbroidery.map(id => {
+                  const option = embroideryThreads.find(o => o.value === id);
+                  const isOriginal = originalEmbroidery.includes(id);
+                  const isDeleted = deletedEmbroidery.includes(id);
                   return option ? (
-                    <Tag key={value} onRemove={() => setSelectedEmbroidery(selectedEmbroidery.filter((v) => v !== value))}>
-                      {option.label}
+                    <Tag key={id} onRemove={() => handleRemoveUpdateEmbroidery(id)}>
+                      <InlineStack gap="100" align="center">
+                        <Icon
+                          source={isDeleted ? DeleteIcon : isOriginal ? CheckCircleIcon : PlusCircleIcon}
+                          color={isDeleted ? 'critical' : undefined}
+                        />
+                        <span style={isDeleted ? { textDecoration: 'line-through', opacity: 0.6 } : {}}>
+                          {option.label}
+                        </span>
+                      </InlineStack>
                     </Tag>
                   ) : null;
                 })}
