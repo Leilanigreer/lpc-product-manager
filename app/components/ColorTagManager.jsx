@@ -10,6 +10,7 @@ export default function ColorTagManager({
   leatherColors = [],
   onSubmit,
   initialTag = null,
+  onSuccess,
 }) {
   // State
   const [mode, setMode] = useState(initialTag ? "update" : "add");
@@ -52,16 +53,47 @@ export default function ColorTagManager({
   // Submit handler
   const handleSubmit = () => {
     setSubmitting(true);
+    // Filter out deleted items in update mode
+    let finalLeather = selectedLeather;
+    let finalStitching = selectedStitching;
+    let finalEmbroidery = selectedEmbroidery;
+    if (mode === "update") {
+      finalLeather = selectedLeather.filter(id => !deletedLeather.includes(id));
+      finalStitching = selectedStitching.filter(id => !deletedStitching.includes(id));
+      finalEmbroidery = selectedEmbroidery.filter(id => !deletedEmbroidery.includes(id));
+    }
     onSubmit &&
       onSubmit({
         name: name.trim(),
-        stitchingThreadIds: selectedStitching,
-        embroideryThreadIds: selectedEmbroidery,
-        leatherColorIds: selectedLeather,
+        stitchingThreadIds: finalStitching,
+        embroideryThreadIds: finalEmbroidery,
+        leatherColorIds: finalLeather,
         mode,
+        id: mode === "update" ? selectedTagId : undefined,
       });
     setSubmitting(false);
   };
+
+  // Reset deleted arrays and originals after successful update
+  useEffect(() => {
+    if (onSuccess) {
+      onSuccess(() => {
+        // Remove deleted items from selected arrays
+        setSelectedLeather(selectedLeather.filter(id => !deletedLeather.includes(id)));
+        setSelectedStitching(selectedStitching.filter(id => !deletedStitching.includes(id)));
+        setSelectedEmbroidery(selectedEmbroidery.filter(id => !deletedEmbroidery.includes(id)));
+        // Clear deleted arrays
+        setDeletedLeather([]);
+        setDeletedStitching([]);
+        setDeletedEmbroidery([]);
+        // Update originals to match new selection
+        setOriginalLeather(selectedLeather.filter(id => !deletedLeather.includes(id)));
+        setOriginalStitching(selectedStitching.filter(id => !deletedStitching.includes(id)));
+        setOriginalEmbroidery(selectedEmbroidery.filter(id => !deletedEmbroidery.includes(id)));
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSuccess]);
 
   // Filtering options for each combobox
   const filteredStitchingOptions = stitchingThreads.filter(
