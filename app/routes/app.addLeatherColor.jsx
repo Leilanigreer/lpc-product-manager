@@ -7,6 +7,7 @@ import { authenticate } from "../shopify.server";
 import { Page, Layout, Box, Banner, Card, BlockStack } from "@shopify/polaris";
 import AddLeatherColorForm from "../components/AddLeatherColorForm";
 import { createLeatherColorWithTags } from "../lib/server/leatherColorOperations.server.js";
+import SuccessBanner from "../components/SuccessBanner.jsx";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
@@ -54,13 +55,25 @@ export default function AddLeatherColor () {
           <Banner status="info">Submitting...</Banner>
         </Box>
       )}
-      {fetcher.data && fetcher.data.success && showSuccessBanner && (
-        <Box paddingBlock="400">
-          <Banner status="success" onDismiss={() => setShowSuccessBanner(false)}>
-            Leather color {fetcher.data.leatherColor?.name} created!
-          </Banner>
-        </Box>
-      )}
+      <SuccessBanner
+        show={fetcher.data && fetcher.data.success && showSuccessBanner}
+        onDismiss={() => setShowSuccessBanner(false)}
+        message={(() => {
+          if (!fetcher.data || !fetcher.data.leatherColor) return '';
+          switch (fetcher.data.actionType) {
+            case 'add':
+              return `Leather color ${fetcher.data.leatherColor.name} created!`;
+            case 'update':
+              return `Leather color ${fetcher.data.leatherColor.name} updated!`;
+            case 'discontinue':
+              return `Leather color ${fetcher.data.leatherColor.name} discontinued.`;
+            case 'reactivate':
+              return `Leather color ${fetcher.data.leatherColor.name} reactivated!`;
+            default:
+              return `Leather color ${fetcher.data.leatherColor.name} created!`;
+          }
+        })()}
+      />
       {fetcher.data && fetcher.data.error && (
         <Box paddingBlock="400">
           <Banner status="critical">{fetcher.data.error}</Banner>

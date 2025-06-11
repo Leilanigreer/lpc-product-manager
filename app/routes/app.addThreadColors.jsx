@@ -7,6 +7,7 @@ import AddStitchingThreadColorForm from "../components/AddStitchingThreadColorFo
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
 import { updateEmbroideryThreadColorWithTagsAndNumbers, createEmbroideryThreadColorWithTags, updateStitchingThreadColorWithTagsAndNumbers, createStitchingThreadColorWithTagsAndAmann, unlinkIsacordFromThread, unlinkAmannFromThread } from "../lib/server/threadColorOperations.server";
+import SuccessBanner from "../components/SuccessBanner.jsx";
 
 export default function AddThreadColors() {
   const {
@@ -32,18 +33,15 @@ export default function AddThreadColors() {
   return (
     <Page>
       <TitleBar title="Add Thread Colors" />
-      {showBanner && (
-        <Box paddingBlock="400">
-          <Banner
-            status="success"
-            onDismiss={() => setShowBanner(false)}
-          >
-            {bannerType === "add"
-              ? `Thread color ${fetcher.data.threadColor.name} added successfully!`
-              : `Thread color ${fetcher.data.threadColor.name} updated successfully!`}
-          </Banner>
-        </Box>
-      )}
+      <SuccessBanner
+        show={showBanner}
+        onDismiss={() => setShowBanner(false)}
+        message={
+          bannerType === "add"
+            ? `Thread color ${fetcher.data?.threadColor?.name} added successfully!`
+            : `Thread color ${fetcher.data?.threadColor?.name} updated successfully!`
+        }
+      />
       <Layout>
         <Layout.Section variant="oneHalf">
           <AddEmbroideryThreadColorForm

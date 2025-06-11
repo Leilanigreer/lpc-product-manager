@@ -7,6 +7,7 @@ import { authenticate } from "../shopify.server.js";
 import { Page, Box, Banner, Card, BlockStack } from "@shopify/polaris";
 import ColorTagManager from "../components/ColorTagManager.jsx";
 import { createColorTag, updateColorTag } from "../lib/server/colorTagsOperations.server.js";
+import SuccessBanner from "../components/SuccessBanner.jsx";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
@@ -57,18 +58,15 @@ export default function AddColorTag() {
   }, [colorTagFetcher.data]);
   return (
     <Page>
-      {showBanner && colorTagFetcher.data && colorTagFetcher.data.success && (
-        <Box paddingBlock="400">
-          <Banner
-            status="success"
-            onDismiss={() => setShowBanner(false)}
-          >
-            {bannerType === "add"
-              ? `Color tag ${colorTagFetcher.data.colorTag?.name} added successfully!`
-              : `Color tag ${colorTagFetcher.data.colorTag?.name} updated successfully!`}
-          </Banner>
-        </Box>
-      )}
+      <SuccessBanner
+        show={showBanner && colorTagFetcher.data && colorTagFetcher.data.success}
+        onDismiss={() => setShowBanner(false)}
+        message={
+          bannerType === "add"
+            ? `Color tag ${colorTagFetcher.data?.colorTag?.name} added successfully!`
+            : `Color tag ${colorTagFetcher.data?.colorTag?.name} updated successfully!`
+        }
+      />
       <BlockStack gap="400">
         <Card>
           <TitleBar title="Add a New Color Tag" />
