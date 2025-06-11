@@ -41,12 +41,14 @@ export const action = async ({ request }) => {
 export default function AddColorTag() {
   const { colorTags, stitchingThreadColors, embroideryThreadColors, leatherColors } = useLoaderData();
   const colorTagFetcher = useFetcher();
-  const [showColorTagBanner, setShowColorTagBanner] = React.useState(false);
+  const [showBanner, setShowBanner] = React.useState(false);
+  const [bannerType, setBannerType] = React.useState("");
   const colorTagManagerSuccessRef = useRef(null);
   React.useEffect(() => {
-    if (colorTagFetcher.data) {
-      setShowColorTagBanner(true);
-      if (colorTagFetcher.data.success && colorTagFetcher.data.colorTag && colorTagFetcher.data.colorTag.id && colorTagFetcher.formData?.get('mode') === 'update') {
+    if (colorTagFetcher.data && colorTagFetcher.data.success) {
+      setShowBanner(true);
+      setBannerType(colorTagFetcher.data.actionType || (colorTagFetcher.formData?.get('mode') === 'update' ? 'update' : 'add'));
+      if (colorTagFetcher.data.colorTag && colorTagFetcher.data.colorTag.id && colorTagFetcher.formData?.get('mode') === 'update') {
         if (colorTagManagerSuccessRef.current) {
           colorTagManagerSuccessRef.current();
         }
@@ -55,17 +57,24 @@ export default function AddColorTag() {
   }, [colorTagFetcher.data]);
   return (
     <Page>
+      {showBanner && colorTagFetcher.data && colorTagFetcher.data.success && (
+        <Box paddingBlock="400">
+          <Banner
+            status="success"
+            onDismiss={() => setShowBanner(false)}
+          >
+            {bannerType === "add"
+              ? `Color tag ${colorTagFetcher.data.colorTag?.name} added successfully!`
+              : `Color tag ${colorTagFetcher.data.colorTag?.name} updated successfully!`}
+          </Banner>
+        </Box>
+      )}
       <BlockStack gap="400">
         <Card>
           <TitleBar title="Add a New Color Tag" />
           <Box paddingBlock="100">
-            {colorTagFetcher.data && colorTagFetcher.data.success && showColorTagBanner && (
-              <Banner status="success" onDismiss={() => setShowColorTagBanner(false)}>
-                Color tag {colorTagFetcher.data.colorTag?.name} created!
-              </Banner>
-            )}
             {colorTagFetcher.data && colorTagFetcher.data.error && (
-              <Banner status="critical" onDismiss={() => setShowColorTagBanner(false)}>
+              <Banner status="critical" onDismiss={() => setShowBanner(false)}>
                 {colorTagFetcher.data.error}
               </Banner>
             )}
