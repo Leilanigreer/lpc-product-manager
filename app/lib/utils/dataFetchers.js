@@ -13,11 +13,13 @@ export const getLeatherColors = async () => {
         }
       }
     });
-    return leatherColors.map(({ id, name, abbreviation, url_id, colorTags }) => ({
+    return leatherColors.map(({ id, name, abbreviation, url_id, isLimitedEditionLeather, isActive, colorTags }) => ({
       value: id,
       label: name,
       abbreviation,
       url_id,
+      isLimitedEditionLeather,
+      isActive,
       colorTags: colorTags
         .map(tag => ({
           value: tag.id,

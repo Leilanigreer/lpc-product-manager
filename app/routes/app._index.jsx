@@ -33,35 +33,45 @@ export default function Index() {
                     </Card>
                   </Grid.Cell>
                   <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
-                    <Card title="Update Pricing">
+                    <Card title="Manage Color Tags">
                       <BlockStack gap="400">
                         <Text variant="bodyMd">
-                          Manage your collection prices
+                          Manage your color tags
                         </Text>
-                        <Button icon={CashDollarIcon} onClick={() => navigate("/app/updatePricing")}>Update Pricing</Button>
+                        <Button icon={PlusIcon} onClick={() => navigate("/app/addColorTags")}>Manage Color Tags</Button>
                       </BlockStack>
                     </Card>
                   </Grid.Cell >
                   <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
-                    <Card title="Add Leather Color">
+                    <Card title="Manage Leather Color">
                       <BlockStack gap="400">
                         <Text variant="bodyMd">
                           Add a new leather color for product creation
                         </Text>
-                        <Button icon={PlusIcon} onClick={() => navigate("/app/addLeatherColor")}>Add Leather Color</Button>
+                        <Button icon={PlusIcon} onClick={() => navigate("/app/addLeatherColor")}>Manage Leather Color</Button>
                       </BlockStack>
                     </Card>
                   </Grid.Cell>
                   <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
-                    <Card title="Add Thread Colors">
+                    <Card title="Manage Thread Colors">
                       <BlockStack gap="400">
                         <Text variant="bodyMd">
                           Add a new thread color for product creation
                         </Text>
-                        <Button icon={PlusIcon} onClick={() => navigate("/app/addThreadColors")}>Add Thread Colors</Button>
+                        <Button icon={PlusIcon} onClick={() => navigate("/app/addThreadColors")}>Manage Thread Colors</Button>
                       </BlockStack>
                     </Card>
                   </Grid.Cell>
+                  <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
+                    <Card title="Manage Pricing">
+                      <BlockStack gap="400">
+                        <Text variant="bodyMd">
+                          Manage your collection prices
+                        </Text>
+                        <Button icon={CashDollarIcon} onClick={() => navigate("/app/updatePricing")}>Manage Pricing</Button>
+                      </BlockStack>
+                    </Card>
+                  </Grid.Cell >
                 {/* Add more feature descriptions as needed */}
                 </Grid>
                 <Card>
