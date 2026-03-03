@@ -2,6 +2,7 @@
 
 import { 
   getLeatherColors, 
+  getLeatherColorsFromShopify,
   getStitchingThreadColors, 
   getEmbroideryThreadColors, 
   getFonts, 
@@ -18,6 +19,7 @@ import {
 export const loader = async ({ admin } = {}) => {  
   try {
     const fontsPromise = admin ? getFontsFromShopify(admin) : getFonts();
+    const leatherColorsPromise = admin ? getLeatherColorsFromShopify(admin) : getLeatherColors();
     const [
       leatherColors, 
       stitchingThreadColors, 
@@ -30,7 +32,7 @@ export const loader = async ({ admin } = {}) => {
       unlinkedIsacordNumbers,
       unlinkedAmannNumbers,
     ] = await Promise.all([
-      getLeatherColors(),
+      leatherColorsPromise,
       getStitchingThreadColors(),
       getEmbroideryThreadColors(),
       fontsPromise,
@@ -42,7 +44,7 @@ export const loader = async ({ admin } = {}) => {
       getUnlinkedAmannNumbers()
     ]);
 
-    const productSets = await getProductSets(fonts);
+    const productSets = await getProductSets(fonts, leatherColors);
 
     return {
       leatherColors,

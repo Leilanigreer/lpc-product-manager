@@ -59,6 +59,8 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
     }
 
     const isShopifyFontGid = typeof productData.selectedFont === "string" && productData.selectedFont.startsWith("gid://");
+    const isShopifyLeather1Gid = typeof productData.selectedLeatherColor1 === "string" && productData.selectedLeatherColor1.startsWith("gid://");
+    const isShopifyLeather2Gid = productData.selectedLeatherColor2 && typeof productData.selectedLeatherColor2 === "string" && productData.selectedLeatherColor2.startsWith("gid://");
 
     const createData = {
       shopifyProductId: shopifyResponse.product.id,
@@ -73,14 +75,14 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
       ...(isShopifyFontGid
         ? { fontShopifyId: productData.selectedFont }
         : { font: { connect: { id: productData.selectedFont } } }),
-      leatherColor1: {
-        connect: { id: productData.selectedLeatherColor1 }
-      },
-      ...(collection.needsSecondaryLeather && productData.selectedLeatherColor2 && {
-        leatherColor2: {
-          connect: { id: productData.selectedLeatherColor2 }
-        }
-      }),
+      ...(isShopifyLeather1Gid
+        ? { leatherColor1ShopifyId: productData.selectedLeatherColor1 }
+        : { leatherColor1: { connect: { id: productData.selectedLeatherColor1 } } }),
+      ...(collection.needsSecondaryLeather && productData.selectedLeatherColor2 && (
+        isShopifyLeather2Gid
+          ? { leatherColor2ShopifyId: productData.selectedLeatherColor2 }
+          : { leatherColor2: { connect: { id: productData.selectedLeatherColor2 } } }
+      )),
       stitchingThreads: {
         create: Object.entries(productData.stitchingThreads).map(([_, thread]) => ({
           stitchingThread: {

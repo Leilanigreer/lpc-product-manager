@@ -1,6 +1,90 @@
 // app/lib/dataFetchers.js
 import prisma from "../../db.server.js";
 
+const LEATHER_COLOR_METAOBJECT_QUERY = `#graphql
+  query GetLeatherColorMetaobjects($first: Int!) {
+    metaobjects(type: "leather_color", first: $first) {
+      nodes {
+        id
+        handle
+        displayName
+        capabilities {
+          publishable { status }
+        }
+        nameField: field(key: "name") { value }
+        abbreviationField: field(key: "abbreviation") { value }
+        previewImageField: field(key: "preview_image") {
+          thumbnail {
+            file {
+              ... on MediaImage {
+                image { url }
+              }
+              ... on GenericFile {
+                url
+              }
+            }
+          }
+        }
+        isLimitedEditionField: field(key: "is_limited_edition") { value }
+      }
+    }
+  }
+`;
+
+/**
+ * Fetches leather colors from Shopify leather_color metaobjects.
+ * Only includes metaobjects with status ACTIVE. Returns same shape as getLeatherColors() for drop-in use.
+ * @param {Object} admin - Shopify Admin API GraphQL client
+ * @returns {Promise<Array<{ value, label, abbreviation, url_id, isLimitedEditionLeather, isActive, colorTags }>>}
+ */
+export const getLeatherColorsFromShopify = async (admin) => {
+  if (!admin?.graphql) {
+    return [];
+  }
+  try {
+    const response = await admin.graphql(LEATHER_COLOR_METAOBJECT_QUERY, {
+      variables: { first: 250 },
+    });
+    const json = await response.json();
+    const nodes = json?.data?.metaobjects?.nodes ?? [];
+    const leatherColors = nodes
+      .filter((node) => {
+        const status = node.capabilities?.publishable?.status;
+        return status == null || status === "ACTIVE";
+      })
+      .map((node) => {
+        const name = node.nameField?.value ?? node.displayName ?? node.handle ?? "";
+        const abbreviation = node.abbreviationField?.value ?? "";
+        const file = node.previewImageField?.thumbnail?.file;
+        const url_id = file?.image?.url ?? file?.url ?? null;
+        const isLimitedEditionLeather = parseMetaobjectBoolean(node.isLimitedEditionField);
+        return {
+          value: node.id,
+          label: name,
+          abbreviation,
+          url_id,
+          isLimitedEditionLeather,
+          isActive: true,
+          colorTags: [],
+        };
+      })
+      .filter((lc) => lc.label)
+      .sort((a, b) => a.label.localeCompare(b.label));
+    return leatherColors;
+  } catch (error) {
+    console.error("Error fetching leather colors from Shopify:", error);
+    return [];
+  }
+};
+
+function parseMetaobjectBoolean(field) {
+  if (field == null) return false;
+  const v = field.value;
+  if (v === true || v === "true") return true;
+  if (v === false || v === "false") return false;
+  return false;
+}
+
 export const getLeatherColors = async () => {
   try {
     const leatherColors = await prisma.LeatherColor.findMany({
@@ -368,7 +452,7 @@ export const getCommonDescription = async () => {
   }
 };
 
-export const getProductSets = async (fontsFromShopify = []) => {
+export const getProductSets = async (fontsFromShopify = [], leatherColorsFromShopify = []) => {
   try {
     const productSets = await prisma.productSetDataLPC.findMany({
       include: {
@@ -508,6 +592,8 @@ export const getProductSets = async (fontsFromShopify = []) => {
       fontShopifyId,
       leatherColor1,
       leatherColor2,
+      leatherColor1ShopifyId,
+      leatherColor2ShopifyId,
       stitchingThreads,
       mainHandle,
       setImages,
@@ -515,7 +601,13 @@ export const getProductSets = async (fontsFromShopify = []) => {
       createdAt,
       updatedAt
     }) => {
-      if (!collections.length || !leatherColor1) {
+      const leather1Obj = leatherColor1
+        ? { value: leatherColor1.id, label: leatherColor1.name, abbreviation: leatherColor1.abbreviation, url_id: leatherColor1.url_id }
+        : (leatherColor1ShopifyId && leatherColorsFromShopify?.length
+            ? (leatherColorsFromShopify.find((l) => l.value === leatherColor1ShopifyId) ?? { value: leatherColor1ShopifyId, label: "Unknown leather", abbreviation: "", url_id: null })
+            : null);
+
+      if (!collections.length || !leather1Obj) {
         console.warn(`Missing required fields for ProductSetDataLPC ID: ${id}`);
         return null;
       }
@@ -530,6 +622,12 @@ export const getProductSets = async (fontsFromShopify = []) => {
         console.warn(`Missing font for ProductSetDataLPC ID: ${id}`);
         return null;
       }
+
+      const leather2Obj = leatherColor2
+        ? { value: leatherColor2.id, label: leatherColor2.name, abbreviation: leatherColor2.abbreviation, url_id: leatherColor2.url_id }
+        : (leatherColor2ShopifyId && leatherColorsFromShopify?.length
+            ? (leatherColorsFromShopify.find((l) => l.value === leatherColor2ShopifyId) ?? null)
+            : null);
 
       const primaryCollection = collections[0]?.collection;
 
@@ -551,18 +649,8 @@ export const getProductSets = async (fontsFromShopify = []) => {
         })),
         offeringType,
         font: fontObj,
-        leatherColor1: {
-          value: leatherColor1.id,
-          label: leatherColor1.name,
-          abbreviation: leatherColor1.abbreviation,
-          url_id: leatherColor1.url_id
-        },
-        leatherColor2: leatherColor2 ? {
-          value: leatherColor2.id,
-          label: leatherColor2.name,
-          abbreviation: leatherColor2.abbreviation,
-          url_id: leatherColor2.url_id
-        } : null,
+        leatherColor1: leather1Obj,
+        leatherColor2: leather2Obj ?? null,
         stitchingThreads: stitchingThreads.map(relation => ({
           threadValue: relation.stitchingThread.id,
           threadLabel: relation.stitchingThread.name,
