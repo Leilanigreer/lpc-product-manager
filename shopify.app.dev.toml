@@ -3,7 +3,7 @@
 client_id = "df58a5b13484ffc9b63eb3e420dca6f9"
 name = "LPC Product Management - Dev"
 handle = "lpc-product-management-dev-1"
-application_url = "https://visibility-divided-tim-dropped.trycloudflare.com"
+application_url = "https://recognized-enquiry-investors-stat.trycloudflare.com"
 embedded = true
 
 [build]
@@ -13,13 +13,13 @@ include_config_on_deploy = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_products,read_publications,write_fulfillments,write_inventory,write_products,write_publications"
+scopes = "read_fulfillments,read_inventory,read_locations,read_orders,read_products,read_publications,read_metaobjects,write_fulfillments,write_inventory,write_metaobject_definitions,write_metaobjects,write_products,write_publications"
 
 [auth]
 redirect_urls = [
-  "https://visibility-divided-tim-dropped.trycloudflare.com/auth/callback",
-  "https://visibility-divided-tim-dropped.trycloudflare.com/auth/shopify/callback",
-  "https://visibility-divided-tim-dropped.trycloudflare.com/api/auth/callback"
+  "https://recognized-enquiry-investors-stat.trycloudflare.com/auth/callback",
+  "https://recognized-enquiry-investors-stat.trycloudflare.com/auth/shopify/callback",
+  "https://recognized-enquiry-investors-stat.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
