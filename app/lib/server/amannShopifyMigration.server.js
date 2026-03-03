@@ -1,7 +1,7 @@
 // app/lib/server/amannShopifyMigration.server.js
 /**
  * Migrates AmannNumber records (number, WawakColorName) from Prisma to Shopify
- * as metaobjects: type amann_number with keys number (integer) and wawak_color_name (single line text).
+ * as metaobjects: type amann_number with keys number (single line text) and wawak_color_name (single line text).
  * Uses the existing Amann Number metaobject definition created in Shopify admin.
  */
 import prisma from "../../db.server.js";
@@ -10,19 +10,8 @@ import prisma from "../../db.server.js";
 const METAOBJECT_TYPE = "amann_number";
 
 /**
- * Parse number for the integer field. API expects integer values as string.
- * @param {string|number} raw
- * @returns {string} String representation of integer, or empty string if invalid
- */
-function numberFieldValue(raw) {
-  if (raw == null || raw === "") return "";
-  const n = typeof raw === "number" ? raw : parseInt(String(raw).trim(), 10);
-  return Number.isNaN(n) ? "" : String(n);
-}
-
-/**
  * Migrate all AmannNumber records to Shopify as metaobjects.
- * Uses the existing amann_number definition (number = integer, wawak_color_name = single line text).
+ * Uses the existing amann_number definition (number = single line text, wawak_color_name = single line text).
  * Uses handle amann-{id} so re-runs skip already-migrated records (handle taken).
  * @param {Object} admin - Shopify Admin API GraphQL client
  * @returns {Promise<{ success: boolean, created: number, skipped: number, errors: string[] }>}
@@ -35,7 +24,7 @@ export async function migrateAmannNumbersToShopify(admin) {
   });
 
   for (const row of amannRecords) {
-    const numberStr = numberFieldValue(row.number);
+    const numberValue = row.number != null ? String(row.number).trim() : "";
     const wawakColorName = row.WawakColorName ?? "";
     const handle = `amann-${row.id}`;
 
@@ -53,7 +42,7 @@ export async function migrateAmannNumbersToShopify(admin) {
             type: METAOBJECT_TYPE,
             handle,
             fields: [
-              { key: "number", value: numberStr },
+              { key: "number", value: numberValue },
               { key: "wawak_color_name", value: wawakColorName },
             ],
           },
