@@ -7,7 +7,7 @@ import AddStitchingThreadColorForm from "../components/AddStitchingThreadColorFo
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
 import { updateEmbroideryThreadColorWithTagsAndNumbers, createEmbroideryThreadColorWithTags, updateStitchingThreadColorWithTagsAndNumbers, createStitchingThreadColorWithTagsAndAmann, unlinkIsacordFromThread, unlinkAmannFromThread } from "../lib/server/threadColorOperations.server";
-import { migrateAmannNumbersToShopify } from "../lib/server/amannShopifyMigration.server";
+import { migrateAmannNumbersToShopify, activateAmannMetaobjects } from "../lib/server/amannShopifyMigration.server";
 import SuccessBanner from "../components/SuccessBanner.jsx";
 
 export default function AddThreadColors() {
@@ -24,6 +24,7 @@ export default function AddThreadColors() {
   const [showBanner, setShowBanner] = React.useState(false);
   const [bannerType, setBannerType] = React.useState("");
   const [migrateBanner, setMigrateBanner] = React.useState({ show: false, message: "", isError: false });
+  const [activateBanner, setActivateBanner] = React.useState({ show: false, message: "", isError: false });
 
   React.useEffect(() => {
     if (fetcher.data && fetcher.data.success) {
@@ -42,9 +43,26 @@ export default function AddThreadColors() {
     }
   }, [fetcher.data]);
 
+  React.useEffect(() => {
+    if (fetcher.data && fetcher.data.activateResult) {
+      const r = fetcher.data.activateResult;
+      const msg = r.errors?.length
+        ? `Updated ${r.updated}, skipped ${r.skipped}. Errors: ${r.errors.join("; ")}`
+        : `Set Amann metaobjects to Active: ${r.updated} updated, ${r.skipped} already active.`;
+      setActivateBanner({ show: true, message: msg, isError: r.errors?.length > 0 });
+    }
+  }, [fetcher.data]);
+
   const handleMigrateAmann = () => {
     fetcher.submit(
       { type: "migrateAmannToShopify" },
+      { method: "post" }
+    );
+  };
+
+  const handleActivateAmann = () => {
+    fetcher.submit(
+      { type: "activateAmannMetaobjects" },
       { method: "post" }
     );
   };
@@ -58,6 +76,14 @@ export default function AddThreadColors() {
           onDismiss={() => setMigrateBanner({ show: false, message: "", isError: false })}
           message={migrateBanner.message}
           status={migrateBanner.isError ? "critical" : "success"}
+        />
+      )}
+      {activateBanner.show && (
+        <SuccessBanner
+          show={true}
+          onDismiss={() => setActivateBanner({ show: false, message: "", isError: false })}
+          message={activateBanner.message}
+          status={activateBanner.isError ? "critical" : "success"}
         />
       )}
       <SuccessBanner
@@ -86,6 +112,12 @@ export default function AddThreadColors() {
                   loading={fetcher.state === "submitting" && fetcher.formData?.get("type") === "migrateAmannToShopify"}
                 >
                   Migrate Amann numbers to Shopify
+                </Button>
+                <Button
+                  onClick={handleActivateAmann}
+                  loading={fetcher.state === "submitting" && fetcher.formData?.get("type") === "activateAmannMetaobjects"}
+                >
+                  Set Amann metaobjects to Active
                 </Button>
               </BlockStack>
             </Card>
@@ -133,6 +165,23 @@ export const action = async ({ request }) => {
         migrateResult: {
           success: false,
           created: 0,
+          skipped: 0,
+          errors: [error.message || String(error)],
+        },
+      };
+    }
+  }
+
+  if (type === "activateAmannMetaobjects") {
+    try {
+      const activateResult = await activateAmannMetaobjects(admin);
+      return { activateResult };
+    } catch (error) {
+      console.error("[action] activateAmannMetaobjects error", error);
+      return {
+        activateResult: {
+          success: false,
+          updated: 0,
           skipped: 0,
           errors: [error.message || String(error)],
         },

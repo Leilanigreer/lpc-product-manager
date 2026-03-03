@@ -69,3 +69,88 @@ export async function migrateAmannNumbersToShopify(admin) {
   result.success = result.errors.length === 0;
   return result;
 }
+
+/**
+ * Set all Amann Number metaobjects to ACTIVE status.
+ * Uses the existing amann_number definition (requires publishable capability enabled).
+ * @param {Object} admin - Shopify Admin API GraphQL client
+ * @returns {Promise<{ success: boolean, updated: number, skipped: number, errors: string[] }>}
+ */
+export async function activateAmannMetaobjects(admin) {
+  const result = { success: false, updated: 0, skipped: 0, errors: [] };
+
+  // 1. Fetch all amann_number metaobjects (96 total, fits in a single page)
+  const listResponse = await admin.graphql(
+    `#graphql
+    query ListAmannMetaobjects($type: String!, $first: Int!) {
+      metaobjects(type: $type, first: $first) {
+        nodes {
+          id
+          handle
+          status
+        }
+      }
+    }`,
+    {
+      variables: {
+        type: METAOBJECT_TYPE,
+        first: 250,
+      },
+    }
+  );
+
+  const listJson = await listResponse.json();
+  const nodes = listJson.data?.metaobjects?.nodes || [];
+
+  if (!nodes.length && listJson.errors?.length) {
+    result.errors.push(listJson.errors.map(e => e.message).join(", "));
+    return result;
+  }
+
+  // 2. Activate any metaobjects that are not already ACTIVE
+  for (const node of nodes) {
+    if (node.status === "ACTIVE") {
+      result.skipped += 1;
+      continue;
+    }
+
+    const updateResponse = await admin.graphql(
+      `#graphql
+      mutation ActivateAmannMetaobject($id: ID!, $status: MetaobjectStatus!) {
+        metaobjectUpdate(metaobject: { id: $id, status: $status }) {
+          metaobject {
+            id
+            status
+          }
+          userErrors {
+            field
+            message
+            code
+          }
+        }
+      }`,
+      {
+        variables: {
+          id: node.id,
+          status: "ACTIVE",
+        },
+      }
+    );
+
+    const updateJson = await updateResponse.json();
+    const updateResult = updateJson.data?.metaobjectUpdate;
+
+    if (updateResult?.userErrors?.length > 0) {
+      const msg = updateResult.userErrors.map(e => e.message).join(", ");
+      result.errors.push(`Activate ${node.handle || node.id}: ${msg}`);
+      continue;
+    }
+
+    if (updateResult?.metaobject?.status === "ACTIVE") {
+      result.updated += 1;
+    }
+  }
+
+  result.success = result.errors.length === 0;
+  return result;
+}
