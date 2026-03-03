@@ -9,10 +9,8 @@ import { Page, Layout, InlineStack, Text, Card, Select } from "@shopify/polaris"
 
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  
-  // Get data from our data loader
-  return dataLoader({ request });
+  const { admin } = await authenticate.admin(request);
+  return dataLoader({ admin });
 };
 
 export const action = async ({ request }) => {

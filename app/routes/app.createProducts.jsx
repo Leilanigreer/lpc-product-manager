@@ -36,8 +36,8 @@ import {
 } from "@shopify/polaris";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return dataLoader({ request });
+  const { admin } = await authenticate.admin(request);
+  return dataLoader({ admin });
 };
 
 export const action = async ({ request }) => {

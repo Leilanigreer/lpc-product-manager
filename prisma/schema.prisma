@@ -315,8 +315,9 @@ model ProductSetDataLPC {
   baseSKU              String
   collections          ProductSetCollection[]
   offeringType         String
-  fontId               String
-  font                 Font                    @relation(fields: [fontId], references: [id])
+  fontId               String?                 // legacy Postgres Font; null when using fontShopifyId
+  font                 Font?                   @relation(fields: [fontId], references: [id])
+  fontShopifyId        String?                 // Shopify custom.font metaobject GID
   leatherColor1Id      String
   leatherColor1        LeatherColor            @relation("PrimaryLeatherColor", fields: [leatherColor1Id], references: [id])
   leatherColor2Id      String?

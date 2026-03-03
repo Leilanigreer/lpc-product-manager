@@ -109,6 +109,67 @@ export const getEmbroideryThreadColors = async () => {
   }
 };
 
+const FONTS_METAOBJECT_QUERY = `#graphql
+  query GetFontMetaobjects($first: Int!) {
+    metaobjects(type: "font", first: $first) {
+      nodes {
+        id
+        handle
+        displayName
+        nameField: field(key: "name") { value }
+        previewImageField: field(key: "preview_image") {
+          thumbnail {
+            file {
+              ... on MediaImage {
+                image { url }
+              }
+              ... on GenericFile {
+                url
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * Fetches fonts from Shopify custom.font metaobjects (name + preview_image).
+ * Returns same shape as getFonts() for drop-in use: { value, label, url_id }.
+ * @param {Object} admin - Shopify Admin API GraphQL client
+ * @returns {Promise<Array<{ value: string, label: string, url_id: string|null }>>}
+ */
+export const getFontsFromShopify = async (admin) => {
+  if (!admin?.graphql) {
+    return [];
+  }
+  try {
+    const response = await admin.graphql(FONTS_METAOBJECT_QUERY, {
+      variables: { first: 250 },
+    });
+    const json = await response.json();
+    const nodes = json?.data?.metaobjects?.nodes ?? [];
+    const fonts = nodes
+      .map((node) => {
+        const name = node.nameField?.value ?? node.displayName ?? node.handle ?? "";
+        const file = node.previewImageField?.thumbnail?.file;
+        const url = file?.image?.url ?? file?.url ?? null;
+        return {
+          value: node.id,
+          label: name,
+          url_id: url,
+        };
+      })
+      .filter((f) => f.label)
+      .sort((a, b) => a.label.localeCompare(b.label));
+    return fonts;
+  } catch (error) {
+    console.error("Error fetching fonts from Shopify:", error);
+    return [];
+  }
+};
+
 export const getFonts = async () => {
   try {
     const fonts = await prisma.Font.findMany();
@@ -307,7 +368,7 @@ export const getCommonDescription = async () => {
   }
 };
 
-export const getProductSets = async () => {
+export const getProductSets = async (fontsFromShopify = []) => {
   try {
     const productSets = await prisma.productSetDataLPC.findMany({
       include: {
@@ -444,6 +505,7 @@ export const getProductSets = async () => {
       collections,
       offeringType,
       font,
+      fontShopifyId,
       leatherColor1,
       leatherColor2,
       stitchingThreads,
@@ -453,9 +515,19 @@ export const getProductSets = async () => {
       createdAt,
       updatedAt
     }) => {
-      // Validate required fields
-      if (!collections.length || !font || !leatherColor1) {
+      if (!collections.length || !leatherColor1) {
         console.warn(`Missing required fields for ProductSetDataLPC ID: ${id}`);
+        return null;
+      }
+
+      const fontObj = font
+        ? { value: font.id, label: font.name, url_id: font.url_id }
+        : (fontShopifyId && fontsFromShopify?.length
+            ? (fontsFromShopify.find((f) => f.value === fontShopifyId) ?? { value: fontShopifyId, label: "Unknown font", url_id: null })
+            : null);
+
+      if (!fontObj) {
+        console.warn(`Missing font for ProductSetDataLPC ID: ${id}`);
         return null;
       }
 
@@ -478,11 +550,7 @@ export const getProductSets = async () => {
           shopifyId: collection.shopifyId
         })),
         offeringType,
-        font: {
-          value: font.id,
-          label: font.name,
-          url_id: font.url_id
-        },
+        font: fontObj,
         leatherColor1: {
           value: leatherColor1.id,
           label: leatherColor1.name,

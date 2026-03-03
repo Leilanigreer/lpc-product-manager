@@ -5,6 +5,7 @@ import {
   getStitchingThreadColors, 
   getEmbroideryThreadColors, 
   getFonts, 
+  getFontsFromShopify,
   getShapes, 
   getShopifyCollections,
   getCommonDescription, 
@@ -14,8 +15,9 @@ import {
   getUnlinkedAmannNumbers
 } from "../utils/dataFetchers";
 
-export const loader = async () => {  
+export const loader = async ({ admin } = {}) => {  
   try {
+    const fontsPromise = admin ? getFontsFromShopify(admin) : getFonts();
     const [
       leatherColors, 
       stitchingThreadColors, 
@@ -24,7 +26,6 @@ export const loader = async () => {
       shapes, 
       shopifyCollections,
       commonDescription,
-      productSets,
       colorTags,
       unlinkedIsacordNumbers,
       unlinkedAmannNumbers,
@@ -32,15 +33,16 @@ export const loader = async () => {
       getLeatherColors(),
       getStitchingThreadColors(),
       getEmbroideryThreadColors(),
-      getFonts(),
+      fontsPromise,
       getShapes(),
       getShopifyCollections(),
       getCommonDescription(),
-      getProductSets(),
       getColorTags(),
       getUnlinkedIsacordNumbers(),
       getUnlinkedAmannNumbers()
     ]);
+
+    const productSets = await getProductSets(fonts);
 
     return {
       leatherColors,

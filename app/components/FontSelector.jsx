@@ -29,6 +29,12 @@ const FontSelector = ({ fonts, formState, onChange }) => {
   // Add loading state for image
   const [isImageLoading, setIsImageLoading] = React.useState(false);
 
+  const previewUrl = selectedFontObject?.url_id
+    ? (selectedFontObject.url_id.startsWith("http")
+        ? selectedFontObject.url_id
+        : getGoogleDriveUrl(selectedFontObject.url_id))
+    : null;
+
   return (
     <Card>
       <InlineStack gap="500" align="start" wrap={false}>
@@ -49,17 +55,19 @@ const FontSelector = ({ fonts, formState, onChange }) => {
                   <Spinner accessibilityLabel="Loading font preview" size="small" />
                 </Box>
               )}
-              <Image
-                source={getGoogleDriveUrl(selectedFontObject?.url_id)}
-                alt={`Preview of ${selectedFontObject?.label} font`}
-                style={{ 
-                  width: '150px', 
-                  height: 'auto',
-                  display: isImageLoading ? 'none' : 'block'
-                }}
-                onLoad={() => setIsImageLoading(false)}
-                onError={() => setIsImageLoading(false)}
-              />
+              {previewUrl && (
+                <Image
+                  source={previewUrl}
+                  alt={`Preview of ${selectedFontObject?.label} font`}
+                  style={{ 
+                    width: '150px', 
+                    height: 'auto',
+                    display: isImageLoading ? 'none' : 'block'
+                  }}
+                  onLoad={() => setIsImageLoading(false)}
+                  onError={() => setIsImageLoading(false)}
+                />
+              )}
             </BlockStack>
           )}
         </Box>

@@ -58,7 +58,8 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
       throw new Error('Collection data missing from product data');
     }
 
-    // Create the parent product set first
+    const isShopifyFontGid = typeof productData.selectedFont === "string" && productData.selectedFont.startsWith("gid://");
+
     const createData = {
       shopifyProductId: shopifyResponse.product.id,
       baseSKU: filteredVariants[0].baseSKU,
@@ -69,9 +70,9 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
           collectionId: collection.value
         }
       },
-      font: {
-        connect: { id: productData.selectedFont }
-      },
+      ...(isShopifyFontGid
+        ? { fontShopifyId: productData.selectedFont }
+        : { font: { connect: { id: productData.selectedFont } } }),
       leatherColor1: {
         connect: { id: productData.selectedLeatherColor1 }
       },
