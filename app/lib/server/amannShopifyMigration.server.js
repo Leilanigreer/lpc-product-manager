@@ -2,13 +2,13 @@
 /**
  * Migrates thread/number data from Postgres to Shopify metaobjects:
  * - AmannNumber → amann_number
- * - EmbroideryThread → embroidery_threads (name, abbreviation with _E transform); handle embroidery-{id}
- * - IsacordNumber → isacord_number (number, embroidery_thread_name as reference to embroidery_threads via embroidery-{threadId}, wawak_color_name, wawak_item_number)
+ * - EmbroideryThread → embroidery_thread (name, abbreviation with _E transform); handle embroidery-{id}
+ * - IsacordNumber → isacord_number (number, embroidery_thread_name as reference to embroidery_thread via embroidery-{threadId}, wawak_color_name, wawak_item_number)
  */
 import prisma from "../../db.server.js";
 
 const METAOBJECT_TYPE_AMANN = "amann_number";
-const METAOBJECT_TYPE_EMBROIDERY_THREADS = "embroidery_threads";
+const METAOBJECT_TYPE_EMBROIDERY_THREAD = "embroidery_thread";
 const METAOBJECT_TYPE_ISACORD_NUMBER = "isacord_number";
 
 /** Transform abbreviation: add _ before final E (e.g. XYZE → XYZ_E). */
@@ -20,7 +20,7 @@ function transformEmbroideryAbbreviation(abbr) {
 }
 
 /**
- * Resolve a metaobject's Shopify GID by type and handle (e.g. embroidery_threads + embroidery-{id}).
+ * Resolve a metaobject's Shopify GID by type and handle (e.g. embroidery_thread + embroidery-{id}).
  * @returns {Promise<string|null>} Metaobject GID or null if not found
  */
 async function getMetaobjectIdByHandle(admin, type, handle) {
@@ -90,7 +90,7 @@ export async function migrateAmannNumbersToShopify(admin) {
 }
 
 /**
- * Migrate EmbroideryThread records to Shopify as metaobjects (type: embroidery_threads).
+ * Migrate EmbroideryThread records to Shopify as metaobjects (type: embroidery_thread).
  * Fields: name, abbreviation (with _E transform: trailing E → _E).
  * @param {Object} admin - Shopify Admin API GraphQL client
  * @returns {Promise<{ success: boolean, created: number, skipped: number, errors: string[] }>}
@@ -104,7 +104,7 @@ export async function migrateEmbroideryThreadsToShopify(admin) {
     const name = row.name != null ? String(row.name).trim() : "";
     const abbreviation = transformEmbroideryAbbreviation(row.abbreviation);
     const handle = `embroidery-${row.id}`;
-    const out = await createMetaobject(admin, METAOBJECT_TYPE_EMBROIDERY_THREADS, handle, [
+    const out = await createMetaobject(admin, METAOBJECT_TYPE_EMBROIDERY_THREAD, handle, [
       { key: "name", value: name },
       { key: "abbreviation", value: abbreviation },
     ]);
@@ -118,7 +118,7 @@ export async function migrateEmbroideryThreadsToShopify(admin) {
 
 /**
  * Migrate IsacordNumber records to Shopify as metaobjects (type: isacord_number).
- * Fields: number, embroidery_thread_name (reference to embroidery_threads via handle embroidery-{threadId}), wawak_color_name, wawak_item_number.
+ * Fields: number, embroidery_thread_name (reference to embroidery_thread via handle embroidery-{threadId}), wawak_color_name, wawak_item_number.
  * Run "Migrate embroidery threads" first so the reference can be resolved.
  * @param {Object} admin - Shopify Admin API GraphQL client
  * @returns {Promise<{ success: boolean, created: number, skipped: number, errors: string[] }>}
@@ -142,7 +142,7 @@ export async function migrateIsacordNumbersToShopify(admin) {
     let embroideryThreadNameValue = "";
     if (row.threadId) {
       const embroideryHandle = `embroidery-${row.threadId}`;
-      const refGid = await getMetaobjectIdByHandle(admin, METAOBJECT_TYPE_EMBROIDERY_THREADS, embroideryHandle);
+      const refGid = await getMetaobjectIdByHandle(admin, METAOBJECT_TYPE_EMBROIDERY_THREAD, embroideryHandle);
       if (refGid) embroideryThreadNameValue = refGid;
     }
     const handle = `isacord-${row.id}`;
