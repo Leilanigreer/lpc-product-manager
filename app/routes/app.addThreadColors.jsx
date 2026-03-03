@@ -2,16 +2,8 @@ import React from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { Page, Layout, Card, BlockStack, Button, Text, Box } from "@shopify/polaris";
-import AddThreadColorForm from "../components/AddThreadColorForm";
-import ThreadCreateUpdateModal from "../components/ThreadCreateUpdateModal";
-import ThreadReassignNumberModal from "../components/ThreadReassignNumberModal";
-import {
-  formatNameLive,
-  formatNameOnBlur,
-  validateNameUnique,
-  generateEmbAbbreviation,
-  generateStitchAbbreviation
-} from "../lib/utils/colorNameUtils";
+import AddEmbroideryThreadColorForm from "../components/AddEmbroideryThreadColorForm";
+import AddStitchingThreadColorForm from "../components/AddStitchingThreadColorForm";
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
 import { updateEmbroideryThreadColorWithTagsAndNumbers, createEmbroideryThreadColorWithTags, updateStitchingThreadColorWithTagsAndNumbers, createStitchingThreadColorWithTagsAndAmann, unlinkIsacordFromThread, unlinkAmannFromThread } from "../lib/server/threadColorOperations.server";
@@ -99,72 +91,20 @@ export default function AddThreadColors() {
             </Card>
           </Layout.Section>
           <Layout.Section variant="oneHalf">
-          <AddThreadColorForm
-            radioGroupName="embroideryMode"
-            threadTypeLabel="Embroidery Thread Color"
-            numberTypeLabel="Isacord Numbers"
-            numberPlaceholder="Search or select Isacord Numbers"
-            threadColors={embroideryThreadColors.map(tc => ({
-              ...tc,
-              numbers: tc.isacordNumbers
-            }))}
-            unlinkedNumbers={unlinkedIsacordNumbers}
-            colorTags={colorTags}
-            abbreviationGenerator={generateEmbAbbreviation}
-            validateNameUnique={validateNameUnique}
-            formatNameLive={formatNameLive}
-            formatNameOnBlur={formatNameOnBlur}
-            fetcher={fetcher}
-            onSubmitType="embroidery"
-            onUpdateType="updateEmbroidery"
-            reassignModalLabel="Isacord"
-            ThreadCreateUpdateModal={ThreadCreateUpdateModal}
-            ThreadReassignNumberModal={ThreadReassignNumberModal}
-            modalTitles={{
-              add: "Confirm New Embroidery Thread Color",
-              update: "Confirm Update to Embroidery Thread Color"
-            }}
-            modalButtonLabels={{
-              add: "Confirm",
-              update: "Confirm Update"
-            }}
-            saveButtonLabel="Save Embroidery Thread Color"
-            updateButtonLabel="Update Embroidery Thread Color"
-          />
+            <AddEmbroideryThreadColorForm
+              colorTags={colorTags}
+              unlinkedIsacordNumbers={unlinkedIsacordNumbers}
+              embroideryThreadColors={embroideryThreadColors}
+              fetcher={fetcher}
+            />
           </Layout.Section>
           <Layout.Section variant="oneHalf">
-          <AddThreadColorForm
-            radioGroupName="stitchingMode"
-            threadTypeLabel="Stitching Thread Color"
-            numberTypeLabel="Amann Numbers"
-            numberPlaceholder="Search or select Amann Numbers"
-            threadColors={stitchingThreadColors.map(tc => ({
-              ...tc,
-              numbers: tc.amannNumbers
-            }))}
-            unlinkedNumbers={unlinkedAmannNumbers}
-            colorTags={colorTags}
-            abbreviationGenerator={generateStitchAbbreviation}
-            validateNameUnique={validateNameUnique}
-            formatNameLive={formatNameLive}
-            formatNameOnBlur={formatNameOnBlur}
-            fetcher={fetcher}
-            onSubmitType="stitching"
-            onUpdateType="updateStitching"
-            reassignModalLabel="Amann"
-            ThreadCreateUpdateModal={ThreadCreateUpdateModal}
-            ThreadReassignNumberModal={ThreadReassignNumberModal}
-            modalTitles={{
-              add: "Confirm New Stitching Thread Color",
-              update: "Confirm Update to Stitching Thread Color"
-            }}
-            modalButtonLabels={{
-              add: "Confirm",
-              update: "Confirm Update"
-            }}
-            saveButtonLabel="Save Stitching Thread Color"
-            updateButtonLabel="Update Stitching Thread Color"
-          />
+            <AddStitchingThreadColorForm
+              colorTags={colorTags}
+              stitchingThreadColors={stitchingThreadColors}
+              fetcher={fetcher}
+              unlinkedAmannNumbers={unlinkedAmannNumbers}
+            />
           </Layout.Section>
         </Layout>
       </Box>
