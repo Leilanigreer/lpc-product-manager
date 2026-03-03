@@ -80,6 +80,7 @@ export async function activateAmannMetaobjects(admin) {
   const result = { success: false, updated: 0, skipped: 0, errors: [] };
 
   // 1. Fetch all amann_number metaobjects (96 total, fits in a single page)
+  // Status lives under capabilities.publishable (not top-level on Metaobject)
   const listResponse = await admin.graphql(
     `#graphql
     query ListAmannMetaobjects($type: String!, $first: Int!) {
@@ -87,7 +88,11 @@ export async function activateAmannMetaobjects(admin) {
         nodes {
           id
           handle
-          status
+          capabilities {
+            publishable {
+              status
+            }
+          }
         }
       }
     }`,
@@ -107,20 +112,26 @@ export async function activateAmannMetaobjects(admin) {
     return result;
   }
 
+  const currentStatus = (node) => node.capabilities?.publishable?.status;
+
   // 2. Activate any metaobjects that are not already ACTIVE
   for (const node of nodes) {
-    if (node.status === "ACTIVE") {
+    if (currentStatus(node) === "ACTIVE") {
       result.skipped += 1;
       continue;
     }
 
     const updateResponse = await admin.graphql(
       `#graphql
-      mutation ActivateAmannMetaobject($id: ID!, $status: MetaobjectStatus!) {
-        metaobjectUpdate(metaobject: { id: $id, status: $status }) {
+      mutation ActivateAmannMetaobject($id: ID!, $metaobject: MetaobjectUpdateInput!) {
+        metaobjectUpdate(id: $id, metaobject: $metaobject) {
           metaobject {
             id
-            status
+            capabilities {
+              publishable {
+                status
+              }
+            }
           }
           userErrors {
             field
@@ -132,7 +143,13 @@ export async function activateAmannMetaobjects(admin) {
       {
         variables: {
           id: node.id,
-          status: "ACTIVE",
+          metaobject: {
+            capabilities: {
+              publishable: {
+                status: "ACTIVE",
+              },
+            },
+          },
         },
       }
     );
@@ -146,7 +163,7 @@ export async function activateAmannMetaobjects(admin) {
       continue;
     }
 
-    if (updateResult?.metaobject?.status === "ACTIVE") {
+    if (currentStatus(updateResult?.metaobject) === "ACTIVE") {
       result.updated += 1;
     }
   }
