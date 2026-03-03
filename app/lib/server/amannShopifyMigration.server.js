@@ -138,12 +138,12 @@ export async function migrateIsacordNumbersToShopify(admin) {
     const number = row.number != null ? String(row.number).trim() : "";
     const wawakColorName = row.wawakColorName != null ? String(row.wawakColorName).trim() : "";
     const wawakItemNumber = row.wawakItemNumber != null ? String(row.wawakItemNumber).trim() : "";
-    // Resolve embroidery_thread_name as metaobject reference (GID) using handle embroidery-{threadId}
+    // Resolve embroidery_thread_name as metaobject reference; Shopify expects JSON (e.g. array of GIDs for list.reference)
     let embroideryThreadNameValue = "";
     if (row.threadId) {
       const embroideryHandle = `embroidery-${row.threadId}`;
       const refGid = await getMetaobjectIdByHandle(admin, METAOBJECT_TYPE_EMBROIDERY_THREAD, embroideryHandle);
-      if (refGid) embroideryThreadNameValue = refGid;
+      if (refGid) embroideryThreadNameValue = JSON.stringify([refGid]);
     }
     const handle = `isacord-${row.id}`;
     const fields = [
