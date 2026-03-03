@@ -1,7 +1,7 @@
 import React from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { Page, Layout, Card, BlockStack, Button, Text } from "@shopify/polaris";
+import { Page, Layout, Card, BlockStack, Button, Text, Box } from "@shopify/polaris";
 import AddThreadColorForm from "../components/AddThreadColorForm";
 import ThreadCreateUpdateModal from "../components/ThreadCreateUpdateModal";
 import ThreadReassignNumberModal from "../components/ThreadReassignNumberModal";
@@ -77,24 +77,28 @@ export default function AddThreadColors() {
             : `Thread color ${fetcher.data?.threadColor?.name} updated successfully!`
         }
       />
-      <Layout>
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <Text as="p" variant="bodyMd">
-                Sync Amann numbers (number, Wawak color name) from this app to Shopify as metaobjects (custom.amann_number).
-              </Text>
-              <Button
-                variant="primary"
-                onClick={handleMigrateAmann}
-                loading={fetcher.state === "submitting" && fetcher.formData?.get("type") === "migrateAmannToShopify"}
-              >
-                Migrate Amann numbers to Shopify
-              </Button>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-        <Layout.Section variant="oneHalf">
+      <Box paddingBlockEnd="400">
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  Sync Amann numbers to Shopify
+                </Text>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Copy Amann numbers (number, Wawak color name) from this app into Shopify as metaobjects (type: amann_number). Safe to run again; existing entries are skipped.
+                </Text>
+                <Button
+                  variant="primary"
+                  onClick={handleMigrateAmann}
+                  loading={fetcher.state === "submitting" && fetcher.formData?.get("type") === "migrateAmannToShopify"}
+                >
+                  Migrate Amann numbers to Shopify
+                </Button>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+          <Layout.Section variant="oneHalf">
           <AddThreadColorForm
             radioGroupName="embroideryMode"
             threadTypeLabel="Embroidery Thread Color"
@@ -127,8 +131,8 @@ export default function AddThreadColors() {
             saveButtonLabel="Save Embroidery Thread Color"
             updateButtonLabel="Update Embroidery Thread Color"
           />
-        </Layout.Section>
-        <Layout.Section variant="oneHalf">
+          </Layout.Section>
+          <Layout.Section variant="oneHalf">
           <AddThreadColorForm
             radioGroupName="stitchingMode"
             threadTypeLabel="Stitching Thread Color"
@@ -161,8 +165,9 @@ export default function AddThreadColors() {
             saveButtonLabel="Save Stitching Thread Color"
             updateButtonLabel="Update Stitching Thread Color"
           />
-        </Layout.Section>
-      </Layout>
+          </Layout.Section>
+        </Layout>
+      </Box>
     </Page>
   );
 }
