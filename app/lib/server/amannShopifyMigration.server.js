@@ -162,19 +162,18 @@ export async function migrateIsacordNumbersToShopify(admin) {
 }
 
 /**
- * Set all Amann Number metaobjects to ACTIVE status.
- * Uses the existing amann_number definition (requires publishable capability enabled).
+ * Set all metaobjects of a given type to ACTIVE status.
+ * Uses the publishable capability on the Metaobject.
  * @param {Object} admin - Shopify Admin API GraphQL client
+ * @param {string} type - Metaobject type (e.g. amann_number, embroidery_thread)
  * @returns {Promise<{ success: boolean, updated: number, skipped: number, errors: string[] }>}
  */
-export async function activateAmannMetaobjects(admin) {
+async function activateMetaobjectsByType(admin, type) {
   const result = { success: false, updated: 0, skipped: 0, errors: [] };
 
-  // 1. Fetch all amann_number metaobjects (96 total, fits in a single page)
-  // Status lives under capabilities.publishable (not top-level on Metaobject)
   const listResponse = await admin.graphql(
     `#graphql
-    query ListAmannMetaobjects($type: String!, $first: Int!) {
+    query ListMetaobjectsByType($type: String!, $first: Int!) {
       metaobjects(type: $type, first: $first) {
         nodes {
           id
@@ -189,7 +188,7 @@ export async function activateAmannMetaobjects(admin) {
     }`,
     {
       variables: {
-        type: METAOBJECT_TYPE_AMANN,
+        type,
         first: 250,
       },
     }
@@ -205,7 +204,6 @@ export async function activateAmannMetaobjects(admin) {
 
   const currentStatus = (node) => node.capabilities?.publishable?.status;
 
-  // 2. Activate any metaobjects that are not already ACTIVE
   for (const node of nodes) {
     if (currentStatus(node) === "ACTIVE") {
       result.skipped += 1;
@@ -214,7 +212,7 @@ export async function activateAmannMetaobjects(admin) {
 
     const updateResponse = await admin.graphql(
       `#graphql
-      mutation ActivateAmannMetaobject($id: ID!, $metaobject: MetaobjectUpdateInput!) {
+      mutation ActivateMetaobject($id: ID!, $metaobject: MetaobjectUpdateInput!) {
         metaobjectUpdate(id: $id, metaobject: $metaobject) {
           metaobject {
             id
@@ -261,4 +259,30 @@ export async function activateAmannMetaobjects(admin) {
 
   result.success = result.errors.length === 0;
   return result;
+}
+
+/**
+ * Set all Amann Number metaobjects to ACTIVE status.
+ * Uses the existing amann_number definition (requires publishable capability enabled).
+ * @param {Object} admin - Shopify Admin API GraphQL client
+ * @returns {Promise<{ success: boolean, updated: number, skipped: number, errors: string[] }>}
+ */
+export async function activateAmannMetaobjects(admin) {
+  return activateMetaobjectsByType(admin, METAOBJECT_TYPE_AMANN);
+}
+
+/**
+ * Set all Embroidery Thread metaobjects to ACTIVE status.
+ * @param {Object} admin - Shopify Admin API GraphQL client
+ */
+export async function activateEmbroideryMetaobjects(admin) {
+  return activateMetaobjectsByType(admin, METAOBJECT_TYPE_EMBROIDERY_THREAD);
+}
+
+/**
+ * Set all Isacord Number metaobjects to ACTIVE status.
+ * @param {Object} admin - Shopify Admin API GraphQL client
+ */
+export async function activateIsacordMetaobjects(admin) {
+  return activateMetaobjectsByType(admin, METAOBJECT_TYPE_ISACORD_NUMBER);
 }

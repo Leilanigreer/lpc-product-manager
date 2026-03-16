@@ -392,18 +392,18 @@ export default function AddStitchingThreadColorForm({ colorTags, stitchingThread
         {/* Radio buttons for mode selection */}
         <InlineStack gap="400" wrap={false}>
           <RadioButton
-            label="Update Linked Colors"
-            checked={mode === "update"}
-            id="stitchMode-update"
-            name="stitchMode"
-            onChange={() => setMode("update")}
-          />
-          <RadioButton
             label="Add New Name"
             checked={mode === "add"}
             id="stitchMode-add"
             name="stitchMode"
             onChange={() => setMode("add")}
+          />
+          <RadioButton
+            label="Update Linked Colors"
+            checked={mode === "update"}
+            id="stitchMode-update"
+            name="stitchMode"
+            onChange={() => setMode("update")}
           />
         </InlineStack>
         {/* Divider */}

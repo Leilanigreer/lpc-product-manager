@@ -433,18 +433,18 @@ export default function AddEmbroideryThreadColorForm({ colorTags, unlinkedIsacor
         {/* Radio buttons for mode selection */}
         <InlineStack gap="400" wrap={false}>
           <RadioButton
-            label="Update Linked Colors"
-            checked={embMode === "update"}
-            id="embMode-update"
-            name="embMode"
-            onChange={() => setEmbMode("update")}
-          />
-          <RadioButton
             label="Add New Name"
             checked={embMode === "add"}
             id="embMode-add"
             name="embMode"
             onChange={() => setEmbMode("add")}
+          />
+          <RadioButton
+            label="Update Linked Colors"
+            checked={embMode === "update"}
+            id="embMode-update"
+            name="embMode"
+            onChange={() => setEmbMode("update")}
           />
         </InlineStack>
         <Divider borderColor="border" />

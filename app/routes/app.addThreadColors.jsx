@@ -12,6 +12,8 @@ import {
   activateAmannMetaobjects,
   migrateEmbroideryThreadsToShopify,
   migrateIsacordNumbersToShopify,
+  activateEmbroideryMetaobjects,
+  activateIsacordMetaobjects,
 } from "../lib/server/amannShopifyMigration.server";
 import SuccessBanner from "../components/SuccessBanner.jsx";
 
@@ -55,7 +57,7 @@ export default function AddThreadColors() {
       const r = fetcher.data.activateResult;
       const msg = r.errors?.length
         ? `Updated ${r.updated}, skipped ${r.skipped}. Errors: ${r.errors.join("; ")}`
-        : `Set Amann metaobjects to Active: ${r.updated} updated, ${r.skipped} already active.`;
+        : `Set thread metaobjects to Active: ${r.updated} updated, ${r.skipped} already active.`;
       setActivateBanner({ show: true, message: msg, isError: r.errors?.length > 0 });
     }
   }, [fetcher.data]);
@@ -177,7 +179,7 @@ export default function AddThreadColors() {
                     onClick={handleActivateAmann}
                     loading={isSubmitting("activateAmannMetaobjects")}
                   >
-                    Set Amann to Active
+                    Set thread metaobjects to Active
                   </Button>
                   <Button
                     onClick={handleMigrateEmbroidery}
@@ -246,7 +248,25 @@ export const action = async ({ request }) => {
 
   if (type === "activateAmannMetaobjects") {
     try {
-      const activateResult = await activateAmannMetaobjects(admin);
+      const [amannResult, embroideryResult, isacordResult] = await Promise.all([
+        activateAmannMetaobjects(admin),
+        activateEmbroideryMetaobjects(admin),
+        activateIsacordMetaobjects(admin),
+      ]);
+
+      const combinedErrors = [
+        ...(amannResult.errors || []).map(e => `Amann: ${e}`),
+        ...(embroideryResult.errors || []).map(e => `Embroidery: ${e}`),
+        ...(isacordResult.errors || []).map(e => `Isacord: ${e}`),
+      ];
+
+      const activateResult = {
+        success: amannResult.success && embroideryResult.success && isacordResult.success,
+        updated: (amannResult.updated || 0) + (embroideryResult.updated || 0) + (isacordResult.updated || 0),
+        skipped: (amannResult.skipped || 0) + (embroideryResult.skipped || 0) + (isacordResult.skipped || 0),
+        errors: combinedErrors,
+      };
+
       return { activateResult };
     } catch (error) {
       console.error("[action] activateAmannMetaobjects error", error);
