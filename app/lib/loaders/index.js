@@ -13,13 +13,15 @@ import {
   getProductSets,
   getColorTags,
   getUnlinkedIsacordNumbers,
-  getUnlinkedAmannNumbers
+  getUnlinkedAmannNumbers,
+  getShopifyColorMetaobjects,
 } from "../utils/dataFetchers";
 
 export const loader = async ({ admin } = {}) => {  
   try {
     const fontsPromise = admin ? getFontsFromShopify(admin) : getFonts();
     const leatherColorsPromise = admin ? getLeatherColorsFromShopify(admin) : getLeatherColors();
+    const shopifyColorsPromise = admin ? getShopifyColorMetaobjects(admin) : Promise.resolve([]);
     const [
       leatherColors, 
       stitchingThreadColors, 
@@ -31,6 +33,7 @@ export const loader = async ({ admin } = {}) => {
       colorTags,
       unlinkedIsacordNumbers,
       unlinkedAmannNumbers,
+      shopifyColors,
     ] = await Promise.all([
       leatherColorsPromise,
       getStitchingThreadColors(),
@@ -41,7 +44,8 @@ export const loader = async ({ admin } = {}) => {
       getCommonDescription(),
       getColorTags(),
       getUnlinkedIsacordNumbers(),
-      getUnlinkedAmannNumbers()
+      getUnlinkedAmannNumbers(),
+      shopifyColorsPromise,
     ]);
 
     const productSets = await getProductSets(fonts, leatherColors);
@@ -58,6 +62,7 @@ export const loader = async ({ admin } = {}) => {
       colorTags,
       unlinkedIsacordNumbers,
       unlinkedAmannNumbers,
+      shopifyColors,
       error: null
     };
   } catch (error) {
@@ -75,6 +80,7 @@ export const loader = async ({ admin } = {}) => {
         colorTags: [],
         unlinkedIsacordNumbers: [],
         unlinkedAmannNumbers: [],
+        shopifyColors: [],
         error: error.message
       }), 
       { status: 500,

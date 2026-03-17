@@ -3,12 +3,12 @@ import { TextField, BlockStack, InlineStack, Tag, Combobox, Listbox, Icon, Box, 
 import { SearchIcon } from '@shopify/polaris-icons';
 import { formatNameLive, formatNameOnBlur, validateNameUnique, generateLeatherAbbreviation } from '../lib/utils/colorNameUtils';
 
-export default function AddLeatherColorForm({ leatherColors, colorTags, fetcher }) {
+export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], fetcher }) {
   const [mode, setMode] = useState("add");
   const [selectedLeatherColorId, setSelectedLeatherColorId] = useState("");
   const [leatherColorName, setLeatherColorName] = useState("");
-  const [selectedColorTags, setSelectedColorTags] = useState([]);
-  const [colorTagInput, setColorTagInput] = useState("");
+  const [selectedColorIds, setSelectedColorIds] = useState([]);
+  const [colorInput, setColorInput] = useState("");
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [generatedAbbr, setGeneratedAbbr] = useState("");
@@ -16,12 +16,12 @@ export default function AddLeatherColorForm({ leatherColors, colorTags, fetcher 
   const [isLimitedEditionLeather, setIsLimitedEditionLeather] = useState(false);
   const [addModeConflict, setAddModeConflict] = useState(null);
 
-  const filteredColorTagOptions = useMemo(() => {
-    const search = colorTagInput.toLowerCase();
-    return colorTags.filter(tag =>
-      tag.label.toLowerCase().includes(search) && !selectedColorTags.includes(tag.value)
-    ).map(tag => ({ label: tag.label, value: tag.value }));
-  }, [colorTags, colorTagInput, selectedColorTags]);
+  const filteredColorOptions = useMemo(() => {
+    const search = colorInput.toLowerCase();
+    return (shopifyColors || []).filter(
+      (c) => c.label.toLowerCase().includes(search) && !selectedColorIds.includes(c.value)
+    ).map((c) => ({ label: c.label, value: c.value }));
+  }, [shopifyColors, colorInput, selectedColorIds]);
 
   const handleNameChange = useCallback((value) => {
     const formatted = formatNameLive(value);
@@ -51,15 +51,15 @@ export default function AddLeatherColorForm({ leatherColors, colorTags, fetcher 
     setFormattedName(formatted);
   }, [leatherColorName]);
 
-  const handleColorTagSelect = useCallback((value) => {
-    if (!selectedColorTags.includes(value)) {
-      setSelectedColorTags(prev => [...prev, value]);
+  const handleColorSelect = useCallback((value) => {
+    if (!selectedColorIds.includes(value)) {
+      setSelectedColorIds((prev) => [...prev, value]);
     }
-    setColorTagInput("");
-  }, [selectedColorTags]);
+    setColorInput("");
+  }, [selectedColorIds]);
 
-  const handleRemoveColorTag = useCallback((tagValue) => {
-    setSelectedColorTags((prev) => prev.filter((v) => v !== tagValue));
+  const handleRemoveColor = useCallback((colorId) => {
+    setSelectedColorIds((prev) => prev.filter((id) => id !== colorId));
   }, []);
 
   const handleCreate = useCallback(() => {
@@ -86,33 +86,32 @@ export default function AddLeatherColorForm({ leatherColors, colorTags, fetcher 
     formData.append('name', formattedName);
     formData.append('abbreviation', generatedAbbr);
     formData.append('isLimitedEditionLeather', isLimitedEditionLeather ? 'true' : 'false');
-    selectedColorTags.forEach(tagId => formData.append('colorTagIds', tagId));
+    selectedColorIds.forEach((id) => formData.append('colorMetaobjectIds', id));
     fetcher.submit(formData, { method: 'post' });
     setModalOpen(false);
     setLeatherColorName("");
-    setSelectedColorTags([]);
-    setColorTagInput("");
+    setSelectedColorIds([]);
+    setColorInput("");
     setGeneratedAbbr("");
     setFormattedName("");
     setIsLimitedEditionLeather(false);
     setError("");
-  }, [formattedName, generatedAbbr, isLimitedEditionLeather, selectedColorTags, fetcher]);
+  }, [formattedName, generatedAbbr, isLimitedEditionLeather, selectedColorIds, fetcher]);
 
   const handleModalClose = useCallback(() => {
     setModalOpen(false);
   }, []);
 
-  // Add: Leather color options for update mode
+  // Leather color options for update/reactivate mode (from Shopify leather_color list)
   const leatherColorOptions = useMemo(() => {
-    const options = (leatherColors || []).map(lc => ({
+    return (leatherColors || []).map((lc) => ({
       label: lc.label,
       value: lc.value,
       abbreviation: lc.abbreviation,
       isLimitedEditionLeather: lc.isLimitedEditionLeather,
       isActive: lc.isActive,
-      colorTags: lc.colorTags
+      colorMetaobjectIds: lc.colorMetaobjectIds || [],
     }));
-    return options;
   }, [leatherColors]);
 
   // Only show active leather colors in update mode
@@ -130,7 +129,7 @@ export default function AddLeatherColorForm({ leatherColors, colorTags, fetcher 
   // Derived: Disable Limited Edition switch in update mode if currently Standard Stock
   const disableLimitedEditionSwitch = mode === "update" && isLimitedEditionLeather === false;
 
-  // When switching to update mode or selecting a color, pre-fill fields
+  // When switching to update mode or selecting a leather color, pre-fill fields
   React.useEffect(() => {
     if (mode === "update" && selectedLeatherColorId) {
       const selected = leatherColorOptions.find(opt => opt.value === selectedLeatherColorId);
@@ -139,7 +138,7 @@ export default function AddLeatherColorForm({ leatherColors, colorTags, fetcher 
         setFormattedName(selected.label);
         setGeneratedAbbr(selected.abbreviation || "");
         setIsLimitedEditionLeather(!!selected.isLimitedEditionLeather);
-        setSelectedColorTags((selected.colorTags || []).map(tag => tag.value));
+        setSelectedColorIds(selected.colorMetaobjectIds || []);
       }
     }
     if (mode === "add") {
@@ -147,7 +146,7 @@ export default function AddLeatherColorForm({ leatherColors, colorTags, fetcher 
       setFormattedName("");
       setGeneratedAbbr("");
       setIsLimitedEditionLeather(false);
-      setSelectedColorTags([]);
+      setSelectedColorIds([]);
       setSelectedLeatherColorId("");
     }
     if (mode === "reactivate" && selectedLeatherColorId) {
@@ -157,10 +156,10 @@ export default function AddLeatherColorForm({ leatherColors, colorTags, fetcher 
         setFormattedName(selected.label);
         setGeneratedAbbr(selected.abbreviation || "");
         setIsLimitedEditionLeather(!!selected.isLimitedEditionLeather);
-        setSelectedColorTags((selected.colorTags || []).map(tag => tag.value));
+        setSelectedColorIds(selected.colorMetaobjectIds || []);
       }
     }
-  }, [mode, selectedLeatherColorId]);
+  }, [mode, selectedLeatherColorId, leatherColorOptions]);
 
   return (
     <BlockStack gap="400">
@@ -364,19 +363,19 @@ export default function AddLeatherColorForm({ leatherColors, colorTags, fetcher 
             activator={
               <Combobox.TextField
                 prefix={<Icon source={SearchIcon} />}
-                onChange={setColorTagInput}
-                label="Add color tag(s)"
-                value={colorTagInput}
-                placeholder="Search or select color tags"
+                onChange={setColorInput}
+                label="Add color(s)"
+                value={colorInput}
+                placeholder="Search or select colors (Shopify Color metaobject)"
                 autoComplete="off"
                 disabled={mode === "discontinue"}
               />
             }
           >
-            {filteredColorTagOptions.length > 0 && (
+            {filteredColorOptions.length > 0 && (
               <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
-                <Listbox onSelect={handleColorTagSelect}>
-                  {filteredColorTagOptions.map(option => (
+                <Listbox onSelect={handleColorSelect}>
+                  {filteredColorOptions.map((option) => (
                     <Listbox.Option key={option.value} value={option.value}>
                       {option.label}
                     </Listbox.Option>
@@ -389,11 +388,11 @@ export default function AddLeatherColorForm({ leatherColors, colorTags, fetcher 
       )}
       {mode !== "discontinue" && (
         <InlineStack gap="200" wrap>
-          {selectedColorTags.map((tagValue) => {
-            const tagObj = colorTags.find((t) => t.value === tagValue);
-            return tagObj ? (
-              <Tag key={tagValue} onRemove={() => handleRemoveColorTag(tagValue)}>
-                {tagObj.label}
+          {selectedColorIds.map((colorId) => {
+            const colorObj = shopifyColors.find((c) => c.value === colorId);
+            return colorObj ? (
+              <Tag key={colorId} onRemove={() => handleRemoveColor(colorId)}>
+                {colorObj.label}
               </Tag>
             ) : null;
           })}
@@ -427,9 +426,9 @@ export default function AddLeatherColorForm({ leatherColors, colorTags, fetcher 
           <BlockStack gap="200">
             <Text><b>Name:</b> {formattedName}</Text>
             <Text><b>Abbreviation:</b> {generatedAbbr}</Text>
-            <Text><b>Tags:</b> {selectedColorTags.map(tagValue => {
-              const tagObj = colorTags.find(t => t.value === tagValue);
-              return tagObj ? tagObj.label : tagValue;
+            <Text><b>Colors:</b> {selectedColorIds.map((id) => {
+              const c = shopifyColors.find((x) => x.value === id);
+              return c ? c.label : id;
             }).join(", ") || "None"}</Text>
             <Text><b>Stock Type:</b> {isLimitedEditionLeather ? "Limited Edition" : "Standard Stock"}</Text>
           </BlockStack>

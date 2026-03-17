@@ -26,6 +26,11 @@ const LEATHER_COLOR_METAOBJECT_QUERY = `#graphql
           }
         }
         isLimitedEditionField: field(key: "is_limited_edition") { value }
+        colorsField: field(key: "colors") {
+          references(first: 50) {
+            nodes { id }
+          }
+        }
       }
     }
   }
@@ -58,6 +63,7 @@ export const getLeatherColorsFromShopify = async (admin) => {
         const file = node.previewImageField?.thumbnail?.file;
         const url_id = file?.image?.url ?? file?.url ?? null;
         const isLimitedEditionLeather = parseMetaobjectBoolean(node.isLimitedEditionField);
+        const colorMetaobjectIds = (node.colorsField?.references?.nodes ?? []).map((n) => n.id).filter(Boolean);
         return {
           value: node.id,
           label: name,
@@ -65,7 +71,7 @@ export const getLeatherColorsFromShopify = async (admin) => {
           url_id,
           isLimitedEditionLeather,
           isActive: true,
-          colorTags: [],
+          colorMetaobjectIds,
         };
       })
       .filter((lc) => lc.label)
@@ -84,6 +90,46 @@ function parseMetaobjectBoolean(field) {
   if (v === false || v === "false") return false;
   return false;
 }
+
+const SHOPIFY_COLOR_PATTERN_QUERY = `#graphql
+  query GetShopifyColorMetaobjects($first: Int!) {
+    metaobjects(type: "shopify--color-pattern", first: $first) {
+      nodes {
+        id
+        handle
+        displayName
+        capabilities { publishable { status } }
+        labelField: field(key: "label") { value }
+      }
+    }
+  }
+`;
+
+/**
+ * Fetches Shopify Color metaobjects (type: shopify--color-pattern) for linking to leather_color.
+ * @param {Object} admin - Shopify Admin API GraphQL client
+ * @returns {Promise<Array<{ value: string, label: string }>>}
+ */
+export const getShopifyColorMetaobjects = async (admin) => {
+  if (!admin?.graphql) return [];
+  try {
+    const response = await admin.graphql(SHOPIFY_COLOR_PATTERN_QUERY, { variables: { first: 250 } });
+    const json = await response.json();
+    const nodes = json?.data?.metaobjects?.nodes ?? [];
+    const statusOk = (n) => n.capabilities?.publishable?.status == null || n.capabilities?.publishable?.status === "ACTIVE";
+    return nodes
+      .filter(statusOk)
+      .map((node) => ({
+        value: node.id,
+        label: node.labelField?.value ?? node.displayName ?? node.handle ?? String(node.id),
+      }))
+      .filter((c) => c.label)
+      .sort((a, b) => a.label.localeCompare(b.label));
+  } catch (error) {
+    console.error("Error fetching Shopify Color metaobjects:", error);
+    return [];
+  }
+};
 
 export const getLeatherColors = async () => {
   try {

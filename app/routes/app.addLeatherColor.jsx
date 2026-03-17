@@ -6,7 +6,7 @@ import { loader as dataLoader } from "../lib/loaders";
 import { authenticate } from "../shopify.server";
 import { Page, Layout, Box, Banner, Card, BlockStack } from "@shopify/polaris";
 import AddLeatherColorForm from "../components/AddLeatherColorForm";
-import { createLeatherColorWithTags } from "../lib/server/leatherColorOperations.server.js";
+import { createShopifyLeatherColor } from "../lib/server/leatherColorShopify.server.js";
 import SuccessBanner from "../components/SuccessBanner.jsx";
 
 export const loader = async ({ request }) => {
@@ -15,29 +15,38 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
-  await authenticate.admin(request);
-  // Only handle leather color creation
+  const { admin } = await authenticate.admin(request);
+
   const formData = await request.formData();
   const name = formData.get("name");
   const abbreviation = formData.get("abbreviation");
   const isLimitedEditionLeather = formData.get("isLimitedEditionLeather") === "true";
-  const colorTagIds = formData.getAll("colorTagIds");
+  // Optional: list of Color metaobject GIDs (shopify--color-pattern) attached to this leather color
+  const colorMetaobjectIds = formData.getAll("colorMetaobjectIds");
+
   if (!name || !abbreviation) {
     return json({ success: false, error: "Missing required fields." }, { status: 400 });
   }
   try {
-    const leatherColor = await createLeatherColorWithTags(
-      { name, abbreviation, isLimitedEditionLeather },
-      colorTagIds
-    );
-    return json({ success: true, leatherColor });
+    const created = await createShopifyLeatherColor(admin, {
+      name,
+      abbreviation,
+      isLimitedEditionLeather,
+      colorMetaobjectIds,
+    });
+
+    return json({
+      success: true,
+      actionType: "add",
+      leatherColor: created,
+    });
   } catch (error) {
     return json({ success: false, error: error.message }, { status: 500 });
   }
 };
 
 export default function AddLeatherColor () {
-  const { leatherColors, colorTags  } = useLoaderData();
+  const { leatherColors, shopifyColors } = useLoaderData();
   const fetcher = useFetcher();
   const [showSuccessBanner, setShowSuccessBanner] = React.useState(false);
   React.useEffect(() => {
@@ -81,7 +90,7 @@ export default function AddLeatherColor () {
       )}
       <Layout>
         <Layout.Section variant="oneHalf">
-          <AddLeatherColorForm leatherColors={leatherColors} colorTags={colorTags} fetcher={fetcher} />
+          <AddLeatherColorForm leatherColors={leatherColors} shopifyColors={shopifyColors || []} fetcher={fetcher} />
         </Layout.Section>
       </Layout>
       </Card>
