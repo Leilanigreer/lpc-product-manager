@@ -44,14 +44,12 @@ const LEATHER_COLOR_METAOBJECT_QUERY = `#graphql
 
 const LEATHER_COLOR_COLLECTION_OPTIONS_QUERY = `#graphql
   query GetLeatherColorCollectionOptions {
-    metaobjectDefinitions(type: "leather_color", first: 1) {
-      nodes {
-        fieldDefinitions {
-          key
-          validations {
-            name
-            value
-          }
+    metaobjectDefinitionByType(type: "leather_color") {
+      fieldDefinitions {
+        key
+        validations {
+          name
+          value
         }
       }
     }
@@ -121,8 +119,7 @@ export const getLeatherCollectionNamesFromShopify = async (admin) => {
   try {
     const response = await admin.graphql(LEATHER_COLOR_COLLECTION_OPTIONS_QUERY);
     const json = await response.json();
-    const nodes = json?.data?.metaobjectDefinitions?.nodes ?? [];
-    const fieldDefs = nodes[0]?.fieldDefinitions ?? [];
+    const fieldDefs = json?.data?.metaobjectDefinitionByType?.fieldDefinitions ?? [];
     const collectionField = fieldDefs.find((f) => f.key === "collection_name");
     if (!collectionField) return [];
     const validations = collectionField.validations ?? [];
