@@ -115,7 +115,7 @@ export const action = async ({ request }) => {
 };
 
 export default function AddLeatherColor () {
-  const { leatherColors, shopifyColors, leatherColorsLoadError, shopifyCollections } = useLoaderData();
+  const { leatherColors, shopifyColors, leatherColorsLoadError } = useLoaderData();
   const fetcher = useFetcher();
   const [showSuccessBanner, setShowSuccessBanner] = React.useState(false);
   React.useEffect(() => {
@@ -163,7 +163,6 @@ export default function AddLeatherColor () {
             leatherColors={leatherColors}
             shopifyColors={shopifyColors || []}
             leatherColorsLoadError={leatherColorsLoadError}
-            shopifyCollections={shopifyCollections || []}
             fetcher={fetcher}
           />
         </Layout.Section>
