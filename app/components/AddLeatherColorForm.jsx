@@ -3,10 +3,11 @@ import { TextField, BlockStack, InlineStack, Tag, Combobox, Listbox, Icon, Box, 
 import { SearchIcon } from '@shopify/polaris-icons';
 import { formatNameLive, formatNameOnBlur, validateNameUnique, generateLeatherAbbreviation } from '../lib/utils/colorNameUtils';
 
-export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], leatherColorsLoadError, fetcher }) {
+export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], leatherColorsLoadError, shopifyCollections = [], fetcher }) {
   const [mode, setMode] = useState("add");
   const [selectedLeatherColorId, setSelectedLeatherColorId] = useState("");
   const [leatherColorName, setLeatherColorName] = useState("");
+  const [selectedCollectionId, setSelectedCollectionId] = useState("");
   const [selectedColorIds, setSelectedColorIds] = useState([]);
   const [colorInput, setColorInput] = useState("");
   const [error, setError] = useState("");
@@ -95,6 +96,11 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       return;
     }
 
+    if (!isLimitedEditionLeather && !selectedCollectionId) {
+      setError("Collection is required for Standard Stock leather colors.");
+      return;
+    }
+
     const isUnique = validateNameUnique(leatherColors || [], formatted, "label");
     if (!isUnique) {
       const match = (leatherColors || []).find((lc) => formatNameOnBlur(lc.label) === formatNameOnBlur(formatted));
@@ -123,7 +129,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     setGeneratedAbbr(abbr);
     setModalOpen(true);
     setError("");
-  }, [leatherColorName, leatherColors, selectedColorIds]);
+  }, [leatherColorName, leatherColors, selectedColorIds, isLimitedEditionLeather, selectedCollectionId]);
 
   const handleConfirm = useCallback(() => {
     if (!formattedName?.trim() || !generatedAbbr?.trim() || !selectedColorIds.length) return;
@@ -132,17 +138,22 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     formData.append("name", formattedName);
     formData.append("abbreviation", generatedAbbr);
     formData.append("isLimitedEditionLeather", isLimitedEditionLeather ? "true" : "false");
+    const selectedCollection = (shopifyCollections || []).find((c) => c.value === selectedCollectionId);
+    if (selectedCollection && selectedCollection.label) {
+      formData.append("collectionName", selectedCollection.label);
+    }
     selectedColorIds.forEach((id) => formData.append("colorMetaobjectIds", id));
     fetcher.submit(formData, { method: "post" });
     setModalOpen(false);
     setLeatherColorName("");
+    setSelectedCollectionId("");
     setSelectedColorIds([]);
     setColorInput("");
     setGeneratedAbbr("");
     setFormattedName("");
     setIsLimitedEditionLeather(false);
     setError("");
-  }, [formattedName, generatedAbbr, isLimitedEditionLeather, selectedColorIds, fetcher]);
+  }, [formattedName, generatedAbbr, isLimitedEditionLeather, selectedColorIds, selectedCollectionId, shopifyCollections, fetcher]);
 
   const handleModalClose = useCallback(() => {
     setModalOpen(false);
@@ -305,31 +316,83 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         {mode !== "discontinue" && (
           <InlineStack gap="800" align="start" wrap={false}>
             <Box width="50%">
-              <Text variant="bodyMd" as="label" fontWeight="medium" htmlFor="leatherColorNameInput">
-                Leather color name
+              <Text variant="bodyMd" as="label" fontWeight="medium">
+                Stock Type
               </Text>
             </Box>
             <Box width="50%">
               <Text variant="bodyMd" as="label" fontWeight="medium">
-                Stock Type
+                Collection & Name
               </Text>
             </Box>
           </InlineStack>
         )}
         <InlineStack gap="800" align="start" wrap={false}>
           <Box width="50%">
+            {mode !== "discontinue" && (
+              <InlineStack gap="400" wrap={false}>
+                <RadioButton
+                  label="Standard Stock"
+                  checked={!isLimitedEditionLeather }
+                  id="standardStock"
+                  name="stockType"
+                  onChange={() => setIsLimitedEditionLeather(false)}
+                  disabled={mode === "discontinue"}
+                />
+                <RadioButton
+                  label="Limited Edition"
+                  checked={isLimitedEditionLeather}
+                  id="limitedEdition"
+                  name="stockType"
+                  onChange={() => setIsLimitedEditionLeather(true)}
+                  disabled={mode === "discontinue" || disableLimitedEditionSwitch}
+                />
+              </InlineStack>
+            )}
+          </Box>
+          <Box width="50%">
             {mode === "add" ? (
               <>
-                <TextField
-                  id="leatherColorNameInput"
-                  label=""
-                  value={leatherColorName}
-                  onChange={handleNameChange}
-                  onBlur={handleNameBlur}
-                  autoComplete="off"
-                  placeholder="Enter new leather color name (required)"
-                  requiredIndicator
-                />
+                <InlineStack gap="200" wrap={false}>
+                  <Box width="50%">
+                    <Combobox
+                      activator={
+                        <Combobox.TextField
+                          label="Collection"
+                          value={
+                            (shopifyCollections.find((c) => c.value === selectedCollectionId)?.label) || ""
+                          }
+                          onChange={() => {}}
+                          placeholder={isLimitedEditionLeather ? "Optional for Limited Edition" : "Required for Standard Stock"}
+                          autoComplete="off"
+                          requiredIndicator={!isLimitedEditionLeather}
+                        />
+                      }
+                    >
+                      <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
+                        <Listbox onSelect={(value) => setSelectedCollectionId(value)}>
+                          {shopifyCollections.map((collection) => (
+                            <Listbox.Option key={collection.value} value={collection.value}>
+                              {collection.label}
+                            </Listbox.Option>
+                          ))}
+                        </Listbox>
+                      </div>
+                    </Combobox>
+                  </Box>
+                  <Box width="50%">
+                    <TextField
+                      id="leatherColorNameInput"
+                      label="Leather color name"
+                      value={leatherColorName}
+                      onChange={handleNameChange}
+                      onBlur={handleNameBlur}
+                      autoComplete="off"
+                      placeholder="Enter new leather color name (required)"
+                      requiredIndicator
+                    />
+                  </Box>
+                </InlineStack>
                 {addModeConflict && (
                   <Box paddingBlock="200">
                     <Text tone="critical" variant="bodyMd">{error}</Text>
@@ -360,7 +423,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
               <Combobox
                 activator={
                   <Combobox.TextField
-                    label=""
+                    label="Leather color"
                     value={activeLeatherColorOptions.find(opt => opt.value === selectedLeatherColorId)?.label || ""}
                     onChange={() => {}}
                     placeholder="Choose a leather color"
@@ -382,7 +445,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
               <Combobox
                 activator={
                   <Combobox.TextField
-                    label=""
+                    label="Leather color"
                     value={activeLeatherColorOptions.find(opt => opt.value === selectedLeatherColorId)?.label || ""}
                     onChange={() => {}}
                     placeholder="Choose a leather color to discontinue"
@@ -404,7 +467,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
               <Combobox
                 activator={
                   <Combobox.TextField
-                    label=""
+                    label="Leather color"
                     value={inactiveLeatherColorOptions.find(opt => opt.value === selectedLeatherColorId)?.label || ""}
                     onChange={() => {}}
                     placeholder="Choose a leather color to reactivate"

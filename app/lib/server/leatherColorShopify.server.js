@@ -20,6 +20,7 @@ const LEATHER_COLOR_METAOBJECT_TYPE = "leather_color";
  * @param {string} params.name
  * @param {string} params.abbreviation
  * @param {boolean} params.isLimitedEditionLeather
+ * @param {string} [params.collectionName]
  * @param {string[]} [params.colorMetaobjectIds] - Array of GIDs for shopify--color-pattern metaobjects
  * @returns {Promise<{ id: string, name: string, abbreviation: string }>}
  */
@@ -27,6 +28,7 @@ export async function createShopifyLeatherColor(admin, {
   name,
   abbreviation,
   isLimitedEditionLeather,
+  collectionName,
   colorMetaobjectIds = [],
 }) {
   if (!admin?.graphql) {
@@ -39,6 +41,7 @@ export async function createShopifyLeatherColor(admin, {
     abbreviation != null && String(abbreviation).trim() !== ""
       ? String(abbreviation).trim()
       : fallbackAbbreviation(name);
+  const collectionNameValue = collectionName ? String(collectionName).trim() : "";
 
   const response = await admin.graphql(
     `#graphql
@@ -66,6 +69,7 @@ export async function createShopifyLeatherColor(admin, {
             { key: "name", value: name },
             { key: "abbreviation", value: abbrValue },
             { key: "is_limited_edition", value: isLimitedEditionLeather ? "true" : "false" },
+            ...(collectionNameValue ? [{ key: "collection_name", value: collectionNameValue }] : []),
             ...(colorsValue ? [{ key: "colors", value: colorsValue }] : []),
           ],
           capabilities: {

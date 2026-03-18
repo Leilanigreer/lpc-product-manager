@@ -86,16 +86,21 @@ export const action = async ({ request }) => {
   const name = formData.get("name");
   const abbreviation = formData.get("abbreviation");
   const isLimitedEditionLeather = formData.get("isLimitedEditionLeather") === "true";
+  const collectionName = formData.get("collectionName");
   const colorMetaobjectIds = formData.getAll("colorMetaobjectIds");
 
   if (!name || !abbreviation) {
     return json({ success: false, error: "Missing required fields." }, { status: 400 });
+  }
+  if (!isLimitedEditionLeather && !collectionName) {
+    return json({ success: false, error: "Collection is required for Standard Stock leather colors." }, { status: 400 });
   }
   try {
     const created = await createShopifyLeatherColor(admin, {
       name,
       abbreviation,
       isLimitedEditionLeather,
+      collectionName,
       colorMetaobjectIds,
     });
 
@@ -110,7 +115,7 @@ export const action = async ({ request }) => {
 };
 
 export default function AddLeatherColor () {
-  const { leatherColors, shopifyColors, leatherColorsLoadError } = useLoaderData();
+  const { leatherColors, shopifyColors, leatherColorsLoadError, shopifyCollections } = useLoaderData();
   const fetcher = useFetcher();
   const [showSuccessBanner, setShowSuccessBanner] = React.useState(false);
   React.useEffect(() => {
@@ -154,7 +159,13 @@ export default function AddLeatherColor () {
       )}
       <Layout>
         <Layout.Section variant="oneHalf">
-          <AddLeatherColorForm leatherColors={leatherColors} shopifyColors={shopifyColors || []} leatherColorsLoadError={leatherColorsLoadError} fetcher={fetcher} />
+          <AddLeatherColorForm
+            leatherColors={leatherColors}
+            shopifyColors={shopifyColors || []}
+            leatherColorsLoadError={leatherColorsLoadError}
+            shopifyCollections={shopifyCollections || []}
+            fetcher={fetcher}
+          />
         </Layout.Section>
       </Layout>
       </Card>
