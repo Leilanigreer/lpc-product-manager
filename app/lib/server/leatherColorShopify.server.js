@@ -100,15 +100,20 @@ export async function createShopifyLeatherColor(admin, {
 
 /**
  * Update an existing leather_color metaobject in Shopify (stock type and colors only).
+ * Optionally adjust publishable status via setActive (maps to capabilities.publishable.status).
  *
  * @param {Object} admin - Shopify Admin API GraphQL client
  * @param {Object} params
  * @param {string} params.id - Metaobject GID (e.g. gid://shopify/Metaobject/123)
  * @param {boolean} params.isLimitedEditionLeather
  * @param {string[]} [params.colorMetaobjectIds] - Full list of Color metaobject GIDs to set
+ * @param {boolean} [params.setActive] - When true/false, sets status to ACTIVE/DRAFT; when undefined, leaves status unchanged
  * @returns {Promise<{ id: string, name: string }>}
  */
-export async function updateShopifyLeatherColor(admin, { id, isLimitedEditionLeather, colorMetaobjectIds = [] }) {
+export async function updateShopifyLeatherColor(
+  admin,
+  { id, isLimitedEditionLeather, colorMetaobjectIds = [], setActive }
+) {
   if (!admin?.graphql) {
     throw new Error("Shopify admin client is required to update leather_color metaobjects.");
   }
@@ -121,6 +126,15 @@ export async function updateShopifyLeatherColor(admin, { id, isLimitedEditionLea
     { key: "is_limited_edition", value: isLimitedEditionLeather ? "true" : "false" },
     { key: "colors", value: colorsValue },
   ];
+
+  const metaobjectInput = { fields };
+  if (typeof setActive === "boolean") {
+    metaobjectInput.capabilities = {
+      publishable: {
+        status: setActive ? "ACTIVE" : "DRAFT",
+      },
+    };
+  }
 
   const response = await admin.graphql(
     `#graphql
@@ -140,7 +154,7 @@ export async function updateShopifyLeatherColor(admin, { id, isLimitedEditionLea
     {
       variables: {
         id,
-        metaobject: { fields },
+        metaobject: metaobjectInput,
       },
     }
   );
@@ -156,6 +170,69 @@ export async function updateShopifyLeatherColor(admin, { id, isLimitedEditionLea
   const meta = result?.metaobject;
   if (!meta?.id) {
     throw new Error("Shopify did not return the updated leather_color metaobject.");
+  }
+
+  return {
+    id: meta.id,
+    name: meta.displayName ?? "",
+  };
+}
+
+/**
+ * Reactivate a leather_color metaobject (set publishable status to ACTIVE).
+ * Use for metaobjects that are in DRAFT.
+ *
+ * @param {Object} admin - Shopify Admin API GraphQL client
+ * @param {Object} params
+ * @param {string} params.id - Metaobject GID (e.g. gid://shopify/Metaobject/123)
+ * @returns {Promise<{ id: string, name: string }>}
+ */
+export async function reactivateShopifyLeatherColor(admin, { id }) {
+  if (!admin?.graphql) {
+    throw new Error("Shopify admin client is required to reactivate leather_color metaobjects.");
+  }
+  if (!id) {
+    throw new Error("Leather color metaobject id is required for reactivate.");
+  }
+
+  const response = await admin.graphql(
+    `#graphql
+    mutation ReactivateLeatherColor($id: ID!, $metaobject: MetaobjectUpdateInput!) {
+      metaobjectUpdate(id: $id, metaobject: $metaobject) {
+        metaobject {
+          id
+          displayName
+        }
+        userErrors {
+          field
+          message
+          code
+        }
+      }
+    }`,
+    {
+      variables: {
+        id,
+        metaobject: {
+          capabilities: {
+            publishable: { status: "ACTIVE" },
+          },
+        },
+      },
+    }
+  );
+
+  const json = await response.json();
+  const result = json.data?.metaobjectUpdate;
+
+  if (result?.userErrors?.length) {
+    const message = result.userErrors.map((e) => e.message).join(", ");
+    throw new Error(`Failed to reactivate leather_color metaobject: ${message}`);
+  }
+
+  const meta = result?.metaobject;
+  if (!meta?.id) {
+    throw new Error("Shopify did not return the reactivated leather_color metaobject.");
   }
 
   return {

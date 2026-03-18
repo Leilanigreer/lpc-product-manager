@@ -150,14 +150,23 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
 
   // Leather color options for update/reactivate mode (from Shopify leather_color list)
   const leatherColorOptions = useMemo(() => {
-    return (leatherColors || []).map((lc) => ({
-      label: lc.label,
-      value: lc.value,
-      abbreviation: lc.abbreviation,
-      isLimitedEditionLeather: lc.isLimitedEditionLeather,
-      isActive: lc.isActive,
-      colorMetaobjectIds: lc.colorMetaobjectIds || [],
-    }));
+    return (leatherColors || []).map((lc) => {
+      const collectionName = lc.collectionName || lc.collection || null;
+      const baseLabel = lc.label;
+      const labelWithCollection = collectionName
+        ? `[${collectionName}] ${baseLabel}`
+        : baseLabel;
+      return {
+        label: labelWithCollection,
+        value: lc.value,
+        abbreviation: lc.abbreviation,
+        isLimitedEditionLeather: lc.isLimitedEditionLeather,
+        isActive: lc.isActive,
+        colorMetaobjectIds: lc.colorMetaobjectIds || [],
+        collectionName,
+        baseLabel,
+      };
+    });
   }, [leatherColors]);
 
   // Only show active leather colors in update mode
@@ -177,7 +186,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
 
   // Selected leather in update mode (for change detection)
   const selectedLeatherForUpdate = useMemo(() => {
-    if (mode !== "update" || !selectedLeatherColorId) return null;
+    if ((mode !== "update" && mode !== "reactivate") || !selectedLeatherColorId) return null;
     return leatherColorOptions.find((opt) => opt.value === selectedLeatherColorId) || null;
   }, [mode, selectedLeatherColorId, leatherColorOptions]);
 
@@ -276,12 +285,19 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           <Text tone="info" variant="bodyMd">
             Changing stock type or colors here does not change any current product states until business logic is defined.
           </Text>
+          {selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive && (
+            <Box paddingBlockStart="100">
+              <Text tone="subdued" variant="bodyMd">
+                This leather color is currently in draft. Saving with “Update and Set as Active” will make it active for new products.
+              </Text>
+            </Box>
+          )}
         </Box>
       )}
       {mode === "discontinue" && (
         <Box paddingBlock="200">
           <Text tone="critical" variant="bodyMd">
-            Discontinuing a leather color is not currently available as business rules need to be determined.
+            Discontinuing sets the leather color to draft and removes it from the product creation list. It does not yet update existing products that use this leather.
           </Text>
         </Box>
       )}
@@ -489,14 +505,57 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
             formData.append("leatherColorId", selectedLeatherColorId);
             formData.append("isLimitedEditionLeather", isLimitedEditionLeather ? "true" : "false");
             selectedColorIds.forEach((id) => formData.append("colorMetaobjectIds", id));
+            if (selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive) {
+              formData.append("setActive", "true");
+            }
             fetcher.submit(formData, { method: "post" });
           }}
         >
-          Update
+          {selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive
+            ? "Update and Set as Active"
+            : "Update"}
         </Button>
       )}
       {mode === "reactivate" && (
-        <Button primary disabled={!selectedLeatherColorId}>Reactivate (not implemented)</Button>
+        <Button
+          primary
+          disabled={!selectedLeatherColorId || !hasUpdateChanges}
+          onClick={() => {
+            const formData = new FormData();
+            formData.append("actionType", "reactivateLeatherColor");
+            formData.append("leatherColorId", selectedLeatherColorId);
+            formData.append("isLimitedEditionLeather", isLimitedEditionLeather ? "true" : "false");
+            selectedColorIds.forEach((id) => formData.append("colorMetaobjectIds", id));
+            formData.append("setActive", "true");
+            fetcher.submit(formData, { method: "post" });
+          }}
+        >
+          Update and Set as Active
+        </Button>
+      )}
+      {mode === "discontinue" && (
+        <Button
+          primary
+          tone="critical"
+          disabled={!selectedLeatherColorId}
+          onClick={() => {
+            const selected = activeLeatherColorOptions.find((opt) => opt.value === selectedLeatherColorId);
+            const formData = new FormData();
+            formData.append("actionType", "discontinueLeatherColor");
+            formData.append("leatherColorId", selectedLeatherColorId);
+            // Preserve current type and colors when moving to draft
+            formData.append(
+              "isLimitedEditionLeather",
+              selected && selected.isLimitedEditionLeather ? "true" : "false"
+            );
+            (selected?.colorMetaobjectIds || []).forEach((id) =>
+              formData.append("colorMetaobjectIds", id)
+            );
+            fetcher.submit(formData, { method: "post" });
+          }}
+        >
+          Discontinue (set to draft)
+        </Button>
       )}
       <Modal
         open={modalOpen}
@@ -528,7 +587,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       {mode === "discontinue" && selectedLeatherColorId && (
         <Box paddingBlock="200">
           <Text variant="bodyMd" tone="subdued">
-            [Placeholder] Sets currently using this color will be listed here.
+            Sets currently using this color will be shown here in the future. For now, discontinuing only affects new product creation.
           </Text>
         </Box>
       )}
@@ -552,11 +611,16 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
               </Text>
             )}
             <Box paddingBlockStart="200">
-              <Text variant="bodyMd" fontWeight="semibold">Per-item (label, abbreviation):</Text>
+              <Text variant="bodyMd" fontWeight="semibold">Per-item (collection, label, abbreviation):</Text>
               <BlockStack gap="100">
                 {(leatherColors || []).slice(0, 50).map((lc) => (
-                  <Text key={lc.value} variant="bodyMd" tone="subdued" as="p">
-                    {JSON.stringify({ label: lc.label, abbreviation: lc.abbreviation == null ? "(null)" : lc.abbreviation === "" ? '""' : lc.abbreviation })}
+                  <Text key={lc.value ?? lc.id} variant="bodyMd" tone="subdued" as="p">
+                    {JSON.stringify({
+                      collectionName: lc.collectionName ?? null,
+                      label: lc.label,
+                      abbreviation:
+                        lc.abbreviation == null ? "(null)" : lc.abbreviation === "" ? '""' : lc.abbreviation,
+                    })}
                   </Text>
                 ))}
                 {(leatherColors || []).length > 50 && (

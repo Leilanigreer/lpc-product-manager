@@ -13,6 +13,7 @@ const LEATHER_COLOR_METAOBJECT_QUERY = `#graphql
         }
         nameField: field(key: "name") { value }
         abbreviationField: field(key: "abbreviation") { value }
+        collectionNameField: field(key: "collection_name") { value }
         previewImageField: field(key: "preview_image") {
           thumbnail {
             file {
@@ -43,7 +44,7 @@ const LEATHER_COLOR_METAOBJECT_QUERY = `#graphql
 
 /**
  * Fetches leather colors from Shopify leather_color metaobjects.
- * Only includes metaobjects with status ACTIVE. Returns same shape as getLeatherColors() for drop-in use.
+ * Includes both ACTIVE and DRAFT; isActive is true only when status is ACTIVE (draft list = reactivate list).
  * @param {Object} admin - Shopify Admin API GraphQL client
  * @returns {Promise<{ leatherColors: Array<...>, loadError?: string }>}
  */
@@ -66,13 +67,12 @@ export const getLeatherColorsFromShopify = async (admin) => {
 
     const nodes = json?.data?.metaobjects?.nodes ?? [];
     const leatherColors = nodes
-      .filter((node) => {
-        const status = node.capabilities?.publishable?.status;
-        return status == null || status === "ACTIVE";
-      })
       .map((node) => {
+        const status = node.capabilities?.publishable?.status;
+        const isActive = status === "ACTIVE";
         const name = node.nameField?.value ?? node.displayName ?? node.handle ?? "";
         const abbreviation = node.abbreviationField?.value ?? "";
+        const collectionName = node.collectionNameField?.value ?? null;
         const file = node.previewImageField?.thumbnail?.file;
         const url_id = file?.image?.url ?? file?.url ?? null;
         const isLimitedEditionLeather = parseMetaobjectBoolean(node.isLimitedEditionField);
@@ -81,9 +81,10 @@ export const getLeatherColorsFromShopify = async (admin) => {
           value: node.id,
           label: name,
           abbreviation,
+          collectionName,
           url_id,
           isLimitedEditionLeather,
-          isActive: true,
+          isActive,
           colorMetaobjectIds,
         };
       })

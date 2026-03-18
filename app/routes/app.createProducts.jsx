@@ -98,7 +98,7 @@ export const action = async ({ request }) => {
 
 export default function CreateProduct() {
   const { 
-    leatherColors, 
+    leatherColors: allLeatherColors, 
     stitchingThreadColors,
     embroideryThreadColors,
     fonts, 
@@ -108,6 +108,12 @@ export default function CreateProduct() {
     productSets, 
     error 
   } = useLoaderData();
+
+  // Only show active leather colors when creating products (draft = reactivate list on add leather page)
+  const leatherColors = React.useMemo(
+    () => (allLeatherColors || []).filter((lc) => lc.isActive !== false),
+    [allLeatherColors]
+  );
 
   const previewRef = React.useRef(null);
 

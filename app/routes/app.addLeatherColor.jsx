@@ -24,6 +24,9 @@ export const action = async ({ request }) => {
     const leatherColorId = formData.get("leatherColorId");
     const isLimitedEditionLeather = formData.get("isLimitedEditionLeather") === "true";
     const colorMetaobjectIds = formData.getAll("colorMetaobjectIds");
+    const setActiveRaw = formData.get("setActive");
+    const setActive =
+      setActiveRaw === "true" ? true : setActiveRaw === "false" ? false : undefined;
     if (!leatherColorId) {
       return json({ success: false, error: "Leather color is required for update." }, { status: 400 });
     }
@@ -32,8 +35,49 @@ export const action = async ({ request }) => {
         id: leatherColorId,
         isLimitedEditionLeather,
         colorMetaobjectIds: Array.isArray(colorMetaobjectIds) ? colorMetaobjectIds : [].concat(colorMetaobjectIds),
+        setActive,
       });
       return json({ success: true, actionType: "update", leatherColor: updated });
+    } catch (error) {
+      return json({ success: false, error: error.message }, { status: 500 });
+    }
+  }
+
+  if (actionType === "reactivateLeatherColor") {
+    const leatherColorId = formData.get("leatherColorId");
+    const isLimitedEditionLeather = formData.get("isLimitedEditionLeather") === "true";
+    const colorMetaobjectIds = formData.getAll("colorMetaobjectIds");
+    if (!leatherColorId) {
+      return json({ success: false, error: "Leather color is required for reactivate." }, { status: 400 });
+    }
+    try {
+      const reactivated = await updateShopifyLeatherColor(admin, {
+        id: leatherColorId,
+        isLimitedEditionLeather,
+        colorMetaobjectIds: Array.isArray(colorMetaobjectIds) ? colorMetaobjectIds : [].concat(colorMetaobjectIds),
+        setActive: true,
+      });
+      return json({ success: true, actionType: "reactivate", leatherColor: reactivated });
+    } catch (error) {
+      return json({ success: false, error: error.message }, { status: 500 });
+    }
+  }
+
+  if (actionType === "discontinueLeatherColor") {
+    const leatherColorId = formData.get("leatherColorId");
+    const isLimitedEditionLeather = formData.get("isLimitedEditionLeather") === "true";
+    const colorMetaobjectIds = formData.getAll("colorMetaobjectIds");
+    if (!leatherColorId) {
+      return json({ success: false, error: "Leather color is required for discontinue." }, { status: 400 });
+    }
+    try {
+      const discontinued = await updateShopifyLeatherColor(admin, {
+        id: leatherColorId,
+        isLimitedEditionLeather,
+        colorMetaobjectIds: Array.isArray(colorMetaobjectIds) ? colorMetaobjectIds : [].concat(colorMetaobjectIds),
+        setActive: false,
+      });
+      return json({ success: true, actionType: "discontinue", leatherColor: discontinued });
     } catch (error) {
       return json({ success: false, error: error.message }, { status: 500 });
     }
