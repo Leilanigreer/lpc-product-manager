@@ -312,6 +312,156 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           </Text>
         </Box>
       )}
+
+      {mode === "add" && (
+        <BlockStack gap="100">
+          <InlineStack gap="800" align="start" wrap={false}>
+            <Box width="50%">
+              <Text variant="bodyMd" as="label" fontWeight="medium">
+                Stock Type
+              </Text>
+            </Box>
+            <Box width="50%">
+              <Text variant="bodyMd" as="label" fontWeight="medium">
+                Collection
+              </Text>
+            </Box>
+          </InlineStack>
+          <InlineStack gap="800" align="start" wrap={false}>
+            <Box width="50%">
+              <InlineStack gap="400" wrap={false}>
+                <RadioButton
+                  label="Standard Stock"
+                  checked={!isLimitedEditionLeather}
+                  id="standardStock-add"
+                  name="stockType-add"
+                  onChange={() => setIsLimitedEditionLeather(false)}
+                />
+                <RadioButton
+                  label="Limited Edition"
+                  checked={isLimitedEditionLeather}
+                  id="limitedEdition-add"
+                  name="stockType-add"
+                  onChange={() => setIsLimitedEditionLeather(true)}
+                />
+              </InlineStack>
+            </Box>
+            <Box width="50%">
+              <Combobox
+                activator={
+                  <Combobox.TextField
+                    label=""
+                    value={
+                      (shopifyCollections.find((c) => c.value === selectedCollectionId)?.label) || ""
+                    }
+                    onChange={() => {}}
+                    placeholder={
+                      isLimitedEditionLeather
+                        ? "Optional for Limited Edition"
+                        : "Required for Standard Stock"
+                    }
+                    autoComplete="off"
+                    requiredIndicator={!isLimitedEditionLeather}
+                  />
+                }
+              >
+                <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
+                  <Listbox onSelect={(value) => setSelectedCollectionId(value)}>
+                    {shopifyCollections.map((collection) => (
+                      <Listbox.Option key={collection.value} value={collection.value}>
+                        {collection.label}
+                      </Listbox.Option>
+                    ))}
+                  </Listbox>
+                </div>
+              </Combobox>
+            </Box>
+          </InlineStack>
+
+          <InlineStack gap="800" align="start" wrap={false}>
+            <Box width="50%">
+              <Text variant="bodyMd" as="label" fontWeight="medium">
+                Leather color name
+              </Text>
+            </Box>
+            <Box width="50%">
+              <Text variant="bodyMd" as="label" fontWeight="medium">
+                Add color(s)
+              </Text>
+            </Box>
+          </InlineStack>
+          <InlineStack gap="800" align="start" wrap={false}>
+            <Box width="50%">
+              <TextField
+                id="leatherColorNameInput"
+                label=""
+                value={leatherColorName}
+                onChange={handleNameChange}
+                onBlur={handleNameBlur}
+                autoComplete="off"
+                placeholder="Enter new leather color name (required)"
+                requiredIndicator
+              />
+            </Box>
+            <Box width="50%">
+              <Combobox
+                activator={
+                  <Combobox.TextField
+                    prefix={<Icon source={SearchIcon} />}
+                    onChange={setColorInput}
+                    label=""
+                    value={colorInput}
+                    placeholder="Search or select at least one color (Shopify Color metaobject)"
+                    autoComplete="off"
+                    requiredIndicator
+                  />
+                }
+              >
+                {filteredColorOptions.length > 0 && (
+                  <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
+                    <Listbox onSelect={handleColorSelect}>
+                      {filteredColorOptions.map((option) => (
+                        <Listbox.Option key={option.value} value={option.value}>
+                          {option.label}
+                        </Listbox.Option>
+                      ))}
+                    </Listbox>
+                  </div>
+                )}
+              </Combobox>
+            </Box>
+          </InlineStack>
+
+          {addModeConflict && (
+            <Box paddingBlock="200">
+              <Text tone="critical" variant="bodyMd">
+                {error}
+              </Text>
+              <Button
+                size="slim"
+                onClick={() => {
+                  if (addModeConflict.type === "update") {
+                    setMode("update");
+                    setSelectedLeatherColorId(addModeConflict.color.value);
+                  } else if (addModeConflict.type === "reactivate") {
+                    setMode("reactivate");
+                    setSelectedLeatherColorId(addModeConflict.color.value);
+                  }
+                  setError("");
+                  setAddModeConflict(null);
+                }}
+                style={{ marginTop: 8 }}
+              >
+                {addModeConflict.type === "update" ? "Switch to Update" : "Switch to Reactivate"}
+              </Button>
+            </Box>
+          )}
+          {!addModeConflict && error && (
+            <InlineError message={error} fieldID="leatherColorName" />
+          )}
+        </BlockStack>
+      )}
+      {mode !== "add" && (
       <BlockStack gap="100">
         {mode !== "discontinue" && (
           <InlineStack gap="800" align="start" wrap={false}>
@@ -328,28 +478,28 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           </InlineStack>
         )}
         <InlineStack gap="800" align="start" wrap={false}>
-          <Box width="50%">
-            {mode !== "discontinue" && (
-              <InlineStack gap="400" wrap={false}>
-                <RadioButton
-                  label="Standard Stock"
-                  checked={!isLimitedEditionLeather }
-                  id="standardStock"
-                  name="stockType"
-                  onChange={() => setIsLimitedEditionLeather(false)}
-                  disabled={mode === "discontinue"}
-                />
-                <RadioButton
-                  label="Limited Edition"
-                  checked={isLimitedEditionLeather}
-                  id="limitedEdition"
-                  name="stockType"
-                  onChange={() => setIsLimitedEditionLeather(true)}
-                  disabled={mode === "discontinue" || disableLimitedEditionSwitch}
-                />
-              </InlineStack>
-            )}
-          </Box>
+            <Box width="50%">
+              {mode !== "discontinue" && (
+                <InlineStack gap="400" wrap={false}>
+                  <RadioButton
+                    label="Standard Stock"
+                    checked={!isLimitedEditionLeather}
+                    id="standardStock"
+                    name="stockType"
+                    onChange={() => setIsLimitedEditionLeather(false)}
+                    disabled={mode === "discontinue"}
+                  />
+                  <RadioButton
+                    label="Limited Edition"
+                    checked={isLimitedEditionLeather}
+                    id="limitedEdition"
+                    name="stockType"
+                    onChange={() => setIsLimitedEditionLeather(true)}
+                    disabled={mode === "discontinue" || disableLimitedEditionSwitch}
+                  />
+                </InlineStack>
+              )}
+            </Box>
           <Box width="50%">
             {mode === "add" ? (
               <>
@@ -487,31 +637,11 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
               </Combobox>
             ) : null}
           </Box>
-          {mode !== "discontinue" && (
-            <Box width="50%">
-              <InlineStack gap="400" wrap={false}>
-                <RadioButton
-                  label="Standard Stock"
-                  checked={!isLimitedEditionLeather }
-                  id="standardStock"
-                  name="stockType"
-                  onChange={() => setIsLimitedEditionLeather(false)}
-                  disabled={mode === "discontinue"}
-                />
-                <RadioButton
-                  label="Limited Edition"
-                  checked={isLimitedEditionLeather}
-                  id="limitedEdition"
-                  name="stockType"
-                  onChange={() => setIsLimitedEditionLeather(true)}
-                  disabled={mode === "discontinue" || disableLimitedEditionSwitch}
-                />
-              </InlineStack>
-            </Box>
-          )}
+          {/* right side empty for non-add; colors selector is rendered below */}
         </InlineStack>
       </BlockStack>
-      {mode !== "discontinue" && (
+      )}
+      {mode !== "add" && mode !== "discontinue" && (
         <Box width="100%">
           <Combobox
             activator={
