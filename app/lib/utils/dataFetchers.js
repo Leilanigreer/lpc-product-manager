@@ -28,7 +28,12 @@ const LEATHER_COLOR_METAOBJECT_QUERY = `#graphql
         isLimitedEditionField: field(key: "is_limited_edition") { value }
         colorsField: field(key: "colors") {
           references(first: 50) {
-            nodes { id }
+            nodes {
+              __typename
+              ... on Metaobject {
+                id
+              }
+            }
           }
         }
       }
