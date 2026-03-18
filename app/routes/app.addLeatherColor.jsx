@@ -6,7 +6,7 @@ import { loader as dataLoader } from "../lib/loaders";
 import { authenticate } from "../shopify.server";
 import { Page, Layout, Box, Banner, Card, BlockStack } from "@shopify/polaris";
 import AddLeatherColorForm from "../components/AddLeatherColorForm";
-import { createShopifyLeatherColor } from "../lib/server/leatherColorShopify.server.js";
+import { createShopifyLeatherColor, updateShopifyLeatherColor } from "../lib/server/leatherColorShopify.server.js";
 import SuccessBanner from "../components/SuccessBanner.jsx";
 
 export const loader = async ({ request }) => {
@@ -18,10 +18,30 @@ export const action = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
 
   const formData = await request.formData();
+  const actionType = formData.get("actionType");
+
+  if (actionType === "updateLeatherColor") {
+    const leatherColorId = formData.get("leatherColorId");
+    const isLimitedEditionLeather = formData.get("isLimitedEditionLeather") === "true";
+    const colorMetaobjectIds = formData.getAll("colorMetaobjectIds");
+    if (!leatherColorId) {
+      return json({ success: false, error: "Leather color is required for update." }, { status: 400 });
+    }
+    try {
+      const updated = await updateShopifyLeatherColor(admin, {
+        id: leatherColorId,
+        isLimitedEditionLeather,
+        colorMetaobjectIds: Array.isArray(colorMetaobjectIds) ? colorMetaobjectIds : [].concat(colorMetaobjectIds),
+      });
+      return json({ success: true, actionType: "update", leatherColor: updated });
+    } catch (error) {
+      return json({ success: false, error: error.message }, { status: 500 });
+    }
+  }
+
   const name = formData.get("name");
   const abbreviation = formData.get("abbreviation");
   const isLimitedEditionLeather = formData.get("isLimitedEditionLeather") === "true";
-  // Optional: list of Color metaobject GIDs (shopify--color-pattern) attached to this leather color
   const colorMetaobjectIds = formData.getAll("colorMetaobjectIds");
 
   if (!name || !abbreviation) {

@@ -98,6 +98,72 @@ export async function createShopifyLeatherColor(admin, {
   };
 }
 
+/**
+ * Update an existing leather_color metaobject in Shopify (stock type and colors only).
+ *
+ * @param {Object} admin - Shopify Admin API GraphQL client
+ * @param {Object} params
+ * @param {string} params.id - Metaobject GID (e.g. gid://shopify/Metaobject/123)
+ * @param {boolean} params.isLimitedEditionLeather
+ * @param {string[]} [params.colorMetaobjectIds] - Full list of Color metaobject GIDs to set
+ * @returns {Promise<{ id: string, name: string }>}
+ */
+export async function updateShopifyLeatherColor(admin, { id, isLimitedEditionLeather, colorMetaobjectIds = [] }) {
+  if (!admin?.graphql) {
+    throw new Error("Shopify admin client is required to update leather_color metaobjects.");
+  }
+  if (!id) {
+    throw new Error("Leather color metaobject id is required for update.");
+  }
+
+  const colorsValue = colorMetaobjectIds.length ? JSON.stringify(colorMetaobjectIds) : "[]";
+  const fields = [
+    { key: "is_limited_edition", value: isLimitedEditionLeather ? "true" : "false" },
+    { key: "colors", value: colorsValue },
+  ];
+
+  const response = await admin.graphql(
+    `#graphql
+    mutation UpdateLeatherColor($id: ID!, $metaobject: MetaobjectUpdateInput!) {
+      metaobjectUpdate(id: $id, metaobject: $metaobject) {
+        metaobject {
+          id
+          displayName
+        }
+        userErrors {
+          field
+          message
+          code
+        }
+      }
+    }`,
+    {
+      variables: {
+        id,
+        metaobject: { fields },
+      },
+    }
+  );
+
+  const json = await response.json();
+  const result = json.data?.metaobjectUpdate;
+
+  if (result?.userErrors?.length) {
+    const message = result.userErrors.map((e) => e.message).join(", ");
+    throw new Error(`Failed to update leather_color metaobject: ${message}`);
+  }
+
+  const meta = result?.metaobject;
+  if (!meta?.id) {
+    throw new Error("Shopify did not return the updated leather_color metaobject.");
+  }
+
+  return {
+    id: meta.id,
+    name: meta.displayName ?? "",
+  };
+}
+
 function fallbackAbbreviation(name) {
   const s = String(name || "").trim();
   if (!s) return "LC";

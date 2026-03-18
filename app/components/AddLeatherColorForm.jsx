@@ -172,8 +172,23 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     [leatherColorOptions]
   );
 
-  // Derived: Disable Limited Edition switch in update mode if currently Standard Stock
-  const disableLimitedEditionSwitch = mode === "update" && isLimitedEditionLeather === false;
+  // In update mode, allow toggling Standard vs Limited Edition (with note that product state is unchanged until business logic is sorted)
+  const disableLimitedEditionSwitch = mode === "discontinue";
+
+  // Selected leather in update mode (for change detection)
+  const selectedLeatherForUpdate = useMemo(() => {
+    if (mode !== "update" || !selectedLeatherColorId) return null;
+    return leatherColorOptions.find((opt) => opt.value === selectedLeatherColorId) || null;
+  }, [mode, selectedLeatherColorId, leatherColorOptions]);
+
+  const hasUpdateChanges = useMemo(() => {
+    if (!selectedLeatherForUpdate) return false;
+    const sameType = selectedLeatherForUpdate.isLimitedEditionLeather === isLimitedEditionLeather;
+    const orig = (selectedLeatherForUpdate.colorMetaobjectIds || []).slice().sort();
+    const curr = selectedColorIds.slice().sort();
+    const sameColors = orig.length === curr.length && orig.every((id, i) => id === curr[i]);
+    return !sameType || !sameColors;
+  }, [selectedLeatherForUpdate, isLimitedEditionLeather, selectedColorIds]);
 
   // Debug: existing abbreviations used for abbreviation generation
   const debugExistingAbbrs = useMemo(() => {
@@ -258,8 +273,8 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       <Divider borderColor="border"/>
       {mode === "update" && (
         <Box paddingBlock="200">
-          <Text tone="critical" variant="bodyMd">
-            Switching from standard stock and limited edition is not currently available as business rules need to be determined.
+          <Text tone="info" variant="bodyMd">
+            Changing stock type or colors here does not change any current product states until business logic is defined.
           </Text>
         </Box>
       )}
@@ -424,12 +439,12 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
               <Combobox.TextField
                 prefix={<Icon source={SearchIcon} />}
                 onChange={setColorInput}
-                label="Add color(s) (required)"
+                label={mode === "update" ? "Add or remove color(s)" : "Add color(s) (required)"}
                 value={colorInput}
-                placeholder="Search or select at least one color (Shopify Color metaobject)"
+                placeholder={mode === "update" ? "Search or select colors (Shopify Color metaobject)" : "Search or select at least one color (Shopify Color metaobject)"}
                 autoComplete="off"
                 disabled={mode === "discontinue"}
-                requiredIndicator
+                requiredIndicator={mode !== "update"}
               />
             }
           >
@@ -465,7 +480,20 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         </Button>
       )}
       {mode === "update" && (
-        <Button primary disabled>Update (not implemented)</Button>
+        <Button
+          primary
+          disabled={!selectedLeatherColorId || !hasUpdateChanges}
+          onClick={() => {
+            const formData = new FormData();
+            formData.append("actionType", "updateLeatherColor");
+            formData.append("leatherColorId", selectedLeatherColorId);
+            formData.append("isLimitedEditionLeather", isLimitedEditionLeather ? "true" : "false");
+            selectedColorIds.forEach((id) => formData.append("colorMetaobjectIds", id));
+            fetcher.submit(formData, { method: "post" });
+          }}
+        >
+          Update
+        </Button>
       )}
       {mode === "reactivate" && (
         <Button primary disabled={!selectedLeatherColorId}>Reactivate (not implemented)</Button>
