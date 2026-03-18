@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { TextField, BlockStack, InlineStack, Tag, Combobox, Listbox, Icon, Box, Button, Modal, InlineError, RadioButton, Text, Divider } from "@shopify/polaris";
+import { TextField, BlockStack, InlineStack, Tag, Combobox, Listbox, Icon, Box, Button, Modal, InlineError, RadioButton, Text, Divider, Card } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
 import { formatNameLive, formatNameOnBlur, validateNameUnique, generateLeatherAbbreviation } from '../lib/utils/colorNameUtils';
 
@@ -15,6 +15,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   const [formattedName, setFormattedName] = useState("");
   const [isLimitedEditionLeather, setIsLimitedEditionLeather] = useState(false);
   const [addModeConflict, setAddModeConflict] = useState(null);
+  const [showDebug, setShowDebug] = useState(true);
 
   const filteredColorOptions = useMemo(() => {
     const search = colorInput.toLowerCase();
@@ -49,7 +50,24 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     const formatted = formatNameOnBlur(leatherColorName);
     setLeatherColorName(formatted);
     setFormattedName(formatted);
-  }, [leatherColorName]);
+    setError("");
+    setAddModeConflict(null);
+    if (formatted.trim() && leatherColors?.length) {
+      const isUnique = validateNameUnique(leatherColors, formatted, "label");
+      if (!isUnique) {
+        const match = leatherColors.find((lc) => formatNameOnBlur(lc.label) === formatNameOnBlur(formatted));
+        if (match) {
+          if (match.isActive) {
+            setError("This color already exists and is active. Would you like to update it?");
+            setAddModeConflict({ type: "update", color: match });
+          } else {
+            setError("This color exists but is discontinued. Would you like to reactivate it?");
+            setAddModeConflict({ type: "reactivate", color: match });
+          }
+        }
+      }
+    }
+  }, [leatherColorName, leatherColors]);
 
   const handleColorSelect = useCallback((value) => {
     if (!selectedColorIds.includes(value)) {
@@ -65,15 +83,35 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   const handleCreate = useCallback(() => {
     const formatted = formatNameOnBlur(leatherColorName);
     setFormattedName(formatted);
-    if (!formatted) {
-      setError("Please enter a leather color name.");
+    setError("");
+    setAddModeConflict(null);
+
+    if (!formatted?.trim()) {
+      setError("Leather color name is required.");
       return;
     }
-    const isUnique = validateNameUnique(leatherColors, formatted, 'label');
+    if (!selectedColorIds.length) {
+      setError("At least one color is required. Please select a color from the Color metaobject list.");
+      return;
+    }
+
+    const isUnique = validateNameUnique(leatherColors || [], formatted, "label");
     if (!isUnique) {
-      setError("This leather color name already exists.");
+      const match = (leatherColors || []).find((lc) => formatNameOnBlur(lc.label) === formatNameOnBlur(formatted));
+      if (match) {
+        if (match.isActive) {
+          setError("This leather color name already exists. Would you like to update it instead?");
+          setAddModeConflict({ type: "update", color: match });
+        } else {
+          setError("This color exists but is discontinued. Would you like to reactivate it?");
+          setAddModeConflict({ type: "reactivate", color: match });
+        }
+      } else {
+        setError("This leather color name already exists.");
+      }
       return;
     }
+
     const existingAbbrs = (leatherColors || [])
       .map((lc) => lc.abbreviation)
       .filter((abbr) => abbr != null && String(abbr).trim() !== "");
@@ -85,15 +123,17 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     setGeneratedAbbr(abbr);
     setModalOpen(true);
     setError("");
-  }, [leatherColorName, leatherColors]);
+  }, [leatherColorName, leatherColors, selectedColorIds]);
 
   const handleConfirm = useCallback(() => {
+    if (!formattedName?.trim() || !generatedAbbr?.trim() || !selectedColorIds.length) return;
+
     const formData = new FormData();
-    formData.append('name', formattedName);
-    formData.append('abbreviation', generatedAbbr);
-    formData.append('isLimitedEditionLeather', isLimitedEditionLeather ? 'true' : 'false');
-    selectedColorIds.forEach((id) => formData.append('colorMetaobjectIds', id));
-    fetcher.submit(formData, { method: 'post' });
+    formData.append("name", formattedName);
+    formData.append("abbreviation", generatedAbbr);
+    formData.append("isLimitedEditionLeather", isLimitedEditionLeather ? "true" : "false");
+    selectedColorIds.forEach((id) => formData.append("colorMetaobjectIds", id));
+    fetcher.submit(formData, { method: "post" });
     setModalOpen(false);
     setLeatherColorName("");
     setSelectedColorIds([]);
@@ -134,6 +174,19 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
 
   // Derived: Disable Limited Edition switch in update mode if currently Standard Stock
   const disableLimitedEditionSwitch = mode === "update" && isLimitedEditionLeather === false;
+
+  // Debug: existing abbreviations used for abbreviation generation
+  const debugExistingAbbrs = useMemo(() => {
+    return (leatherColors || [])
+      .map((lc) => (lc.abbreviation != null ? String(lc.abbreviation).trim() : ""))
+      .filter(Boolean);
+  }, [leatherColors]);
+
+  const canCreate =
+    mode === "add" &&
+    formatNameOnBlur(leatherColorName).trim() !== "" &&
+    selectedColorIds.length > 0 &&
+    !addModeConflict;
 
   // When switching to update mode or selecting a leather color, pre-fill fields
   React.useEffect(() => {
@@ -243,7 +296,8 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                   onChange={handleNameChange}
                   onBlur={handleNameBlur}
                   autoComplete="off"
-                  placeholder="Enter new leather color name"
+                  placeholder="Enter new leather color name (required)"
+                  requiredIndicator
                 />
                 {addModeConflict && (
                   <Box paddingBlock="200">
@@ -370,11 +424,12 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
               <Combobox.TextField
                 prefix={<Icon source={SearchIcon} />}
                 onChange={setColorInput}
-                label="Add color(s)"
+                label="Add color(s) (required)"
                 value={colorInput}
-                placeholder="Search or select colors (Shopify Color metaobject)"
+                placeholder="Search or select at least one color (Shopify Color metaobject)"
                 autoComplete="off"
                 disabled={mode === "discontinue"}
+                requiredIndicator
               />
             }
           >
@@ -405,7 +460,9 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         </InlineStack>
       )}
       {mode === "add" && (
-        <Button primary onClick={handleCreate}>Create</Button>
+        <Button primary onClick={handleCreate} disabled={!canCreate}>
+          Create
+        </Button>
       )}
       {mode === "update" && (
         <Button primary disabled>Update (not implemented)</Button>
@@ -446,6 +503,41 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
             [Placeholder] Sets currently using this color will be listed here.
           </Text>
         </Box>
+      )}
+
+      {/* Debug: object data for abbreviation / duplicate-name troubleshooting */}
+      {showDebug && (
+        <Card>
+          <BlockStack gap="200">
+            <InlineStack align="space-between" blockAlign="center">
+              <Text variant="headingSm">Debug: leather color data</Text>
+              <Button size="slim" onClick={() => setShowDebug(false)}>
+                Hide
+              </Button>
+            </InlineStack>
+            <Text variant="bodyMd" tone="subdued">
+              Loaded leather colors: {(leatherColors || []).length}. Existing abbreviations used when generating a new one: [{debugExistingAbbrs.join(", ") || "(none)"}]
+            </Text>
+            <Box paddingBlockStart="200">
+              <Text variant="bodyMd" fontWeight="semibold">Per-item (label, abbreviation):</Text>
+              <BlockStack gap="100">
+                {(leatherColors || []).slice(0, 50).map((lc) => (
+                  <Text key={lc.value} variant="bodyMd" tone="subdued" as="p">
+                    {JSON.stringify({ label: lc.label, abbreviation: lc.abbreviation == null ? "(null)" : lc.abbreviation === "" ? '""' : lc.abbreviation })}
+                  </Text>
+                ))}
+                {(leatherColors || []).length > 50 && (
+                  <Text variant="bodyMd" tone="subdued">… and {(leatherColors || []).length - 50} more</Text>
+                )}
+              </BlockStack>
+            </Box>
+          </BlockStack>
+        </Card>
+      )}
+      {!showDebug && (
+        <Button size="slim" onClick={() => setShowDebug(true)}>
+          Show debug (leather data)
+        </Button>
       )}
     </BlockStack>
   );
