@@ -35,6 +35,10 @@ export async function createShopifyLeatherColor(admin, {
 
   const handle = `leather-${slugify(name)}`;
   const colorsValue = colorMetaobjectIds.length ? JSON.stringify(colorMetaobjectIds) : "";
+  const abbrValue =
+    abbreviation != null && String(abbreviation).trim() !== ""
+      ? String(abbreviation).trim()
+      : fallbackAbbreviation(name);
 
   const response = await admin.graphql(
     `#graphql
@@ -60,7 +64,7 @@ export async function createShopifyLeatherColor(admin, {
           handle,
           fields: [
             { key: "name", value: name },
-            { key: "abbreviation", value: abbreviation },
+            { key: "abbreviation", value: abbrValue },
             { key: "is_limited_edition", value: isLimitedEditionLeather ? "true" : "false" },
             ...(colorsValue ? [{ key: "colors", value: colorsValue }] : []),
           ],
@@ -90,8 +94,20 @@ export async function createShopifyLeatherColor(admin, {
   return {
     id: meta.id,
     name: meta.displayName || name,
-    abbreviation,
+    abbreviation: abbrValue,
   };
+}
+
+function fallbackAbbreviation(name) {
+  const s = String(name || "").trim();
+  if (!s) return "LC";
+  return s
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 10) || "LC";
 }
 
 function slugify(value) {

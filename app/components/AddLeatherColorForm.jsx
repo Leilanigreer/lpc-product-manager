@@ -74,8 +74,14 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       setError("This leather color name already exists.");
       return;
     }
-    const existingAbbrs = leatherColors.map(lc => lc.abbreviation);
+    const existingAbbrs = (leatherColors || [])
+      .map((lc) => lc.abbreviation)
+      .filter((abbr) => abbr != null && String(abbr).trim() !== "");
     const abbr = generateLeatherAbbreviation(formatted, existingAbbrs);
+    if (!abbr) {
+      setError("Could not generate abbreviation. Please use a name with at least one letter.");
+      return;
+    }
     setGeneratedAbbr(abbr);
     setModalOpen(true);
     setError("");

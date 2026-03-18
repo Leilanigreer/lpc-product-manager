@@ -25,22 +25,24 @@ export function validateNameUnique(list, input, field = 'label', excludeId = nul
 
 // Abbreviation for Leather (no suffix, collision avoidance)
 export function generateLeatherAbbreviation(name, existingAbbrs) {
-  if (!name) return "";
-  const words = name.split(" ").filter(Boolean);
-  let abbr = words.map(w => w[0].toUpperCase()).join("");
-  if (!existingAbbrs.includes(abbr)) return abbr;
-  let i = 1;
-  const makeAbbr = (words, i) => words.map(w => w[0].toUpperCase() + (w[i] ? w[i].toLowerCase() : "")).join("");
-  while (true) {
-    let nextAbbr = makeAbbr(words, i);
-    if (!existingAbbrs.includes(nextAbbr)) return nextAbbr;
-    i++;
-    if (i > Math.max(...words.map(w => w.length))) {
-      let n = 2;
-      while (existingAbbrs.includes(abbr + n)) n++;
-      return abbr + n;
-    }
+  const normalized = (existingAbbrs || [])
+    .map((a) => (a != null ? String(a).trim() : ""))
+    .filter(Boolean);
+  if (!name || typeof name !== "string") return "";
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  const abbr = words.map((w) => w[0].toUpperCase()).join("");
+  if (!normalized.includes(abbr)) return abbr;
+  const maxLen = Math.max(...words.map((w) => w.length), 1);
+  const makeAbbr = (words, i) =>
+    words.map((w) => w[0].toUpperCase() + (w[i] ? w[i].toLowerCase() : "")).join("");
+  for (let i = 1; i <= maxLen; i++) {
+    const nextAbbr = makeAbbr(words, i);
+    if (!normalized.includes(nextAbbr)) return nextAbbr;
   }
+  let n = 2;
+  while (normalized.includes(abbr + n)) n++;
+  return abbr + n;
 }
 
 // Utility: Generate unique abbreviation (like leather, but always ends with 'E')
