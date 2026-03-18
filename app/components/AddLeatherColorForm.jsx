@@ -17,6 +17,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   const [isLimitedEditionLeather, setIsLimitedEditionLeather] = useState(false);
   const [addModeConflict, setAddModeConflict] = useState(null);
   const [showDebug, setShowDebug] = useState(true);
+  const [crossCollectionInfo, setCrossCollectionInfo] = useState(null);
 
   const filteredColorOptions = useMemo(() => {
     const search = colorInput.toLowerCase();
@@ -41,6 +42,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     setLeatherColorName(formatted);
     setError("");
     setAddModeConflict(null);
+    setCrossCollectionInfo(null);
 
     const trimmed = formatted.trim();
     if (!trimmed) return;
@@ -51,20 +53,36 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     );
     const currentCollectionName = selectedCollection?.value || null;
 
-    const match = (leatherColors || []).find((lc) => {
+    const allMatches = (leatherColors || []).filter((lc) => {
       const lcName = formatNameOnBlur(lc.label || "");
-      const lcCollection = lc.collectionName || null;
-      return lcName === normalizedName && lcCollection === currentCollectionName;
+      return lcName === normalizedName;
     });
 
-    if (match) {
-      if (match.isActive) {
+    const sameCollectionMatch = allMatches.find(
+      (lc) => (lc.collectionName || null) === currentCollectionName
+    );
+    const otherCollectionMatch = allMatches.find(
+      (lc) => (lc.collectionName || null) !== currentCollectionName
+    );
+
+    if (sameCollectionMatch) {
+      if (sameCollectionMatch.isActive) {
         setError("This color already exists for this collection and is active. Would you like to update it?");
-        setAddModeConflict({ type: "update", color: match });
+        setAddModeConflict({ type: "update", color: sameCollectionMatch });
       } else {
         setError("This color exists for this collection but is discontinued. Would you like to reactivate it?");
-        setAddModeConflict({ type: "reactivate", color: match });
+        setAddModeConflict({ type: "reactivate", color: sameCollectionMatch });
       }
+    } else if (otherCollectionMatch) {
+      const otherCollection = otherCollectionMatch.collectionName || "another collection";
+      setError(
+        `This color name already exists in collection “${otherCollection}”. Creating it here will also discontinue the existing collection/color combination.`
+      );
+      setCrossCollectionInfo({
+        fromCollectionName: otherCollectionMatch.collectionName || null,
+        name: otherCollectionMatch.label || trimmed,
+      });
+      // Do NOT set addModeConflict here so the user can still proceed with Create
     }
   }, [leatherColors, resolvedCollectionOptions, selectedCollectionId]);
 
@@ -74,6 +92,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     setFormattedName(formatted);
     setError("");
     setAddModeConflict(null);
+    setCrossCollectionInfo(null);
 
     const trimmed = formatted.trim();
     if (!trimmed || !(leatherColors?.length)) return;
@@ -84,20 +103,36 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     );
     const currentCollectionName = selectedCollection?.value || null;
 
-    const match = (leatherColors || []).find((lc) => {
+    const allMatches = (leatherColors || []).filter((lc) => {
       const lcName = formatNameOnBlur(lc.label || "");
-      const lcCollection = lc.collectionName || null;
-      return lcName === normalizedName && lcCollection === currentCollectionName;
+      return lcName === normalizedName;
     });
 
-    if (match) {
-      if (match.isActive) {
+    const sameCollectionMatch = allMatches.find(
+      (lc) => (lc.collectionName || null) === currentCollectionName
+    );
+    const otherCollectionMatch = allMatches.find(
+      (lc) => (lc.collectionName || null) !== currentCollectionName
+    );
+
+    if (sameCollectionMatch) {
+      if (sameCollectionMatch.isActive) {
         setError("This color already exists for this collection and is active. Would you like to update it?");
-        setAddModeConflict({ type: "update", color: match });
+        setAddModeConflict({ type: "update", color: sameCollectionMatch });
       } else {
         setError("This color exists for this collection but is discontinued. Would you like to reactivate it?");
-        setAddModeConflict({ type: "reactivate", color: match });
+        setAddModeConflict({ type: "reactivate", color: sameCollectionMatch });
       }
+    } else if (otherCollectionMatch) {
+      const otherCollection = otherCollectionMatch.collectionName || "another collection";
+      setError(
+        `This color name already exists in collection “${otherCollection}”. Creating it here will also discontinue the existing collection/color combination.`
+      );
+      setCrossCollectionInfo({
+        fromCollectionName: otherCollectionMatch.collectionName || null,
+        name: otherCollectionMatch.label || trimmed,
+      });
+      // Informational only; user can still Create to trigger clone + draft behavior on the server
     }
   }, [leatherColorName, leatherColors, resolvedCollectionOptions, selectedCollectionId]);
 
@@ -498,6 +533,27 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           {!addModeConflict && error && (
             <InlineError message={error} fieldID="leatherColorName" />
           )}
+
+      {mode === "add" && crossCollectionInfo && (
+        <Box paddingBlock="300">
+          <Card>
+            <BlockStack gap="100">
+              <Text variant="headingSm">Existing collection/color will be updated later</Text>
+              <Text variant="bodyMd">
+                This color name already exists in
+                {crossCollectionInfo.fromCollectionName
+                  ? ` collection “${crossCollectionInfo.fromCollectionName}”`
+                  : " another collection"}
+                . Creating it here will also set that existing collection/color combination to draft.
+              </Text>
+              <Text variant="bodyMd" tone="subdued">
+                In a future step, this area will surface all products currently using that collection/color so you can
+                update availability (continue selling when out of stock), remove customization options, and adjust pricing or discounts.
+              </Text>
+            </BlockStack>
+          </Card>
+        </Box>
+      )}
         </BlockStack>
       )}
       {mode !== "add" && (

@@ -198,6 +198,8 @@ export default function AddLeatherColor () {
           switch (fetcher.data.actionType) {
             case 'add':
               return `Leather color ${fetcher.data.leatherColor.name} created!`;
+            case 'addFromDifferentCollection':
+              return `Leather color ${fetcher.data.leatherColor.name} created for the new collection.`;
             case 'update':
               return `Leather color ${fetcher.data.leatherColor.name} updated!`;
             case 'discontinue':
@@ -209,6 +211,18 @@ export default function AddLeatherColor () {
           }
         })()}
       />
+      {fetcher.data && fetcher.data.success && fetcher.data.actionType === 'addFromDifferentCollection' && fetcher.data.migratedFrom && (
+        <Box paddingBlock="400">
+          <Banner status="info" title="Existing collection updated">
+            <p>
+              A new leather color with the same name was created for the selected collection, and the
+              existing leather for <b>{fetcher.data.migratedFrom.collectionName}</b> was set to draft.
+              This is where you will later update products from that collection: remove “continue selling when out of stock”,
+              remove “customizable”, and offer discount options.
+            </p>
+          </Banner>
+        </Box>
+      )}
       {fetcher.data && fetcher.data.error && (
         <Box paddingBlock="400">
           <Banner status="critical">{fetcher.data.error}</Banner>
