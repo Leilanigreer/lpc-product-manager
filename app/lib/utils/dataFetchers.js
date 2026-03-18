@@ -40,17 +40,25 @@ const LEATHER_COLOR_METAOBJECT_QUERY = `#graphql
  * Fetches leather colors from Shopify leather_color metaobjects.
  * Only includes metaobjects with status ACTIVE. Returns same shape as getLeatherColors() for drop-in use.
  * @param {Object} admin - Shopify Admin API GraphQL client
- * @returns {Promise<Array<{ value, label, abbreviation, url_id, isLimitedEditionLeather, isActive, colorTags }>>}
+ * @returns {Promise<{ leatherColors: Array<...>, loadError?: string }>}
  */
 export const getLeatherColorsFromShopify = async (admin) => {
   if (!admin?.graphql) {
-    return [];
+    return { leatherColors: [], loadError: "No Shopify admin client available." };
   }
   try {
     const response = await admin.graphql(LEATHER_COLOR_METAOBJECT_QUERY, {
       variables: { first: 250 },
     });
     const json = await response.json();
+
+    const gqlErrors = json?.errors ?? [];
+    if (gqlErrors.length) {
+      const msg = gqlErrors.map((e) => e.message).join("; ");
+      console.error("Shopify GraphQL errors (leather_color):", msg);
+      return { leatherColors: [], loadError: msg };
+    }
+
     const nodes = json?.data?.metaobjects?.nodes ?? [];
     const leatherColors = nodes
       .filter((node) => {
@@ -76,10 +84,11 @@ export const getLeatherColorsFromShopify = async (admin) => {
       })
       .filter((lc) => lc.label)
       .sort((a, b) => a.label.localeCompare(b.label));
-    return leatherColors;
+    return { leatherColors };
   } catch (error) {
+    const msg = error?.message ?? String(error);
     console.error("Error fetching leather colors from Shopify:", error);
-    return [];
+    return { leatherColors: [], loadError: msg };
   }
 };
 

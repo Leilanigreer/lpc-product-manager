@@ -46,7 +46,7 @@ export const action = async ({ request }) => {
 };
 
 export default function AddLeatherColor () {
-  const { leatherColors, shopifyColors } = useLoaderData();
+  const { leatherColors, shopifyColors, leatherColorsLoadError } = useLoaderData();
   const fetcher = useFetcher();
   const [showSuccessBanner, setShowSuccessBanner] = React.useState(false);
   React.useEffect(() => {
@@ -90,7 +90,7 @@ export default function AddLeatherColor () {
       )}
       <Layout>
         <Layout.Section variant="oneHalf">
-          <AddLeatherColorForm leatherColors={leatherColors} shopifyColors={shopifyColors || []} fetcher={fetcher} />
+          <AddLeatherColorForm leatherColors={leatherColors} shopifyColors={shopifyColors || []} leatherColorsLoadError={leatherColorsLoadError} fetcher={fetcher} />
         </Layout.Section>
       </Layout>
       </Card>

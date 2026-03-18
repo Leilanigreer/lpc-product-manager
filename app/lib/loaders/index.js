@@ -20,14 +20,16 @@ import {
 export const loader = async ({ admin } = {}) => {  
   try {
     const fontsPromise = admin ? getFontsFromShopify(admin) : getFonts();
-    const leatherColorsPromise = admin ? getLeatherColorsFromShopify(admin) : getLeatherColors();
+    const leatherResultPromise = admin
+      ? getLeatherColorsFromShopify(admin)
+      : getLeatherColors().then((arr) => ({ leatherColors: arr }));
     const shopifyColorsPromise = admin ? getShopifyColorMetaobjects(admin) : Promise.resolve([]);
     const [
-      leatherColors, 
-      stitchingThreadColors, 
-      embroideryThreadColors, 
-      fonts, 
-      shapes, 
+      leatherResult,
+      stitchingThreadColors,
+      embroideryThreadColors,
+      fonts,
+      shapes,
       shopifyCollections,
       commonDescription,
       colorTags,
@@ -35,7 +37,7 @@ export const loader = async ({ admin } = {}) => {
       unlinkedAmannNumbers,
       shopifyColors,
     ] = await Promise.all([
-      leatherColorsPromise,
+      leatherResultPromise,
       getStitchingThreadColors(),
       getEmbroideryThreadColors(),
       fontsPromise,
@@ -48,10 +50,14 @@ export const loader = async ({ admin } = {}) => {
       shopifyColorsPromise,
     ]);
 
+    const leatherColors = leatherResult?.leatherColors ?? [];
+    const leatherColorsLoadError = leatherResult?.loadError ?? null;
+
     const productSets = await getProductSets(fonts, leatherColors);
 
     return {
       leatherColors,
+      leatherColorsLoadError,
       stitchingThreadColors,
       embroideryThreadColors,
       fonts,
@@ -70,6 +76,7 @@ export const loader = async ({ admin } = {}) => {
     return new Response(
       JSON.stringify({
         leatherColors: [],
+        leatherColorsLoadError: error.message,
         stitchingThreadColors: [],
         embroideryThreadColors: [],
         fonts: [],

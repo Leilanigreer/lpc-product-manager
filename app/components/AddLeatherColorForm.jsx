@@ -3,7 +3,7 @@ import { TextField, BlockStack, InlineStack, Tag, Combobox, Listbox, Icon, Box, 
 import { SearchIcon } from '@shopify/polaris-icons';
 import { formatNameLive, formatNameOnBlur, validateNameUnique, generateLeatherAbbreviation } from '../lib/utils/colorNameUtils';
 
-export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], fetcher }) {
+export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], leatherColorsLoadError, fetcher }) {
   const [mode, setMode] = useState("add");
   const [selectedLeatherColorId, setSelectedLeatherColorId] = useState("");
   const [leatherColorName, setLeatherColorName] = useState("");
@@ -518,6 +518,11 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
             <Text variant="bodyMd" tone="subdued">
               Loaded leather colors: {(leatherColors || []).length}. Existing abbreviations used when generating a new one: [{debugExistingAbbrs.join(", ") || "(none)"}]
             </Text>
+            {leatherColorsLoadError && (
+              <Text variant="bodyMd" tone="critical">
+                Load error: {leatherColorsLoadError}
+              </Text>
+            )}
             <Box paddingBlockStart="200">
               <Text variant="bodyMd" fontWeight="semibold">Per-item (label, abbreviation):</Text>
               <BlockStack gap="100">
