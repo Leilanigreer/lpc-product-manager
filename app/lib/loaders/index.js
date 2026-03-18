@@ -3,6 +3,7 @@
 import { 
   getLeatherColors, 
   getLeatherColorsFromShopify,
+  getLeatherCollectionNamesFromShopify,
   getStitchingThreadColors, 
   getEmbroideryThreadColors, 
   getFonts, 
@@ -24,6 +25,7 @@ export const loader = async ({ admin } = {}) => {
       ? getLeatherColorsFromShopify(admin)
       : getLeatherColors().then((arr) => ({ leatherColors: arr }));
     const shopifyColorsPromise = admin ? getShopifyColorMetaobjects(admin) : Promise.resolve([]);
+    const leatherCollectionNamesPromise = admin ? getLeatherCollectionNamesFromShopify(admin) : Promise.resolve([]);
     const [
       leatherResult,
       stitchingThreadColors,
@@ -36,6 +38,7 @@ export const loader = async ({ admin } = {}) => {
       unlinkedIsacordNumbers,
       unlinkedAmannNumbers,
       shopifyColors,
+      leatherCollectionNames,
     ] = await Promise.all([
       leatherResultPromise,
       getStitchingThreadColors(),
@@ -48,6 +51,7 @@ export const loader = async ({ admin } = {}) => {
       getUnlinkedIsacordNumbers(),
       getUnlinkedAmannNumbers(),
       shopifyColorsPromise,
+      leatherCollectionNamesPromise,
     ]);
 
     const leatherColors = leatherResult?.leatherColors ?? [];
@@ -69,6 +73,7 @@ export const loader = async ({ admin } = {}) => {
       unlinkedIsacordNumbers,
       unlinkedAmannNumbers,
       shopifyColors,
+      leatherCollectionNames,
       error: null
     };
   } catch (error) {

@@ -42,6 +42,22 @@ const LEATHER_COLOR_METAOBJECT_QUERY = `#graphql
   }
 `;
 
+const LEATHER_COLOR_COLLECTION_OPTIONS_QUERY = `#graphql
+  query GetLeatherColorCollectionOptions {
+    metaobjectDefinitions(type: "leather_color", first: 1) {
+      nodes {
+        fieldDefinitions {
+          key
+          validations {
+            name
+            value
+          }
+        }
+      }
+    }
+  }
+`;
+
 /**
  * Fetches leather colors from Shopify leather_color metaobjects.
  * Includes both ACTIVE and DRAFT; isActive is true only when status is ACTIVE (draft list = reactivate list).
@@ -95,6 +111,38 @@ export const getLeatherColorsFromShopify = async (admin) => {
     const msg = error?.message ?? String(error);
     console.error("Error fetching leather colors from Shopify:", error);
     return { leatherColors: [], loadError: msg };
+  }
+};
+
+export const getLeatherCollectionNamesFromShopify = async (admin) => {
+  if (!admin?.graphql) {
+    return [];
+  }
+  try {
+    const response = await admin.graphql(LEATHER_COLOR_COLLECTION_OPTIONS_QUERY);
+    const json = await response.json();
+    const nodes = json?.data?.metaobjectDefinitions?.nodes ?? [];
+    const fieldDefs = nodes[0]?.fieldDefinitions ?? [];
+    const collectionField = fieldDefs.find((f) => f.key === "collection_name");
+    if (!collectionField) return [];
+    const validations = collectionField.validations ?? [];
+    const choicesValidation = validations.find((v) => v.name === "choices");
+    if (!choicesValidation?.value) return [];
+    let parsed;
+    try {
+      parsed = JSON.parse(choicesValidation.value);
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((v) => (typeof v === "string" ? v.trim() : ""))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b))
+      .map((label) => ({ label, value: label }));
+  } catch (error) {
+    console.error("Error fetching leather collection_name options from Shopify:", error);
+    return [];
   }
 };
 
