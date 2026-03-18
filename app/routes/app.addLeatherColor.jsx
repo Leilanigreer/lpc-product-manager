@@ -3,6 +3,7 @@ import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { json } from "@remix-run/node";
 import { loader as dataLoader } from "../lib/loaders";
+import { getLeatherColorsFromShopify } from "../lib/utils/dataFetchers";
 import { authenticate } from "../shopify.server";
 import { Page, Layout, Box, Banner, Card, BlockStack } from "@shopify/polaris";
 import AddLeatherColorForm from "../components/AddLeatherColorForm";
@@ -96,18 +97,74 @@ export const action = async ({ request }) => {
     return json({ success: false, error: "Collection is required for Standard Stock leather colors." }, { status: 400 });
   }
   try {
-    const created = await createShopifyLeatherColor(admin, {
-      name,
-      abbreviation,
-      isLimitedEditionLeather,
-      collectionName,
-      colorMetaobjectIds,
-    });
+    // Fetch existing leather colors to enforce collection + name rules
+    const { leatherColors: existingLeatherColors = [] } = await getLeatherColorsFromShopify(admin);
+
+    // Normalize name once; client already sends formatted name, but be defensive
+    const normalizedName = name.trim();
+
+    const exactMatch = existingLeatherColors.find(
+      (lc) => lc.label === normalizedName && lc.collectionName === collectionName
+    );
+
+    // If exact (collection + name) exists, treat as a validation error; UI should route user to Update/Reactivate
+    if (exactMatch) {
+      const message = exactMatch.isActive
+        ? "This leather color already exists for this collection. Please use Update instead."
+        : "This leather color already exists for this collection but is discontinued. Please use Reactivate instead.";
+      return json({ success: false, error: message }, { status: 400 });
+    }
+
+    // Look for same name in a different collection
+    const sameNameDifferentCollection = existingLeatherColors.find(
+      (lc) => lc.label === normalizedName && lc.collectionName !== collectionName
+    );
+
+    let created;
+    let migratedFrom = null;
+
+    if (sameNameDifferentCollection) {
+      const source = sameNameDifferentCollection;
+      const sourceAbbreviation = source.abbreviation || abbreviation;
+      const sourceColorIds = source.colorMetaobjectIds || [];
+
+      // 1. Create new color for the new collection, cloning abbreviation and color tags
+      created = await createShopifyLeatherColor(admin, {
+        name: normalizedName,
+        abbreviation: sourceAbbreviation,
+        isLimitedEditionLeather,
+        collectionName,
+        colorMetaobjectIds: sourceColorIds,
+      });
+
+      // 2. Mark the old (collection, name) combo as draft (setActive: false), preserving its fields
+      await updateShopifyLeatherColor(admin, {
+        id: source.value,
+        isLimitedEditionLeather: source.isLimitedEditionLeather,
+        colorMetaobjectIds: sourceColorIds,
+        setActive: false,
+      });
+
+      migratedFrom = {
+        collectionName: source.collectionName || null,
+        name: source.label,
+      };
+    } else {
+      // Normal creation path when name+collection pair is entirely new
+      created = await createShopifyLeatherColor(admin, {
+        name: normalizedName,
+        abbreviation,
+        isLimitedEditionLeather,
+        collectionName,
+        colorMetaobjectIds,
+      });
+    }
 
     return json({
       success: true,
-      actionType: "add",
+      actionType: sameNameDifferentCollection ? "addFromDifferentCollection" : "add",
       leatherColor: created,
+      migratedFrom,
     });
   } catch (error) {
     return json({ success: false, error: error.message }, { status: 500 });

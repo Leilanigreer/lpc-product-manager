@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { TextField, BlockStack, InlineStack, Tag, Combobox, Listbox, Icon, Box, Button, Modal, InlineError, RadioButton, Text, Divider, Card } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
-import { formatNameLive, formatNameOnBlur, validateNameUnique, generateLeatherAbbreviation } from '../lib/utils/colorNameUtils';
+import { formatNameLive, formatNameOnBlur, generateLeatherAbbreviation } from '../lib/utils/colorNameUtils';
 
 export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], leatherColorsLoadError, collectionOptions = [], fetcher }) {
   const [mode, setMode] = useState("add");
@@ -41,22 +41,32 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     setLeatherColorName(formatted);
     setError("");
     setAddModeConflict(null);
-    if (formatted.trim()) {
-      const isUnique = validateNameUnique(leatherColors, formatted, 'label');
-      if (!isUnique) {
-        const match = leatherColors.find(lc => formatNameOnBlur(lc.label) === formatNameOnBlur(formatted));
-        if (match) {
-          if (match.isActive) {
-            setError("This color already exists and is active. Would you like to update it?");
-            setAddModeConflict({ type: 'update', color: match });
-          } else {
-            setError("This color exists but is discontinued. Would you like to reactivate it?");
-            setAddModeConflict({ type: 'reactivate', color: match });
-          }
-        }
+
+    const trimmed = formatted.trim();
+    if (!trimmed) return;
+
+    const normalizedName = formatNameOnBlur(trimmed);
+    const selectedCollection = (resolvedCollectionOptions || []).find(
+      (c) => c.value === selectedCollectionId
+    );
+    const currentCollectionName = selectedCollection?.value || null;
+
+    const match = (leatherColors || []).find((lc) => {
+      const lcName = formatNameOnBlur(lc.label || "");
+      const lcCollection = lc.collectionName || null;
+      return lcName === normalizedName && lcCollection === currentCollectionName;
+    });
+
+    if (match) {
+      if (match.isActive) {
+        setError("This color already exists for this collection and is active. Would you like to update it?");
+        setAddModeConflict({ type: "update", color: match });
+      } else {
+        setError("This color exists for this collection but is discontinued. Would you like to reactivate it?");
+        setAddModeConflict({ type: "reactivate", color: match });
       }
     }
-  }, [leatherColors]);
+  }, [leatherColors, resolvedCollectionOptions, selectedCollectionId]);
 
   const handleNameBlur = useCallback(() => {
     const formatted = formatNameOnBlur(leatherColorName);
@@ -64,22 +74,32 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     setFormattedName(formatted);
     setError("");
     setAddModeConflict(null);
-    if (formatted.trim() && leatherColors?.length) {
-      const isUnique = validateNameUnique(leatherColors, formatted, "label");
-      if (!isUnique) {
-        const match = leatherColors.find((lc) => formatNameOnBlur(lc.label) === formatNameOnBlur(formatted));
-        if (match) {
-          if (match.isActive) {
-            setError("This color already exists and is active. Would you like to update it?");
-            setAddModeConflict({ type: "update", color: match });
-          } else {
-            setError("This color exists but is discontinued. Would you like to reactivate it?");
-            setAddModeConflict({ type: "reactivate", color: match });
-          }
-        }
+
+    const trimmed = formatted.trim();
+    if (!trimmed || !(leatherColors?.length)) return;
+
+    const normalizedName = formatNameOnBlur(trimmed);
+    const selectedCollection = (resolvedCollectionOptions || []).find(
+      (c) => c.value === selectedCollectionId
+    );
+    const currentCollectionName = selectedCollection?.value || null;
+
+    const match = (leatherColors || []).find((lc) => {
+      const lcName = formatNameOnBlur(lc.label || "");
+      const lcCollection = lc.collectionName || null;
+      return lcName === normalizedName && lcCollection === currentCollectionName;
+    });
+
+    if (match) {
+      if (match.isActive) {
+        setError("This color already exists for this collection and is active. Would you like to update it?");
+        setAddModeConflict({ type: "update", color: match });
+      } else {
+        setError("This color exists for this collection but is discontinued. Would you like to reactivate it?");
+        setAddModeConflict({ type: "reactivate", color: match });
       }
     }
-  }, [leatherColorName, leatherColors]);
+  }, [leatherColorName, leatherColors, resolvedCollectionOptions, selectedCollectionId]);
 
   const handleColorSelect = useCallback((value) => {
     if (!selectedColorIds.includes(value)) {
@@ -112,19 +132,25 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       return;
     }
 
-    const isUnique = validateNameUnique(leatherColors || [], formatted, "label");
-    if (!isUnique) {
-      const match = (leatherColors || []).find((lc) => formatNameOnBlur(lc.label) === formatNameOnBlur(formatted));
-      if (match) {
-        if (match.isActive) {
-          setError("This leather color name already exists. Would you like to update it instead?");
-          setAddModeConflict({ type: "update", color: match });
-        } else {
-          setError("This color exists but is discontinued. Would you like to reactivate it?");
-          setAddModeConflict({ type: "reactivate", color: match });
-        }
+    const normalizedName = formatNameOnBlur(formatted);
+    const selectedCollection = (resolvedCollectionOptions || []).find(
+      (c) => c.value === selectedCollectionId
+    );
+    const currentCollectionName = selectedCollection?.value || null;
+
+    const match = (leatherColors || []).find((lc) => {
+      const lcName = formatNameOnBlur(lc.label || "");
+      const lcCollection = lc.collectionName || null;
+      return lcName === normalizedName && lcCollection === currentCollectionName;
+    });
+
+    if (match) {
+      if (match.isActive) {
+        setError("This leather color name already exists for this collection. Would you like to update it instead?");
+        setAddModeConflict({ type: "update", color: match });
       } else {
-        setError("This leather color name already exists.");
+        setError("This color exists for this collection but is discontinued. Would you like to reactivate it?");
+        setAddModeConflict({ type: "reactivate", color: match });
       }
       return;
     }
@@ -140,7 +166,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     setGeneratedAbbr(abbr);
     setModalOpen(true);
     setError("");
-  }, [leatherColorName, leatherColors, selectedColorIds, isLimitedEditionLeather, selectedCollectionId]);
+  }, [leatherColorName, leatherColors, selectedColorIds, isLimitedEditionLeather, selectedCollectionId, resolvedCollectionOptions]);
 
   const handleConfirm = useCallback(() => {
     if (!formattedName?.trim() || !generatedAbbr?.trim() || !selectedColorIds.length) return;
@@ -389,7 +415,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
             </Box>
           </InlineStack>
 
-          <Box paddingBlockStart="200">
+          <Box paddingBlockStart="300">
             <InlineStack gap="800" align="start" wrap={false}>
               <Box width="50%">
                 <Text variant="bodyMd" as="label" fontWeight="medium">
