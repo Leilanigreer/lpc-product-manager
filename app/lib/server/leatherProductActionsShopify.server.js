@@ -36,9 +36,9 @@ const METAFIELDS_SET_MUTATION = `#graphql
   }
 `;
 
-const TAGS_REMOVE_MUTATION = `#graphql
-  mutation TagsRemove($id: ID!, $tags: [String!]!) {
-    tagsRemove(id: $id, tags: $tags) {
+const PRODUCT_UPDATE_TAGS_MUTATION = `#graphql
+  mutation ProductUpdateTags($input: ProductInput!) {
+    productUpdate(input: $input) {
       userErrors {
         field
         message
@@ -114,19 +114,25 @@ async function setAllVariantCustomizableFalse(admin, variantIds) {
 }
 
 async function removeCustomizableTag(admin, productId, tags) {
-  const customizableTags = (tags || []).filter(
-    (t) => typeof t === "string" && t.toLowerCase() === "customizable"
-  );
-  if (!customizableTags.length) return;
-  const response = await admin.graphql(TAGS_REMOVE_MUTATION, {
-    variables: { id: productId, tags: customizableTags },
+  const currentTags = (tags || []).filter((t) => typeof t === "string");
+  const nextTags = currentTags.filter((t) => t.toLowerCase() !== "customizable");
+  // Nothing to change.
+  if (nextTags.length === currentTags.length) return;
+
+  const response = await admin.graphql(PRODUCT_UPDATE_TAGS_MUTATION, {
+    variables: {
+      input: {
+        id: productId,
+        tags: nextTags,
+      },
+    },
   });
   const json = await response.json();
   const gqlErrors = json?.errors ?? [];
   if (gqlErrors.length) {
     throw new Error(gqlErrors.map((e) => e.message).join("; "));
   }
-  const userErrors = json?.data?.tagsRemove?.userErrors ?? [];
+  const userErrors = json?.data?.productUpdate?.userErrors ?? [];
   const messages = collectErrors(userErrors);
   if (messages.length) throw new Error(messages.join("; "));
 }

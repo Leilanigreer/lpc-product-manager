@@ -388,7 +388,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
 
   const buildDefaultProductActions = useCallback((product) => ({
     removeContinueSellingWhenOos: !!product.hasContinueSelling,
-    removeCustomizableOptions: !!product.hasCustomizable,
+    removeCustomizableOptions: !!product.hasCustomizable || !!product.hasCustomizableTag,
     applyDiscount40: !!product.hasDiscount40,
     applyDiscount60: !!product.hasDiscount60,
   }), []);
@@ -943,6 +943,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                             {LINKED_PRODUCT_ACTION_KEYS.map(({ key, hint }) => (
                               <Box key={key} paddingInline="100">
                                 {(() => {
+                                  const defaults = buildDefaultProductActions(p);
                                   const isDiscountKey = key === "applyDiscount40" || key === "applyDiscount60";
                                   const isRemovalKey =
                                     key === "removeContinueSellingWhenOos" ||
@@ -954,8 +955,8 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                                   const isLockedInitialRemoval =
                                     isRemovalKey &&
                                     (key === "removeContinueSellingWhenOos"
-                                      ? !p.hasContinueSelling
-                                      : !p.hasCustomizable);
+                                      ? !defaults.removeContinueSellingWhenOos
+                                      : !defaults.removeCustomizableOptions);
                                   return (
                                 <Checkbox
                                   label={`${hint} for ${p.title}`}
