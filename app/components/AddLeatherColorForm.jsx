@@ -1046,7 +1046,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       {mode === "reactivate" && (
         <Button
           primary
-          disabled={!selectedLeatherColorId || !hasUpdateChanges}
+          disabled={!selectedLeatherColorId}
           onClick={() => {
             const formData = new FormData();
             formData.append("actionType", "reactivateLeatherColor");
@@ -1064,7 +1064,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
             fetcher.submit(formData, { method: "post" });
           }}
         >
-          Update and Set as Active
+          {hasUpdateChanges ? "Update and Set as Active" : "Set as Active"}
         </Button>
       )}
       {mode === "discontinue" && (
