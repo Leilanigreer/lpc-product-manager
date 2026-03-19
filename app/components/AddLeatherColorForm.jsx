@@ -336,7 +336,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   }, [selectedLeatherColorId, mode]);
 
   React.useEffect(() => {
-    if (mode !== "update" && mode !== "discontinue") return;
+    if (mode !== "update" && mode !== "discontinue" && mode !== "reactivate") return;
     if (!selectedLeatherColorId) return;
     const q = new URLSearchParams({ leatherColorId: selectedLeatherColorId });
     linkedProductsFetcher.load(`/app/api/leather-color-products?${q}`);
@@ -1115,6 +1115,58 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                       })}
                     </div>
                   </Box>
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Card>
+        </Box>
+      )}
+      {mode === "reactivate" && selectedLeatherColorId && (
+        <Box paddingBlockStart="400">
+          <Card>
+            <BlockStack gap="300">
+              <Text variant="headingSm" as="h3">
+                Products using this leather
+              </Text>
+              {linkedProductsLoading && (
+                <InlineStack gap="200" blockAlign="center">
+                  <Spinner size="small" />
+                  <Text tone="subdued">Loading products…</Text>
+                </InlineStack>
+              )}
+              {!linkedProductsLoading && linkedProductsError && (
+                <Text tone="critical">{linkedProductsError}</Text>
+              )}
+              {!linkedProductsLoading && !linkedProductsError && linkedProducts.length === 0 && (
+                <Text tone="subdued">
+                  No Active Shopify products found that reference this leather color.
+                </Text>
+              )}
+              {!linkedProductsLoading && !linkedProductsError && linkedProducts.length > 0 && (
+                <BlockStack gap="100">
+                  {linkedProducts.map((p) => {
+                    const titleUrl = p.adminProductUrl || p.liveProductUrl;
+                    return (
+                      <Box key={p.shopifyProductId}>
+                        {titleUrl ? (
+                          <a
+                            href={titleUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: "inherit", textDecoration: "underline" }}
+                          >
+                            <Text variant="bodyMd" as="span">
+                              {p.title}
+                            </Text>
+                          </a>
+                        ) : (
+                          <Text variant="bodyMd" as="p">
+                            {p.title}
+                          </Text>
+                        )}
+                      </Box>
+                    );
+                  })}
                 </BlockStack>
               )}
             </BlockStack>
