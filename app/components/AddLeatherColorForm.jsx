@@ -951,13 +951,17 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                                     isDiscountKey &&
                                     ((key === "applyDiscount40" && !!p.hasDiscount40) ||
                                       (key === "applyDiscount60" && !!p.hasDiscount60));
-                                  const isLockedUncheckedRemoval = isRemovalKey && !row[key];
+                                  const isLockedInitialRemoval =
+                                    isRemovalKey &&
+                                    (key === "removeContinueSellingWhenOos"
+                                      ? !p.hasContinueSelling
+                                      : !p.hasCustomizable);
                                   return (
                                 <Checkbox
                                   label={`${hint} for ${p.title}`}
                                   labelHidden
                                   checked={!!row[key]}
-                                  disabled={isLockedCheckedDiscount || isLockedUncheckedRemoval}
+                                  disabled={isLockedCheckedDiscount || isLockedInitialRemoval}
                                   onChange={(checked) => setLinkedAction(p.shopifyProductId, key, checked)}
                                 />
                                   );
