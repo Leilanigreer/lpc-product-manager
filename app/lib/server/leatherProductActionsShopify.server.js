@@ -8,6 +8,8 @@ const PRODUCT_VARIANTS_AND_TAGS_QUERY = `#graphql
       variants(first: 250) {
         nodes {
           id
+          price
+          compareAtPrice
         }
       }
     }
@@ -71,6 +73,13 @@ async function fetchProductVariantsAndTags(admin, productId) {
   return {
     id: product.id,
     tags: product.tags ?? [],
+    variants: (product.variants?.nodes ?? [])
+      .map((v) => ({
+        id: v?.id,
+        price: v?.price,
+        compareAtPrice: v?.compareAtPrice,
+      }))
+      .filter((v) => v.id),
     variantIds: (product.variants?.nodes ?? []).map((v) => v?.id).filter(Boolean),
   };
 }
@@ -87,6 +96,90 @@ async function setAllVariantInventoryDeny(admin, productId, variantIds) {
     throw new Error(gqlErrors.map((e) => e.message).join("; "));
   }
   const userErrors = json?.data?.productVariantsBulkUpdate?.userErrors ?? [];
+  const messages = collectErrors(userErrors);
+  if (messages.length) throw new Error(messages.join("; "));
+}
+
+function toMoneyNumber(value) {
+  if (value == null) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
+
+function toMoneyString(value) {
+  return Number(value).toFixed(2);
+}
+
+async function applyDiscountToAllVariants(admin, productId, variants, discountPercent) {
+  if (!Array.isArray(variants) || !variants.length) return;
+  const multiplier = 1 - discountPercent / 100;
+  const updates = [];
+
+  for (const v of variants) {
+    const price = toMoneyNumber(v.price);
+    const compareAt = toMoneyNumber(v.compareAtPrice);
+    const baseCompareAt = compareAt != null && compareAt > 0 ? compareAt : price;
+    if (baseCompareAt == null || baseCompareAt <= 0) continue;
+
+    const nextPrice = baseCompareAt * multiplier;
+    updates.push({
+      id: v.id,
+      price: toMoneyString(nextPrice),
+      compareAtPrice: toMoneyString(baseCompareAt),
+    });
+  }
+
+  if (!updates.length) return;
+
+  const response = await admin.graphql(PRODUCT_VARIANTS_BULK_UPDATE_MUTATION, {
+    variables: { productId, variants: updates },
+  });
+  const json = await response.json();
+  const gqlErrors = json?.errors ?? [];
+  if (gqlErrors.length) {
+    throw new Error(gqlErrors.map((e) => e.message).join("; "));
+  }
+  const userErrors = json?.data?.productVariantsBulkUpdate?.userErrors ?? [];
+  const messages = collectErrors(userErrors);
+  if (messages.length) throw new Error(messages.join("; "));
+}
+
+async function setExclusiveDiscountTag(admin, productId, currentTags, discountTag) {
+  const allowed = new Set(["last-chance", "clearance"]);
+  const normalizedDiscountTag = String(discountTag || "").toLowerCase();
+  if (!allowed.has(normalizedDiscountTag)) return;
+
+  const existing = (currentTags || []).filter((t) => typeof t === "string");
+  const filtered = existing.filter((t) => {
+    const lower = t.toLowerCase();
+    return lower !== "last-chance" && lower !== "clearance";
+  });
+
+  const lowerFiltered = new Set(filtered.map((t) => t.toLowerCase()));
+  if (!lowerFiltered.has(normalizedDiscountTag)) {
+    filtered.push(normalizedDiscountTag);
+  }
+
+  // If tags already match exactly (case-insensitive), skip mutation.
+  const existingNorm = existing.map((t) => t.toLowerCase()).sort().join("|");
+  const nextNorm = filtered.map((t) => t.toLowerCase()).sort().join("|");
+  if (existingNorm === nextNorm) return;
+
+  const response = await admin.graphql(PRODUCT_UPDATE_TAGS_MUTATION, {
+    variables: {
+      input: {
+        id: productId,
+        tags: filtered,
+      },
+    },
+  });
+  const json = await response.json();
+  const gqlErrors = json?.errors ?? [];
+  if (gqlErrors.length) {
+    throw new Error(gqlErrors.map((e) => e.message).join("; "));
+  }
+  const userErrors = json?.data?.productUpdate?.userErrors ?? [];
   const messages = collectErrors(userErrors);
   if (messages.length) throw new Error(messages.join("; "));
 }
@@ -200,8 +293,23 @@ export async function applyLinkedProductActions(
       parseBoolean(baseline.removeCustomizableOptions) &&
       !parseBoolean(actions.removeCustomizableOptions);
 
+    const shouldApplyDiscount40 =
+      !parseBoolean(baseline.applyDiscount40) &&
+      parseBoolean(actions.applyDiscount40);
+
+    const shouldApplyDiscount60 =
+      !parseBoolean(baseline.applyDiscount60) &&
+      parseBoolean(actions.applyDiscount60);
+
+    const discountToApply = shouldApplyDiscount60 ? 60 : shouldApplyDiscount40 ? 40 : null;
+
     const shouldSyncProductColors = Array.isArray(colorMetaobjectIds);
-    if (!shouldSetInventoryDeny && !shouldRemoveCustomizable && !shouldSyncProductColors) continue;
+    if (
+      !shouldSetInventoryDeny &&
+      !shouldRemoveCustomizable &&
+      !discountToApply &&
+      !shouldSyncProductColors
+    ) continue;
 
     const product = await fetchProductVariantsAndTags(admin, productId);
     if (!product) continue;
@@ -213,6 +321,12 @@ export async function applyLinkedProductActions(
     if (shouldRemoveCustomizable) {
       await removeCustomizableTag(admin, product.id, product.tags);
       await setAllVariantCustomizableFalse(admin, product.variantIds);
+    }
+
+    if (discountToApply) {
+      await applyDiscountToAllVariants(admin, product.id, product.variants, discountToApply);
+      const discountTag = discountToApply === 60 ? "clearance" : "last-chance";
+      await setExclusiveDiscountTag(admin, product.id, product.tags, discountTag);
     }
 
     if (shouldSyncProductColors) {
