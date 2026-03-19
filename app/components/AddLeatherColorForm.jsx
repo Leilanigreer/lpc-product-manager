@@ -18,6 +18,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   const [addModeConflict, setAddModeConflict] = useState(null);
   const [showDebug, setShowDebug] = useState(true);
   const [crossCollectionInfo, setCrossCollectionInfo] = useState(null);
+  const prevModeRef = React.useRef(mode);
 
   const filteredColorOptions = useMemo(() => {
     const search = colorInput.toLowerCase();
@@ -295,35 +296,34 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     selectedColorIds.length > 0 &&
     !addModeConflict;
 
-  // When switching to update mode or selecting a leather color, pre-fill fields
+  // On mode change: reset everything. Then pre-fill only when a leather is selected (Update/Reactivate).
+  // prevModeRef avoids prefill running with a stale selectedLeatherColorId from the previous mode in the same tick.
   React.useEffect(() => {
-    if (mode === "update" && selectedLeatherColorId) {
-      const selected = leatherColorOptions.find(opt => opt.value === selectedLeatherColorId);
-      if (selected) {
-        setLeatherColorName(selected.label);
-        setFormattedName(selected.label);
-        setGeneratedAbbr(selected.abbreviation || "");
-        setIsLimitedEditionLeather(!!selected.isLimitedEditionLeather);
-        setSelectedColorIds(selected.colorMetaobjectIds || []);
-      }
-    }
-    if (mode === "add") {
-      setLeatherColorName("");
-      setFormattedName("");
-      setGeneratedAbbr("");
-      setIsLimitedEditionLeather(false);
-      setSelectedColorIds([]);
+    const modeChanged = prevModeRef.current !== mode;
+    if (modeChanged) {
+      prevModeRef.current = mode;
       setSelectedLeatherColorId("");
+      setLeatherColorName("");
+      setSelectedCollectionId("");
+      setSelectedColorIds([]);
+      setColorInput("");
+      setError("");
+      setModalOpen(false);
+      setGeneratedAbbr("");
+      setFormattedName("");
+      setIsLimitedEditionLeather(false);
+      setAddModeConflict(null);
+      setCrossCollectionInfo(null);
+      return;
     }
-    if (mode === "reactivate" && selectedLeatherColorId) {
-      const selected = leatherColorOptions.find(opt => opt.value === selectedLeatherColorId);
-      if (selected) {
-        setLeatherColorName(selected.label);
-        setFormattedName(selected.label);
-        setGeneratedAbbr(selected.abbreviation || "");
-        setIsLimitedEditionLeather(!!selected.isLimitedEditionLeather);
-        setSelectedColorIds(selected.colorMetaobjectIds || []);
-      }
+    if ((mode !== "update" && mode !== "reactivate") || !selectedLeatherColorId) return;
+    const selected = leatherColorOptions.find((opt) => opt.value === selectedLeatherColorId);
+    if (selected) {
+      setLeatherColorName(selected.label);
+      setFormattedName(selected.label);
+      setGeneratedAbbr(selected.abbreviation || "");
+      setIsLimitedEditionLeather(!!selected.isLimitedEditionLeather);
+      setSelectedColorIds(selected.colorMetaobjectIds || []);
     }
   }, [mode, selectedLeatherColorId, leatherColorOptions]);
 
