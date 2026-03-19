@@ -9,6 +9,7 @@ import { Page, Layout, Box, Banner, Card, BlockStack } from "@shopify/polaris";
 import AddLeatherColorForm from "../components/AddLeatherColorForm";
 import { createShopifyLeatherColor, updateShopifyLeatherColor } from "../lib/server/leatherColorShopify.server.js";
 import { buildLeatherBlendedCollectionName } from "../lib/utils/colorNameUtils.js";
+import { applyLinkedProductActions } from "../lib/server/leatherProductActionsShopify.server.js";
 import SuccessBanner from "../components/SuccessBanner.jsx";
 
 export const loader = async ({ request }) => {
@@ -21,6 +22,16 @@ export const action = async ({ request }) => {
 
   const formData = await request.formData();
   const actionType = formData.get("actionType");
+  const linkedProductActionsRaw = formData.get("linkedProductActions");
+  let linkedProductActions = [];
+  if (typeof linkedProductActionsRaw === "string" && linkedProductActionsRaw.trim() !== "") {
+    try {
+      const parsed = JSON.parse(linkedProductActionsRaw);
+      linkedProductActions = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return json({ success: false, error: "Invalid linkedProductActions payload." }, { status: 400 });
+    }
+  }
 
   if (actionType === "updateLeatherColor") {
     const leatherColorId = formData.get("leatherColorId");
@@ -43,7 +54,13 @@ export const action = async ({ request }) => {
           ? { blendedCollectionName: String(blendedCollectionName).trim() }
           : {}),
       });
-      return json({ success: true, actionType: "update", leatherColor: updated });
+      const productActionsResult = await applyLinkedProductActions(admin, linkedProductActions);
+      return json({
+        success: true,
+        actionType: "update",
+        leatherColor: updated,
+        productActionsResult,
+      });
     } catch (error) {
       return json({ success: false, error: error.message }, { status: 500 });
     }
@@ -91,7 +108,13 @@ export const action = async ({ request }) => {
           ? { blendedCollectionName: String(blendedCollectionName).trim() }
           : {}),
       });
-      return json({ success: true, actionType: "discontinue", leatherColor: discontinued });
+      const productActionsResult = await applyLinkedProductActions(admin, linkedProductActions);
+      return json({
+        success: true,
+        actionType: "discontinue",
+        leatherColor: discontinued,
+        productActionsResult,
+      });
     } catch (error) {
       return json({ success: false, error: error.message }, { status: 500 });
     }

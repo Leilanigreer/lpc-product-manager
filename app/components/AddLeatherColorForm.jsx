@@ -1074,7 +1074,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           disabled={!selectedLeatherColorId}
           onClick={() => openActionsValidationModal("discontinue")}
         >
-          Discontinue (set to draft)
+          Discontinue Collection & Leather Color
         </Button>
       )}
       <Modal
