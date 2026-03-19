@@ -11,7 +11,7 @@ const LINKED_PRODUCT_ACTION_KEYS = [
   { key: "applyDiscount60", short: "−60%", hint: "Apply 60% discount" },
 ];
 
-export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], leatherColorsLoadError, collectionOptions = [], fetcher }) {
+export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], collectionOptions = [], fetcher }) {
   const linkedProductsFetcher = useFetcher();
   const [linkedProductActions, setLinkedProductActions] = useState({});
   const [actionsValidationModalOpen, setActionsValidationModalOpen] = useState(false);
@@ -28,7 +28,6 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   const [formattedName, setFormattedName] = useState("");
   const [isLimitedEditionLeather, setIsLimitedEditionLeather] = useState(false);
   const [addModeConflict, setAddModeConflict] = useState(null);
-  const [showDebug, setShowDebug] = useState(true);
   const [crossCollectionInfo, setCrossCollectionInfo] = useState(null);
   const prevModeRef = React.useRef(mode);
 
@@ -295,13 +294,6 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     return !sameType || !sameColors;
   }, [selectedLeatherForUpdate, isLimitedEditionLeather, selectedColorIds]);
 
-  // Debug: existing abbreviations used for abbreviation generation
-  const debugExistingAbbrs = useMemo(() => {
-    return (leatherColors || [])
-      .map((lc) => (lc.abbreviation != null ? String(lc.abbreviation).trim() : ""))
-      .filter(Boolean);
-  }, [leatherColors]);
-
   const canCreate =
     mode === "add" &&
     formatNameOnBlur(leatherColorName).trim() !== "" &&
@@ -547,13 +539,6 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           </Text>
         </Box>
       )}
-      {/* {mode === "discontinue" && (
-        <Box paddingBlock="200">
-          <Text tone="critical" variant="bodyMd">
-            Discontinuing sets the leather color to draft and removes it from the product creation list. Use the checklist below to plan changes for live products that still use this leather (actions are not applied automatically yet).
-          </Text>
-        </Box>
-      )} */}
 
       {mode === "add" && (
         <BlockStack gap="100">
@@ -864,10 +849,6 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
               <Text variant="headingSm" as="h3">
                 Active products using this leather
               </Text>
-              <Text variant="bodyMd" tone="subdued">
-                Pulled from Shopify products that reference this leather in `custom.leathers_used`, limited to
-                products that are still Active in Shopify. Check the actions you want to apply (wording and automation can be wired up next).
-              </Text>
               {linkedProductsLoading && (
                 <InlineStack gap="200" blockAlign="center">
                   <Spinner size="small" />
@@ -1028,10 +1009,6 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
               <Text variant="headingSm" as="h3">
                 Active products using this leather
               </Text>
-              <Text variant="bodyMd" tone="subdued">
-                Pulled from Shopify products that reference this leather in `custom.leathers_used`, limited to
-                products that are still Active in Shopify. Check the actions you want to apply (wording and automation can be wired up next).
-              </Text>
               {linkedProductsLoading && (
                 <InlineStack gap="200" blockAlign="center">
                   <Spinner size="small" />
@@ -1151,11 +1128,6 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       )}
       {mode === "update" && (
         <BlockStack gap="200">
-          <Box paddingBlockStart="200">
-            <Text tone="info" variant="bodyMd">
-              Changing stock type or colors here does not change any current product states until business logic is defined.
-            </Text>
-          </Box>
           <Button
             primary
             disabled={!selectedLeatherColorId || (!hasUpdateChanges && !hasLinkedActionChanges)}
@@ -1285,52 +1257,6 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           </BlockStack>
         </Modal.Section>
       </Modal>
-      {/*
-      Debug: object data for abbreviation / duplicate-name troubleshooting
-      {showDebug && (
-        <Card>
-          <BlockStack gap="200">
-            <InlineStack align="space-between" blockAlign="center">
-              <Text variant="headingSm">Debug: leather color data</Text>
-              <Button size="slim" onClick={() => setShowDebug(false)}>
-                Hide
-              </Button>
-            </InlineStack>
-            <Text variant="bodyMd" tone="subdued">
-              Loaded leather colors: {(leatherColors || []).length}. Existing abbreviations used when generating a new one: [{debugExistingAbbrs.join(", ") || "(none)"}]
-            </Text>
-            {leatherColorsLoadError && (
-              <Text variant="bodyMd" tone="critical">
-                Load error: {leatherColorsLoadError}
-              </Text>
-            )}
-            <Box paddingBlockStart="200">
-              <Text variant="bodyMd" fontWeight="semibold">Per-item (collection, label, abbreviation):</Text>
-              <BlockStack gap="100">
-                {(leatherColors || []).slice(0, 50).map((lc) => (
-                  <Text key={lc.value ?? lc.id} variant="bodyMd" tone="subdued" as="p">
-                    {JSON.stringify({
-                      collectionName: lc.collectionName ?? null,
-                      label: lc.label,
-                      abbreviation:
-                        lc.abbreviation == null ? "(null)" : lc.abbreviation === "" ? '""' : lc.abbreviation,
-                    })}
-                  </Text>
-                ))}
-                {(leatherColors || []).length > 50 && (
-                  <Text variant="bodyMd" tone="subdued">… and {(leatherColors || []).length - 50} more</Text>
-                )}
-              </BlockStack>
-            </Box>
-          </BlockStack>
-        </Card>
-      )}
-      {!showDebug && (
-        <Button size="slim" onClick={() => setShowDebug(true)}>
-          Show debug (leather data)
-        </Button>
-      )}
-      */}
     </BlockStack>
   );
 } 
