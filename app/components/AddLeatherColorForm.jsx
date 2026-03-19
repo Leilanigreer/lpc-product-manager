@@ -547,13 +547,13 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           </Text>
         </Box>
       )}
-      {mode === "discontinue" && (
+      {/* {mode === "discontinue" && (
         <Box paddingBlock="200">
           <Text tone="critical" variant="bodyMd">
             Discontinuing sets the leather color to draft and removes it from the product creation list. Use the checklist below to plan changes for live products that still use this leather (actions are not applied automatically yet).
           </Text>
         </Box>
-      )}
+      )} */}
 
       {mode === "add" && (
         <BlockStack gap="100">
@@ -1285,7 +1285,8 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           </BlockStack>
         </Modal.Section>
       </Modal>
-      {/* Debug: object data for abbreviation / duplicate-name troubleshooting */}
+      {/*
+      Debug: object data for abbreviation / duplicate-name troubleshooting
       {showDebug && (
         <Card>
           <BlockStack gap="200">
@@ -1329,6 +1330,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           Show debug (leather data)
         </Button>
       )}
+      */}
     </BlockStack>
   );
 } 

@@ -54,7 +54,11 @@ export const action = async ({ request }) => {
           ? { blendedCollectionName: String(blendedCollectionName).trim() }
           : {}),
       });
-      const productActionsResult = await applyLinkedProductActions(admin, linkedProductActions);
+      const productActionsResult = await applyLinkedProductActions(
+        admin,
+        linkedProductActions,
+        Array.isArray(colorMetaobjectIds) ? colorMetaobjectIds : [].concat(colorMetaobjectIds)
+      );
       return json({
         success: true,
         actionType: "update",
@@ -108,7 +112,11 @@ export const action = async ({ request }) => {
           ? { blendedCollectionName: String(blendedCollectionName).trim() }
           : {}),
       });
-      const productActionsResult = await applyLinkedProductActions(admin, linkedProductActions);
+      const productActionsResult = await applyLinkedProductActions(
+        admin,
+        linkedProductActions,
+        Array.isArray(colorMetaobjectIds) ? colorMetaobjectIds : [].concat(colorMetaobjectIds)
+      );
       return json({
         success: true,
         actionType: "discontinue",

@@ -113,6 +113,33 @@ async function setAllVariantCustomizableFalse(admin, variantIds) {
   if (messages.length) throw new Error(messages.join("; "));
 }
 
+async function setProductColorMetaobjects(admin, productId, colorMetaobjectIds) {
+  const value = JSON.stringify(
+    Array.from(new Set((colorMetaobjectIds || []).filter(Boolean)))
+  );
+  const response = await admin.graphql(METAFIELDS_SET_MUTATION, {
+    variables: {
+      metafields: [
+        {
+          ownerId: productId,
+          namespace: "custom",
+          key: "color",
+          type: "list.metaobject_reference",
+          value,
+        },
+      ],
+    },
+  });
+  const json = await response.json();
+  const gqlErrors = json?.errors ?? [];
+  if (gqlErrors.length) {
+    throw new Error(gqlErrors.map((e) => e.message).join("; "));
+  }
+  const userErrors = json?.data?.metafieldsSet?.userErrors ?? [];
+  const messages = collectErrors(userErrors);
+  if (messages.length) throw new Error(messages.join("; "));
+}
+
 async function removeCustomizableTag(admin, productId, tags) {
   const currentTags = (tags || []).filter((t) => typeof t === "string");
   const nextTags = currentTags.filter((t) => t.toLowerCase() !== "customizable");
@@ -142,8 +169,13 @@ async function removeCustomizableTag(admin, productId, tags) {
  * Only applies transitions from baseline=true to actions=false:
  * - removeContinueSellingWhenOos: set all variant inventoryPolicy to DENY
  * - removeCustomizableOptions: remove product "Customizable" tag and set all variant custom.customizable=false
+ * Also syncs product custom.color metafield from leather colorMetaobjectIds when provided.
  */
-export async function applyLinkedProductActions(admin, linkedProductActions = []) {
+export async function applyLinkedProductActions(
+  admin,
+  linkedProductActions = [],
+  colorMetaobjectIds = null
+) {
   if (!admin?.graphql) {
     throw new Error("No Shopify admin client available.");
   }
@@ -168,7 +200,8 @@ export async function applyLinkedProductActions(admin, linkedProductActions = []
       parseBoolean(baseline.removeCustomizableOptions) &&
       !parseBoolean(actions.removeCustomizableOptions);
 
-    if (!shouldSetInventoryDeny && !shouldRemoveCustomizable) continue;
+    const shouldSyncProductColors = Array.isArray(colorMetaobjectIds);
+    if (!shouldSetInventoryDeny && !shouldRemoveCustomizable && !shouldSyncProductColors) continue;
 
     const product = await fetchProductVariantsAndTags(admin, productId);
     if (!product) continue;
@@ -180,6 +213,10 @@ export async function applyLinkedProductActions(admin, linkedProductActions = []
     if (shouldRemoveCustomizable) {
       await removeCustomizableTag(admin, product.id, product.tags);
       await setAllVariantCustomizableFalse(admin, product.variantIds);
+    }
+
+    if (shouldSyncProductColors) {
+      await setProductColorMetaobjects(admin, product.id, colorMetaobjectIds);
     }
 
     updatedProducts += 1;
