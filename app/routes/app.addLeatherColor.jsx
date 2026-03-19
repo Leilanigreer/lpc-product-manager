@@ -8,6 +8,7 @@ import { authenticate } from "../shopify.server";
 import { Page, Layout, Box, Banner, Card, BlockStack } from "@shopify/polaris";
 import AddLeatherColorForm from "../components/AddLeatherColorForm";
 import { createShopifyLeatherColor, updateShopifyLeatherColor } from "../lib/server/leatherColorShopify.server.js";
+import { buildLeatherBlendedCollectionName } from "../lib/utils/colorNameUtils.js";
 import SuccessBanner from "../components/SuccessBanner.jsx";
 
 export const loader = async ({ request }) => {
@@ -32,11 +33,15 @@ export const action = async ({ request }) => {
       return json({ success: false, error: "Leather color is required for update." }, { status: 400 });
     }
     try {
+      const blendedCollectionName = formData.get("blendedCollectionName");
       const updated = await updateShopifyLeatherColor(admin, {
         id: leatherColorId,
         isLimitedEditionLeather,
         colorMetaobjectIds: Array.isArray(colorMetaobjectIds) ? colorMetaobjectIds : [].concat(colorMetaobjectIds),
         setActive,
+        ...(blendedCollectionName != null && String(blendedCollectionName).trim() !== ""
+          ? { blendedCollectionName: String(blendedCollectionName).trim() }
+          : {}),
       });
       return json({ success: true, actionType: "update", leatherColor: updated });
     } catch (error) {
@@ -52,11 +57,15 @@ export const action = async ({ request }) => {
       return json({ success: false, error: "Leather color is required for reactivate." }, { status: 400 });
     }
     try {
+      const blendedCollectionName = formData.get("blendedCollectionName");
       const reactivated = await updateShopifyLeatherColor(admin, {
         id: leatherColorId,
         isLimitedEditionLeather,
         colorMetaobjectIds: Array.isArray(colorMetaobjectIds) ? colorMetaobjectIds : [].concat(colorMetaobjectIds),
         setActive: true,
+        ...(blendedCollectionName != null && String(blendedCollectionName).trim() !== ""
+          ? { blendedCollectionName: String(blendedCollectionName).trim() }
+          : {}),
       });
       return json({ success: true, actionType: "reactivate", leatherColor: reactivated });
     } catch (error) {
@@ -72,11 +81,15 @@ export const action = async ({ request }) => {
       return json({ success: false, error: "Leather color is required for discontinue." }, { status: 400 });
     }
     try {
+      const blendedCollectionName = formData.get("blendedCollectionName");
       const discontinued = await updateShopifyLeatherColor(admin, {
         id: leatherColorId,
         isLimitedEditionLeather,
         colorMetaobjectIds: Array.isArray(colorMetaobjectIds) ? colorMetaobjectIds : [].concat(colorMetaobjectIds),
         setActive: false,
+        ...(blendedCollectionName != null && String(blendedCollectionName).trim() !== ""
+          ? { blendedCollectionName: String(blendedCollectionName).trim() }
+          : {}),
       });
       return json({ success: true, actionType: "discontinue", leatherColor: discontinued });
     } catch (error) {
@@ -143,6 +156,10 @@ export const action = async ({ request }) => {
         isLimitedEditionLeather: source.isLimitedEditionLeather,
         colorMetaobjectIds: sourceColorIds,
         setActive: false,
+        blendedCollectionName: buildLeatherBlendedCollectionName(
+          source.collectionName,
+          source.label
+        ),
       });
 
       migratedFrom = {

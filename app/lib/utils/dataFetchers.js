@@ -14,6 +14,7 @@ const LEATHER_COLOR_METAOBJECT_QUERY = `#graphql
         nameField: field(key: "name") { value }
         abbreviationField: field(key: "abbreviation") { value }
         collectionNameField: field(key: "collection_name") { value }
+        blendedCollectionNameField: field(key: "blended_collection_name") { value }
         previewImageField: field(key: "preview_image") {
           thumbnail {
             file {
@@ -87,6 +88,7 @@ export const getLeatherColorsFromShopify = async (admin) => {
         const name = node.nameField?.value ?? node.displayName ?? node.handle ?? "";
         const abbreviation = node.abbreviationField?.value ?? "";
         const collectionName = node.collectionNameField?.value ?? null;
+        const blendedCollectionName = node.blendedCollectionNameField?.value ?? null;
         const file = node.previewImageField?.thumbnail?.file;
         const url_id = file?.image?.url ?? file?.url ?? null;
         const isLimitedEditionLeather = parseMetaobjectBoolean(node.isLimitedEditionField);
@@ -96,6 +98,7 @@ export const getLeatherColorsFromShopify = async (admin) => {
           label: name,
           abbreviation,
           collectionName,
+          blendedCollectionName,
           url_id,
           isLimitedEditionLeather,
           isActive,

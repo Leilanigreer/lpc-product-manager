@@ -13,6 +13,20 @@ export function normalizeName(str) {
   return formatNameOnBlur(str);
 }
 
+/**
+ * Shopify leather_color field `blended_collection_name`: "[Collection] Name" when a collection is set,
+ * otherwise the leather name only (e.g. limited edition without collection).
+ */
+export function buildLeatherBlendedCollectionName(collectionName, name) {
+  const n = String(name ?? "").trim();
+  const c =
+    collectionName != null && String(collectionName).trim() !== ""
+      ? String(collectionName).trim()
+      : "";
+  if (!n) return "";
+  return c ? `[${c}] ${n}` : n;
+}
+
 // Validate name uniqueness in a list (case-insensitive, title-cased)
 // Optionally exclude an id (for update forms)
 export function validateNameUnique(list, input, field = 'label', excludeId = null) {

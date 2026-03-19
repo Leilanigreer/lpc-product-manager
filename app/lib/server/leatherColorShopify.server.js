@@ -8,7 +8,10 @@
  * - abbreviation (single line text)
  * - is_limited_edition (boolean)
  * - colors (list.reference to shopify--color-pattern metaobjects)
+ * - blended_collection_name (single line text) — "[Collection] Name" e.g. "[Phoenix] Pebbled Royal"
  */
+
+import { buildLeatherBlendedCollectionName } from "../utils/colorNameUtils.js";
 
 const LEATHER_COLOR_METAOBJECT_TYPE = "leather_color";
 
@@ -35,13 +38,18 @@ export async function createShopifyLeatherColor(admin, {
     throw new Error("Shopify admin client is required to create leather_color metaobjects.");
   }
 
-  const handle = `leather-${slugify(name)}`;
+  const nameTrimmed = String(name || "").trim();
+  const handle = `leather-${slugify(nameTrimmed)}`;
   const colorsValue = colorMetaobjectIds.length ? JSON.stringify(colorMetaobjectIds) : "";
   const abbrValue =
     abbreviation != null && String(abbreviation).trim() !== ""
       ? String(abbreviation).trim()
-      : fallbackAbbreviation(name);
+      : fallbackAbbreviation(nameTrimmed);
   const collectionNameValue = collectionName ? String(collectionName).trim() : "";
+  const blendedLabel = buildLeatherBlendedCollectionName(
+    collectionNameValue || null,
+    nameTrimmed
+  );
 
   const response = await admin.graphql(
     `#graphql
@@ -66,10 +74,11 @@ export async function createShopifyLeatherColor(admin, {
           type: LEATHER_COLOR_METAOBJECT_TYPE,
           handle,
           fields: [
-            { key: "name", value: name },
+            { key: "name", value: nameTrimmed },
             { key: "abbreviation", value: abbrValue },
             { key: "is_limited_edition", value: isLimitedEditionLeather ? "true" : "false" },
             ...(collectionNameValue ? [{ key: "collection_name", value: collectionNameValue }] : []),
+            ...(blendedLabel ? [{ key: "blended_collection_name", value: blendedLabel }] : []),
             ...(colorsValue ? [{ key: "colors", value: colorsValue }] : []),
           ],
           capabilities: {
@@ -97,7 +106,7 @@ export async function createShopifyLeatherColor(admin, {
 
   return {
     id: meta.id,
-    name: meta.displayName || name,
+    name: meta.displayName || nameTrimmed,
     abbreviation: abbrValue,
   };
 }
@@ -112,11 +121,12 @@ export async function createShopifyLeatherColor(admin, {
  * @param {boolean} params.isLimitedEditionLeather
  * @param {string[]} [params.colorMetaobjectIds] - Full list of Color metaobject GIDs to set
  * @param {boolean} [params.setActive] - When true/false, sets status to ACTIVE/DRAFT; when undefined, leaves status unchanged
+ * @param {string} [params.blendedCollectionName] - When set, updates `blended_collection_name` (e.g. "[Phoenix] Pebbled Royal")
  * @returns {Promise<{ id: string, name: string }>}
  */
 export async function updateShopifyLeatherColor(
   admin,
-  { id, isLimitedEditionLeather, colorMetaobjectIds = [], setActive }
+  { id, isLimitedEditionLeather, colorMetaobjectIds = [], setActive, blendedCollectionName }
 ) {
   if (!admin?.graphql) {
     throw new Error("Shopify admin client is required to update leather_color metaobjects.");
@@ -130,6 +140,11 @@ export async function updateShopifyLeatherColor(
     { key: "is_limited_edition", value: isLimitedEditionLeather ? "true" : "false" },
     { key: "colors", value: colorsValue },
   ];
+  const blendedTrimmed =
+    blendedCollectionName != null ? String(blendedCollectionName).trim() : "";
+  if (blendedTrimmed) {
+    fields.push({ key: "blended_collection_name", value: blendedTrimmed });
+  }
 
   const metaobjectInput = { fields };
   if (typeof setActive === "boolean") {

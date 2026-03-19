@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { TextField, BlockStack, InlineStack, Tag, Combobox, Listbox, Icon, Box, Button, Modal, InlineError, RadioButton, Text, Divider, Card } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
-import { formatNameLive, formatNameOnBlur, generateLeatherAbbreviation } from '../lib/utils/colorNameUtils';
+import { formatNameLive, formatNameOnBlur, generateLeatherAbbreviation, buildLeatherBlendedCollectionName } from '../lib/utils/colorNameUtils';
 
 export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], leatherColorsLoadError, collectionOptions = [], fetcher }) {
   const [mode, setMode] = useState("add");
@@ -745,6 +745,13 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
               if (selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive) {
                 formData.append("setActive", "true");
               }
+              if (selectedLeatherForUpdate) {
+                const blended = buildLeatherBlendedCollectionName(
+                  selectedLeatherForUpdate.collectionName,
+                  selectedLeatherForUpdate.baseLabel
+                );
+                if (blended) formData.append("blendedCollectionName", blended);
+              }
               fetcher.submit(formData, { method: "post" });
             }}
           >
@@ -765,6 +772,13 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
             formData.append("isLimitedEditionLeather", isLimitedEditionLeather ? "true" : "false");
             selectedColorIds.forEach((id) => formData.append("colorMetaobjectIds", id));
             formData.append("setActive", "true");
+            if (selectedLeatherForUpdate) {
+              const blended = buildLeatherBlendedCollectionName(
+                selectedLeatherForUpdate.collectionName,
+                selectedLeatherForUpdate.baseLabel
+              );
+              if (blended) formData.append("blendedCollectionName", blended);
+            }
             fetcher.submit(formData, { method: "post" });
           }}
         >
@@ -789,6 +803,11 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
             (selected?.colorMetaobjectIds || []).forEach((id) =>
               formData.append("colorMetaobjectIds", id)
             );
+            const blended = buildLeatherBlendedCollectionName(
+              selected?.collectionName,
+              selected?.baseLabel
+            );
+            if (blended) formData.append("blendedCollectionName", blended);
             fetcher.submit(formData, { method: "post" });
           }}
         >

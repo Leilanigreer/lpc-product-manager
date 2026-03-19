@@ -98,6 +98,7 @@ This section lists models that could reasonably move to Shopify metaobjects, plu
   - Use Shopify `leather_color` metaobject as the canonical record of:
     - Display name.
     - Abbreviation.
+    - `collection_name` (stock collections) and `blended_collection_name` (single line: `"[Collection] Name"`, e.g. `[Phoenix] Pebbled Royal`; name-only when there is no collection).
     - Limited vs stock designation.
     - Active/inactive status.
     - Optional color tags (if modeled on Shopify).
