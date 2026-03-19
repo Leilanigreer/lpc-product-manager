@@ -14,6 +14,8 @@ const LINKED_PRODUCT_ACTION_KEYS = [
 export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], leatherColorsLoadError, collectionOptions = [], fetcher }) {
   const linkedProductsFetcher = useFetcher();
   const [linkedProductActions, setLinkedProductActions] = useState({});
+  const [actionsValidationModalOpen, setActionsValidationModalOpen] = useState(false);
+  const [pendingProductActionSubmit, setPendingProductActionSubmit] = useState(null);
   const [mode, setMode] = useState("add");
   const [selectedLeatherColorId, setSelectedLeatherColorId] = useState("");
   const [leatherColorName, setLeatherColorName] = useState("");
@@ -383,6 +385,124 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       },
     }));
   }, []);
+
+  const buildDefaultProductActions = useCallback((product) => ({
+    removeContinueSellingWhenOos: !!product.hasContinueSelling,
+    removeCustomizableOptions: !!product.hasCustomizable,
+    applyDiscount40: !!product.hasDiscount40,
+    applyDiscount60: !!product.hasDiscount60,
+  }), []);
+
+  const productActionDiffs = useMemo(() => {
+    const diffs = [];
+    linkedProducts.forEach((p) => {
+      const defaults = buildDefaultProductActions(p);
+      const current = linkedProductActions[p.shopifyProductId] || defaults;
+      const changedKeys = LINKED_PRODUCT_ACTION_KEYS
+        .map((a) => a.key)
+        .filter((k) => !!current[k] !== !!defaults[k]);
+      if (changedKeys.length) {
+        diffs.push({
+          product: p,
+          changedKeys,
+          current,
+          defaults,
+        });
+      }
+    });
+    return diffs;
+  }, [linkedProducts, linkedProductActions, buildDefaultProductActions]);
+
+  const hasLinkedActionChanges = productActionDiffs.length > 0;
+
+  const appendLinkedProductActionsPayload = useCallback((formData) => {
+    const payload = linkedProducts.map((p) => {
+      const defaults = buildDefaultProductActions(p);
+      const current = linkedProductActions[p.shopifyProductId] || defaults;
+      return {
+        shopifyProductId: p.shopifyProductId,
+        title: p.title,
+        actions: {
+          removeContinueSellingWhenOos: !!current.removeContinueSellingWhenOos,
+          removeCustomizableOptions: !!current.removeCustomizableOptions,
+          applyDiscount40: !!current.applyDiscount40,
+          applyDiscount60: !!current.applyDiscount60,
+        },
+        baseline: defaults,
+        tags: p.tags || [],
+      };
+    });
+    formData.append("linkedProductActions", JSON.stringify(payload));
+  }, [linkedProducts, linkedProductActions, buildDefaultProductActions]);
+
+  const submitUpdateLeatherColor = useCallback(() => {
+    const formData = new FormData();
+    formData.append("actionType", "updateLeatherColor");
+    formData.append("leatherColorId", selectedLeatherColorId);
+    formData.append("isLimitedEditionLeather", isLimitedEditionLeather ? "true" : "false");
+    selectedColorIds.forEach((id) => formData.append("colorMetaobjectIds", id));
+    if (selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive) {
+      formData.append("setActive", "true");
+    }
+    if (selectedLeatherForUpdate) {
+      const blended = buildLeatherBlendedCollectionName(
+        selectedLeatherForUpdate.collectionName,
+        selectedLeatherForUpdate.baseLabel
+      );
+      if (blended) formData.append("blendedCollectionName", blended);
+    }
+    appendLinkedProductActionsPayload(formData);
+    fetcher.submit(formData, { method: "post" });
+  }, [
+    selectedLeatherColorId,
+    isLimitedEditionLeather,
+    selectedColorIds,
+    selectedLeatherForUpdate,
+    appendLinkedProductActionsPayload,
+    fetcher,
+  ]);
+
+  const submitDiscontinueLeatherColor = useCallback(() => {
+    const selected = activeLeatherColorOptions.find((opt) => opt.value === selectedLeatherColorId);
+    const formData = new FormData();
+    formData.append("actionType", "discontinueLeatherColor");
+    formData.append("leatherColorId", selectedLeatherColorId);
+    // Preserve current type and colors when moving to draft
+    formData.append(
+      "isLimitedEditionLeather",
+      selected && selected.isLimitedEditionLeather ? "true" : "false"
+    );
+    (selected?.colorMetaobjectIds || []).forEach((id) =>
+      formData.append("colorMetaobjectIds", id)
+    );
+    const blended = buildLeatherBlendedCollectionName(
+      selected?.collectionName,
+      selected?.baseLabel
+    );
+    if (blended) formData.append("blendedCollectionName", blended);
+    appendLinkedProductActionsPayload(formData);
+    fetcher.submit(formData, { method: "post" });
+  }, [
+    activeLeatherColorOptions,
+    selectedLeatherColorId,
+    appendLinkedProductActionsPayload,
+    fetcher,
+  ]);
+
+  const openActionsValidationModal = useCallback((submitType) => {
+    setPendingProductActionSubmit(submitType);
+    setActionsValidationModalOpen(true);
+  }, []);
+
+  const handleConfirmActionsValidation = useCallback(() => {
+    if (pendingProductActionSubmit === "update") {
+      submitUpdateLeatherColor();
+    } else if (pendingProductActionSubmit === "discontinue") {
+      submitDiscontinueLeatherColor();
+    }
+    setActionsValidationModalOpen(false);
+    setPendingProductActionSubmit(null);
+  }, [pendingProductActionSubmit, submitUpdateLeatherColor, submitDiscontinueLeatherColor]);
 
   return (
     <BlockStack gap="400">
@@ -896,25 +1016,8 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           </Box>
           <Button
             primary
-            disabled={!selectedLeatherColorId || !hasUpdateChanges}
-            onClick={() => {
-              const formData = new FormData();
-              formData.append("actionType", "updateLeatherColor");
-              formData.append("leatherColorId", selectedLeatherColorId);
-              formData.append("isLimitedEditionLeather", isLimitedEditionLeather ? "true" : "false");
-              selectedColorIds.forEach((id) => formData.append("colorMetaobjectIds", id));
-              if (selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive) {
-                formData.append("setActive", "true");
-              }
-              if (selectedLeatherForUpdate) {
-                const blended = buildLeatherBlendedCollectionName(
-                  selectedLeatherForUpdate.collectionName,
-                  selectedLeatherForUpdate.baseLabel
-                );
-                if (blended) formData.append("blendedCollectionName", blended);
-              }
-              fetcher.submit(formData, { method: "post" });
-            }}
+            disabled={!selectedLeatherColorId || (!hasUpdateChanges && !hasLinkedActionChanges)}
+            onClick={() => openActionsValidationModal("update")}
           >
             {selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive
               ? "Update and Set as Active"
@@ -951,30 +1054,66 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           primary
           tone="critical"
           disabled={!selectedLeatherColorId}
-          onClick={() => {
-            const selected = activeLeatherColorOptions.find((opt) => opt.value === selectedLeatherColorId);
-            const formData = new FormData();
-            formData.append("actionType", "discontinueLeatherColor");
-            formData.append("leatherColorId", selectedLeatherColorId);
-            // Preserve current type and colors when moving to draft
-            formData.append(
-              "isLimitedEditionLeather",
-              selected && selected.isLimitedEditionLeather ? "true" : "false"
-            );
-            (selected?.colorMetaobjectIds || []).forEach((id) =>
-              formData.append("colorMetaobjectIds", id)
-            );
-            const blended = buildLeatherBlendedCollectionName(
-              selected?.collectionName,
-              selected?.baseLabel
-            );
-            if (blended) formData.append("blendedCollectionName", blended);
-            fetcher.submit(formData, { method: "post" });
-          }}
+          onClick={() => openActionsValidationModal("discontinue")}
         >
           Discontinue (set to draft)
         </Button>
       )}
+      <Modal
+        open={actionsValidationModalOpen}
+        onClose={() => {
+          setActionsValidationModalOpen(false);
+          setPendingProductActionSubmit(null);
+        }}
+        title={
+          pendingProductActionSubmit === "discontinue"
+            ? "Confirm discontinue + product action updates"
+            : "Confirm update + product action updates"
+        }
+        primaryAction={{
+          content: "Confirm and submit",
+          onAction: handleConfirmActionsValidation,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: () => {
+              setActionsValidationModalOpen(false);
+              setPendingProductActionSubmit(null);
+            },
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="200">
+            <Text variant="bodyMd">
+              {productActionDiffs.length
+                ? `${productActionDiffs.length} product${productActionDiffs.length === 1 ? "" : "s"} have checkbox changes.`
+                : "No checkbox changes detected. This will only submit the leather color update/discontinue action."}
+            </Text>
+            {productActionDiffs.length > 0 && (
+              <BlockStack gap="100">
+                {productActionDiffs.map(({ product, changedKeys, current }) => (
+                  <Box key={product.shopifyProductId}>
+                    <Text variant="bodyMd" fontWeight="semibold" as="p">
+                      {product.title}
+                    </Text>
+                    <Text variant="bodyMd" tone="subdued" as="p">
+                      {changedKeys
+                        .map((key) => {
+                          const action = LINKED_PRODUCT_ACTION_KEYS.find((a) => a.key === key);
+                          const label = action?.hint || key;
+                          return `${label}: ${current[key] ? "On" : "Off"}`;
+                        })
+                        .join(" | ")}
+                    </Text>
+                  </Box>
+                ))}
+              </BlockStack>
+            )}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
       <Modal
         open={modalOpen}
         onClose={handleModalClose}

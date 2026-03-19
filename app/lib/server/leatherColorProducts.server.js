@@ -13,7 +13,7 @@ const PRODUCTS_BY_LEATHER_QUERY = `#graphql
           handle
           status
           tags
-          variants(first: 10) {
+          variants(first: 25) {
             nodes {
               inventoryPolicy
               price
