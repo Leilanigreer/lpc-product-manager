@@ -349,10 +349,30 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load when selection/mode changes only
   }, [mode, selectedLeatherColorId]);
 
-  const linkedProducts = linkedProductsFetcher.data?.products ?? [];
+  const linkedProducts = useMemo(
+    () => linkedProductsFetcher.data?.products ?? [],
+    [linkedProductsFetcher.data]
+  );
   const linkedProductsError = linkedProductsFetcher.data?.error ?? null;
   const linkedProductsLoading =
     linkedProductsFetcher.state === "loading" || linkedProductsFetcher.state === "submitting";
+
+  React.useEffect(() => {
+    // Initialize checkbox defaults from current inventory policies.
+    if (linkedProductsLoading) return;
+    if (!linkedProducts.length) return;
+
+    const next = {};
+    linkedProducts.forEach((p) => {
+      next[p.shopifyProductId] = {
+        removeContinueSellingWhenOos: !!p.hasContinueSelling,
+        removeCustomizableOptions: false,
+        applyDiscount40: false,
+        applyDiscount60: false,
+      };
+    });
+    setLinkedProductActions(next);
+  }, [linkedProductsLoading, linkedProducts]);
 
   const setLinkedAction = useCallback((shopifyProductId, actionKey, checked) => {
     setLinkedProductActions((prev) => ({
@@ -772,16 +792,33 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                       ))}
                       {linkedProducts.map((p) => {
                         const row = linkedProductActions[p.shopifyProductId] || {};
+                        const titleUrl = p.adminProductUrl || p.liveProductUrl;
                         return (
                           <React.Fragment key={p.shopifyProductId}>
                             <Box minWidth="0">
-                              <Text variant="bodyMd" as="p" truncate>
-                                {p.title}
-                              </Text>
-                              <Text variant="bodySm" tone="subdued" as="p">
-                                {p.baseSKU ? `SKU ${p.baseSKU}` : p.handle}
-                                {p.offeringType ? ` · ${p.offeringType}` : ""}
-                              </Text>
+                              {titleUrl ? (
+                                <a
+                                  href={titleUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    color: "inherit",
+                                    textDecoration: "underline",
+                                    display: "block",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  <Text variant="bodyMd" as="span">
+                                    {p.title}
+                                  </Text>
+                                </a>
+                              ) : (
+                                <Text variant="bodyMd" as="p" truncate>
+                                  {p.title}
+                                </Text>
+                              )}
                             </Box>
                             {LINKED_PRODUCT_ACTION_KEYS.map(({ key, hint }) => (
                               <Box key={key} paddingInline="100">

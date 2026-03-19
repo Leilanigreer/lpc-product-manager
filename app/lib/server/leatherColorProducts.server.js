@@ -12,6 +12,11 @@ const PRODUCTS_BY_LEATHER_QUERY = `#graphql
           title
           handle
           status
+          variants(first: 10) {
+            nodes {
+              inventoryPolicy
+            }
+          }
           metafield(namespace: "custom", key: "leathers_used") {
             references(first: 5) {
               nodes {
@@ -41,6 +46,22 @@ const PRODUCTS_BY_LEATHER_QUERY = `#graphql
 export async function getActiveLpcProductsByLeatherShopifyId(admin, leatherShopifyGid) {
   if (!admin?.graphql) return { products: [], error: "No Shopify admin client available." };
   if (!leatherShopifyGid || typeof leatherShopifyGid !== "string") return { products: [] };
+
+  // Build admin + storefront URLs for clickable product links.
+  const shopResponse = await admin.graphql(`#graphql
+    query {
+      shop {
+        myshopifyDomain
+        primaryDomain {
+          host
+        }
+      }
+    }
+  `);
+  const shopJson = await shopResponse.json();
+  const shop = shopJson?.data?.shop;
+  const shopDomain = shop?.myshopifyDomain?.replace(".myshopify.com", "");
+  const shopHost = shop?.primaryDomain?.host;
 
   const searchQuery = `metafields.custom.leathers_used:"${leatherShopifyGid}"`;
   const pageSize = 25;
@@ -86,11 +107,29 @@ export async function getActiveLpcProductsByLeatherShopifyId(admin, leatherShopi
           .filter(Boolean);
         if (!referencedIds.includes(leatherShopifyGid)) continue;
 
+        const variantPolicies = (node.variants?.nodes ?? [])
+          .map((v) => v?.inventoryPolicy)
+          .filter(Boolean);
+        const hasContinueSelling = variantPolicies.includes("CONTINUE");
+
+        const productNumericId = node.id.split("/").pop();
+        const adminProductUrl =
+          shopDomain && productNumericId
+            ? `https://admin.shopify.com/store/${shopDomain}/products/${productNumericId}`
+            : null;
+        const liveProductUrl =
+          shopHost && node.handle
+            ? `https://${shopHost}/products/${node.handle}`
+            : null;
+
         seenProductIds.add(node.id);
         out.push({
           shopifyProductId: node.id,
           title: node.title || "Untitled product",
           handle: node.handle || "",
+          hasContinueSelling,
+          adminProductUrl,
+          liveProductUrl,
         });
 
         if (out.length >= maxProducts) break;
