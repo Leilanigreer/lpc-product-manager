@@ -16,12 +16,8 @@ const PRODUCTS_BY_LEATHER_QUERY = `#graphql
           variants(first: 10) {
             nodes {
               inventoryPolicy
-              price {
-                amount
-              }
-              compareAtPrice {
-                amount
-              }
+              price
+              compareAtPrice
               metafield(namespace: "custom", key: "customizable") {
                 value
               }
@@ -141,8 +137,8 @@ export async function getActiveLpcProductsByLeatherShopifyId(admin, leatherShopi
 
         const variantPrices = (node.variants?.nodes ?? []);
         for (const v of variantPrices) {
-          const priceCents = toCents(v?.price?.amount);
-          const compareCents = toCents(v?.compareAtPrice?.amount);
+          const priceCents = toCents(v?.price);
+          const compareCents = toCents(v?.compareAtPrice);
           if (priceCents == null || compareCents == null) continue;
           if (compareCents <= 0) continue;
           if (priceCents >= compareCents) continue; // not a discount
