@@ -857,7 +857,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         )}
       </BlockStack>
       )}
-      {(mode === "update" || mode === "discontinue") && selectedLeatherColorId && (
+      {mode === "discontinue" && selectedLeatherColorId && (
         <Box paddingBlockStart="400">
           <Card>
             <BlockStack gap="300">
@@ -1020,6 +1020,129 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
             ) : null;
           })}
         </InlineStack>
+      )}
+      {mode === "update" && selectedLeatherColorId && (
+        <Box paddingBlockStart="400">
+          <Card>
+            <BlockStack gap="300">
+              <Text variant="headingSm" as="h3">
+                Active products using this leather
+              </Text>
+              <Text variant="bodyMd" tone="subdued">
+                Pulled from Shopify products that reference this leather in `custom.leathers_used`, limited to
+                products that are still Active in Shopify. Check the actions you want to apply (wording and automation can be wired up next).
+              </Text>
+              {linkedProductsLoading && (
+                <InlineStack gap="200" blockAlign="center">
+                  <Spinner size="small" />
+                  <Text tone="subdued">Loading products…</Text>
+                </InlineStack>
+              )}
+              {!linkedProductsLoading && linkedProductsError && (
+                <Text tone="critical">{linkedProductsError}</Text>
+              )}
+              {!linkedProductsLoading && !linkedProductsError && linkedProducts.length === 0 && (
+                <Text tone="subdued">
+                  No Active Shopify products found that reference this leather color.
+                </Text>
+              )}
+              {!linkedProductsLoading && !linkedProductsError && linkedProducts.length > 0 && (
+                <BlockStack gap="0">
+                  <Box
+                    paddingBlock="200"
+                    paddingInline="200"
+                    background="bg-surface-secondary"
+                    borderRadius="200"
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(140px, 1fr) repeat(4, minmax(72px, auto))",
+                        gap: "0.5rem 0.75rem",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text variant="bodySm" fontWeight="semibold" as="span">
+                        Product
+                      </Text>
+                      {LINKED_PRODUCT_ACTION_KEYS.map(({ key, short, hint }) => (
+                        <Box key={key} paddingInline="100">
+                          <Tooltip content={hint} preferredPosition="above">
+                            <Text variant="bodySm" fontWeight="semibold" as="span" alignment="center">
+                              {short}
+                            </Text>
+                          </Tooltip>
+                        </Box>
+                      ))}
+                      {linkedProducts.map((p) => {
+                        const defaults = buildDefaultProductActions(p);
+                        const row = linkedProductActions[p.shopifyProductId] || defaults;
+                        const titleUrl = p.adminProductUrl || p.liveProductUrl;
+                        return (
+                          <React.Fragment key={p.shopifyProductId}>
+                            <Box minWidth="0">
+                              {titleUrl ? (
+                                <a
+                                  href={titleUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    color: "inherit",
+                                    textDecoration: "underline",
+                                    display: "block",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  <Text variant="bodyMd" as="span">
+                                    {p.title}
+                                  </Text>
+                                </a>
+                              ) : (
+                                <Text variant="bodyMd" as="p" truncate>
+                                  {p.title}
+                                </Text>
+                              )}
+                            </Box>
+                            {LINKED_PRODUCT_ACTION_KEYS.map(({ key, hint }) => (
+                              <Box key={key} paddingInline="100">
+                                {(() => {
+                                  const isDiscountKey = key === "applyDiscount40" || key === "applyDiscount60";
+                                  const isRemovalKey =
+                                    key === "removeContinueSellingWhenOos" ||
+                                    key === "removeCustomizableOptions";
+                                  const isLockedCheckedDiscount =
+                                    isDiscountKey &&
+                                    ((key === "applyDiscount40" && !!p.hasDiscount40) ||
+                                      (key === "applyDiscount60" && !!p.hasDiscount60));
+                                  const isLockedInitialRemoval =
+                                    isRemovalKey &&
+                                    (key === "removeContinueSellingWhenOos"
+                                      ? !defaults.removeContinueSellingWhenOos
+                                      : !defaults.removeCustomizableOptions);
+                                  return (
+                                <Checkbox
+                                  label={`${hint} for ${p.title}`}
+                                  labelHidden
+                                  checked={!!row[key]}
+                                  disabled={isLockedCheckedDiscount || isLockedInitialRemoval}
+                                  onChange={(checked) => setLinkedAction(p.shopifyProductId, key, checked)}
+                                />
+                                  );
+                                })()}
+                              </Box>
+                            ))}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </Box>
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Card>
+        </Box>
       )}
       {mode === "add" && (
         <Button primary onClick={handleCreate} disabled={!canCreate}>
