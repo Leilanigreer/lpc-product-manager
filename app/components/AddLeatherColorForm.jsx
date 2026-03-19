@@ -368,7 +368,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     linkedProducts.forEach((p) => {
       next[p.shopifyProductId] = {
         removeContinueSellingWhenOos: !!p.hasContinueSelling,
-        removeCustomizableOptions: !!p.hasCustomizable,
+        removeCustomizableOptions: !!p.hasCustomizable || !!p.hasCustomizableTag,
         applyDiscount40: !!p.hasDiscount40,
         applyDiscount60: !!p.hasDiscount60,
       };
@@ -911,7 +911,8 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                         </Box>
                       ))}
                       {linkedProducts.map((p) => {
-                        const row = linkedProductActions[p.shopifyProductId] || {};
+                        const defaults = buildDefaultProductActions(p);
+                        const row = linkedProductActions[p.shopifyProductId] || defaults;
                         const titleUrl = p.adminProductUrl || p.liveProductUrl;
                         return (
                           <React.Fragment key={p.shopifyProductId}>
@@ -943,7 +944,6 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                             {LINKED_PRODUCT_ACTION_KEYS.map(({ key, hint }) => (
                               <Box key={key} paddingInline="100">
                                 {(() => {
-                                  const defaults = buildDefaultProductActions(p);
                                   const isDiscountKey = key === "applyDiscount40" || key === "applyDiscount60";
                                   const isRemovalKey =
                                     key === "removeContinueSellingWhenOos" ||
