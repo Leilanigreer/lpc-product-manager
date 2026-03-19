@@ -367,8 +367,8 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       next[p.shopifyProductId] = {
         removeContinueSellingWhenOos: !!p.hasContinueSelling,
         removeCustomizableOptions: !!p.hasCustomizable,
-        applyDiscount40: false,
-        applyDiscount60: false,
+        applyDiscount40: !!p.hasDiscount40,
+        applyDiscount60: !!p.hasDiscount60,
       };
     });
     setLinkedProductActions(next);

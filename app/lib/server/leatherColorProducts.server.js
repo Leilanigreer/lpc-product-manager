@@ -15,6 +15,12 @@ const PRODUCTS_BY_LEATHER_QUERY = `#graphql
           variants(first: 10) {
             nodes {
               inventoryPolicy
+              price {
+                amount
+              }
+              compareAtPrice {
+                amount
+              }
               metafield(namespace: "custom", key: "customizable") {
                 value
               }
@@ -115,6 +121,37 @@ export async function getActiveLpcProductsByLeatherShopifyId(admin, leatherShopi
           .filter(Boolean);
         const hasContinueSelling = variantPolicies.includes("CONTINUE");
 
+        const toCents = (amount) => {
+          if (amount == null) return null;
+          const n = Number(amount);
+          if (!Number.isFinite(n)) return null;
+          return Math.round(n * 100);
+        };
+
+        let hasDiscount40 = false;
+        let hasDiscount60 = false;
+
+        const variantPrices = (node.variants?.nodes ?? []);
+        for (const v of variantPrices) {
+          const priceCents = toCents(v?.price?.amount);
+          const compareCents = toCents(v?.compareAtPrice?.amount);
+          if (priceCents == null || compareCents == null) continue;
+          if (compareCents <= 0) continue;
+          if (priceCents >= compareCents) continue; // not a discount
+
+          // Expected sale prices for exact discounts:
+          // 40% off => pay 60% of compareAtPrice
+          // 60% off => pay 40% of compareAtPrice
+          const expected40 = Math.round(compareCents * 0.6);
+          const expected60 = Math.round(compareCents * 0.4);
+          const tolerance = 1; // 1 cent tolerance for rounding
+
+          if (Math.abs(priceCents - expected40) <= tolerance) hasDiscount40 = true;
+          if (Math.abs(priceCents - expected60) <= tolerance) hasDiscount60 = true;
+
+          if (hasDiscount40 && hasDiscount60) break;
+        }
+
         const customizableValues = (node.variants?.nodes ?? [])
           .map((v) => v?.metafield?.value)
           .filter((v) => v != null);
@@ -143,6 +180,8 @@ export async function getActiveLpcProductsByLeatherShopifyId(admin, leatherShopi
           title: node.title || "Untitled product",
           handle: node.handle || "",
           hasContinueSelling,
+          hasDiscount40,
+          hasDiscount60,
           hasCustomizable,
           adminProductUrl,
           liveProductUrl,
