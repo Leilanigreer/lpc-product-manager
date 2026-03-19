@@ -1,9 +1,19 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { TextField, BlockStack, InlineStack, Tag, Combobox, Listbox, Icon, Box, Button, Modal, InlineError, RadioButton, Text, Divider, Card } from "@shopify/polaris";
+import { useFetcher } from "@remix-run/react";
+import { TextField, BlockStack, InlineStack, Tag, Combobox, Listbox, Icon, Box, Button, Modal, InlineError, RadioButton, Text, Divider, Card, Checkbox, Spinner, Tooltip } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
 import { formatNameLive, formatNameOnBlur, generateLeatherAbbreviation, buildLeatherBlendedCollectionName } from '../lib/utils/colorNameUtils';
 
+const LINKED_PRODUCT_ACTION_KEYS = [
+  { key: "removeContinueSellingWhenOos", short: "OOS", hint: "Turn off “Continue selling when out of stock” (deny when out of stock)" },
+  { key: "removeCustomizableOptions", short: "Custom", hint: "Remove customizable options / offering" },
+  { key: "applyDiscount40", short: "−40%", hint: "Apply 40% discount" },
+  { key: "applyDiscount60", short: "−60%", hint: "Apply 60% discount" },
+];
+
 export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], leatherColorsLoadError, collectionOptions = [], fetcher }) {
+  const linkedProductsFetcher = useFetcher();
+  const [linkedProductActions, setLinkedProductActions] = useState({});
   const [mode, setMode] = useState("add");
   const [selectedLeatherColorId, setSelectedLeatherColorId] = useState("");
   const [leatherColorName, setLeatherColorName] = useState("");
@@ -327,6 +337,33 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     }
   }, [mode, selectedLeatherColorId, leatherColorOptions]);
 
+  React.useEffect(() => {
+    setLinkedProductActions({});
+  }, [selectedLeatherColorId, mode]);
+
+  React.useEffect(() => {
+    if (mode !== "update" && mode !== "discontinue") return;
+    if (!selectedLeatherColorId) return;
+    const q = new URLSearchParams({ leatherColorId: selectedLeatherColorId });
+    linkedProductsFetcher.load(`/app/api/leather-color-products?${q}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load when selection/mode changes only
+  }, [mode, selectedLeatherColorId]);
+
+  const linkedProducts = linkedProductsFetcher.data?.products ?? [];
+  const linkedProductsError = linkedProductsFetcher.data?.error ?? null;
+  const linkedProductsLoading =
+    linkedProductsFetcher.state === "loading" || linkedProductsFetcher.state === "submitting";
+
+  const setLinkedAction = useCallback((shopifyProductId, actionKey, checked) => {
+    setLinkedProductActions((prev) => ({
+      ...prev,
+      [shopifyProductId]: {
+        ...prev[shopifyProductId],
+        [actionKey]: checked,
+      },
+    }));
+  }, []);
+
   return (
     <BlockStack gap="400">
       <Text variant="headingMd">Add, Update, Discontinue, or Reactivate Leather Color</Text>
@@ -373,7 +410,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       {mode === "discontinue" && (
         <Box paddingBlock="200">
           <Text tone="critical" variant="bodyMd">
-            Discontinuing sets the leather color to draft and removes it from the product creation list. It does not yet update existing products that use this leather.
+            Discontinuing sets the leather color to draft and removes it from the product creation list. Use the checklist below to plan changes for live products that still use this leather (actions are not applied automatically yet).
           </Text>
         </Box>
       )}
@@ -680,6 +717,93 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         )}
       </BlockStack>
       )}
+      {(mode === "update" || mode === "discontinue") && selectedLeatherColorId && (
+        <Box paddingBlockStart="400">
+          <Card>
+            <BlockStack gap="300">
+              <Text variant="headingSm" as="h3">
+                Active products using this leather
+              </Text>
+              <Text variant="bodyMd" tone="subdued">
+                Pulled from Shopify products that reference this leather in `custom.leathers_used`, limited to
+                products that are still Active in Shopify. Check the actions you want to apply (wording and automation can be wired up next).
+              </Text>
+              {linkedProductsLoading && (
+                <InlineStack gap="200" blockAlign="center">
+                  <Spinner size="small" />
+                  <Text tone="subdued">Loading products…</Text>
+                </InlineStack>
+              )}
+              {!linkedProductsLoading && linkedProductsError && (
+                <Text tone="critical">{linkedProductsError}</Text>
+              )}
+              {!linkedProductsLoading && !linkedProductsError && linkedProducts.length === 0 && (
+                <Text tone="subdued">
+                  No Active Shopify products found that reference this leather color.
+                </Text>
+              )}
+              {!linkedProductsLoading && !linkedProductsError && linkedProducts.length > 0 && (
+                <BlockStack gap="0">
+                  <Box
+                    paddingBlock="200"
+                    paddingInline="200"
+                    background="bg-surface-secondary"
+                    borderRadius="200"
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(140px, 1fr) repeat(4, minmax(72px, auto))",
+                        gap: "0.5rem 0.75rem",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text variant="bodySm" fontWeight="semibold" as="span">
+                        Product
+                      </Text>
+                      {LINKED_PRODUCT_ACTION_KEYS.map(({ key, short, hint }) => (
+                        <Box key={key} paddingInline="100">
+                          <Tooltip content={hint} preferredPosition="above">
+                            <Text variant="bodySm" fontWeight="semibold" as="span" alignment="center">
+                              {short}
+                            </Text>
+                          </Tooltip>
+                        </Box>
+                      ))}
+                      {linkedProducts.map((p) => {
+                        const row = linkedProductActions[p.shopifyProductId] || {};
+                        return (
+                          <React.Fragment key={p.shopifyProductId}>
+                            <Box minWidth="0">
+                              <Text variant="bodyMd" as="p" truncate>
+                                {p.title}
+                              </Text>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                {p.baseSKU ? `SKU ${p.baseSKU}` : p.handle}
+                                {p.offeringType ? ` · ${p.offeringType}` : ""}
+                              </Text>
+                            </Box>
+                            {LINKED_PRODUCT_ACTION_KEYS.map(({ key, hint }) => (
+                              <Box key={key} paddingInline="100">
+                                <Checkbox
+                                  label={`${hint} for ${p.title}`}
+                                  labelHidden
+                                  checked={!!row[key]}
+                                  onChange={(checked) => setLinkedAction(p.shopifyProductId, key, checked)}
+                                />
+                              </Box>
+                            ))}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </Box>
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Card>
+        </Box>
+      )}
       {(mode === "update" || mode === "reactivate") && (
         <Box width="100%">
           <Combobox
@@ -841,14 +965,6 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           </BlockStack>
         </Modal.Section>
       </Modal>
-      {mode === "discontinue" && selectedLeatherColorId && (
-        <Box paddingBlock="200">
-          <Text variant="bodyMd" tone="subdued">
-            Sets currently using this color will be shown here in the future. For now, discontinuing only affects new product creation.
-          </Text>
-        </Box>
-      )}
-
       {/* Debug: object data for abbreviation / duplicate-name troubleshooting */}
       {showDebug && (
         <Card>
