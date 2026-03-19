@@ -567,7 +567,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
             </Box>
             <Box width="50%">
               <Text variant="bodyMd" as="label" fontWeight="medium">
-                Collection & Name
+                Collection & Leather Color Name
               </Text>
             </Box>
           </InlineStack>
@@ -669,6 +669,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                 activator={
                   <Combobox.TextField
                     label="Leather color"
+                    labelHidden
                     value={activeLeatherColorOptions.find(opt => opt.value === selectedLeatherColorId)?.label || ""}
                     onChange={() => {}}
                     placeholder="Choose a leather color"
@@ -691,6 +692,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                 activator={
                   <Combobox.TextField
                     label="Leather color"
+                    labelHidden
                     value={activeLeatherColorOptions.find(opt => opt.value === selectedLeatherColorId)?.label || ""}
                     onChange={() => {}}
                     placeholder="Choose a leather color to discontinue"
@@ -713,6 +715,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                 activator={
                   <Combobox.TextField
                     label="Leather color"
+                    labelHidden
                     value={inactiveLeatherColorOptions.find(opt => opt.value === selectedLeatherColorId)?.label || ""}
                     onChange={() => {}}
                     placeholder="Choose a leather color to reactivate"
