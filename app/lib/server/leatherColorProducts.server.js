@@ -12,6 +12,7 @@ const PRODUCTS_BY_LEATHER_QUERY = `#graphql
           title
           handle
           status
+          tags
           variants(first: 10) {
             nodes {
               inventoryPolicy
@@ -116,6 +117,13 @@ export async function getActiveLpcProductsByLeatherShopifyId(admin, leatherShopi
           .filter(Boolean);
         if (!referencedIds.includes(leatherShopifyGid)) continue;
 
+        const tagList = node.tags ?? [];
+        const tagLowerSet = new Set(tagList.map((t) => String(t).toLowerCase()));
+        const hasClearanceTag = tagLowerSet.has("clearance");
+        const hasLastChanceTag = tagLowerSet.has("last-chance");
+        const hasCustomizableTag = tagLowerSet.has("customizable");
+        const hasArtisanTag = tagLowerSet.has("artisan");
+
         const variantPolicies = (node.variants?.nodes ?? [])
           .map((v) => v?.inventoryPolicy)
           .filter(Boolean);
@@ -183,6 +191,11 @@ export async function getActiveLpcProductsByLeatherShopifyId(admin, leatherShopi
           hasDiscount40,
           hasDiscount60,
           hasCustomizable,
+          tags: tagList,
+          hasClearanceTag,
+          hasLastChanceTag,
+          hasCustomizableTag,
+          hasArtisanTag,
           adminProductUrl,
           liveProductUrl,
         });
