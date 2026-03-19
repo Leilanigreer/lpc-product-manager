@@ -363,18 +363,11 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         </InlineStack>
       </BlockStack>
       <Divider borderColor="border"/>
-      {mode === "update" && (
+      {mode === "update" && selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive && (
         <Box paddingBlock="200">
-          <Text tone="info" variant="bodyMd">
-            Changing stock type or colors here does not change any current product states until business logic is defined.
+          <Text tone="subdued" variant="bodyMd">
+            This leather color is currently in draft. Saving with “Update and Set as Active” will make it active for new products.
           </Text>
-          {selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive && (
-            <Box paddingBlockStart="100">
-              <Text tone="subdued" variant="bodyMd">
-                This leather color is currently in draft. Saving with “Update and Set as Active” will make it active for new products.
-              </Text>
-            </Box>
-          )}
         </Box>
       )}
       {mode === "discontinue" && (
@@ -477,31 +470,43 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                 />
               </Box>
               <Box width="50%">
-                <Combobox
-                  activator={
-                    <Combobox.TextField
-                      prefix={<Icon source={SearchIcon} />}
-                      onChange={setColorInput}
-                      label=""
-                      value={colorInput}
-                      placeholder="Search or select at least one color (Shopify Color metaobject)"
-                      autoComplete="off"
-                      requiredIndicator
-                    />
-                  }
-                >
-                  {filteredColorOptions.length > 0 && (
-                    <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
-                      <Listbox onSelect={handleColorSelect}>
-                        {filteredColorOptions.map((option) => (
-                          <Listbox.Option key={option.value} value={option.value}>
-                            {option.label}
-                          </Listbox.Option>
-                        ))}
-                      </Listbox>
-                    </div>
-                  )}
-                </Combobox>
+                <BlockStack gap="200">
+                  <Combobox
+                    activator={
+                      <Combobox.TextField
+                        prefix={<Icon source={SearchIcon} />}
+                        onChange={setColorInput}
+                        label=""
+                        value={colorInput}
+                        placeholder="Search or select at least one color (Shopify Color metaobject)"
+                        autoComplete="off"
+                        requiredIndicator
+                      />
+                    }
+                  >
+                    {filteredColorOptions.length > 0 && (
+                      <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
+                        <Listbox onSelect={handleColorSelect}>
+                          {filteredColorOptions.map((option) => (
+                            <Listbox.Option key={option.value} value={option.value}>
+                              {option.label}
+                            </Listbox.Option>
+                          ))}
+                        </Listbox>
+                      </div>
+                    )}
+                  </Combobox>
+                  <InlineStack gap="200" wrap>
+                    {selectedColorIds.map((colorId) => {
+                      const colorObj = shopifyColors.find((c) => c.value === colorId);
+                      return colorObj ? (
+                        <Tag key={colorId} onRemove={() => handleRemoveColor(colorId)}>
+                          {colorObj.label}
+                        </Tag>
+                      ) : null;
+                    })}
+                  </InlineStack>
+                </BlockStack>
               </Box>
             </InlineStack>
           </Box>
@@ -558,23 +563,99 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       )}
       {mode !== "add" && (
       <BlockStack gap="100">
-        {mode !== "discontinue" && (
-          <InlineStack gap="800" align="start" wrap={false}>
-            <Box width="50%">
-              <Text variant="bodyMd" as="label" fontWeight="medium">
-                Stock Type
-              </Text>
-            </Box>
-            <Box width="50%">
-              <Text variant="bodyMd" as="label" fontWeight="medium">
-                Collection & Leather Color Name
-              </Text>
-            </Box>
-          </InlineStack>
-        )}
-        <InlineStack gap="800" align="start" wrap={false}>
-            <Box width="50%">
-              {mode !== "discontinue" && (
+        {mode === "discontinue" ? (
+          <>
+            <Text variant="bodyMd" as="label" fontWeight="medium">
+              Collection & Leather Color Name
+            </Text>
+            <Combobox
+              activator={
+                <Combobox.TextField
+                  label="Leather color"
+                  labelHidden
+                  value={activeLeatherColorOptions.find((opt) => opt.value === selectedLeatherColorId)?.label || ""}
+                  onChange={() => {}}
+                  placeholder="Choose a leather color to discontinue"
+                  autoComplete="off"
+                />
+              }
+            >
+              <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
+                <Listbox onSelect={(value) => setSelectedLeatherColorId(value)}>
+                  {activeLeatherColorOptions.map((option) => (
+                    <Listbox.Option key={option.value} value={option.value}>
+                      {option.label}
+                    </Listbox.Option>
+                  ))}
+                </Listbox>
+              </div>
+            </Combobox>
+          </>
+        ) : (
+          <>
+            <InlineStack gap="800" align="start" wrap={false}>
+              <Box width="50%">
+                <Text variant="bodyMd" as="label" fontWeight="medium">
+                  Collection & Leather Color Name
+                </Text>
+              </Box>
+              <Box width="50%">
+                <Text variant="bodyMd" as="label" fontWeight="medium">
+                  Stock Type
+                </Text>
+              </Box>
+            </InlineStack>
+            <InlineStack gap="800" align="start" wrap={false}>
+              <Box width="50%">
+                {mode === "update" ? (
+                  <Combobox
+                    activator={
+                      <Combobox.TextField
+                        label="Leather color"
+                        labelHidden
+                        value={activeLeatherColorOptions.find((opt) => opt.value === selectedLeatherColorId)?.label || ""}
+                        onChange={() => {}}
+                        placeholder="Choose a leather color"
+                        autoComplete="off"
+                      />
+                    }
+                  >
+                    <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
+                      <Listbox onSelect={(value) => setSelectedLeatherColorId(value)}>
+                        {activeLeatherColorOptions.map((option) => (
+                          <Listbox.Option key={option.value} value={option.value}>
+                            {option.label}
+                          </Listbox.Option>
+                        ))}
+                      </Listbox>
+                    </div>
+                  </Combobox>
+                ) : (
+                  <Combobox
+                    activator={
+                      <Combobox.TextField
+                        label="Leather color"
+                        labelHidden
+                        value={inactiveLeatherColorOptions.find((opt) => opt.value === selectedLeatherColorId)?.label || ""}
+                        onChange={() => {}}
+                        placeholder="Choose a leather color to reactivate"
+                        autoComplete="off"
+                      />
+                    }
+                  >
+                    <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
+                      <Listbox onSelect={(value) => setSelectedLeatherColorId(value)}>
+                        {inactiveLeatherColorOptions.map((option) => (
+                          <Listbox.Option key={option.value} value={option.value}>
+                            {option.label}
+                          </Listbox.Option>
+                        ))}
+                      </Listbox>
+                    </div>
+                  </Combobox>
+                )}
+              </Box>
+              <Box width="50%">
                 <InlineStack gap="400" wrap={false}>
                   <RadioButton
                     label="Standard Stock"
@@ -593,165 +674,24 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                     disabled={mode === "discontinue" || disableLimitedEditionSwitch}
                   />
                 </InlineStack>
-              )}
-            </Box>
-          <Box width="50%">
-            {mode === "add" ? (
-              <>
-                <InlineStack gap="200" wrap={false}>
-                  <Box width="50%">
-                    <Combobox
-                      activator={
-                        <Combobox.TextField
-                          label="Collection"
-                          value={
-                            (resolvedCollectionOptions.find((c) => c.value === selectedCollectionId)?.label) || ""
-                          }
-                          onChange={() => {}}
-                          placeholder={isLimitedEditionLeather ? "Optional for Limited Edition" : "Required for Standard Stock"}
-                          autoComplete="off"
-                          requiredIndicator={!isLimitedEditionLeather}
-                        />
-                      }
-                    >
-                      <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
-                        <Listbox onSelect={(value) => setSelectedCollectionId(value)}>
-                          {resolvedCollectionOptions.map((collection) => (
-                            <Listbox.Option key={collection.value} value={collection.value}>
-                              {collection.label}
-                            </Listbox.Option>
-                          ))}
-                        </Listbox>
-                      </div>
-                    </Combobox>
-                  </Box>
-                  <Box width="50%">
-                    <TextField
-                      id="leatherColorNameInput"
-                      label="Leather color name"
-                      value={leatherColorName}
-                      onChange={handleNameChange}
-                      onBlur={handleNameBlur}
-                      autoComplete="off"
-                      placeholder="Enter new leather color name (required)"
-                      requiredIndicator
-                    />
-                  </Box>
-                </InlineStack>
-                {addModeConflict && (
-                  <Box paddingBlock="200">
-                    <Text tone="critical" variant="bodyMd">{error}</Text>
-                    <Button
-                      size="slim"
-                      onClick={() => {
-                        if (addModeConflict.type === 'update') {
-                          setMode('update');
-                          setSelectedLeatherColorId(addModeConflict.color.value);
-                        } else if (addModeConflict.type === 'reactivate') {
-                          setMode('reactivate');
-                          setSelectedLeatherColorId(addModeConflict.color.value);
-                        }
-                        setError("");
-                        setAddModeConflict(null);
-                      }}
-                      style={{ marginTop: 8 }}
-                    >
-                      {addModeConflict.type === 'update' ? 'Switch to Update' : 'Switch to Reactivate'}
-                    </Button>
-                  </Box>
-                )}
-                {!addModeConflict && error && (
-                  <InlineError message={error} fieldID="leatherColorName" />
-                )}
-              </>
-            ) : mode === "update" ? (
-              <Combobox
-                activator={
-                  <Combobox.TextField
-                    label="Leather color"
-                    labelHidden
-                    value={activeLeatherColorOptions.find(opt => opt.value === selectedLeatherColorId)?.label || ""}
-                    onChange={() => {}}
-                    placeholder="Choose a leather color"
-                    autoComplete="off"
-                  />
-                }
-              >
-                <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
-                  <Listbox onSelect={value => setSelectedLeatherColorId(value)}>
-                    {activeLeatherColorOptions.map(option => (
-                      <Listbox.Option key={option.value} value={option.value}>
-                        {option.label}
-                      </Listbox.Option>
-                    ))}
-                  </Listbox>
-                </div>
-              </Combobox>
-            ) : mode === "discontinue" ? (
-              <Combobox
-                activator={
-                  <Combobox.TextField
-                    label="Leather color"
-                    labelHidden
-                    value={activeLeatherColorOptions.find(opt => opt.value === selectedLeatherColorId)?.label || ""}
-                    onChange={() => {}}
-                    placeholder="Choose a leather color to discontinue"
-                    autoComplete="off"
-                  />
-                }
-              >
-                <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
-                  <Listbox onSelect={value => setSelectedLeatherColorId(value)}>
-                    {activeLeatherColorOptions.map(option => (
-                      <Listbox.Option key={option.value} value={option.value}>
-                        {option.label}
-                      </Listbox.Option>
-                    ))}
-                  </Listbox>
-                </div>
-              </Combobox>
-            ) : mode === "reactivate" ? (
-              <Combobox
-                activator={
-                  <Combobox.TextField
-                    label="Leather color"
-                    labelHidden
-                    value={inactiveLeatherColorOptions.find(opt => opt.value === selectedLeatherColorId)?.label || ""}
-                    onChange={() => {}}
-                    placeholder="Choose a leather color to reactivate"
-                    autoComplete="off"
-                  />
-                }
-              >
-                <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
-                  <Listbox onSelect={value => setSelectedLeatherColorId(value)}>
-                    {inactiveLeatherColorOptions.map(option => (
-                      <Listbox.Option key={option.value} value={option.value}>
-                        {option.label}
-                      </Listbox.Option>
-                    ))}
-                  </Listbox>
-                </div>
-              </Combobox>
-            ) : null}
-          </Box>
-          {/* right side empty for non-add; colors selector is rendered below */}
-        </InlineStack>
+              </Box>
+            </InlineStack>
+          </>
+        )}
       </BlockStack>
       )}
-      {mode !== "add" && mode !== "discontinue" && (
+      {(mode === "update" || mode === "reactivate") && (
         <Box width="100%">
           <Combobox
             activator={
               <Combobox.TextField
                 prefix={<Icon source={SearchIcon} />}
                 onChange={setColorInput}
-                label={mode === "update" ? "Add or remove color(s)" : "Add color(s) (required)"}
+                label="Add or remove color(s)"
                 value={colorInput}
-                placeholder={mode === "update" ? "Search or select colors (Shopify Color metaobject)" : "Search or select at least one color (Shopify Color metaobject)"}
+                placeholder="Search or select colors (Shopify Color metaobject)"
                 autoComplete="off"
-                disabled={mode === "discontinue"}
-                requiredIndicator={mode !== "update"}
+                requiredIndicator={false}
               />
             }
           >
@@ -769,7 +709,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           </Combobox>
         </Box>
       )}
-      {mode !== "discontinue" && (
+      {(mode === "update" || mode === "reactivate") && (
         <InlineStack gap="200" wrap>
           {selectedColorIds.map((colorId) => {
             const colorObj = shopifyColors.find((c) => c.value === colorId);
@@ -787,25 +727,32 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         </Button>
       )}
       {mode === "update" && (
-        <Button
-          primary
-          disabled={!selectedLeatherColorId || !hasUpdateChanges}
-          onClick={() => {
-            const formData = new FormData();
-            formData.append("actionType", "updateLeatherColor");
-            formData.append("leatherColorId", selectedLeatherColorId);
-            formData.append("isLimitedEditionLeather", isLimitedEditionLeather ? "true" : "false");
-            selectedColorIds.forEach((id) => formData.append("colorMetaobjectIds", id));
-            if (selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive) {
-              formData.append("setActive", "true");
-            }
-            fetcher.submit(formData, { method: "post" });
-          }}
-        >
-          {selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive
-            ? "Update and Set as Active"
-            : "Update"}
-        </Button>
+        <BlockStack gap="200">
+          <Box paddingBlockStart="200">
+            <Text tone="info" variant="bodyMd">
+              Changing stock type or colors here does not change any current product states until business logic is defined.
+            </Text>
+          </Box>
+          <Button
+            primary
+            disabled={!selectedLeatherColorId || !hasUpdateChanges}
+            onClick={() => {
+              const formData = new FormData();
+              formData.append("actionType", "updateLeatherColor");
+              formData.append("leatherColorId", selectedLeatherColorId);
+              formData.append("isLimitedEditionLeather", isLimitedEditionLeather ? "true" : "false");
+              selectedColorIds.forEach((id) => formData.append("colorMetaobjectIds", id));
+              if (selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive) {
+                formData.append("setActive", "true");
+              }
+              fetcher.submit(formData, { method: "post" });
+            }}
+          >
+            {selectedLeatherForUpdate && !selectedLeatherForUpdate.isActive
+              ? "Update and Set as Active"
+              : "Update"}
+          </Button>
+        </BlockStack>
       )}
       {mode === "reactivate" && (
         <Button
