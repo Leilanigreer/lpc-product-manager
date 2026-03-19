@@ -5,7 +5,7 @@ import { SearchIcon } from '@shopify/polaris-icons';
 import { formatNameLive, formatNameOnBlur, generateLeatherAbbreviation, buildLeatherBlendedCollectionName } from '../lib/utils/colorNameUtils';
 
 const LINKED_PRODUCT_ACTION_KEYS = [
-  { key: "removeContinueSellingWhenOos", short: "OOS", hint: "Turn off “Continue selling when out of stock” (deny when out of stock)" },
+  { key: "removeContinueSellingWhenOos", short: "CSOOS", hint: "Turn off “Continue selling when out of stock” (deny when out of stock)" },
   { key: "removeCustomizableOptions", short: "Custom", hint: "Remove customizable options / offering" },
   { key: "applyDiscount40", short: "−40%", hint: "Apply 40% discount" },
   { key: "applyDiscount60", short: "−60%", hint: "Apply 60% discount" },
@@ -366,7 +366,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     linkedProducts.forEach((p) => {
       next[p.shopifyProductId] = {
         removeContinueSellingWhenOos: !!p.hasContinueSelling,
-        removeCustomizableOptions: false,
+        removeCustomizableOptions: !!p.hasCustomizable,
         applyDiscount40: false,
         applyDiscount60: false,
       };

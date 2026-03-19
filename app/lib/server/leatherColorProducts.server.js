@@ -15,6 +15,9 @@ const PRODUCTS_BY_LEATHER_QUERY = `#graphql
           variants(first: 10) {
             nodes {
               inventoryPolicy
+              metafield(namespace: "custom", key: "customizable") {
+                value
+              }
             }
           }
           metafield(namespace: "custom", key: "leathers_used") {
@@ -112,6 +115,18 @@ export async function getActiveLpcProductsByLeatherShopifyId(admin, leatherShopi
           .filter(Boolean);
         const hasContinueSelling = variantPolicies.includes("CONTINUE");
 
+        const customizableValues = (node.variants?.nodes ?? [])
+          .map((v) => v?.metafield?.value)
+          .filter((v) => v != null);
+        const hasCustomizable = customizableValues.some(
+          (v) =>
+            v === true ||
+            v === "true" ||
+            v === "TRUE" ||
+            v === "1" ||
+            v === 1
+        );
+
         const productNumericId = node.id.split("/").pop();
         const adminProductUrl =
           shopDomain && productNumericId
@@ -128,6 +143,7 @@ export async function getActiveLpcProductsByLeatherShopifyId(admin, leatherShopi
           title: node.title || "Untitled product",
           handle: node.handle || "",
           hasContinueSelling,
+          hasCustomizable,
           adminProductUrl,
           liveProductUrl,
         });
