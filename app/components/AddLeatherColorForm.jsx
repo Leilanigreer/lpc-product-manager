@@ -942,12 +942,26 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                             </Box>
                             {LINKED_PRODUCT_ACTION_KEYS.map(({ key, hint }) => (
                               <Box key={key} paddingInline="100">
+                                {(() => {
+                                  const isDiscountKey = key === "applyDiscount40" || key === "applyDiscount60";
+                                  const isRemovalKey =
+                                    key === "removeContinueSellingWhenOos" ||
+                                    key === "removeCustomizableOptions";
+                                  const isLockedCheckedDiscount =
+                                    isDiscountKey &&
+                                    ((key === "applyDiscount40" && !!p.hasDiscount40) ||
+                                      (key === "applyDiscount60" && !!p.hasDiscount60));
+                                  const isLockedUncheckedRemoval = isRemovalKey && !row[key];
+                                  return (
                                 <Checkbox
                                   label={`${hint} for ${p.title}`}
                                   labelHidden
                                   checked={!!row[key]}
+                                  disabled={isLockedCheckedDiscount || isLockedUncheckedRemoval}
                                   onChange={(checked) => setLinkedAction(p.shopifyProductId, key, checked)}
                                 />
+                                  );
+                                })()}
                               </Box>
                             ))}
                           </React.Fragment>
@@ -1093,7 +1107,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
             </Text>
             {productActionDiffs.length > 0 && (
               <BlockStack gap="100">
-                {productActionDiffs.map(({ product, changedKeys, current }) => (
+                {productActionDiffs.map(({ product, changedKeys }) => (
                   <Box key={product.shopifyProductId}>
                     <Text variant="bodyMd" fontWeight="semibold" as="p">
                       {product.title}
@@ -1101,9 +1115,11 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                     <Text variant="bodyMd" tone="subdued" as="p">
                       {changedKeys
                         .map((key) => {
-                          const action = LINKED_PRODUCT_ACTION_KEYS.find((a) => a.key === key);
-                          const label = action?.hint || key;
-                          return `${label}: ${current[key] ? "On" : "Off"}`;
+                          if (key === "removeContinueSellingWhenOos") return "Turn off Continue selling when out of stock";
+                          if (key === "applyDiscount40") return "Apply 40% discount";
+                          if (key === "applyDiscount60") return "Apply 60% discount";
+                          if (key === "removeCustomizableOptions") return "Remove customizable options";
+                          return key;
                         })
                         .join(" | ")}
                     </Text>
