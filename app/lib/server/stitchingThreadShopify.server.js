@@ -3,7 +3,8 @@
  * Stitching threads + Amann numbers via Shopify metaobjects.
  *
  * Types: stitching_thread, amann_number
- * amann_number fields: number, wawak_color_name, wawak_item_number, single_stitching_thread_name
+ * amann_number → stitching_thread via `single_stitching_color_name` (same pattern as
+ * isacord_number → embroidery_thread via `single_embroidery_thread_name`).
  */
 
 const TYPE_STITCHING_THREAD = "stitching_thread";
@@ -14,7 +15,8 @@ const KEY_ABBREVIATION = "abbreviation";
 const KEY_NUMBER = "number";
 const KEY_WAWAK_COLOR = "wawak_color_name";
 const KEY_WAWAK_ITEM = "wawak_item_number";
-const KEY_SINGLE_THREAD_REF = "single_stitching_thread_name";
+/** Must match Shopify Amann definition field key (Content → Metaobject definition). */
+const KEY_SINGLE_THREAD_REF = "single_stitching_color_name";
 
 const PAGE_SIZE = 250;
 
@@ -47,7 +49,7 @@ const LIST_AMANN_NUMBERS = `#graphql
         numberField: field(key: "number") { value }
         wawakColorField: field(key: "wawak_color_name") { value }
         wawakItemField: field(key: "wawak_item_number") { value }
-        threadRefField: field(key: "single_stitching_thread_name") {
+        threadRefField: field(key: "single_stitching_color_name") {
           value
         }
       }
@@ -122,6 +124,7 @@ function uniqueStitchingHandle(name) {
   return `${base}-${suffix}`;
 }
 
+/** Resolve linked stitching_thread GID from amann reference field value (same rules as Isacord). */
 function linkedThreadIdFromAmannNode(node) {
   const raw = node?.threadRefField?.value;
   if (!raw || typeof raw !== "string") return null;
