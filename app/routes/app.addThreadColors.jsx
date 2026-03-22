@@ -1,20 +1,23 @@
 import React from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { Page, Layout, Card, BlockStack, InlineStack, Button, Text, Box } from "@shopify/polaris";
+import { Page, Layout, Box } from "@shopify/polaris";
 import AddEmbroideryThreadColorForm from "../components/AddEmbroideryThreadColorForm";
 import AddStitchingThreadColorForm from "../components/AddStitchingThreadColorForm";
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
-import { updateEmbroideryThreadColorWithTagsAndNumbers, createEmbroideryThreadColorWithTags, updateStitchingThreadColorWithTagsAndNumbers, createStitchingThreadColorWithTagsAndAmann, unlinkIsacordFromThread, unlinkAmannFromThread } from "../lib/server/threadColorOperations.server";
-import { activateIsacordMetaobjects } from "../lib/server/amannShopifyMigration.server";
+import {
+  updateEmbroideryThreadColorWithNumbers,
+  createEmbroideryThreadColor,
+  updateStitchingThreadColorWithNumbers,
+  createStitchingThreadColorWithAmann,
+  unlinkIsacordFromThread,
+  unlinkAmannFromThread,
+} from "../lib/server/threadColorOperations.server";
 import SuccessBanner from "../components/SuccessBanner.jsx";
-
-const ACTIVATE_ISACORD_ACTION = "activateIsacordMetaobjects";
 
 export default function AddThreadColors() {
   const {
-    colorTags,
     unlinkedIsacordNumbers,
     stitchingThreadColors,
     embroideryThreadColors,
@@ -22,10 +25,8 @@ export default function AddThreadColors() {
   } = useLoaderData();
   const fetcher = useFetcher();
 
-  // Banner state
   const [showBanner, setShowBanner] = React.useState(false);
   const [bannerType, setBannerType] = React.useState("");
-  const [activateBanner, setActivateBanner] = React.useState({ show: false, message: "", isError: false });
 
   React.useEffect(() => {
     if (fetcher.data && fetcher.data.success) {
@@ -34,33 +35,9 @@ export default function AddThreadColors() {
     }
   }, [fetcher.data]);
 
-  React.useEffect(() => {
-    if (fetcher.data && fetcher.data.activateResult) {
-      const r = fetcher.data.activateResult;
-      const msg = r.errors?.length
-        ? `Updated ${r.updated}, skipped ${r.skipped}. Errors: ${r.errors.join("; ")}`
-        : `Isacord number metaobjects: ${r.updated} set to Active, ${r.skipped} already active.`;
-      setActivateBanner({ show: true, message: msg, isError: r.errors?.length > 0 });
-    }
-  }, [fetcher.data]);
-
-  const handleActivateIsacord = () => {
-    fetcher.submit({ type: ACTIVATE_ISACORD_ACTION }, { method: "post" });
-  };
-
-  const isSubmitting = (t) => fetcher.state === "submitting" && fetcher.formData?.get("type") === t;
-
   return (
     <Page>
       <TitleBar title="Add Thread Colors" />
-      {activateBanner.show && (
-        <SuccessBanner
-          show={true}
-          onDismiss={() => setActivateBanner({ show: false, message: "", isError: false })}
-          message={activateBanner.message}
-          status={activateBanner.isError ? "critical" : "success"}
-        />
-      )}
       <SuccessBanner
         show={showBanner}
         onDismiss={() => setShowBanner(false)}
@@ -72,30 +49,8 @@ export default function AddThreadColors() {
       />
       <Box paddingBlockEnd="400">
         <Layout>
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  Shopify: Isacord number metaobjects
-                </Text>
-                <Text as="p" variant="bodyMd" tone="subdued">
-                  Sets every Shopify metaobject of type isacord_number to Active (publishable). Paginates through the full list so nothing after the first 250 is skipped.
-                </Text>
-                <InlineStack gap="300" wrap>
-                  <Button
-                    variant="primary"
-                    onClick={handleActivateIsacord}
-                    loading={isSubmitting(ACTIVATE_ISACORD_ACTION)}
-                  >
-                    Set all Isacord numbers to Active
-                  </Button>
-                </InlineStack>
-              </BlockStack>
-            </Card>
-          </Layout.Section>
           <Layout.Section variant="oneHalf">
             <AddEmbroideryThreadColorForm
-              colorTags={colorTags}
               unlinkedIsacordNumbers={unlinkedIsacordNumbers}
               embroideryThreadColors={embroideryThreadColors}
               fetcher={fetcher}
@@ -103,7 +58,6 @@ export default function AddThreadColors() {
           </Layout.Section>
           <Layout.Section variant="oneHalf">
             <AddStitchingThreadColorForm
-              colorTags={colorTags}
               stitchingThreadColors={stitchingThreadColors}
               fetcher={fetcher}
               unlinkedAmannNumbers={unlinkedAmannNumbers}
@@ -121,54 +75,32 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
+  await authenticate.admin(request);
   const formData = await request.formData();
   const type = formData.get("type");
 
-  if (type === ACTIVATE_ISACORD_ACTION) {
-    try {
-      const activateResult = await activateIsacordMetaobjects(admin);
-      return { activateResult };
-    } catch (error) {
-      console.error("[action] activateIsacordMetaobjects error", error);
-      return {
-        activateResult: {
-          success: false,
-          updated: 0,
-          skipped: 0,
-          errors: [error.message || String(error)],
-        },
-      };
-    }
-  }
-
   if (type === "updateEmbroidery") {
-    // Parse form data
     const threadId = formData.get("threadId");
-    const addIsacordIds = formData.getAll("addNumberIds");
-    const removeIsacordIds = formData.getAll("removeNumberIds");
-    const addColorTagIds = formData.getAll("addColorTagIds");
-    const removeColorTagIds = formData.getAll("removeColorTagIds");
+    const addIsacordIds = formData.getAll("addIsacordIds");
+    const removeIsacordIds = formData.getAll("removeIsacordIds");
 
-    // 1. Parse reassignments
-    const reassignments = (Array.isArray(formData.getAll("reassignIsacordNumbers[]"))
-      ? formData.getAll("reassignIsacordNumbers[]")
-      : formData.get("reassignIsacordNumbers[]") ? [formData.get("reassignIsacordNumbers[]")] : []
-    ).map(str => JSON.parse(str));
+    const reassignments = (
+      Array.isArray(formData.getAll("reassignIsacordNumbers[]"))
+        ? formData.getAll("reassignIsacordNumbers[]")
+        : formData.get("reassignIsacordNumbers[]")
+          ? [formData.get("reassignIsacordNumbers[]")]
+          : []
+    ).map((str) => JSON.parse(str));
 
     try {
-      // 2. Unlink isacord numbers from old threads
       for (const { isacordId, fromThreadId } of reassignments) {
         await unlinkIsacordFromThread(isacordId, fromThreadId);
       }
 
-      // 3. Now update the thread color
-      const updated = await updateEmbroideryThreadColorWithTagsAndNumbers({
+      const updated = await updateEmbroideryThreadColorWithNumbers({
         threadId,
         addIsacordIds,
         removeIsacordIds,
-        addColorTagIds,
-        removeColorTagIds,
       });
       return {
         success: true,
@@ -176,74 +108,73 @@ export const action = async ({ request }) => {
         actionType: "update",
       };
     } catch (error) {
-      console.error('[action] updateEmbroidery error', error);
+      console.error("[action] updateEmbroidery error", error);
       return {
         success: false,
         error: error.message,
       };
     }
   }
+
   if (type === "embroidery") {
-    // Parse form data for add
     const name = formData.get("name");
     const abbreviation = formData.get("abbreviation");
-    const isacordNumbers = formData.getAll("numbers");
-    const colorTagIds = formData.getAll("colorTagIds");
+    const isacordNumbers = formData.getAll("isacordNumbers");
 
-    // 1. Parse reassignments
-    const reassignments = (Array.isArray(formData.getAll("reassignNumbers[]"))
-      ? formData.getAll("reassignNumbers[]")
-      : formData.get("reassignNumbers[]") ? [formData.get("reassignNumbers[]")] : []
-    ).map(str => JSON.parse(str));
+    const reassignments = (
+      Array.isArray(formData.getAll("reassignIsacordNumbers[]"))
+        ? formData.getAll("reassignIsacordNumbers[]")
+        : formData.get("reassignIsacordNumbers[]")
+          ? [formData.get("reassignIsacordNumbers[]")]
+          : []
+    ).map((str) => JSON.parse(str));
 
     try {
-      // 2. Unlink isacord numbers from old threads
-      for (const { numberId, fromThreadId } of reassignments) {
-        await unlinkIsacordFromThread(numberId, fromThreadId);
+      for (const { isacordId, fromThreadId } of reassignments) {
+        await unlinkIsacordFromThread(isacordId, fromThreadId);
       }
 
-      // 3. Now create the new thread color
-      const created = await createEmbroideryThreadColorWithTags({ name, abbreviation, isacordNumbers }, colorTagIds);
+      const created = await createEmbroideryThreadColor({
+        name,
+        abbreviation,
+        isacordNumbers,
+      });
       return {
         success: true,
         threadColor: created,
         actionType: "add",
       };
     } catch (error) {
-      console.error('[action] addEmbroidery error', error);
+      console.error("[action] addEmbroidery error", error);
       return {
         success: false,
         error: error.message,
       };
     }
   }
+
   if (type === "updateStitching") {
-    // Parse form data
     const threadId = formData.get("threadId");
     const addAmannIds = formData.getAll("addAmannIds");
     const removeAmannIds = formData.getAll("removeAmannIds");
-    const addColorTagIds = formData.getAll("addColorTagIds");
-    const removeColorTagIds = formData.getAll("removeColorTagIds");
 
-    // 1. Parse reassignments
-    const reassignments = (Array.isArray(formData.getAll("reassignNumbers[]"))
-      ? formData.getAll("reassignNumbers[]")
-      : formData.get("reassignNumbers[]") ? [formData.get("reassignNumbers[]")] : []
-    ).map(str => JSON.parse(str));
+    const reassignments = (
+      Array.isArray(formData.getAll("reassignAmannNumbers[]"))
+        ? formData.getAll("reassignAmannNumbers[]")
+        : formData.get("reassignAmannNumbers[]")
+          ? [formData.get("reassignAmannNumbers[]")]
+          : []
+    ).map((str) => JSON.parse(str));
 
     try {
-      // 2. Unlink amann numbers from old threads
-      for (const { numberId, fromThreadId } of reassignments) {
-        await unlinkAmannFromThread(numberId, fromThreadId);
+      for (const { amannId, fromThreadId } of reassignments) {
+        await unlinkAmannFromThread(amannId, fromThreadId);
       }
 
-      // 3. Now update the thread color
-      const updated = await updateStitchingThreadColorWithTagsAndNumbers({
+      const updated = await updateStitchingThreadColorWithNumbers({
         threadId,
         addAmannIds,
         removeAmannIds,
-        addColorTagIds,
-        removeColorTagIds,
       });
       return {
         success: true,
@@ -251,41 +182,44 @@ export const action = async ({ request }) => {
         actionType: "update",
       };
     } catch (error) {
-      console.error('[action] updateStitching error', error);
+      console.error("[action] updateStitching error", error);
       return {
         success: false,
         error: error.message,
       };
     }
   }
+
   if (type === "stitching") {
-    // Parse form data for add
     const name = formData.get("name");
     const abbreviation = formData.get("abbreviation");
-    const amannNumbers = formData.getAll("numbers");
-    const colorTagIds = formData.getAll("colorTagIds");
+    const amannNumbers = formData.getAll("amannNumbers");
 
-    // 1. Parse reassignments
-    const reassignments = (Array.isArray(formData.getAll("reassignNumbers[]"))
-      ? formData.getAll("reassignNumbers[]")
-      : formData.get("reassignNumbers[]") ? [formData.get("reassignNumbers[]")] : []
-    ).map(str => JSON.parse(str));
+    const reassignments = (
+      Array.isArray(formData.getAll("reassignAmannNumbers[]"))
+        ? formData.getAll("reassignAmannNumbers[]")
+        : formData.get("reassignAmannNumbers[]")
+          ? [formData.get("reassignAmannNumbers[]")]
+          : []
+    ).map((str) => JSON.parse(str));
 
     try {
-      // 2. Unlink amann numbers from old threads
-      for (const { numberId, fromThreadId } of reassignments) {
-        await unlinkAmannFromThread(numberId, fromThreadId);
+      for (const { amannId, fromThreadId } of reassignments) {
+        await unlinkAmannFromThread(amannId, fromThreadId);
       }
 
-      // 3. Now create the new thread color
-      const created = await createStitchingThreadColorWithTagsAndAmann({ name, abbreviation, amannNumbers }, colorTagIds);
+      const created = await createStitchingThreadColorWithAmann({
+        name,
+        abbreviation,
+        amannNumbers,
+      });
       return {
         success: true,
         threadColor: created,
         actionType: "add",
       };
     } catch (error) {
-      console.error('[action] addStitching error', error);
+      console.error("[action] addStitching error", error);
       return {
         success: false,
         error: error.message,
