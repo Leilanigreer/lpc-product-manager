@@ -7,13 +7,15 @@ import AddStitchingThreadColorForm from "../components/AddStitchingThreadColorFo
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
 import {
-  updateEmbroideryThreadColorWithNumbers,
-  createEmbroideryThreadColor,
   updateStitchingThreadColorWithNumbers,
   createStitchingThreadColorWithAmann,
-  unlinkIsacordFromThread,
   unlinkAmannFromThread,
 } from "../lib/server/threadColorOperations.server";
+import {
+  getEmbroideryThreadColorDataFromShopify,
+  createEmbroideryThreadAndLinkIsacordNumbers,
+  updateEmbroideryThreadIsacordLinks,
+} from "../lib/server/embroideryThreadShopify.server";
 import SuccessBanner from "../components/SuccessBanner.jsx";
 
 export default function AddThreadColors() {
@@ -71,11 +73,17 @@ export default function AddThreadColors() {
 
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
-  return dataLoader({ admin });
+  const base = await dataLoader({ admin });
+  const shopifyEmbroidery = await getEmbroideryThreadColorDataFromShopify(admin);
+  return {
+    ...base,
+    embroideryThreadColors: shopifyEmbroidery.embroideryThreadColors,
+    unlinkedIsacordNumbers: shopifyEmbroidery.unlinkedIsacordNumbers,
+  };
 };
 
 export const action = async ({ request }) => {
-  await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
   const type = formData.get("type");
 
@@ -84,20 +92,8 @@ export const action = async ({ request }) => {
     const addIsacordIds = formData.getAll("addIsacordIds");
     const removeIsacordIds = formData.getAll("removeIsacordIds");
 
-    const reassignments = (
-      Array.isArray(formData.getAll("reassignIsacordNumbers[]"))
-        ? formData.getAll("reassignIsacordNumbers[]")
-        : formData.get("reassignIsacordNumbers[]")
-          ? [formData.get("reassignIsacordNumbers[]")]
-          : []
-    ).map((str) => JSON.parse(str));
-
     try {
-      for (const { isacordId, fromThreadId } of reassignments) {
-        await unlinkIsacordFromThread(isacordId, fromThreadId);
-      }
-
-      const updated = await updateEmbroideryThreadColorWithNumbers({
+      const updated = await updateEmbroideryThreadIsacordLinks(admin, {
         threadId,
         addIsacordIds,
         removeIsacordIds,
@@ -121,23 +117,11 @@ export const action = async ({ request }) => {
     const abbreviation = formData.get("abbreviation");
     const isacordNumbers = formData.getAll("isacordNumbers");
 
-    const reassignments = (
-      Array.isArray(formData.getAll("reassignIsacordNumbers[]"))
-        ? formData.getAll("reassignIsacordNumbers[]")
-        : formData.get("reassignIsacordNumbers[]")
-          ? [formData.get("reassignIsacordNumbers[]")]
-          : []
-    ).map((str) => JSON.parse(str));
-
     try {
-      for (const { isacordId, fromThreadId } of reassignments) {
-        await unlinkIsacordFromThread(isacordId, fromThreadId);
-      }
-
-      const created = await createEmbroideryThreadColor({
+      const created = await createEmbroideryThreadAndLinkIsacordNumbers(admin, {
         name,
         abbreviation,
-        isacordNumbers,
+        isacordIds: isacordNumbers,
       });
       return {
         success: true,
