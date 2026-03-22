@@ -277,7 +277,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   );
 
   // In update mode, allow toggling Standard vs Limited Edition (with note that product state is unchanged until business logic is sorted)
-  const disableLimitedEditionSwitch = mode === "discontinue";
+  const disableLimitedEditionSwitch = mode === "discontinue" || mode === "updateDiscontinued";
 
   // Selected leather in update mode (for change detection)
   const selectedLeatherForUpdate = useMemo(() => {
@@ -336,7 +336,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   }, [selectedLeatherColorId, mode]);
 
   React.useEffect(() => {
-    if (mode !== "update" && mode !== "discontinue" && mode !== "reactivate") return;
+    if (mode !== "update" && mode !== "discontinue" && mode !== "updateDiscontinued" && mode !== "reactivate") return;
     if (!selectedLeatherColorId) return;
     const q = new URLSearchParams({ leatherColorId: selectedLeatherColorId });
     linkedProductsFetcher.load(`/app/api/leather-color-products?${q}`);
@@ -455,7 +455,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   ]);
 
   const submitDiscontinueLeatherColor = useCallback(() => {
-    const selected = activeLeatherColorOptions.find((opt) => opt.value === selectedLeatherColorId);
+    const selected = leatherColorOptions.find((opt) => opt.value === selectedLeatherColorId);
     const formData = new FormData();
     formData.append("actionType", "discontinueLeatherColor");
     formData.append("leatherColorId", selectedLeatherColorId);
@@ -475,7 +475,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     appendLinkedProductActionsPayload(formData);
     fetcher.submit(formData, { method: "post" });
   }, [
-    activeLeatherColorOptions,
+    leatherColorOptions,
     selectedLeatherColorId,
     appendLinkedProductActionsPayload,
     fetcher,
@@ -489,7 +489,10 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   const handleConfirmActionsValidation = useCallback(() => {
     if (pendingProductActionSubmit === "update") {
       submitUpdateLeatherColor();
-    } else if (pendingProductActionSubmit === "discontinue") {
+    } else if (
+      pendingProductActionSubmit === "discontinue" ||
+      pendingProductActionSubmit === "updateDiscontinued"
+    ) {
       submitDiscontinueLeatherColor();
     }
     setActionsValidationModalOpen(false);
@@ -498,7 +501,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
 
   return (
     <BlockStack gap="400">
-      <Text variant="headingMd">Add, Update, Discontinue, or Reactivate Leather Color</Text>
+      <Text variant="headingMd">Add, Update, Discontinue, Update Discontinued, or Reactivate Leather Color</Text>
       <BlockStack gap="200">
         <InlineStack gap="400" wrap={false}>
           <RadioButton
@@ -521,6 +524,13 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
             id="discontinueMode"
             name="leatherMode"
             onChange={() => setMode("discontinue")}
+          />
+          <RadioButton
+            label="Update Discontinued"
+            checked={mode === "updateDiscontinued"}
+            id="updateDiscontinuedMode"
+            name="leatherMode"
+            onChange={() => setMode("updateDiscontinued")}
           />
           <RadioButton
             label="Reactivate"
@@ -725,7 +735,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       )}
       {mode !== "add" && (
       <BlockStack gap="100">
-        {mode === "discontinue" ? (
+        {mode === "discontinue" || mode === "updateDiscontinued" ? (
           <>
             <Text variant="bodyMd" as="label" fontWeight="medium">
               Collection & Leather Color Name
@@ -735,16 +745,23 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                 <Combobox.TextField
                   label="Leather color"
                   labelHidden
-                  value={activeLeatherColorOptions.find((opt) => opt.value === selectedLeatherColorId)?.label || ""}
+                  value={
+                    (mode === "discontinue" ? activeLeatherColorOptions : inactiveLeatherColorOptions)
+                      .find((opt) => opt.value === selectedLeatherColorId)?.label || ""
+                  }
                   onChange={() => {}}
-                  placeholder="Choose a leather color to discontinue"
+                  placeholder={
+                    mode === "discontinue"
+                      ? "Choose an active leather color to discontinue"
+                      : "Choose a discontinued leather color to update"
+                  }
                   autoComplete="off"
                 />
               }
             >
               <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
                 <Listbox onSelect={(value) => setSelectedLeatherColorId(value)}>
-                  {activeLeatherColorOptions.map((option) => (
+                  {(mode === "discontinue" ? activeLeatherColorOptions : inactiveLeatherColorOptions).map((option) => (
                     <Listbox.Option key={option.value} value={option.value}>
                       {option.label}
                     </Listbox.Option>
@@ -842,7 +859,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         )}
       </BlockStack>
       )}
-      {mode === "discontinue" && selectedLeatherColorId && (
+      {(mode === "discontinue" || mode === "updateDiscontinued") && selectedLeatherColorId && (
         <Box paddingBlockStart="400">
           <Card>
             <BlockStack gap="300">
@@ -1215,14 +1232,16 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
           {hasUpdateChanges ? "Update and Set as Active" : "Set as Active"}
         </Button>
       )}
-      {mode === "discontinue" && (
+      {(mode === "discontinue" || mode === "updateDiscontinued") && (
         <Button
           primary
           tone="critical"
           disabled={!selectedLeatherColorId}
-          onClick={() => openActionsValidationModal("discontinue")}
+          onClick={() => openActionsValidationModal(mode === "discontinue" ? "discontinue" : "updateDiscontinued")}
         >
-          Discontinue Collection & Leather Color
+          {mode === "discontinue"
+            ? "Discontinue Collection & Leather Color"
+            : "Update Discontinued Collection & Leather Color"}
         </Button>
       )}
       <Modal
@@ -1234,6 +1253,8 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         title={
           pendingProductActionSubmit === "discontinue"
             ? "Confirm discontinue + product action updates"
+            : pendingProductActionSubmit === "updateDiscontinued"
+            ? "Confirm update discontinued + product action updates"
             : "Confirm update + product action updates"
         }
         primaryAction={{
