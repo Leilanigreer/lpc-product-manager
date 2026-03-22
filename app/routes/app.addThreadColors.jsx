@@ -7,15 +7,10 @@ import AddStitchingThreadColorForm from "../components/AddStitchingThreadColorFo
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
 import { updateEmbroideryThreadColorWithTagsAndNumbers, createEmbroideryThreadColorWithTags, updateStitchingThreadColorWithTagsAndNumbers, createStitchingThreadColorWithTagsAndAmann, unlinkIsacordFromThread, unlinkAmannFromThread } from "../lib/server/threadColorOperations.server";
-import {
-  migrateAmannNumbersToShopify,
-  activateAmannMetaobjects,
-  migrateEmbroideryThreadsToShopify,
-  migrateIsacordNumbersToShopify,
-  activateEmbroideryMetaobjects,
-  activateIsacordMetaobjects,
-} from "../lib/server/amannShopifyMigration.server";
+import { activateIsacordMetaobjects } from "../lib/server/amannShopifyMigration.server";
 import SuccessBanner from "../components/SuccessBanner.jsx";
+
+const ACTIVATE_ISACORD_ACTION = "activateIsacordMetaobjects";
 
 export default function AddThreadColors() {
   const {
@@ -30,10 +25,7 @@ export default function AddThreadColors() {
   // Banner state
   const [showBanner, setShowBanner] = React.useState(false);
   const [bannerType, setBannerType] = React.useState("");
-  const [migrateBanner, setMigrateBanner] = React.useState({ show: false, message: "", isError: false });
   const [activateBanner, setActivateBanner] = React.useState({ show: false, message: "", isError: false });
-  const [embroideryMigrateBanner, setEmbroideryMigrateBanner] = React.useState({ show: false, message: "", isError: false });
-  const [isacordMigrateBanner, setIsacordMigrateBanner] = React.useState({ show: false, message: "", isError: false });
 
   React.useEffect(() => {
     if (fetcher.data && fetcher.data.success) {
@@ -43,71 +35,17 @@ export default function AddThreadColors() {
   }, [fetcher.data]);
 
   React.useEffect(() => {
-    if (fetcher.data && fetcher.data.migrateResult) {
-      const r = fetcher.data.migrateResult;
-      const msg = r.errors?.length
-        ? `Created ${r.created}, skipped ${r.skipped}. Errors: ${r.errors.join("; ")}`
-        : `Migrated Amann numbers to Shopify: ${r.created} created, ${r.skipped} skipped.`;
-      setMigrateBanner({ show: true, message: msg, isError: r.errors?.length > 0 });
-    }
-  }, [fetcher.data]);
-
-  React.useEffect(() => {
     if (fetcher.data && fetcher.data.activateResult) {
       const r = fetcher.data.activateResult;
       const msg = r.errors?.length
         ? `Updated ${r.updated}, skipped ${r.skipped}. Errors: ${r.errors.join("; ")}`
-        : `Set thread metaobjects to Active: ${r.updated} updated, ${r.skipped} already active.`;
+        : `Isacord number metaobjects: ${r.updated} set to Active, ${r.skipped} already active.`;
       setActivateBanner({ show: true, message: msg, isError: r.errors?.length > 0 });
     }
   }, [fetcher.data]);
 
-  React.useEffect(() => {
-    if (fetcher.data && fetcher.data.embroideryMigrateResult) {
-      const r = fetcher.data.embroideryMigrateResult;
-      const msg = r.errors?.length
-        ? `Created ${r.created}, skipped ${r.skipped}. Errors: ${r.errors.join("; ")}`
-        : `Embroidery threads: ${r.created} created, ${r.skipped} skipped.`;
-      setEmbroideryMigrateBanner({ show: true, message: msg, isError: r.errors?.length > 0 });
-    }
-  }, [fetcher.data]);
-
-  React.useEffect(() => {
-    if (fetcher.data && fetcher.data.isacordMigrateResult) {
-      const r = fetcher.data.isacordMigrateResult;
-      const msg = r.errors?.length
-        ? `Created ${r.created}, skipped ${r.skipped}. Errors: ${r.errors.join("; ")}`
-        : `Isacord numbers: ${r.created} created, ${r.skipped} skipped.`;
-      setIsacordMigrateBanner({ show: true, message: msg, isError: r.errors?.length > 0 });
-    }
-  }, [fetcher.data]);
-
-  const handleMigrateAmann = () => {
-    fetcher.submit(
-      { type: "migrateAmannToShopify" },
-      { method: "post" }
-    );
-  };
-
-  const handleActivateAmann = () => {
-    fetcher.submit(
-      { type: "activateAmannMetaobjects" },
-      { method: "post" }
-    );
-  };
-
-  const handleMigrateEmbroidery = () => {
-    fetcher.submit(
-      { type: "migrateEmbroideryThreadsToShopify" },
-      { method: "post" }
-    );
-  };
-
-  const handleMigrateIsacord = () => {
-    fetcher.submit(
-      { type: "migrateIsacordNumbersToShopify" },
-      { method: "post" }
-    );
+  const handleActivateIsacord = () => {
+    fetcher.submit({ type: ACTIVATE_ISACORD_ACTION }, { method: "post" });
   };
 
   const isSubmitting = (t) => fetcher.state === "submitting" && fetcher.formData?.get("type") === t;
@@ -115,36 +53,12 @@ export default function AddThreadColors() {
   return (
     <Page>
       <TitleBar title="Add Thread Colors" />
-      {migrateBanner.show && (
-        <SuccessBanner
-          show={true}
-          onDismiss={() => setMigrateBanner({ show: false, message: "", isError: false })}
-          message={migrateBanner.message}
-          status={migrateBanner.isError ? "critical" : "success"}
-        />
-      )}
       {activateBanner.show && (
         <SuccessBanner
           show={true}
           onDismiss={() => setActivateBanner({ show: false, message: "", isError: false })}
           message={activateBanner.message}
           status={activateBanner.isError ? "critical" : "success"}
-        />
-      )}
-      {embroideryMigrateBanner.show && (
-        <SuccessBanner
-          show={true}
-          onDismiss={() => setEmbroideryMigrateBanner({ show: false, message: "", isError: false })}
-          message={embroideryMigrateBanner.message}
-          status={embroideryMigrateBanner.isError ? "critical" : "success"}
-        />
-      )}
-      {isacordMigrateBanner.show && (
-        <SuccessBanner
-          show={true}
-          onDismiss={() => setIsacordMigrateBanner({ show: false, message: "", isError: false })}
-          message={isacordMigrateBanner.message}
-          status={isacordMigrateBanner.isError ? "critical" : "success"}
         />
       )}
       <SuccessBanner
@@ -162,36 +76,18 @@ export default function AddThreadColors() {
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">
-                  Manage migration: Postgres → Shopify
+                  Shopify: Isacord number metaobjects
                 </Text>
                 <Text as="p" variant="bodyMd" tone="subdued">
-                  Copy thread and number data from this app into Shopify metaobjects. Safe to run again; existing entries are skipped.
+                  Sets every Shopify metaobject of type isacord_number to Active (publishable). Paginates through the full list so nothing after the first 250 is skipped.
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
                     variant="primary"
-                    onClick={handleMigrateAmann}
-                    loading={isSubmitting("migrateAmannToShopify")}
+                    onClick={handleActivateIsacord}
+                    loading={isSubmitting(ACTIVATE_ISACORD_ACTION)}
                   >
-                    Migrate Amann numbers
-                  </Button>
-                  <Button
-                    onClick={handleActivateAmann}
-                    loading={isSubmitting("activateAmannMetaobjects")}
-                  >
-                    Set thread metaobjects to Active
-                  </Button>
-                  <Button
-                    onClick={handleMigrateEmbroidery}
-                    loading={isSubmitting("migrateEmbroideryThreadsToShopify")}
-                  >
-                    Migrate embroidery threads
-                  </Button>
-                  <Button
-                    onClick={handleMigrateIsacord}
-                    loading={isSubmitting("migrateIsacordNumbersToShopify")}
-                  >
-                    Migrate Isacord numbers
+                    Set all Isacord numbers to Active
                   </Button>
                 </InlineStack>
               </BlockStack>
@@ -229,85 +125,16 @@ export const action = async ({ request }) => {
   const formData = await request.formData();
   const type = formData.get("type");
 
-  if (type === "migrateAmannToShopify") {
+  if (type === ACTIVATE_ISACORD_ACTION) {
     try {
-      const migrateResult = await migrateAmannNumbersToShopify(admin);
-      return { migrateResult };
-    } catch (error) {
-      console.error("[action] migrateAmannToShopify error", error);
-      return {
-        migrateResult: {
-          success: false,
-          created: 0,
-          skipped: 0,
-          errors: [error.message || String(error)],
-        },
-      };
-    }
-  }
-
-  if (type === "activateAmannMetaobjects") {
-    try {
-      const [amannResult, embroideryResult, isacordResult] = await Promise.all([
-        activateAmannMetaobjects(admin),
-        activateEmbroideryMetaobjects(admin),
-        activateIsacordMetaobjects(admin),
-      ]);
-
-      const combinedErrors = [
-        ...(amannResult.errors || []).map(e => `Amann: ${e}`),
-        ...(embroideryResult.errors || []).map(e => `Embroidery: ${e}`),
-        ...(isacordResult.errors || []).map(e => `Isacord: ${e}`),
-      ];
-
-      const activateResult = {
-        success: amannResult.success && embroideryResult.success && isacordResult.success,
-        updated: (amannResult.updated || 0) + (embroideryResult.updated || 0) + (isacordResult.updated || 0),
-        skipped: (amannResult.skipped || 0) + (embroideryResult.skipped || 0) + (isacordResult.skipped || 0),
-        errors: combinedErrors,
-      };
-
+      const activateResult = await activateIsacordMetaobjects(admin);
       return { activateResult };
     } catch (error) {
-      console.error("[action] activateAmannMetaobjects error", error);
+      console.error("[action] activateIsacordMetaobjects error", error);
       return {
         activateResult: {
           success: false,
           updated: 0,
-          skipped: 0,
-          errors: [error.message || String(error)],
-        },
-      };
-    }
-  }
-
-  if (type === "migrateEmbroideryThreadsToShopify") {
-    try {
-      const embroideryMigrateResult = await migrateEmbroideryThreadsToShopify(admin);
-      return { embroideryMigrateResult };
-    } catch (error) {
-      console.error("[action] migrateEmbroideryThreadsToShopify error", error);
-      return {
-        embroideryMigrateResult: {
-          success: false,
-          created: 0,
-          skipped: 0,
-          errors: [error.message || String(error)],
-        },
-      };
-    }
-  }
-
-  if (type === "migrateIsacordNumbersToShopify") {
-    try {
-      const isacordMigrateResult = await migrateIsacordNumbersToShopify(admin);
-      return { isacordMigrateResult };
-    } catch (error) {
-      console.error("[action] migrateIsacordNumbersToShopify error", error);
-      return {
-        isacordMigrateResult: {
-          success: false,
-          created: 0,
           skipped: 0,
           errors: [error.message || String(error)],
         },
@@ -465,5 +292,4 @@ export const action = async ({ request }) => {
       };
     }
   }
-  // ... (your other action logic)
-}; 
+};
