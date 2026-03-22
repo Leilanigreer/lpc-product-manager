@@ -122,16 +122,19 @@ function uniqueEmbroideryHandle(name) {
   return `${base}-${suffix}`;
 }
 
-/** Resolve linked embroidery thread GID from isacord reference field (stored JSON). */
+/** Resolve linked embroidery thread GID from isacord reference field value. */
 function linkedThreadIdFromIsacordNode(node) {
   const raw = node?.threadRefField?.value;
   if (!raw || typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  // Single metaobject_reference is often stored as the raw GID.
+  if (trimmed.startsWith("gid://")) return trimmed;
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(trimmed);
     if (Array.isArray(parsed) && parsed[0]) return String(parsed[0]);
     if (typeof parsed === "string" && parsed.startsWith("gid://")) return parsed;
   } catch {
-    if (raw.startsWith("gid://")) return raw;
+    /* ignore */
   }
   return null;
 }
@@ -215,10 +218,13 @@ export async function getEmbroideryThreadColorDataFromShopify(admin) {
   return { embroideryThreadColors, unlinkedIsacordNumbers };
 }
 
-/** Shopify metaobject_reference value: JSON array of one GID. */
+/**
+ * Value for single metaobject_reference: plain GID string (not a JSON array — that is for list references).
+ * Clear with empty string.
+ */
 function threadRefFieldValue(threadGid) {
   if (!threadGid) return "";
-  return JSON.stringify([threadGid]);
+  return String(threadGid).trim();
 }
 
 async function fetchIsacordFieldsForUpdate(admin, isacordGid) {
@@ -240,22 +246,7 @@ async function fetchIsacordFieldsForUpdate(admin, isacordGid) {
   };
 }
 
-/**
- * Point isacord_number at an embroidery_thread (or clear link when threadGid is null/empty).
- */
-export async function setIsacordEmbroideryThreadLink(admin, isacordGid, threadGid) {
-  if (!admin?.graphql) {
-    throw new Error("Shopify admin client is required.");
-  }
-  const { number, wawakColorName, wawakItemNumber } = await fetchIsacordFieldsForUpdate(admin, isacordGid);
-
-  const fields = [
-    { key: KEY_NUMBER, value: number },
-    { key: KEY_WAWAK_COLOR, value: wawakColorName },
-    { key: KEY_WAWAK_ITEM, value: wawakItemNumber },
-    { key: KEY_SINGLE_THREAD_REF, value: threadRefFieldValue(threadGid) },
-  ];
-
+async function runIsacordMetaobjectUpdate(admin, isacordGid, fields) {
   const response = await admin.graphql(UPDATE_ISACORD, {
     variables: {
       id: isacordGid,
@@ -263,9 +254,54 @@ export async function setIsacordEmbroideryThreadLink(admin, isacordGid, threadGi
     },
   });
   const json = await response.json();
-  const result = json.data?.metaobjectUpdate;
-  if (result?.userErrors?.length) {
-    throw new Error(result.userErrors.map((e) => e.message).join(", "));
+  if (json.errors?.length) {
+    console.error("[embroideryThreadShopify] metaobjectUpdate GraphQL errors", json.errors);
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+  return json.data?.metaobjectUpdate?.userErrors ?? [];
+}
+
+/**
+ * Point isacord_number at an embroidery_thread (or clear link when threadGid is null/empty).
+ * Tries reference-only update first (avoids sending empty strings for required text fields).
+ * Falls back to read-merge of number + Wawak fields if Shopify requires a full row.
+ */
+export async function setIsacordEmbroideryThreadLink(admin, isacordGid, threadGid) {
+  if (!admin?.graphql) {
+    throw new Error("Shopify admin client is required.");
+  }
+
+  const refValue = threadRefFieldValue(threadGid);
+
+  const partialErrors = await runIsacordMetaobjectUpdate(admin, isacordGid, [
+    { key: KEY_SINGLE_THREAD_REF, value: refValue },
+  ]);
+  if (!partialErrors.length) return;
+
+  const { number, wawakColorName, wawakItemNumber } = await fetchIsacordFieldsForUpdate(admin, isacordGid);
+  const scalarFields = [
+    { key: KEY_NUMBER, value: number },
+    { key: KEY_WAWAK_COLOR, value: wawakColorName },
+    { key: KEY_WAWAK_ITEM, value: wawakItemNumber },
+  ];
+
+  let fullErrors = await runIsacordMetaobjectUpdate(admin, isacordGid, [
+    ...scalarFields,
+    { key: KEY_SINGLE_THREAD_REF, value: refValue },
+  ]);
+
+  // If definition is still list.metaobject_reference, Shopify expects a JSON array string.
+  if (fullErrors.length && refValue) {
+    const listEncoded = JSON.stringify([refValue]);
+    fullErrors = await runIsacordMetaobjectUpdate(admin, isacordGid, [
+      ...scalarFields,
+      { key: KEY_SINGLE_THREAD_REF, value: listEncoded },
+    ]);
+  }
+
+  if (fullErrors.length) {
+    console.error("[embroideryThreadShopify] metaobjectUpdate userErrors (after merge)", fullErrors);
+    throw new Error(fullErrors.map((e) => e.message).join(", "));
   }
 }
 
@@ -314,8 +350,20 @@ export async function createEmbroideryThreadAndLinkIsacordNumbers(admin, { name,
   }
 
   const ids = Array.isArray(isacordIds) ? isacordIds.filter(Boolean) : [];
+  const linkErrors = [];
   for (const isacordGid of ids) {
-    await setIsacordEmbroideryThreadLink(admin, isacordGid, threadId);
+    try {
+      await setIsacordEmbroideryThreadLink(admin, isacordGid, threadId);
+    } catch (err) {
+      const msg = err?.message || String(err);
+      linkErrors.push(`${isacordGid}: ${msg}`);
+      console.error("[embroideryThreadShopify] link isacord failed", isacordGid, err);
+    }
+  }
+  if (linkErrors.length) {
+    throw new Error(
+      `Embroidery thread was created but ${linkErrors.length} Isacord link(s) failed: ${linkErrors.join("; ")}`
+    );
   }
 
   return {

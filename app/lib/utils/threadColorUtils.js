@@ -3,23 +3,24 @@ export function toTitleCase(str) {
   return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
 }
 
-// Utility: Generate unique abbreviation (like leather, but always ends with 'E')
+// Utility: Generate unique abbreviation (embroidery: always ends with '_E')
 export function generateEmbAbbreviation(name, embroideryAbbrsRaw) {
   if (!name) return "";
-  // All existing abbreviations should be compared with 'E' at the end
-  const existingAbbrs = (embroideryAbbrsRaw || []).map(abbr => abbr.endsWith('E') ? abbr : abbr + 'E');
-  const words = name.split(" ").filter(Boolean);
-  // Try 1 to max word length for each word
-  const maxLen = Math.max(...words.map(w => w.length));
+  const SUFFIX = "_E";
+  const existingAbbrs = (embroideryAbbrsRaw || [])
+    .map((a) => String(a ?? "").trim())
+    .filter(Boolean);
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  const maxLen = Math.max(...words.map((w) => w.length), 1);
   for (let i = 1; i <= maxLen; i++) {
-    const abbr = words.map(w => w.slice(0, i)).join("") + 'E';
+    const abbr = words.map((w) => w.slice(0, i)).join("") + SUFFIX;
     if (!existingAbbrs.includes(abbr)) return abbr;
   }
-  // If all combinations are taken, append a number
   let n = 2;
   while (true) {
     for (let i = 1; i <= maxLen; i++) {
-      const abbr = words.map(w => w.slice(0, i)).join("") + 'E' + n;
+      const abbr = words.map((w) => w.slice(0, i)).join("") + SUFFIX + n;
       if (!existingAbbrs.includes(abbr)) return abbr;
     }
     n++;
