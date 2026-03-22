@@ -226,44 +226,6 @@ export const getLeatherColors = async () => {
   }
 };
 
-export const getStitchingThreadColors = async () => {
-  try {
-    const stitchingThreadColors = await prisma.stitchingThread.findMany({
-      include: {
-        colorTags: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        amannNumbers: {
-          select: {
-            id: true,
-            number: true
-          }
-        }
-      }
-    });
-    return stitchingThreadColors.map(({ id, name, abbreviation, colorTags, amannNumbers }) => ({
-      value: id,
-      label: name,
-      abbreviation,
-      colorTags: colorTags.map(tag => ({
-        value: tag.id,
-        label: tag.name
-      })),
-      amannNumbers: amannNumbers.map(number => ({
-        value: number.id,
-        label: number.number
-      }))
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
-  } catch (error) {
-   console.error("Error fetching stitching thread colors:", error);
-    throw error;
-  }
-};
-
 export const getEmbroideryThreadColors = async () => {
   try {
     const embroideryThreadColors = await prisma.embroideryThread.findMany({
@@ -839,21 +801,6 @@ export const getUnlinkedIsacordNumbers = async () => {
     }));
   } catch (error) {
     console.error("Error fetching Isacord numbers:", error);
-    throw error;
-  }
-};
-
-export const getUnlinkedAmannNumbers = async () => {
-  try {
-    const amannNumbers = await prisma.amannNumber.findMany({
-      where: { threadId: null }
-    });
-    return amannNumbers.map(({ id, number }) => ({
-      value: id,
-      label: number
-    }));
-  } catch (error) {
-    console.error("Error fetching Amann numbers:", error);
     throw error;
   }
 };

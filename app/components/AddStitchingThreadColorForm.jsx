@@ -125,13 +125,6 @@ export default function AddStitchingThreadColorForm({ stitchingThreadColors, fet
     addAmannIds.forEach((id) => formData.append("addAmannIds", id));
     removeAmannIds.forEach((id) => formData.append("removeAmannIds", id));
 
-    addAmannIds.forEach((id) => {
-      const numObj = allAmannOptions.find((num) => num.value === id);
-      if (numObj && numObj.threadId && numObj.threadId !== selectedThreadId) {
-        formData.append("reassignAmannNumbers[]", JSON.stringify({ amannId: id, fromThreadId: numObj.threadId }));
-      }
-    });
-
     fetcher.submit(formData, { method: "post" });
     setUpdateModalOpen(false);
   };
@@ -217,13 +210,6 @@ export default function AddStitchingThreadColorForm({ stitchingThreadColors, fet
     formData.append("name", stitchFormattedName);
     formData.append("abbreviation", stitchGeneratedAbbr);
     stitchAmann.forEach((id) => formData.append("amannNumbers", id));
-
-    stitchAmann.forEach((id) => {
-      const numObj = allAmannOptions.find((num) => num.value === id);
-      if (numObj && numObj.threadId) {
-        formData.append("reassignAmannNumbers[]", JSON.stringify({ amannId: id, fromThreadId: numObj.threadId }));
-      }
-    });
 
     fetcher.submit(formData, { method: "post" });
     setStitchModalOpen(false);

@@ -7,15 +7,14 @@ import AddStitchingThreadColorForm from "../components/AddStitchingThreadColorFo
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
 import {
-  updateStitchingThreadColorWithNumbers,
-  createStitchingThreadColorWithAmann,
-  unlinkAmannFromThread,
-} from "../lib/server/threadColorOperations.server";
-import {
   getEmbroideryThreadColorDataFromShopify,
   createEmbroideryThreadAndLinkIsacordNumbers,
   updateEmbroideryThreadIsacordLinks,
 } from "../lib/server/embroideryThreadShopify.server";
+import {
+  createStitchingThreadAndLinkAmannNumbers,
+  updateStitchingThreadAmannLinks,
+} from "../lib/server/stitchingThreadShopify.server";
 import SuccessBanner from "../components/SuccessBanner.jsx";
 
 export default function AddThreadColors() {
@@ -142,20 +141,8 @@ export const action = async ({ request }) => {
     const addAmannIds = formData.getAll("addAmannIds");
     const removeAmannIds = formData.getAll("removeAmannIds");
 
-    const reassignments = (
-      Array.isArray(formData.getAll("reassignAmannNumbers[]"))
-        ? formData.getAll("reassignAmannNumbers[]")
-        : formData.get("reassignAmannNumbers[]")
-          ? [formData.get("reassignAmannNumbers[]")]
-          : []
-    ).map((str) => JSON.parse(str));
-
     try {
-      for (const { amannId, fromThreadId } of reassignments) {
-        await unlinkAmannFromThread(amannId, fromThreadId);
-      }
-
-      const updated = await updateStitchingThreadColorWithNumbers({
+      const updated = await updateStitchingThreadAmannLinks(admin, {
         threadId,
         addAmannIds,
         removeAmannIds,
@@ -179,23 +166,11 @@ export const action = async ({ request }) => {
     const abbreviation = formData.get("abbreviation");
     const amannNumbers = formData.getAll("amannNumbers");
 
-    const reassignments = (
-      Array.isArray(formData.getAll("reassignAmannNumbers[]"))
-        ? formData.getAll("reassignAmannNumbers[]")
-        : formData.get("reassignAmannNumbers[]")
-          ? [formData.get("reassignAmannNumbers[]")]
-          : []
-    ).map((str) => JSON.parse(str));
-
     try {
-      for (const { amannId, fromThreadId } of reassignments) {
-        await unlinkAmannFromThread(amannId, fromThreadId);
-      }
-
-      const created = await createStitchingThreadColorWithAmann({
+      const created = await createStitchingThreadAndLinkAmannNumbers(admin, {
         name,
         abbreviation,
-        amannNumbers,
+        amannIds: amannNumbers,
       });
       return {
         success: true,

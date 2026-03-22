@@ -4,7 +4,6 @@ import {
   getLeatherColors, 
   getLeatherColorsFromShopify,
   getLeatherCollectionNamesFromShopify,
-  getStitchingThreadColors, 
   getEmbroideryThreadColors, 
   getFonts, 
   getFontsFromShopify,
@@ -14,9 +13,9 @@ import {
   getProductSets,
   getColorTags,
   getUnlinkedIsacordNumbers,
-  getUnlinkedAmannNumbers,
   getShopifyColorMetaobjects,
 } from "../utils/dataFetchers";
+import { getStitchingThreadColorDataFromShopify } from "../server/stitchingThreadShopify.server";
 
 export const loader = async ({ admin } = {}) => {  
   try {
@@ -26,9 +25,12 @@ export const loader = async ({ admin } = {}) => {
       : getLeatherColors().then((arr) => ({ leatherColors: arr }));
     const shopifyColorsPromise = admin ? getShopifyColorMetaobjects(admin) : Promise.resolve([]);
     const leatherCollectionNamesPromise = admin ? getLeatherCollectionNamesFromShopify(admin) : Promise.resolve([]);
+    const stitchingDataPromise = admin
+      ? getStitchingThreadColorDataFromShopify(admin)
+      : Promise.resolve({ stitchingThreadColors: [], unlinkedAmannNumbers: [] });
     const [
       leatherResult,
-      stitchingThreadColors,
+      stitchingData,
       embroideryThreadColors,
       fonts,
       shapes,
@@ -36,12 +38,11 @@ export const loader = async ({ admin } = {}) => {
       commonDescription,
       colorTags,
       unlinkedIsacordNumbers,
-      unlinkedAmannNumbers,
       shopifyColors,
       leatherCollectionNames,
     ] = await Promise.all([
       leatherResultPromise,
-      getStitchingThreadColors(),
+      stitchingDataPromise,
       getEmbroideryThreadColors(),
       fontsPromise,
       getShapes(),
@@ -49,7 +50,6 @@ export const loader = async ({ admin } = {}) => {
       getCommonDescription(),
       getColorTags(),
       getUnlinkedIsacordNumbers(),
-      getUnlinkedAmannNumbers(),
       shopifyColorsPromise,
       leatherCollectionNamesPromise,
     ]);
@@ -62,7 +62,7 @@ export const loader = async ({ admin } = {}) => {
     return {
       leatherColors,
       leatherColorsLoadError,
-      stitchingThreadColors,
+      stitchingThreadColors: stitchingData.stitchingThreadColors,
       embroideryThreadColors,
       fonts,
       shapes,
@@ -71,7 +71,7 @@ export const loader = async ({ admin } = {}) => {
       productSets,
       colorTags,
       unlinkedIsacordNumbers,
-      unlinkedAmannNumbers,
+      unlinkedAmannNumbers: stitchingData.unlinkedAmannNumbers,
       shopifyColors,
       leatherCollectionNames,
       error: null

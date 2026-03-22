@@ -83,20 +83,24 @@ export function generateEmbAbbreviation(name, embroideryAbbrsRaw) {
   }
 }
 
-// Utility: Generate unique abbreviation for stitching (always ends with 'S')
+// Utility: Generate unique abbreviation for stitching (always ends with '_S')
 export function generateStitchAbbreviation(name, stitchingAbbrsRaw) {
   if (!name) return "";
-  const existingAbbrs = (stitchingAbbrsRaw || []).map(abbr => abbr.endsWith('S') ? abbr : abbr + 'S');
-  const words = name.split(" ").filter(Boolean);
-  const maxLen = Math.max(...words.map(w => w.length));
+  const SUFFIX = "_S";
+  const existingAbbrs = (stitchingAbbrsRaw || [])
+    .map((a) => String(a ?? "").trim())
+    .filter(Boolean);
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  const maxLen = Math.max(...words.map((w) => w.length), 1);
   for (let i = 1; i <= maxLen; i++) {
-    const abbr = words.map(w => w.slice(0, i)).join("") + 'S';
+    const abbr = words.map((w) => w.slice(0, i)).join("") + SUFFIX;
     if (!existingAbbrs.includes(abbr)) return abbr;
   }
   let n = 2;
   while (true) {
     for (let i = 1; i <= maxLen; i++) {
-      const abbr = words.map(w => w.slice(0, i)).join("") + 'S' + n;
+      const abbr = words.map((w) => w.slice(0, i)).join("") + SUFFIX + n;
       if (!existingAbbrs.includes(abbr)) return abbr;
     }
     n++;
