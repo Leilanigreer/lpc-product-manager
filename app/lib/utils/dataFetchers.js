@@ -1,4 +1,4 @@
-// app/lib/dataFetchers.js
+// app/lib/utils/dataFetchers.js
 import prisma from "../../db.server.js";
 
 const LEATHER_COLOR_METAOBJECT_QUERY = `#graphql
@@ -365,133 +365,142 @@ export const getShapes = async () => {
   }
 }
 
+/** Prisma include for collection rows used by create-product and related loaders. */
+const shopifyCollectionFormInclude = {
+  styles: {
+    select: {
+      styleId: true,
+      overrideSecondaryLeather: true,
+      overrideStitchingColor: true,
+      overrideColorDesignation: true,
+      skuPattern: true,
+      titleTemplate: true,
+      seoTemplate: true,
+      handleTemplate: true,
+      validation: true,
+      overrideNamePattern: true,
+      overrideCustomNamePattern: true,
+      style: {
+        select: {
+          id: true,
+          name: true,
+          abbreviation: true,
+          url_id: true,
+          useOppositeLeather: true,
+          leatherPhrase: true,
+          namePattern: true,
+          customNamePattern: true,
+        },
+      },
+    },
+  },
+  titleFormat: {
+    select: {
+      titleTemplate: true,
+      seoTemplate: true,
+      handleTemplate: true,
+      validation: true,
+    },
+  },
+  PriceTier: {
+    include: {
+      adjustments: true,
+    },
+  },
+};
+
+const mapShopifyCollectionRowToFormShape = ({
+  id,
+  shopifyId,
+  admin_graphql_api_id,
+  title,
+  handle,
+  skuPattern,
+  threadType,
+  description,
+  commonDescription,
+  needsSecondaryLeather,
+  needsStitchingColor,
+  needsColorDesignation,
+  needsStyle,
+  defaultStyleNamePattern,
+  stylePerCollection,
+  showInDropdown,
+  styles,
+  titleFormat,
+  PriceTier,
+}) => ({
+  value: id,
+  shopifyId,
+  admin_graphql_api_id,
+  label: title,
+  handle,
+  skuPattern,
+  threadType,
+  description,
+  commonDescription,
+  needsSecondaryLeather,
+  needsStitchingColor,
+  needsColorDesignation,
+  needsStyle,
+  defaultStyleNamePattern,
+  stylePerCollection,
+  showInDropdown,
+  styles: styles
+    .map((sc) => ({
+      value: sc.style.id,
+      id: sc.style.id,
+      label: sc.style.name,
+      abbreviation: sc.style.abbreviation,
+      url_id: sc.style.url_id,
+      useOppositeLeather: sc.style.useOppositeLeather,
+      leatherPhrase: sc.style.leatherPhrase,
+      namePattern: sc.style.namePattern,
+      customNamePattern: sc.style.customNamePattern,
+      overrideSecondaryLeather: sc.overrideSecondaryLeather,
+      overrideStitchingColor: sc.overrideStitchingColor,
+      overrideColorDesignation: sc.overrideColorDesignation,
+      skuPattern: sc.skuPattern,
+      titleTemplate: sc.titleTemplate,
+      seoTemplate: sc.seoTemplate,
+      handleTemplate: sc.handleTemplate,
+      validation: sc.validation,
+      overrideNamePattern: sc.overrideNamePattern,
+      overrideCustomNamePattern: sc.overrideCustomNamePattern,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label)),
+  titleFormat: titleFormat
+    ? {
+        titleTemplate: titleFormat.titleTemplate,
+        seoTemplate: titleFormat.seoTemplate,
+        handleTemplate: titleFormat.handleTemplate,
+        validation: titleFormat.validation,
+      }
+    : null,
+  priceTier: PriceTier
+    ? {
+        value: PriceTier.id,
+        name: PriceTier.name,
+        shopifyPrice: parseFloat(PriceTier.shopifyPrice),
+        marketplacePrice: parseFloat(PriceTier.marketplacePrice),
+        adjustments: (PriceTier.adjustments ?? []).map((adj) => ({
+          shapeType: adj.shapeType,
+          shopifyAdjustment: parseFloat(adj.shopifyAdjustment),
+          marketAdjustment: parseFloat(adj.marketAdjustment),
+          isBasePrice: adj.isBasePrice,
+        })),
+      }
+    : null,
+});
+
 export const getShopifyCollections = async () => {
   try {
     const shopifyCollections = await prisma.ShopifyCollection.findMany({
-      include: {
-        styles: {
-          select: {
-            styleId: true,
-            overrideSecondaryLeather: true,
-            overrideStitchingColor: true,
-            overrideColorDesignation: true,
-            skuPattern: true,
-            titleTemplate: true,
-            seoTemplate: true,
-            handleTemplate: true,
-            validation: true,
-            overrideNamePattern: true,
-            overrideCustomNamePattern: true,
-            style: {
-              select: {
-                id: true,
-                name: true,
-                abbreviation: true,
-                url_id: true,
-                useOppositeLeather: true,
-                leatherPhrase: true,
-                namePattern: true,
-                customNamePattern: true
-              }
-            }
-          }
-        },
-        titleFormat: {
-          select: {
-            titleTemplate: true,
-            seoTemplate: true,
-            handleTemplate: true,
-            validation: true
-          }
-        },
-        PriceTier: {
-          include: {
-            adjustments: true
-          }
-        },
-      }
+      include: shopifyCollectionFormInclude,
     });
-    
+
     return shopifyCollections
-      .map(({ 
-        id, 
-        shopifyId, 
-        admin_graphql_api_id, 
-        title,
-        handle,
-        skuPattern,
-        threadType,
-        description,
-        commonDescription,
-        needsSecondaryLeather,
-        needsStitchingColor,
-        needsColorDesignation,
-        needsStyle,
-        defaultStyleNamePattern,
-        stylePerCollection,
-        showInDropdown,
-        styles,
-        titleFormat,
-        PriceTier
-      }) => ({
-        value: id,
-        shopifyId,
-        admin_graphql_api_id,
-        label: title,
-        handle,
-        skuPattern,
-        threadType,
-        description,
-        commonDescription,
-        needsSecondaryLeather,
-        needsStitchingColor,
-        needsColorDesignation,
-        needsStyle,
-        defaultStyleNamePattern,
-        stylePerCollection,
-        showInDropdown,
-        styles: styles
-          .map(sc => ({
-            value: sc.style.id,
-            id: sc.style.id,
-            label: sc.style.name,
-            abbreviation: sc.style.abbreviation,
-            url_id: sc.style.url_id,
-            useOppositeLeather: sc.style.useOppositeLeather,
-            leatherPhrase: sc.style.leatherPhrase,
-            namePattern: sc.style.namePattern,
-            customNamePattern: sc.style.customNamePattern,
-            overrideSecondaryLeather: sc.overrideSecondaryLeather,
-            overrideStitchingColor: sc.overrideStitchingColor,
-            overrideColorDesignation: sc.overrideColorDesignation,
-            skuPattern: sc.skuPattern,
-            titleTemplate: sc.titleTemplate,
-            seoTemplate: sc.seoTemplate,
-            handleTemplate: sc.handleTemplate,
-            validation: sc.validation,
-            overrideNamePattern: sc.overrideNamePattern,
-            overrideCustomNamePattern: sc.overrideCustomNamePattern
-          }))
-          .sort((a, b) => a.label.localeCompare(b.label)),
-        titleFormat: titleFormat ? {
-          titleTemplate: titleFormat.titleTemplate,
-          seoTemplate: titleFormat.seoTemplate,
-          handleTemplate: titleFormat.handleTemplate,
-          validation: titleFormat.validation
-        }: null,
-        priceTier: PriceTier ? {
-          value: PriceTier.id,
-          name: PriceTier.name,
-          shopifyPrice: parseFloat(PriceTier.shopifyPrice),
-          marketplacePrice: parseFloat(PriceTier.marketplacePrice),
-          adjustments: PriceTier.adjustments.map(adj => ({
-            shapeType: adj.shapeType,
-            shopifyAdjustment: parseFloat(adj.shopifyAdjustment),
-            marketAdjustment: parseFloat(adj.marketAdjustment),
-            isBasePrice: adj.isBasePrice,
-          }))
-        } : null,
-      }))
+      .map(mapShopifyCollectionRowToFormShape)
       .sort((a, b) => a.label.localeCompare(b.label));
   } catch (error) {
     console.error("Error Fetching Shopify Collections from Prisma", error);
@@ -534,7 +543,8 @@ export const getProductSets = async (fontsFromShopify = [], leatherColorsFromSho
                 id: true,
                 title: true,
                 handle: true,
-                shopifyId: true
+                shopifyId: true,
+                admin_graphql_api_id: true,
               }
             }
           }
@@ -710,13 +720,15 @@ export const getProductSets = async (fontsFromShopify = [], leatherColorsFromSho
           value: primaryCollection.id,
           label: primaryCollection.title,
           handle: primaryCollection.handle || '',
-          shopifyId: primaryCollection.shopifyId
+          shopifyId: primaryCollection.shopifyId,
+          shopifyAdminGid: primaryCollection.admin_graphql_api_id,
         },
         collections: collections.map(({ collection }) => ({
           value: collection.id,
           label: collection.title,
           handle: collection.handle || '',
-          shopifyId: collection.shopifyId
+          shopifyId: collection.shopifyId,
+          shopifyAdminGid: collection.admin_graphql_api_id,
         })),
         offeringType,
         font: fontObj,

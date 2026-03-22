@@ -7,13 +7,44 @@
 export const validateCollection = (formState, debug = false) => {
   const { collection } = formState;
 
-  // Check if collection exists and is an object
   if (!collection || typeof collection !== 'object') {
     if (debug) console.warn('No collection found in formState');
     return false;
   }
 
-  // Required base fields
+  const isShopifyCollection = collection.source === 'shopify';
+
+  if (isShopifyCollection) {
+    if (!collection.label || !collection.handle) {
+      if (debug) console.warn('Shopify collection missing label or handle');
+      return false;
+    }
+    const tf = collection.titleFormat;
+    if (!tf || typeof tf !== 'object') {
+      if (debug) console.warn('Shopify collection missing titleFormat');
+      return false;
+    }
+    if (!String(tf.titleTemplate || '').trim()) {
+      if (debug) console.warn('Shopify collection missing titleTemplate');
+      return false;
+    }
+    if (!String(tf.seoTemplate || '').trim()) {
+      if (debug) console.warn('Shopify collection missing seoTemplate');
+      return false;
+    }
+    if (!String(tf.handleTemplate || '').trim()) {
+      if (debug) console.warn('Shopify collection missing handleTemplate');
+      return false;
+    }
+    const v = tf.validation;
+    if (!v || typeof v !== 'object' || !Array.isArray(v.required) || v.errorMessages == null) {
+      if (debug) console.warn('Shopify collection titleFormat.validation must be parsed JSON with required[] and errorMessages');
+      return false;
+    }
+    return true;
+  }
+
+  // Legacy Postgres-shaped collection
   const requiredBaseFields = [
     'value',
     'label',
@@ -33,14 +64,13 @@ export const validateCollection = (formState, debug = false) => {
 
   if (!hasRequiredBaseFields) return false;
 
-  // Required boolean flags
   const requiredBooleanFlags = [
     'commonDescription',
     'needsSecondaryLeather',
     'needsStitchingColor',
-    'needsStyle',
-    'showInDropdown',
-    'stylePerCollection'
+    'needsColorDesignation',
+    'stylePerCollection',
+    'showInDropdown'
   ];
 
   const hasValidBooleanFlags = requiredBooleanFlags.every(flag => {
@@ -53,6 +83,46 @@ export const validateCollection = (formState, debug = false) => {
 
   if (!hasValidBooleanFlags) return false;
 
+  // Validate styles array if needsStyle is true
+  if (collection.needsStyle) {
+    if (!Array.isArray(collection.styles)) {
+      if (debug) console.warn('Styles is not an array');
+      return false;
+    }
+
+    const hasValidStyles = collection.styles.every(style => {
+      const requiredStyleFields = [
+        'value',
+        'id',
+        'label',
+        'abbreviation',
+      ];
+
+      const isValid = requiredStyleFields.every(field => {
+        const hasField = Boolean(style[field]);
+        if (!hasField && debug) {
+          console.warn(`Style missing required field: ${field}`, style);
+        }
+        return hasField;
+      });
+
+      // Validate validation object if present (but don't require it)
+      if (style.validation) {
+        if (typeof style.validation !== 'object' || 
+            !Array.isArray(style.validation.required) || 
+            !style.validation.errorMessages) {
+          if (debug) console.warn('Invalid validation structure in style');
+          return false;
+        }
+      }
+
+      return isValid;
+    });
+
+    if (!hasValidStyles) return false;
+  }
+
+  // Validate titleFormat object
   // Validate styles array if needsStyle is true
   if (collection.needsStyle) {
     if (!Array.isArray(collection.styles)) {
@@ -115,7 +185,6 @@ export const validateCollection = (formState, debug = false) => {
 
   if (!hasValidTitleFormat) return false;
 
-  // Validate validation object in titleFormat
   const { validation } = titleFormat;
   if (!validation || typeof validation !== 'object') {
     if (debug) console.warn('Missing or invalid validation in titleFormat');
@@ -127,6 +196,5 @@ export const validateCollection = (formState, debug = false) => {
     return false;
   }
 
-  // All validations passed
   return true;
 };

@@ -16,6 +16,22 @@ import {
   getShopifyColorMetaobjects,
 } from "../utils/dataFetchers";
 import { getStitchingThreadColorDataFromShopify } from "../server/stitchingThreadShopify.server";
+import { getProductCollectionsFromShopify } from "../server/collectionShopify.server";
+
+async function loadShopifyCollectionsForLoader(admin) {
+  if (!admin) {
+    return getShopifyCollections();
+  }
+  try {
+    return await getProductCollectionsFromShopify(admin);
+  } catch (err) {
+    console.error(
+      "loadShopifyCollectionsForLoader: Shopify collection query failed; falling back to Postgres list:",
+      err
+    );
+    return getShopifyCollections();
+  }
+}
 
 export const loader = async ({ admin } = {}) => {  
   try {
@@ -28,6 +44,7 @@ export const loader = async ({ admin } = {}) => {
     const stitchingDataPromise = admin
       ? getStitchingThreadColorDataFromShopify(admin)
       : Promise.resolve({ stitchingThreadColors: [], unlinkedAmannNumbers: [] });
+    const shopifyCollectionsPromise = loadShopifyCollectionsForLoader(admin);
     const [
       leatherResult,
       stitchingData,
@@ -46,7 +63,7 @@ export const loader = async ({ admin } = {}) => {
       getEmbroideryThreadColors(),
       fontsPromise,
       getShapes(),
-      getShopifyCollections(),
+      shopifyCollectionsPromise,
       getCommonDescription(),
       getColorTags(),
       getUnlinkedIsacordNumbers(),

@@ -58,6 +58,23 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
       throw new Error('Collection data missing from product data');
     }
 
+    let collectionId = collection.value;
+    if (
+      typeof collectionId === "string" &&
+      collectionId.startsWith("gid://shopify/Collection/")
+    ) {
+      const row = await prisma.ShopifyCollection.findFirst({
+        where: { admin_graphql_api_id: collectionId },
+        select: { id: true },
+      });
+      if (!row) {
+        throw new Error(
+          "No local ShopifyCollection row for this Shopify collection. Sync admin_graphql_api_id in Postgres or finish DB migration."
+        );
+      }
+      collectionId = row.id;
+    }
+
     const isShopifyFontGid = typeof productData.selectedFont === "string" && productData.selectedFont.startsWith("gid://");
     const isShopifyLeather1Gid = typeof productData.selectedLeatherColor1 === "string" && productData.selectedLeatherColor1.startsWith("gid://");
     const isShopifyLeather2Gid = productData.selectedLeatherColor2 && typeof productData.selectedLeatherColor2 === "string" && productData.selectedLeatherColor2.startsWith("gid://");
@@ -69,7 +86,7 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
       mainHandle: productData.mainHandle,
       collections: {
         create: {
-          collectionId: collection.value
+          collectionId,
         }
       },
       ...(isShopifyFontGid

@@ -3,9 +3,9 @@
 import _ from 'lodash';
 
 /**
- * Extracts unique products with SKUs from ProductSetDataLPC
- * @param {Array<Object>} productSets - Array of ProductSetDataLPC records
- * @returns {Array<Object>} Array of unique products with baseSKU and collection
+ * Extracts unique products with SKUs from loader product sets.
+ * @param {Array<Object>} productSets - Mapped product sets (each has `collections[]` with value, shopifyAdminGid, …)
+ * @returns {Array<Object>} Unique rows: { baseSKU, collection }
  */
 export const extractExistingProducts = (productSets) => {
   if (!productSets?.length) {
@@ -13,10 +13,10 @@ export const extractExistingProducts = (productSets) => {
   }
 
   const products = productSets
-    .filter(set => set.baseSKU && set.collections?.[0]) // Ensure we have required fields
-    .map(set => ({
+    .filter((set) => set.baseSKU && set.collections?.[0])
+    .map((set) => ({
       baseSKU: set.baseSKU,
-      collection: set.collections[0]?.collection // Get collection from the first collection entry
+      collection: set.collections[0],
     }))
     .filter(product => product.baseSKU && product.collection); // Double-check we have both fields
 
@@ -24,13 +24,21 @@ export const extractExistingProducts = (productSets) => {
 };
 
 /**
- * Filters products by collection ID
- * @param {Array<Object>} existingProducts - Products with SKUs
- * @param {string} collectionValue - Collection ID to filter by 
+ * Filters existing SKU rows by selected collection.
+ * Matches `shopifyAdminGid` to a Shopify Collection GID, or falls back to legacy Prisma `value`.
+ * @param {Array<Object>} existingProducts - From extractExistingProducts
+ * @param {string} collectionValue - Form collection `value` (GID or Prisma id)
  * @returns {Array<Object>} Filtered products
  */
 export const filterProductsByCollection = (existingProducts, collectionValue) => {
-  return existingProducts.filter(product => product.collection?.value === collectionValue);
+  return existingProducts.filter((product) => {
+    const c = product.collection;
+    if (!c) return false;
+    if (c.shopifyAdminGid && collectionValue && c.shopifyAdminGid === collectionValue) {
+      return true;
+    }
+    return c.value === collectionValue;
+  });
 };
 
 /**

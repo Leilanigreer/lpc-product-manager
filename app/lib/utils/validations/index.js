@@ -6,8 +6,6 @@ import { validateLeatherColors, validateShapeColorDesignations } from './colorVa
 import { validateShapes } from './shapeValidations';
 import { validateGlobalEmbroideryThread, validateStitchingThreads, validateShapeEmbroideryThreads } from './threadValidations';
 import { validateFinalRequirements } from './requirementValidations';
-import { validateGlobalStyle, validateShapeStyles } from './styleValidations';
-
 /**
  * Helper function to check if a validation result is valid
  * Handles both simple boolean and complex validation results
@@ -83,18 +81,23 @@ export const validateProductForm = (formState, { debug = false } = {}) => {
       errors.push(shapeValidation.error || 'Invalid shape configuration');
     }
 
-    // Style Validations
-    if (formState.collection.needsStyle) {
-      validations.hasValidGlobalStyle = validateGlobalStyle(formState, debug);
-      validations.hasValidShapeStyles = validateShapeStyles(formState, debug);
-      
-      if (!validations.hasValidGlobalStyle && formState.styleMode === 'global') {
-        errors.push('Invalid global style configuration');
-      }
-      if (!validations.hasValidShapeStyles && formState.styleMode === 'independent') {
-        errors.push('Invalid shape-specific styles');
-      }
-    }
+    /*
+     * --- Style validations (restore when Shopify `style` metaobjects drive needsStyle / styles[]) ---
+     * Add next to other imports at top of this file:
+     *   import { validateGlobalStyle, validateShapeStyles } from './styleValidations';
+     *
+     * if (formState.collection.needsStyle) {
+     *   validations.hasValidGlobalStyle = validateGlobalStyle(formState, debug);
+     *   validations.hasValidShapeStyles = validateShapeStyles(formState, debug);
+     *
+     *   if (!validations.hasValidGlobalStyle && formState.styleMode === 'global') {
+     *     errors.push('Invalid global style configuration');
+     *   }
+     *   if (!validations.hasValidShapeStyles && formState.styleMode === 'independent') {
+     *     errors.push('Invalid shape-specific styles');
+     *   }
+     * }
+     */
 
     // Thread Validations
     validations.hasValidStitchingThreads = validateStitchingThreads(formState, debug);

@@ -1,12 +1,26 @@
 import React, { useMemo } from 'react';
-import { Select, Card, InlineStack, Box, Text, BlockStack } from "@shopify/polaris";
+import { Select, Card, Box, Text, BlockStack } from "@shopify/polaris";
 
 /**
- * Collection Selector component that handles collection selection and style mode configuration
+ * Collection selection for create-product. Collection rows come from Shopify (see loader).
+ *
+ * Next: styles will come from Shopify metaobjects (type `style`), not Postgres. Planned fields:
+ *   - style (choice list)
+ *   - abbreviation
+ *   - category (choice list; must match collection `custom.category` choice list)
+ *   - use_opposite_leather
+ *   - leather_phrase
+ *   - name_pattern
+ *   - needs_secondary_leather
+ *   - needs_stitching_color
+ *   - needs_color_designation
+ *
+ * Style mode / global style UI below is commented out until that data is wired; logic is kept intact.
+ *
  * @param {Object} props
- * @param {Array} props.shopifyCollections - Available collections from the database
- * @param {Object} props.productSets - Product sets from the database
- * @param {Object} props.formState - Current form state including collection and style settings
+ * @param {Array} props.shopifyCollections - Collections from the loader
+ * @param {Object} props.productSets - Product sets (existing SKU hints per collection)
+ * @param {Object} props.formState - Current form state
  * @param {Function} props.onChange - Callback when form state changes
  */
 
@@ -19,41 +33,12 @@ const CollectionSelector = ({
   const collectionOptions = useMemo(() => [    
     { label: 'Select a collection...', value: '' }, 
     ...shopifyCollections
-      .filter(c => c.showInDropdown)
+      .filter((c) => c.showInDropdown !== false)
       .map(({ value, label }) => ({
         value,
         label
       }))
   ], [shopifyCollections]);
-
-  // Keep full collection data separate from UI options
-  const currentCollection = useMemo(() => 
-    shopifyCollections?.find(col => col.value === formState.collection?.value),
-    [shopifyCollections, formState.collection?.value]
-  );
-
-  // Style mode options
-  const styleModeOptions = useMemo(() => [
-    { label: 'Select style mode...', value: '' },
-    { label: 'Global style for all shapes', value: 'global' },
-    { label: 'Independent style per shape', value: 'independent' }
-  ], []);
-
-  // Available styles for the current collection
-  const styleOptions = useMemo(() => {
-    if (!currentCollection?.styles?.length) {
-      console.warn(`No styles found for collection: ${currentCollection?.label}`);
-      return [{ label: 'Select a style...', value: '' }];
-    }
-    
-    return [
-      { label: 'Select a style...', value: '' },
-      ...currentCollection.styles.map(style => ({
-        label: style.label,
-        value: style.value
-      }))
-    ];
-  }, [currentCollection]);
 
   const handleCollectionChange = (value) => {
     const selectedCollection = shopifyCollections?.find(c => c.value === value);
@@ -65,19 +50,48 @@ const CollectionSelector = ({
     }
   };
 
-  const handleStyleModeChange = (value) => {
-    if (value === 'independent') {
-      onChange('globalStyle', null);
-    }
-    onChange('styleMode', value);
-  };
-
-  const handleGlobalStyleChange = (value) => {
-    const selectedStyle = currentCollection?.styles?.find(s => s.value === value);
-    if (selectedStyle) {
-      onChange('globalStyle', selectedStyle);
-    }
-  };
+  /*
+   * --- Style selection (restore when Shopify `style` metaobjects are loaded per collection) ---
+   *
+   * const currentCollection = useMemo(() =>
+   *   shopifyCollections?.find(col => col.value === formState.collection?.value),
+   *   [shopifyCollections, formState.collection?.value]
+   * );
+   *
+   * const styleModeOptions = useMemo(() => [
+   *   { label: 'Select style mode...', value: '' },
+   *   { label: 'Global style for all shapes', value: 'global' },
+   *   { label: 'Independent style per shape', value: 'independent' }
+   * ], []);
+   *
+   * const styleOptions = useMemo(() => {
+   *   if (!currentCollection?.styles?.length) {
+   *     console.warn(`No styles found for collection: ${currentCollection?.label}`);
+   *     return [{ label: 'Select a style...', value: '' }];
+   *   }
+   *   return [
+   *     { label: 'Select a style...', value: '' },
+   *     ...currentCollection.styles.map(style => ({
+   *       label: style.label,
+   *       value: style.value
+   *     }))
+   *   ];
+   * }, [currentCollection]);
+   *
+   * const handleStyleModeChange = (value) => {
+   *   if (value === 'independent') {
+   *     onChange('globalStyle', null);
+   *   }
+   *   onChange('styleMode', value);
+   * };
+   *
+   * const handleGlobalStyleChange = (value) => {
+   *   const selectedStyle = currentCollection?.styles?.find(s => s.value === value);
+   *   if (selectedStyle) {
+   *     onChange('globalStyle', selectedStyle);
+   *   }
+   * };
+   */
 
   return (
     <Card>
@@ -93,6 +107,10 @@ const CollectionSelector = ({
             />
           </Box>
         </Box>
+
+        {/*
+          Restore when styles[] + needsStyle (or equivalent) come from Shopify.
+          Re-add: import { ..., InlineStack } from "@shopify/polaris";
 
         {currentCollection?.needsStyle && (
           <InlineStack gap="400" align="start" wrap={false}>
@@ -123,6 +141,7 @@ const CollectionSelector = ({
             )}
           </InlineStack>
         )}
+        */}
       </BlockStack>
     </Card>
   );
