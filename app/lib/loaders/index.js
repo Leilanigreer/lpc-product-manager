@@ -23,6 +23,7 @@ import {
   attachStylesToShopifyCollections,
   buildStyleCategoryDebug,
 } from "../server/styleShopify.server";
+import { getShapesFromShopify } from "../server/shapeShopify.server";
 
 /** @returns {Promise<{ collections: object[], styleCategoryDebug: object | null }>} */
 async function loadShopifyCollectionsForLoader(admin) {
@@ -60,6 +61,28 @@ async function loadShopifyCollectionsForLoader(admin) {
   }
 }
 
+async function loadShapesForLoader(admin) {
+  if (!admin?.graphql) {
+    return getShapes();
+  }
+  try {
+    const shapes = await getShapesFromShopify(admin);
+    if (shapes.length === 0) {
+      console.warn(
+        "loadShapesForLoader: Shopify returned no active shapes; falling back to Postgres."
+      );
+      return getShapes();
+    }
+    return shapes;
+  } catch (err) {
+    console.error(
+      "loadShapesForLoader: Shopify shape metaobjects failed; falling back to Postgres:",
+      err
+    );
+    return getShapes();
+  }
+}
+
 export const loader = async ({ admin } = {}) => {  
   try {
     const fontsPromise = admin ? getFontsFromShopify(admin) : getFonts();
@@ -72,6 +95,7 @@ export const loader = async ({ admin } = {}) => {
       ? getStitchingThreadColorDataFromShopify(admin)
       : Promise.resolve({ stitchingThreadColors: [], unlinkedAmannNumbers: [] });
     const shopifyCollectionsPromise = loadShopifyCollectionsForLoader(admin);
+    const shapesPromise = loadShapesForLoader(admin);
     const [
       leatherResult,
       stitchingData,
@@ -89,7 +113,7 @@ export const loader = async ({ admin } = {}) => {
       stitchingDataPromise,
       getEmbroideryThreadColors(),
       fontsPromise,
-      getShapes(),
+      shapesPromise,
       shopifyCollectionsPromise,
       getCommonDescription(),
       getColorTags(),

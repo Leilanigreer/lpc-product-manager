@@ -1,5 +1,7 @@
 // app/lib/utils/validations/styleValidations.js
 
+import { isPutter } from "../shapeUtils";
+
 /**
  * Enum for valid style name patterns
  * @enum {string}
@@ -85,7 +87,7 @@ export const validateShapeStyles = (formState, debug = false) => {
 
   // Get selected shapes that need styles (not putters)
   const shapesNeedingStyles = Object.values(formState.allShapes)
-    .filter(shape => shape.isSelected && shape.shapeType !== 'PUTTER');
+    .filter((shape) => shape.isSelected && !isPutter(shape));
 
   if (shapesNeedingStyles.length === 0) {
     return true;

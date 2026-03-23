@@ -1,6 +1,7 @@
 // app/lib/utils/skuUtils.js
 
 import _ from 'lodash';
+import { isPutter } from './shapeUtils';
 
 /**
  * Extracts unique products with SKUs from loader product sets.
@@ -86,7 +87,7 @@ export const formatSKU = (baseParts, version, shapeValue, formState, options = {
       const shapeAbbrev = shapeData.shapeType === 'WOOD' ? 'Fairway' : shapeData.abbreviation;
       
       // Skip style abbreviation for putters
-      if (shapeData.shapeType === 'PUTTER' || shapeData.shapeType === 'LAB_PUTTER') {
+      if (isPutter(shapeData)) {
         fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-Custom`;
       } else {
         const styleAbbrev = shapeData.style?.abbreviation || formState.globalStyle?.abbreviation;

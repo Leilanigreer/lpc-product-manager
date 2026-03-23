@@ -51,7 +51,7 @@ This document tracks how we map Shopify collections/metafields/metaobjects into 
   - **Metaobject type**: `shape_type_adjustment` (linked to `pricing_tier`)
   - Shopify metaobject fields → Prisma `ShapeTypeAdjustment`:
     - `shape_type` → `shapeType : ShapeType`
-      - Enum values: `DRIVER`, `WOOD`, `HYBRID`, `PUTTER`, `LAB_PUTTER`, `OTHER`.
+      - Enum values: `DRIVER`, `WOOD`, `HYBRID`, `PUTTER`, `ZERO_MALLET`, `OTHER`.
     - `price_tier` (reference) → `tierId : String` / `tier : PriceTier`
     - `shopify_adjustment` → `shopifyAdjustment : Decimal`
     - `marketplace_adjustments` → `marketAdjustment : Decimal`

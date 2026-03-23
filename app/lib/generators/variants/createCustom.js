@@ -1,6 +1,6 @@
 // app/lib/generators/variants/createCustom.js
 
-import { formatSKU, calculatePrice } from '../../utils';
+import { formatSKU, calculatePrice, isPutter } from '../../utils';
 
 const getVariantName = (shapeData, formState) => {
   // Base name prefix and suffix
@@ -10,7 +10,7 @@ const getVariantName = (shapeData, formState) => {
   // Get shape label, using "Fairway" for wood types
   const shapeLabel = shapeData.shapeType === 'WOOD' ? 'Fairway' : shapeData.label;
   
-  if (shapeData.shapeType === 'PUTTER') {
+  if (isPutter(shapeData)) {
     return `${prefix} ${shapeLabel} ${suffix}`;
   }
 

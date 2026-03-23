@@ -78,6 +78,30 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
     const isShopifyMetaobjectGid = (id) =>
       typeof id === "string" && id.startsWith("gid://shopify/Metaobject/");
 
+    /** Prisma `Shape` FK; Shopify shape metaobject GID → local row by `Shape.name` === variant shape label. */
+    const resolvePrismaShapeId = async (shapeValue, shapeLabel) => {
+      if (!isShopifyMetaobjectGid(shapeValue)) {
+        return shapeValue;
+      }
+      const nameMatch =
+        typeof shapeLabel === "string" ? shapeLabel.trim() : "";
+      if (!nameMatch) {
+        throw new Error(
+          "Shopify shape selected but variant is missing the shape label needed to match Postgres Shape.name."
+        );
+      }
+      const row = await prisma.Shape.findFirst({
+        where: { name: nameMatch },
+        select: { id: true },
+      });
+      if (!row) {
+        throw new Error(
+          `No Postgres Shape with name "${nameMatch}". Use the same text in the Shopify \`shape\` field as Shape.name, or load shapes from Postgres until rows exist.`
+        );
+      }
+      return row.id;
+    };
+
     const isShopifyFontGid = typeof productData.selectedFont === "string" && productData.selectedFont.startsWith("gid://");
     const isShopifyLeather1Gid = typeof productData.selectedLeatherColor1 === "string" && productData.selectedLeatherColor1.startsWith("gid://");
     const isShopifyLeather2Gid = productData.selectedLeatherColor2 && typeof productData.selectedLeatherColor2 === "string" && productData.selectedLeatherColor2.startsWith("gid://");
@@ -224,6 +248,11 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
           }
         }
 
+        const prismaShapeId = await resolvePrismaShapeId(
+          regular.shapeValue,
+          regular.shape
+        );
+
         const variantData = {
           set: {
             connect: { id: productSet.id }
@@ -232,7 +261,7 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
           shopifyInventoryId: regularShopifyVariant.inventoryItem.id,
           SKU: regular.sku,
           shape: {
-            connect: { id: regular.shapeValue }
+            connect: { id: prismaShapeId }
           },
           weight: parseFloat(regular.weight),
           ...embroideryThreadData,

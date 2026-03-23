@@ -1,5 +1,7 @@
 // app/lib/utils/validations/threadValidations.js
 
+import { isPutter } from "../shapeUtils";
+
 /**
  * Generic thread structure validator that works for both stitching and embroidery threads
  * @param {Object} thread - Thread object to validate
@@ -175,7 +177,7 @@ export const validateShapeEmbroideryThreads = (formState, debug = false) => {
 
   // Get selected shapes that aren't putters (putters don't need embroidery)
   const shapesNeedingEmbroidery = Object.values(formState.allShapes)
-    .filter(shape => shape.isSelected && shape.shapeType !== 'PUTTER');
+    .filter((shape) => shape.isSelected && !isPutter(shape));
 
   if (shapesNeedingEmbroidery.length === 0) {
     return true;

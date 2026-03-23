@@ -5,6 +5,7 @@ import { Card, BlockStack, Text, Divider } from "@shopify/polaris";
 import ShapeGrid from './ShapeGrid';
 import { preventWheelChange } from './styles';
 import ErrorBoundary from '../ErrorBoundary';
+import { isPutter } from '../../lib/utils/shapeUtils';
 
 /**
  * Shape configuration component managing shape selection and properties
@@ -31,7 +32,7 @@ const ShapeSelector = ({
   // Split shapes into putter and non-putter groups
   const { putterShapes, nonPutterShapes } = useMemo(() => {
     return shapes.reduce((acc, shape) => {
-      if (shape.shapeType === 'PUTTER' || shape.shapeType === 'LAB_PUTTER') {
+      if (isPutter(shape)) {
         acc.putterShapes.push(shape);
       } else {
         acc.nonPutterShapes.push(shape);
