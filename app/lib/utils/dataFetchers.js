@@ -872,6 +872,12 @@ export const getColorTags = async () => {
   }
 };
 
+/** Same rule as requirementsUtils: thread type set and not NONE → stitching color UX. */
+function prismaThreadTypeRequiresStitchingColor(threadType) {
+  if (threadType === undefined || threadType === null || threadType === "") return false;
+  return threadType !== "NONE";
+}
+
 // This fetcher is now optional since the data is included in getShopifyCollections
 export const getStyles = async () => {
   try {
@@ -885,9 +891,8 @@ export const getStyles = async () => {
             collection: {
               select: {
                 handle: true,
+                threadType: true,
                 needsSecondaryLeather: true,
-                needsStitchingColor: true, 
-                needsColorDesignation: true
               }
             }
           }
@@ -904,8 +909,10 @@ export const getStyles = async () => {
         collections: collections.map(sc => ({
           handle: sc.collection.handle,
           needsSecondaryLeather: sc.overrideSecondaryLeather ?? sc.collection.needsSecondaryLeather,
-          needsStitchingColor: sc.overrideStitchingColor ?? sc.collection.needsStitchingColor,
-          needsColorDesignation: sc.overrideColorDesignation ?? sc.collection.needsColorDesignation,
+          needsStitchingColor:
+            sc.overrideStitchingColor === true ||
+            prismaThreadTypeRequiresStitchingColor(sc.collection.threadType),
+          needsColorDesignation: sc.overrideColorDesignation === true,
           titleTemplate: sc.titleTemplate,
           seoTemplate: sc.seoTemplate,
           handleTemplate: sc.handleTemplate,

@@ -1,7 +1,32 @@
 // app/lib/utils/requirementsUtils.js
 
 /**
- * Resolves requirement flags based on collection and selected style settings
+ * True when collection.threadType is set and not NONE (EMBROIDERY / STITCHING imply stitching thread UX).
+ * Undefined/null/empty threadType does not count (avoids `undefined !== 'NONE'` being true).
+ */
+function collectionThreadTypeRequiresStitchingColor(collection) {
+  const tt = collection?.threadType;
+  if (tt === undefined || tt === null || tt === "") return false;
+  return tt !== "NONE";
+}
+
+/**
+ * Style-driven stitching flag (Shopify `needs_stitching_color` → `overrideStitchingColor` on form style).
+ * Strict `=== true` so explicit false does not force stitching off when thread type already requires it.
+ */
+function styleRequiresStitchingColor(selectedStyle) {
+  if (!selectedStyle) return false;
+  if (selectedStyle.overrideStitchingColor === true) return true;
+  if (selectedStyle.needsStitchingColor === true) return true;
+  return false;
+}
+
+/**
+ * Resolves requirement flags for the create-product flow.
+ * Stitching/color-designation UX follows Shopify rules: `collection.threadType` (not NONE) plus style
+ * `overrideStitchingColor` / `needsStitchingColor`, and strict `overrideColorDesignation` for color designation.
+ * Prisma `ShopifyCollection.needsStitchingColor` / `needsColorDesignation` are legacy storage only and are not read here.
+ *
  * @param {Object} collection Base collection configuration
  * @param {Object} selectedStyle Style configuration with potential overrides
  * @returns {Object} Resolved requirements
@@ -15,10 +40,15 @@ export const resolveRequirements = (collection, selectedStyle) => {
     };
   }
 
+  const needsStitchingColor =
+    collectionThreadTypeRequiresStitchingColor(collection) ||
+    styleRequiresStitchingColor(selectedStyle);
+
   return {
     needsSecondaryLeather: selectedStyle?.overrideSecondaryLeather ?? collection.needsSecondaryLeather ?? false,
-    needsStitchingColor: selectedStyle?.overrideStitchingColor ?? collection.needsStitchingColor ?? false,
-    needsColorDesignation: selectedStyle?.overrideColorDesignation ?? collection.needsColorDesignation ?? false
+    needsStitchingColor,
+    // Color designation is style-only (Shopify `needs_color_designation` → overrideColorDesignation); no collection flag.
+    needsColorDesignation: selectedStyle?.overrideColorDesignation === true
   };
 };
 

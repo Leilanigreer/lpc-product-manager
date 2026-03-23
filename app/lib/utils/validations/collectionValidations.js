@@ -122,47 +122,6 @@ export const validateCollection = (formState, debug = false) => {
     if (!hasValidStyles) return false;
   }
 
-  // Validate titleFormat object
-  // Validate styles array if needsStyle is true
-  if (collection.needsStyle) {
-    if (!Array.isArray(collection.styles)) {
-      if (debug) console.warn('Styles is not an array');
-      return false;
-    }
-
-    const hasValidStyles = collection.styles.every(style => {
-      const requiredStyleFields = [
-        'value',
-        'id',
-        'label',
-        'abbreviation',
-      ];
-
-      const isValid = requiredStyleFields.every(field => {
-        const hasField = Boolean(style[field]);
-        if (!hasField && debug) {
-          console.warn(`Style missing required field: ${field}`, style);
-        }
-        return hasField;
-      });
-
-      // Validate validation object if present (but don't require it)
-      if (style.validation) {
-        if (typeof style.validation !== 'object' || 
-            !Array.isArray(style.validation.required) || 
-            !style.validation.errorMessages) {
-          if (debug) console.warn('Invalid validation structure in style');
-          return false;
-        }
-      }
-
-      return isValid;
-    });
-
-    if (!hasValidStyles) return false;
-  }
-
-  // Validate titleFormat object
   const { titleFormat } = collection;
   if (!titleFormat || typeof titleFormat !== 'object') {
     if (debug) console.warn('Missing or invalid titleFormat');

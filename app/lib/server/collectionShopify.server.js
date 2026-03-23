@@ -6,7 +6,7 @@
  *
  * Metafields requested (namespace custom):
  *   validation, handle_template, seo_template, title_template, google_driver_folder_id,
- *   category, sku_pattern, thread_type, pricing_tier (metaobject reference)
+ *   category, sku_pattern, thread_type, needs_secondary_leather, pricing_tier (metaobject reference)
  */
 
 const PAGE_SIZE = 100;
@@ -54,6 +54,10 @@ const PRODUCT_COLLECTIONS_QUERY = `#graphql
             type
           }
           threadType: metafield(namespace: "custom", key: "thread_type") {
+            value
+            type
+          }
+          needsSecondaryLeather: metafield(namespace: "custom", key: "needs_secondary_leather") {
             value
             type
           }
@@ -115,6 +119,15 @@ function normalizeThreadType(raw) {
   return "NONE";
 }
 
+/** Shopify boolean metafields often store "true" / "false" strings. */
+function parseBoolMetafield(mf) {
+  if (!mf || mf.value == null) return false;
+  const v = mf.value;
+  if (typeof v === "boolean") return v;
+  const s = String(v).trim().toLowerCase();
+  return s === "true" || s === "1";
+}
+
 /**
  * @param {object} node - Collection node from PRODUCT_COLLECTIONS_QUERY
  * @returns {object|null} Form-ready collection or null if pricing tier not set
@@ -163,6 +176,7 @@ function mapCollectionNodeToFormCollection(node) {
     category: metafieldString(node.category),
     skuPattern: metafieldString(node.skuPattern),
     threadType: normalizeThreadType(metafieldString(node.threadType)),
+    needsSecondaryLeather: parseBoolMetafield(node.needsSecondaryLeather),
 
     pricingTierMetaobject,
     /** Populated later when pricing is read from the tier metaobject in Shopify. */
@@ -177,15 +191,13 @@ function mapCollectionNodeToFormCollection(node) {
       category: node.category,
       sku_pattern: node.skuPattern,
       thread_type: node.threadType,
+      needs_secondary_leather: node.needsSecondaryLeather,
       pricing_tier: node.pricingTier,
     },
 
     // Stubs until those concepts move to Shopify metafields / your next steps
     commonDescription: true,
-    needsSecondaryLeather: false,
-    needsStitchingColor: false,
     needsStyle: false,
-    needsColorDesignation: false,
     stylePerCollection: false,
     showInDropdown: true,
     defaultStyleNamePattern: "STANDARD",
