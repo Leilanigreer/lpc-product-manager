@@ -35,7 +35,9 @@ const ThreadColorSelector = ({
 
   // Derive key states from formState
   const isSingleStitchingMode = formState.collection?.threadType === 'STITCHING';
-  const showsIndependentOption = formState.collection?.threadType === 'EMBROIDERY';
+  const showsIndependentOption =
+    formState.collection?.threadType === 'EMBROIDERY' ||
+    formState.collection?.needsStyle;
   const isIndependentMode = formState.threadMode?.embroidery === 'perShape';
   const embroideryMode = formState.threadMode?.embroidery || 'global';
   const collection = formState.collection.label;

@@ -4,6 +4,7 @@ import { validateBaseRequirements } from './baseValidations';
 import { validateCollection } from './collectionValidations';
 import { validateLeatherColors, validateShapeColorDesignations } from './colorValidations';
 import { validateShapes } from './shapeValidations';
+import { validateStyles } from './styleValidations';
 import { validateGlobalEmbroideryThread, validateStitchingThreads, validateShapeEmbroideryThreads } from './threadValidations';
 import { validateFinalRequirements } from './requirementValidations';
 /**
@@ -81,23 +82,18 @@ export const validateProductForm = (formState, { debug = false } = {}) => {
       errors.push(shapeValidation.error || 'Invalid shape configuration');
     }
 
-    /*
-     * --- Style validations (restore when Shopify `style` metaobjects drive needsStyle / styles[]) ---
-     * Add next to other imports at top of this file:
-     *   import { validateGlobalStyle, validateShapeStyles } from './styleValidations';
-     *
-     * if (formState.collection.needsStyle) {
-     *   validations.hasValidGlobalStyle = validateGlobalStyle(formState, debug);
-     *   validations.hasValidShapeStyles = validateShapeStyles(formState, debug);
-     *
-     *   if (!validations.hasValidGlobalStyle && formState.styleMode === 'global') {
-     *     errors.push('Invalid global style configuration');
-     *   }
-     *   if (!validations.hasValidShapeStyles && formState.styleMode === 'independent') {
-     *     errors.push('Invalid shape-specific styles');
-     *   }
-     * }
-     */
+    if (formState.collection.needsStyle) {
+      validations.hasValidStyles = validateStyles(formState, debug);
+      if (!validations.hasValidStyles) {
+        errors.push(
+          !formState.styleMode
+            ? 'Style mode must be selected'
+            : 'Invalid style configuration'
+        );
+      }
+    } else {
+      validations.hasValidStyles = true;
+    }
 
     // Thread Validations
     validations.hasValidStitchingThreads = validateStitchingThreads(formState, debug);

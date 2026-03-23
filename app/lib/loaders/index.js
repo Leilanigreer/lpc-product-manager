@@ -17,13 +17,27 @@ import {
 } from "../utils/dataFetchers";
 import { getStitchingThreadColorDataFromShopify } from "../server/stitchingThreadShopify.server";
 import { getProductCollectionsFromShopify } from "../server/collectionShopify.server";
+import {
+  getStylesFromShopify,
+  attachStylesToShopifyCollections,
+} from "../server/styleShopify.server";
 
 async function loadShopifyCollectionsForLoader(admin) {
   if (!admin) {
     return getShopifyCollections();
   }
   try {
-    return await getProductCollectionsFromShopify(admin);
+    const collections = await getProductCollectionsFromShopify(admin);
+    let formStyles = [];
+    try {
+      formStyles = await getStylesFromShopify(admin);
+    } catch (styleErr) {
+      console.error(
+        "loadShopifyCollectionsForLoader: style metaobjects failed; collections load without styles:",
+        styleErr
+      );
+    }
+    return attachStylesToShopifyCollections(collections, formStyles);
   } catch (err) {
     console.error(
       "loadShopifyCollectionsForLoader: Shopify collection query failed; falling back to Postgres list:",

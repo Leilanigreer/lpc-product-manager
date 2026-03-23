@@ -49,12 +49,15 @@ const formReducer = (state, action) => {
       const existingProducts = extractExistingProducts(productSets);
       const filteredProducts = filterProductsByCollection(existingProducts, collection.value);
 
+      const styles = collection.styles ?? [];
+      const singleStyle = styles.length === 1 ? styles[0] : null;
+
       // Create new state with collection and reset relevant fields
       const newState = {
         ...initialState,
         collection,
-        styleMode: '',
-        globalStyle: null,
+        styleMode: singleStyle ? 'global' : '',
+        globalStyle: singleStyle,
         threadMode: { embroidery: '' },
         globalEmbroideryThread: null,
         stitchingThreads: {},

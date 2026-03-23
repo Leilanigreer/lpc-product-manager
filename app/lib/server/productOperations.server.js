@@ -75,6 +75,9 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
       collectionId = row.id;
     }
 
+    const isShopifyMetaobjectGid = (id) =>
+      typeof id === "string" && id.startsWith("gid://shopify/Metaobject/");
+
     const isShopifyFontGid = typeof productData.selectedFont === "string" && productData.selectedFont.startsWith("gid://");
     const isShopifyLeather1Gid = typeof productData.selectedLeatherColor1 === "string" && productData.selectedLeatherColor1.startsWith("gid://");
     const isShopifyLeather2Gid = productData.selectedLeatherColor2 && typeof productData.selectedLeatherColor2 === "string" && productData.selectedLeatherColor2.startsWith("gid://");
@@ -200,6 +203,27 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
           setId: productSet.id
         })) || [];
 
+        let prismaStyleConnect = {};
+        if (collection.needsStyle) {
+          if (
+            productData.styleMode === 'global' &&
+            productData.globalStyle &&
+            !isShopifyMetaobjectGid(productData.globalStyle.value)
+          ) {
+            prismaStyleConnect = {
+              style: { connect: { id: productData.globalStyle.value } },
+            };
+          } else if (
+            productData.styleMode !== 'global' &&
+            regular.style &&
+            !isShopifyMetaobjectGid(regular.style.value)
+          ) {
+            prismaStyleConnect = {
+              style: { connect: { id: regular.style.value } },
+            };
+          }
+        }
+
         const variantData = {
           set: {
             connect: { id: productSet.id }
@@ -212,19 +236,7 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
           },
           weight: parseFloat(regular.weight),
           ...embroideryThreadData,
-          ...(collection.needsStyle && (
-            productData.styleMode === 'global' 
-              ? productData.globalStyle && {
-                  style: {
-                    connect: { id: productData.globalStyle.value }
-                  }
-                }
-              : regular.style && {
-                  style: {
-                    connect: { id: regular.style.value }
-                  }
-                }
-          )),
+          ...prismaStyleConnect,
           ...(regular.colorDesignation && {
             colorDesignation: {
               connect: { id: regular.colorDesignation.value }
