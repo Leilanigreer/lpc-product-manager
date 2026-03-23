@@ -14,9 +14,11 @@ const ShapeGridHeader = ({ gridColumns, headerText }) => (
                 <Box width="125px">
                   <Text variant="bodyMd" fontWeight="bold">Shape</Text>
                 </Box>
+                {/*
                 <Box width="105px">
                   <Text variant="bodyMd" fontWeight="bold">Weight</Text>
                 </Box>
+                */}
               </InlineStack>
             </Box>
           );

@@ -16,7 +16,7 @@ export { createCustomVariants } from './createCustom';
  * @property {string} baseSKU - Base SKU without shape-specific parts
  * @property {string} variantName - Display name for the variant
  * @property {string} price - Price as string with 2 decimal places
- * @property {string} weight - Weight in ounces as string
+ * @property {string} weight - Placeholder ounces string (weight capture disabled in UI for now)
  * @property {boolean} isCustom - Whether this is a custom variant
  * @property {number} [position] - Display order position
  * @property {Object} [colorDesignation] - Optional color designation for special styles

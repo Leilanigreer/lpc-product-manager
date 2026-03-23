@@ -205,7 +205,7 @@ const formReducer = (state, action) => {
     }
 
     case ACTION_TYPES.UPDATE_SHAPE: {
-      const { shape, checked, weight } = payload;
+      const { shape, checked } = payload;
       const newAllShapes = { ...state.allShapes };
 
       if (checked) {
@@ -213,7 +213,7 @@ const formReducer = (state, action) => {
         newAllShapes[shape.value] = {
           ...newAllShapes[shape.value],
           isSelected: true,
-          weight: weight || '',
+          // weight: weight || '',
           needsColorDesignation: !isPutter(shape) && (
             state.finalRequirements?.needsColorDesignation ||
             (state.styleMode === 'independent' && 
@@ -356,7 +356,7 @@ export const useFormState = (initialState, onFormChange) => {
       }),
       shape: () => ({
         type: ACTION_TYPES.UPDATE_SHAPE,
-        payload: value // { shape, checked, weight }
+        payload: value // { shape, checked } — weight disabled
       }),
       shapeField: () => ({
         type: ACTION_TYPES.UPDATE_SHAPE_FIELD,

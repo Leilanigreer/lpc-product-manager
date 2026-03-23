@@ -220,9 +220,10 @@ export const createShopifyProduct = async (admin, productData) => {
               measurement: {
                 weight: {
                   unit: "OUNCES",
-                  value: parseFloat(variant.weight)
-                }
-              }
+                  // value: parseFloat(variant.weight),
+                  value: parseFloat(variant.weight || "0") || 0,
+                },
+              },
             },
             optionValues: [
               {

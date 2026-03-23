@@ -1,6 +1,6 @@
 // app/components/ShapeSelector/fields/ShapeSelection.jsx
 import React, { useCallback } from 'react';
-import { Box, Checkbox, TextField, InlineStack } from "@shopify/polaris";
+import { Box, Checkbox, InlineStack } from "@shopify/polaris";
 
 const ShapeSelection = ({ 
   formState, 
@@ -17,14 +17,13 @@ const ShapeSelection = ({
       shape,
       shapes,
       checked,
-      weight: shapeState?.weight || ''  // Preserve existing weight if any
+      // weight: shapeState?.weight || '',
     });
-  }, [shape, shapes, shapeState?.weight, handleChange]);
+  }, [shape, shapes, handleChange]);
 
-  // Updated to use shape field update
+  /*
   const handleWeightChange = useCallback((value) => {
     if (!isSelected) return;
-    
     handleChange('shapeField', {
       shapeValue: shape.value,
       field: 'weight',
@@ -36,6 +35,7 @@ const ShapeSelection = ({
     e.preventDefault();
     e.stopPropagation();
   }, []);
+  */
 
   return (
     <InlineStack wrap={false} gap="150" align="start">
@@ -47,6 +47,7 @@ const ShapeSelection = ({
           onChange={handleSelect}
         />
       </Box>
+      {/*
       <Box width="105px">
         <TextField
           type="number"
@@ -61,6 +62,7 @@ const ShapeSelection = ({
           autoComplete="off"
         />
       </Box>
+      */}
     </InlineStack>
   );
 };

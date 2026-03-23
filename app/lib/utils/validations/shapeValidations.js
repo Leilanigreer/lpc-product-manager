@@ -74,12 +74,14 @@ export const validateShapeSelection = (formState, debug = false) => {
 };
 
 /**
- * Validates weights for selected shapes
+ * Validates weights for selected shapes (disabled — weight not captured in UI for now).
  * @param {Object} formState - Current form state
  * @param {boolean} debug - Whether to log debug messages
  * @returns {Object} Validation result with isValid and error message
  */
-export const validateShapeWeights = (formState, debug = false) => {
+export const validateShapeWeights = (_formState, _debug = false) => {
+  return { isValid: true, error: null };
+  /*
   if (!formState?.allShapes || typeof formState.allShapes !== 'object') {
     return {
       isValid: false,
@@ -90,7 +92,6 @@ export const validateShapeWeights = (formState, debug = false) => {
   const selectedShapes = Object.values(formState.allShapes)
     .filter(shape => shape.isSelected);
 
-  // Validate weights for selected shapes
   const invalidShapes = selectedShapes.filter(shape => {
     const weight = parseFloat(shape.weight);
     return isNaN(weight) || weight <= 0;
@@ -99,11 +100,12 @@ export const validateShapeWeights = (formState, debug = false) => {
   const isValid = invalidShapes.length === 0;
   return {
     isValid,
-    error: isValid ? null : 
+    error: isValid ? null :
       `Invalid weight${invalidShapes.length > 1 ? 's' : ''} for: ${
         invalidShapes.map(s => s.label).join(', ')
       }`
   };
+  */
 };
 
 /**
@@ -137,11 +139,11 @@ export const validateShapes = (formState, debug = false) => {
     };
   }
 
-  // Validate weights
-  const weightValidation = validateShapeWeights(formState, debug);
-  if (!weightValidation.isValid) {
-    return weightValidation;
-  }
+  // Weight validation skipped (not capturing weight in UI for now).
+  // const weightValidation = validateShapeWeights(formState, debug);
+  // if (!weightValidation.isValid) {
+  //   return weightValidation;
+  // }
 
   return { isValid: true, error: null };
 };

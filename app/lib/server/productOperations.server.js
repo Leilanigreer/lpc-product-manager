@@ -263,7 +263,8 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
           shape: {
             connect: { id: prismaShapeId }
           },
-          weight: parseFloat(regular.weight),
+          // weight: parseFloat(regular.weight),
+          weight: 0, // placeholder; weight not captured in UI for now
           ...embroideryThreadData,
           ...prismaStyleConnect,
           ...(regular.colorDesignation && {

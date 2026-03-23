@@ -9,7 +9,7 @@ import { isPutter } from '../../lib/utils/shapeUtils';
 
 /**
  * Shape configuration component managing shape selection and properties
- * Handles shape selection, weight input, and additional fields based on 
+ * Handles shape selection and additional fields based on 
  * collection requirements and shape types.
  * 
  * @param {Object} props

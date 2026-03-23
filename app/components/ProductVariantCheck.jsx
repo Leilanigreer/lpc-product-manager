@@ -105,11 +105,13 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
       }}>
         <BlockStack gap="100">
           <Text variant="bodyMd">{variant.variantName}</Text>
+          {/* variant.weight — display disabled while weight not captured in UI
           {variant.weight && (
             <Text variant="bodySm" color="subdued">
               Weight: {variant.weight}oz
             </Text>
           )}
+          */}
         </BlockStack>
         
         {/* Empty middle section to maintain alignment */}
@@ -161,11 +163,13 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
             <Text variant='bodySm' color='subdued'>BaseSKU: {variant.baseSKU}</Text>
           </>
         )}
+        {/* variant.weight — display disabled while weight not captured in UI
         {variant.weight && (
           <Text variant="bodySm" color="subdued">
             Weight: {variant.weight}oz
           </Text>
         )}
+        */}
         <Text variant="bodySm" color="subdued">SKU: {variant.sku}</Text>
       </BlockStack>
 

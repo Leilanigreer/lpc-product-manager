@@ -8,15 +8,18 @@ export const createInitialShapeState = (shape) => ({
   shapeType: shape.shapeType,
   displayOrder: shape.displayOrder,
   isActive: shape.isActive,
-  
+
+  // Weight capture disabled in UI for now; generators use a placeholder for API/DB.
+  // weight: '',
+
   // Selection state
   isSelected: false,
-  
+
   // Requirement flags
   needsColorDesignation: false,
-  
+
   // Input values
-  weight: '',
+  // weight: '',
   style: null,
   embroideryThread: null,
   colorDesignation: null,

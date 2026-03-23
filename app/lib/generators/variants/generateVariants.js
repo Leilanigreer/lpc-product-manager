@@ -65,7 +65,7 @@ export const generateVariants = async (formState, skuInfo) => {
       {
         variantName: "Create my own set",
         price: "0.00",
-        weight: "0.00",
+        weight: "0.00", // placeholder — weight capture disabled in UI
         isCustom: true,
         position: regularVariants.length + 1,
         options: { Style: "Create my own set" },

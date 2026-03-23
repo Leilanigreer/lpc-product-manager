@@ -754,6 +754,7 @@ export const getProductSets = async (fontsFromShopify = [], leatherColorsFromSho
           shopifyVariantId: variant.shopifyVariantId,
           shopifyInventoryId: variant.shopifyInventoryId,
           SKU: variant.SKU,
+          // Historical DB weight (UI no longer captures weight on create).
           weight: parseFloat(variant.weight),
           shape: {
             value: variant.shape.id,

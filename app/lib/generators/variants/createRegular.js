@@ -2,6 +2,9 @@
 
 import { formatSKU, calculatePrice } from "../../utils";
 
+/** Weight not captured in UI for now; Shopify/Prisma still require a numeric weight. */
+const PLACEHOLDER_WEIGHT = "0";
+
 export const createRegularVariants = (formState, skuInfo) => {
   return Object.values(formState.allShapes)
     .filter(shape => shape.isSelected)
@@ -32,7 +35,8 @@ export const createRegularVariants = (formState, skuInfo) => {
             `${shape.label} - ${shape.style.label}` : 
             shape.label,
           price: calculatePrice(shape.value, formState),
-          weight: shape.weight,
+          // weight: shape.weight,
+          weight: PLACEHOLDER_WEIGHT,
           isCustom: false,
           embroideryThread: formState.threadMode?.embroidery === 'perShape'
             ? shape.embroideryThread || null

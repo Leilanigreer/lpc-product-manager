@@ -2,6 +2,9 @@
 
 import { formatSKU, calculatePrice, isPutter } from '../../utils';
 
+/** Weight not captured in UI for now; Shopify/Prisma still require a numeric weight. */
+const PLACEHOLDER_WEIGHT = "0";
+
 const getVariantName = (shapeData, formState) => {
   // Base name prefix and suffix
   const prefix = 'Customize';
@@ -97,7 +100,8 @@ const generateCustomVariant = (shapeData, formState, skuInfo) => {
       baseSKU: customSku.baseSKU,
       variantName: getVariantName(shapeData, formState),
       price: customPrice,
-      weight: shapeData.weight,
+      // weight: shapeData.weight,
+      weight: PLACEHOLDER_WEIGHT,
       isCustom: true,
       embroideryThread: formState.threadMode?.embroidery === 'perShape'
         ? shapeData.embroideryThread || null
