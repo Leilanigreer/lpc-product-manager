@@ -98,6 +98,14 @@ export function mapStyleMetaobjectNodeToFormStyle(node) {
   };
 }
 
+/** @param {Object} admin - Shopify admin client */
+export async function fetchStyleMetaobjectNodes(admin) {
+  if (!admin?.graphql) {
+    return [];
+  }
+  return fetchAllStylePages(admin);
+}
+
 async function fetchAllStylePages(admin) {
   const allNodes = [];
   let after = null;
@@ -125,24 +133,50 @@ async function fetchAllStylePages(admin) {
  * @returns {Promise<object[]>} Form-shaped style rows (unsorted)
  */
 export async function getStylesFromShopify(admin) {
-  if (!admin?.graphql) {
-    return [];
-  }
+  const nodes = await fetchStyleMetaobjectNodes(admin);
+  return nodes.map(mapStyleMetaobjectNodeToFormStyle);
+}
 
-  const nodes = await fetchAllStylePages(admin);
-
-  console.log(
-    `[style×category debug] Style metaobjects (type: ${TYPE_STYLE}) — GraphQL field(key: "category")`,
-    nodes.map((n) => ({
+/**
+ * Temporary UI/debug payload for collection custom.category vs style category matching.
+ * Remove when matching is verified.
+ */
+export function buildStyleCategoryDebug(collectionsAfterAttach, formStyles, rawNodes) {
+  const shopifyCols = collectionsAfterAttach.filter((c) => c.source === "shopify");
+  return {
+    metaobjectType: TYPE_STYLE,
+    collections: shopifyCols.map((c) => ({
+      title: c.label,
+      handle: c.handle,
+      mappedCategory: c.category,
+      metafield_value: c.metafields?.category?.value ?? null,
+      metafield_type: c.metafields?.category?.type ?? null,
+    })),
+    stylesGraphql: (rawNodes ?? []).map((n) => ({
       handle: n.handle,
       displayName: n.displayName,
       categoryField_value: n.categoryField?.value ?? null,
       categoryField_type: n.categoryField?.type ?? null,
       categoryAfterTrim: stringField(n.categoryField),
-    }))
-  );
-
-  return nodes.map(mapStyleMetaobjectNodeToFormStyle);
+    })),
+    stylesMapped: formStyles.map((s) => ({
+      label: s.label,
+      handle: s.url_id,
+      category: s.category,
+      categoryStringified:
+        s.category == null ? null : JSON.stringify(s.category),
+    })),
+    matchResults: shopifyCols.map((c) => {
+      const collCat = c.category != null ? String(c.category).trim() : "";
+      return {
+        collection: c.label,
+        collectionHandle: c.handle,
+        collectionCategoryCompared: collCat || "(empty — no styles attached)",
+        matchedCount: c.styles?.length ?? 0,
+        matchedStyleLabels: (c.styles ?? []).map((s) => s.label),
+      };
+    }),
+  };
 }
 
 /**
@@ -160,27 +194,6 @@ export async function getStylesFromShopify(admin) {
  * @returns {object[]}
  */
 export function attachStylesToShopifyCollections(collections, formStyles) {
-  const shopifyCols = collections.filter((c) => c.source === "shopify");
-  console.log(
-    "[style×category debug] Collections — custom.category metafield vs mapped `category`",
-    shopifyCols.map((c) => ({
-      title: c.label,
-      handle: c.handle,
-      mappedCategory: c.category,
-      metafield_value: c.metafields?.category?.value ?? null,
-      metafield_type: c.metafields?.category?.type ?? null,
-    }))
-  );
-  console.log(
-    "[style×category debug] Styles — mapped `category` used in equality check",
-    formStyles.map((s) => ({
-      label: s.label,
-      handle: s.url_id,
-      category: s.category,
-      categoryStringified: s.category == null ? null : JSON.stringify(s.category),
-    }))
-  );
-
   return collections.map((c) => {
     if (c.source !== "shopify") {
       return c;
@@ -196,13 +209,6 @@ export function attachStylesToShopifyCollections(collections, formStyles) {
     filtered.sort((a, b) => a.label.localeCompare(b.label));
 
     const n = filtered.length;
-    console.log("[style×category debug] Match result", {
-      collection: c.label,
-      collectionHandle: c.handle,
-      collectionCategoryCompared: collCat || "(empty — no styles attached)",
-      matchedCount: n,
-      matchedStyleLabels: filtered.map((s) => s.label),
-    });
     return {
       ...c,
       styles: filtered,

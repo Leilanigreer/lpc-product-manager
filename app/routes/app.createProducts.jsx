@@ -32,7 +32,9 @@ import {
   Card,
   BlockStack,
   Button,
-  Banner, 
+  Banner,
+  Text,
+  Box,
 } from "@shopify/polaris";
 
 export const loader = async ({ request }) => {
@@ -104,6 +106,7 @@ export default function CreateProduct() {
     fonts, 
     shapes, 
     shopifyCollections,
+    styleCategoryDebug,
     commonDescription, 
     productSets, 
     error 
@@ -345,6 +348,36 @@ export default function CreateProduct() {
 
         <Layout.Section>
           <BlockStack gap="400">
+
+          {styleCategoryDebug && (
+            <Card>
+              <BlockStack gap="200">
+                <Text as="h2" variant="headingSm">
+                  Debug: collection custom.category vs style metaobject category (remove later)
+                </Text>
+                <Box
+                  padding="300"
+                  background="bg-surface-secondary"
+                  borderWidth="025"
+                  borderColor="border"
+                  borderRadius="200"
+                >
+                  <pre
+                    style={{
+                      margin: 0,
+                      fontSize: "12px",
+                      overflow: "auto",
+                      maxHeight: "min(70vh, 640px)",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {JSON.stringify(styleCategoryDebug, null, 2)}
+                  </pre>
+                </Box>
+              </BlockStack>
+            </Card>
+          )}
 
           <Card>
             <BlockStack gap="400">

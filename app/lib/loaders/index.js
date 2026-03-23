@@ -18,32 +18,45 @@ import {
 import { getStitchingThreadColorDataFromShopify } from "../server/stitchingThreadShopify.server";
 import { getProductCollectionsFromShopify } from "../server/collectionShopify.server";
 import {
-  getStylesFromShopify,
+  fetchStyleMetaobjectNodes,
+  mapStyleMetaobjectNodeToFormStyle,
   attachStylesToShopifyCollections,
+  buildStyleCategoryDebug,
 } from "../server/styleShopify.server";
 
+/** @returns {Promise<{ collections: object[], styleCategoryDebug: object | null }>} */
 async function loadShopifyCollectionsForLoader(admin) {
   if (!admin) {
-    return getShopifyCollections();
+    const collections = await getShopifyCollections();
+    return { collections, styleCategoryDebug: null };
   }
   try {
     const collections = await getProductCollectionsFromShopify(admin);
     let formStyles = [];
+    let rawNodes = [];
     try {
-      formStyles = await getStylesFromShopify(admin);
+      rawNodes = await fetchStyleMetaobjectNodes(admin);
+      formStyles = rawNodes.map(mapStyleMetaobjectNodeToFormStyle);
     } catch (styleErr) {
       console.error(
         "loadShopifyCollectionsForLoader: style metaobjects failed; collections load without styles:",
         styleErr
       );
     }
-    return attachStylesToShopifyCollections(collections, formStyles);
+    const attached = attachStylesToShopifyCollections(collections, formStyles);
+    const styleCategoryDebug = buildStyleCategoryDebug(
+      attached,
+      formStyles,
+      rawNodes
+    );
+    return { collections: attached, styleCategoryDebug };
   } catch (err) {
     console.error(
       "loadShopifyCollectionsForLoader: Shopify collection query failed; falling back to Postgres list:",
       err
     );
-    return getShopifyCollections();
+    const collections = await getShopifyCollections();
+    return { collections, styleCategoryDebug: null };
   }
 }
 
@@ -65,7 +78,7 @@ export const loader = async ({ admin } = {}) => {
       embroideryThreadColors,
       fonts,
       shapes,
-      shopifyCollections,
+      shopifyLoad,
       commonDescription,
       colorTags,
       unlinkedIsacordNumbers,
@@ -85,6 +98,9 @@ export const loader = async ({ admin } = {}) => {
       leatherCollectionNamesPromise,
     ]);
 
+    const shopifyCollections = shopifyLoad.collections;
+    const styleCategoryDebug = shopifyLoad.styleCategoryDebug;
+
     const leatherColors = leatherResult?.leatherColors ?? [];
     const leatherColorsLoadError = leatherResult?.loadError ?? null;
 
@@ -98,6 +114,7 @@ export const loader = async ({ admin } = {}) => {
       fonts,
       shapes,
       shopifyCollections,
+      styleCategoryDebug,
       commonDescription,
       productSets,
       colorTags,
@@ -118,6 +135,7 @@ export const loader = async ({ admin } = {}) => {
         fonts: [],
         shapes: [],
         shopifyCollections: [],
+        styleCategoryDebug: null,
         commonDescription: [],
         productSets: [],
         colorTags: [],
