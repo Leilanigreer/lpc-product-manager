@@ -67,7 +67,6 @@ export const validateCollection = (formState, debug = false) => {
   const requiredBooleanFlags = [
     'commonDescription',
     'needsSecondaryLeather',
-    'needsColorDesignation',
     'stylePerCollection',
     'showInDropdown'
   ];

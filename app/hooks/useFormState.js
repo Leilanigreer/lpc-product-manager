@@ -1,5 +1,5 @@
 import { useReducer, useCallback } from 'react';
-import { calculateFinalRequirements, isPutter, isWoodType, findMatchingWoodStyles, extractExistingProducts, filterProductsByCollection, getShapeGroup } from '../lib/utils';
+import { calculateFinalRequirements, isPutter, extractExistingProducts, filterProductsByCollection, getShapeGroup, computeShapeNeedsColorDesignation } from '../lib/utils';
 import { createInitialShapeState } from '../lib/forms/formState';
 
 const ACTION_TYPES = {
@@ -80,8 +80,12 @@ const formReducer = (state, action) => {
           shapesWithAutoStyles[shapeDef.value] = {
             ...shapesWithAutoStyles[shapeDef.value],
             style: assigned,
-            needsColorDesignation:
-              !isPutter(shapeDef) && assigned.needsColorDesignation === true,
+            needsColorDesignation: computeShapeNeedsColorDesignation(
+              shapeDef,
+              { ...shapesWithAutoStyles[shapeDef.value], style: assigned },
+              initialState.shapes,
+              shapesWithAutoStyles
+            ),
           };
         }
       }
@@ -162,22 +166,28 @@ const formReducer = (state, action) => {
       const newAllShapes = { ...state.allShapes };
 
       if (checked) {
-        // Initialize selected shape with current mode settings
         newAllShapes[shape.value] = {
           ...newAllShapes[shape.value],
           isSelected: true,
-          // weight: weight || '',
-          needsColorDesignation: !isPutter(shape) && (
-            state.allShapes[shape.value]?.style?.needsColorDesignation === true ||
-            state.finalRequirements?.needsColorDesignation ||
-            (isWoodType(shape) &&
-              findMatchingWoodStyles(state.shapes, newAllShapes)[shape.value])
-          )
         };
       } else {
-        // Reset shape to initial state when unchecked
         newAllShapes[shape.value] = createInitialShapeState(shape);
       }
+
+      Object.entries(newAllShapes).forEach(([shapeValue, row]) => {
+        if (!row.isSelected) return;
+        const shapeDef = state.shapes.find((s) => s.value === shapeValue);
+        if (!shapeDef || isPutter(shapeDef)) return;
+        newAllShapes[shapeValue] = {
+          ...row,
+          needsColorDesignation: computeShapeNeedsColorDesignation(
+            shapeDef,
+            row,
+            state.shapes,
+            newAllShapes
+          ),
+        };
+      });
 
       return resetPreviewIfExists({
         ...state,
@@ -199,28 +209,20 @@ const formReducer = (state, action) => {
         }
       };
 
-      // Recalculate color designation when styles change
       if (field === 'style') {
         Object.entries(newAllShapes).forEach(([currentShapeValue, currentShape]) => {
-          if (!currentShape.isSelected || isPutter(currentShape)) return;
-
-          const matchingWoodStyles = findMatchingWoodStyles(
-            state.shapes,
-            Object.fromEntries(
-              Object.entries(newAllShapes)
-                .filter(([_, s]) => s.isSelected)
-            )
-          );
+          if (!currentShape.isSelected) return;
+          const shapeDef = state.shapes.find((s) => s.value === currentShapeValue);
+          if (!shapeDef || isPutter(shapeDef)) return;
 
           newAllShapes[currentShapeValue] = {
             ...currentShape,
-            needsColorDesignation:
-              currentShape.style?.needsColorDesignation === true ||
-              state.finalRequirements?.needsColorDesignation ||
-              (isWoodType(currentShape) &&
-                Object.values(matchingWoodStyles).some((group) =>
-                  group.includes(currentShapeValue)
-                )),
+            needsColorDesignation: computeShapeNeedsColorDesignation(
+              shapeDef,
+              currentShape,
+              state.shapes,
+              newAllShapes
+            ),
           };
         });
       }
@@ -312,7 +314,7 @@ export const useFormState = (initialState, onFormChange) => {
     };
 
     dispatch(action);
-  }, [initialState]);
+  }, [initialState, onFormChange]);
 
   return [state, handleChange];
 };

@@ -24,10 +24,7 @@ export const validateFinalRequirements = (formState) => {
   }
 
   // Boolean fields check
-  const requiredBooleanFields = [
-    'needsColorDesignation',
-    'needsSecondaryLeather',
-  ];
+  const requiredBooleanFields = ['needsSecondaryLeather'];
 
   const hasValidBooleans = requiredBooleanFields.every(field => 
     typeof finalRequirements[field] === 'boolean'

@@ -4,23 +4,21 @@
  * Resolves requirement flags for the create-product flow.
  * - Secondary leather: **collection** `needsSecondaryLeather`.
  * - Thread embroidery vs stitching UX: **collection** `threadType` only (`ThreadColorSelector`, validators).
- * - Color designation for listing-level flags: pass null; per-shape `needsColorDesignation` lives on each shape row.
+ * - Color designation is **per shape row** (`allShapes[].needsColorDesignation`), driven from the row’s
+ *   `style.needsColorDesignation` and wood pairing — not part of `finalRequirements`.
  *
  * @param {Object} collection Base collection configuration
- * @param {Object} selectedStyle Reserved for future use; pass null (per-shape designation is on each shape).
  * @returns {Object} Resolved requirements
  */
-export const resolveRequirements = (collection, selectedStyle) => {
+export const resolveRequirements = (collection) => {
   if (!collection) {
     return {
       needsSecondaryLeather: false,
-      needsColorDesignation: false
     };
   }
 
   return {
     needsSecondaryLeather: collection.needsSecondaryLeather ?? false,
-    needsColorDesignation: selectedStyle?.needsColorDesignation === true,
   };
 };
 
@@ -28,11 +26,10 @@ export const getEffectiveRequirements = (formState) => {
   if (!formState?.collection) {
     return {
       needsSecondaryLeather: false,
-      needsColorDesignation: false
     };
   }
 
-  return resolveRequirements(formState.collection, null);
+  return resolveRequirements(formState.collection);
 };
 
 export const calculateFinalRequirements = (formState) => {

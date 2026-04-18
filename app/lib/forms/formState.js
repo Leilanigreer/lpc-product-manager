@@ -63,7 +63,6 @@ export const initialFormState = {
 
   finalRequirements: {
     needsSecondaryLeather: false,
-    needsColorDesignation: false,
     titleTemplate: null,
     seoTemplate: null,
     handleTemplate: null,
