@@ -43,10 +43,7 @@ const mapImageType = (label) => {
  */
 export const saveProductToDatabase = async (productData, shopifyResponse, cloudinaryFolderId) => {
   try {
-    // Filter out "Create my own set" variant
-    const filteredVariants = productData.variants.filter(
-      variant => variant.variantName !== "Create my own set"
-    );
+    const filteredVariants = productData.variants;
 
     if (filteredVariants.length === 0) {
       throw new Error('No valid variants found after filtering');

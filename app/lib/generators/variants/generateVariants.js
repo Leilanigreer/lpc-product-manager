@@ -62,18 +62,9 @@ export const generateVariants = async (formState, skuInfo) => {
 
     const allVariants = [
       ...regularVariants,
-      {
-        variantName: "Create my own set",
-        price: "0.00",
-        weight: "0.00", // placeholder — weight capture disabled in UI
-        isCustom: true,
-        position: regularVariants.length + 1,
-        options: { Style: "Create my own set" },
-        shapeType: selectedShapes[0]?.shapeType || 'DEFAULT'
-      },
       ...customVariants.map(variant => ({
         ...variant,
-        position: variant.position + regularVariants.length + 1,
+        position: variant.position + regularVariants.length,
         shapeType: formState.allShapes[variant.shapeValue]?.shapeType || 'DEFAULT'
       }))
     ];
