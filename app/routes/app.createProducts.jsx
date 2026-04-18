@@ -106,7 +106,6 @@ export default function CreateProduct() {
     fonts, 
     shapes, 
     shopifyCollections,
-    styleCategoryDebug,
     commonDescription, 
     productSets, 
     error 
@@ -349,12 +348,17 @@ export default function CreateProduct() {
         <Layout.Section>
           <BlockStack gap="400">
 
-          {styleCategoryDebug && (
-            <Card>
-              <BlockStack gap="200">
-                <Text as="h2" variant="headingSm">
-                  Debug: collection custom.category vs style metaobject category (remove later)
+          <Card>
+            <BlockStack gap="300">
+              <Text as="h2" variant="headingSm">
+                Debug: collection data (Shopify query → form state)
+              </Text>
+              {!formState.collection?.value ? (
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Select a collection to inspect the mapped payload (metafields, pricing tier
+                  reference, styles, thread type, tag, etc.).
                 </Text>
+              ) : (
                 <Box
                   padding="300"
                   background="bg-surface-secondary"
@@ -372,12 +376,12 @@ export default function CreateProduct() {
                       wordBreak: "break-word",
                     }}
                   >
-                    {JSON.stringify(styleCategoryDebug, null, 2)}
+                    {JSON.stringify(formState.collection, null, 2)}
                   </pre>
                 </Box>
-              </BlockStack>
-            </Card>
-          )}
+              )}
+            </BlockStack>
+          </Card>
 
           <Card>
             <BlockStack gap="400">

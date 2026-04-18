@@ -210,55 +210,6 @@ export async function getStylesFromShopify(admin) {
 }
 
 /**
- * Temporary UI/debug payload for collection custom.category vs style collection_category matching.
- * Remove when matching is verified.
- */
-export function buildStyleCategoryDebug(collectionsAfterAttach, formStyles, rawNodes) {
-  const shopifyCols = collectionsAfterAttach.filter((c) => c.source === "shopify");
-  return {
-    metaobjectType: TYPE_STYLE,
-    collections: shopifyCols.map((c) => ({
-      title: c.label,
-      handle: c.handle,
-      mappedCategory: c.category,
-      metafield_value: c.metafields?.category?.value ?? null,
-      metafield_type: c.metafields?.category?.type ?? null,
-    })),
-    stylesGraphql: (rawNodes ?? []).map((n) => ({
-      handle: n.handle,
-      displayName: n.displayName,
-      collectionCategoryField_value: n.collectionCategoryField?.value ?? null,
-      collectionCategoryField_type: n.collectionCategoryField?.type ?? null,
-      collectionCategoryAfterParse:
-        choiceListSingleValueField(n.collectionCategoryField),
-      shapeGroupField_value: n.shapeGroupField?.value ?? null,
-      shapeGroupField_type: n.shapeGroupField?.type ?? null,
-      shapeGroupAfterParse: choiceListSingleValueField(n.shapeGroupField),
-    })),
-    stylesMapped: formStyles.map((s) => ({
-      label: s.label,
-      handle: s.url_id,
-      collectionCategory: s.collectionCategory,
-      collectionCategoryStringified:
-        s.collectionCategory == null ? null : JSON.stringify(s.collectionCategory),
-      shapeGroup: s.shapeGroup,
-      shapeGroupStringified:
-        s.shapeGroup == null ? null : JSON.stringify(s.shapeGroup),
-    })),
-    matchResults: shopifyCols.map((c) => {
-      const collCat = c.category != null ? String(c.category).trim() : "";
-      return {
-        collection: c.label,
-        collectionHandle: c.handle,
-        collectionCategoryCompared: collCat || "(empty — no styles attached)",
-        matchedCount: c.styles?.length ?? 0,
-        matchedStyleLabels: (c.styles ?? []).map((s) => s.label),
-      };
-    }),
-  };
-}
-
-/**
  * Attaches `styles` and flags to each Shopify-sourced collection.
  * Category match is exact after trim on both sides.
  *

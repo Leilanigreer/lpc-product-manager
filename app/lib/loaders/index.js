@@ -21,22 +21,20 @@ import {
   fetchStyleMetaobjectNodes,
   mapStyleMetaobjectNodeToFormStyle,
   attachStylesToShopifyCollections,
-  buildStyleCategoryDebug,
 } from "../server/styleShopify.server";
 import { getShapesFromShopify } from "../server/shapeShopify.server";
 
-/** @returns {Promise<{ collections: object[], styleCategoryDebug: object | null }>} */
+/** @returns {Promise<{ collections: object[] }>} */
 async function loadShopifyCollectionsForLoader(admin) {
   if (!admin) {
     const collections = await getShopifyCollections();
-    return { collections, styleCategoryDebug: null };
+    return { collections };
   }
   try {
     const collections = await getProductCollectionsFromShopify(admin);
     let formStyles = [];
-    let rawNodes = [];
     try {
-      rawNodes = await fetchStyleMetaobjectNodes(admin);
+      const rawNodes = await fetchStyleMetaobjectNodes(admin);
       formStyles = rawNodes.map(mapStyleMetaobjectNodeToFormStyle);
     } catch (styleErr) {
       console.error(
@@ -45,19 +43,14 @@ async function loadShopifyCollectionsForLoader(admin) {
       );
     }
     const attached = attachStylesToShopifyCollections(collections, formStyles);
-    const styleCategoryDebug = buildStyleCategoryDebug(
-      attached,
-      formStyles,
-      rawNodes
-    );
-    return { collections: attached, styleCategoryDebug };
+    return { collections: attached };
   } catch (err) {
     console.error(
       "loadShopifyCollectionsForLoader: Shopify collection query failed; falling back to Postgres list:",
       err
     );
     const collections = await getShopifyCollections();
-    return { collections, styleCategoryDebug: null };
+    return { collections };
   }
 }
 
@@ -123,7 +116,6 @@ export const loader = async ({ admin } = {}) => {
     ]);
 
     const shopifyCollections = shopifyLoad.collections;
-    const styleCategoryDebug = shopifyLoad.styleCategoryDebug;
 
     const leatherColors = leatherResult?.leatherColors ?? [];
     const leatherColorsLoadError = leatherResult?.loadError ?? null;
@@ -138,7 +130,6 @@ export const loader = async ({ admin } = {}) => {
       fonts,
       shapes,
       shopifyCollections,
-      styleCategoryDebug,
       commonDescription,
       productSets,
       colorTags,
@@ -159,7 +150,6 @@ export const loader = async ({ admin } = {}) => {
         fonts: [],
         shapes: [],
         shopifyCollections: [],
-        styleCategoryDebug: null,
         commonDescription: [],
         productSets: [],
         colorTags: [],
