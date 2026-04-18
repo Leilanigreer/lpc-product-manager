@@ -380,6 +380,53 @@ export default function CreateProduct() {
                   </pre>
                 </Box>
               )}
+
+              {formState.collection?.value && (
+                <BlockStack gap="200">
+                  <Text as="h3" variant="headingSm">
+                    Debug: shape_type_adjustment (this collection's price tier)
+                  </Text>
+                  {!formState.collection.priceTier ? (
+                    <Text as="p" variant="bodyMd" tone="subdued">
+                      No price tier object on the collection (tier metaobject or base prices may be
+                      missing in Shopify).
+                    </Text>
+                  ) : (
+                    <Box
+                      padding="300"
+                      background="bg-surface-secondary"
+                      borderWidth="025"
+                      borderColor="border"
+                      borderRadius="200"
+                    >
+                      <pre
+                        style={{
+                          margin: 0,
+                          fontSize: "12px",
+                          overflow: "auto",
+                          maxHeight: "min(50vh, 480px)",
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {JSON.stringify(
+                          {
+                            tierGid: formState.collection.priceTier.value,
+                            name: formState.collection.priceTier.name,
+                            shopifyPrice: formState.collection.priceTier.shopifyPrice,
+                            marketplacePrice: formState.collection.priceTier.marketplacePrice,
+                            adjustmentCount:
+                              formState.collection.priceTier.adjustments?.length ?? 0,
+                            adjustments: formState.collection.priceTier.adjustments ?? [],
+                          },
+                          null,
+                          2
+                        )}
+                      </pre>
+                    </Box>
+                  )}
+                </BlockStack>
+              )}
             </BlockStack>
           </Card>
 

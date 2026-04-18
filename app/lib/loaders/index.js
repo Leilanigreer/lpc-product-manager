@@ -7,8 +7,6 @@ import {
   getEmbroideryThreadColors, 
   getFonts, 
   getFontsFromShopify,
-  getShapes, 
-  getShopifyCollections,
   getCommonDescription, 
   getProductSets,
   getColorTags,
@@ -27,52 +25,38 @@ import { getShapesFromShopify } from "../server/shapeShopify.server";
 /** @returns {Promise<{ collections: object[] }>} */
 async function loadShopifyCollectionsForLoader(admin) {
   if (!admin) {
-    const collections = await getShopifyCollections();
-    return { collections };
-  }
-  try {
-    const collections = await getProductCollectionsFromShopify(admin);
-    let formStyles = [];
-    try {
-      const rawNodes = await fetchStyleMetaobjectNodes(admin);
-      formStyles = rawNodes.map(mapStyleMetaobjectNodeToFormStyle);
-    } catch (styleErr) {
-      console.error(
-        "loadShopifyCollectionsForLoader: style metaobjects failed; collections load without styles:",
-        styleErr
-      );
-    }
-    const attached = attachStylesToShopifyCollections(collections, formStyles);
-    return { collections: attached };
-  } catch (err) {
-    console.error(
-      "loadShopifyCollectionsForLoader: Shopify collection query failed; falling back to Postgres list:",
-      err
+    console.warn(
+      "loadShopifyCollectionsForLoader: no admin client; returning empty collections (Shopify-only)."
     );
-    const collections = await getShopifyCollections();
-    return { collections };
+    return { collections: [] };
   }
+  const collections = await getProductCollectionsFromShopify(admin);
+  let formStyles = [];
+  try {
+    const rawNodes = await fetchStyleMetaobjectNodes(admin);
+    formStyles = rawNodes.map(mapStyleMetaobjectNodeToFormStyle);
+  } catch (styleErr) {
+    console.error(
+      "loadShopifyCollectionsForLoader: style metaobjects failed; collections load without styles:",
+      styleErr
+    );
+  }
+  const attached = attachStylesToShopifyCollections(collections, formStyles);
+  return { collections: attached };
 }
 
 async function loadShapesForLoader(admin) {
   if (!admin?.graphql) {
-    return getShapes();
+    console.warn(
+      "loadShapesForLoader: no Shopify GraphQL client; returning empty shapes (Shopify-only)."
+    );
+    return [];
   }
   try {
-    const shapes = await getShapesFromShopify(admin);
-    if (shapes.length === 0) {
-      console.warn(
-        "loadShapesForLoader: Shopify returned no active shapes; falling back to Postgres."
-      );
-      return getShapes();
-    }
-    return shapes;
+    return await getShapesFromShopify(admin);
   } catch (err) {
-    console.error(
-      "loadShapesForLoader: Shopify shape metaobjects failed; falling back to Postgres:",
-      err
-    );
-    return getShapes();
+    console.error("loadShapesForLoader: Shopify shape metaobjects failed:", err);
+    throw err;
   }
 }
 
