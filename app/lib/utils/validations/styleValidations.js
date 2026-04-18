@@ -80,11 +80,6 @@ const validateStyle = (style, debug = false) => {
  * @returns {boolean} True if all required styles are valid
  */
 export const validateShapeStyles = (formState, debug = false) => {
-  // Skip validation if not using per-shape styles
-  if (formState?.styleMode !== 'independent') {
-    return true;
-  }
-
   if (!formState?.allShapes || typeof formState.allShapes !== 'object') {
     if (debug) console.warn('Invalid allShapes object:', formState?.allShapes);
     return false;
@@ -127,53 +122,15 @@ export const validateShapeStyles = (formState, debug = false) => {
 };
 
 /**
- * Validates global style configuration
- * @param {Object} formState - Current form state
- * @param {boolean} debug - Whether to log debug messages
- * @returns {boolean} True if valid, or not using global styles
- */
-export const validateGlobalStyle = (formState, debug = false) => {
-  // Skip validation if not using global style mode
-  if (formState?.styleMode !== 'global') {
-    return true;
-  }
-
-  return validateStyle(formState.globalStyle, debug);
-};
-
-/**
  * Validates all style-related requirements
  * @param {Object} formState - Current form state
  * @param {boolean} debug - Whether to log debug messages
  * @returns {boolean} True if all style validations pass
  */
 export const validateStyles = (formState, debug = false) => {
-  // Skip all style validation if collection doesn't need styles
   if (!formState?.collection?.needsStyle) {
     return true;
   }
 
-  // Validate style mode is selected
-  if (!formState?.styleMode) {
-    if (debug) console.warn('Style mode not selected');
-    return false;
-  }
-
-  // Validate global style if in global mode
-  if (formState.styleMode === 'global') {
-    if (!validateGlobalStyle(formState, debug)) {
-      if (debug) console.warn('Global style validation failed');
-      return false;
-    }
-  }
-
-  // Validate per-shape styles if in independent mode
-  if (formState.styleMode === 'independent') {
-    if (!validateShapeStyles(formState, debug)) {
-      if (debug) console.warn('Shape styles validation failed');
-      return false;
-    }
-  }
-
-  return true;
+  return validateShapeStyles(formState, debug);
 };

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Select, Card, Box, Text, BlockStack, InlineStack } from "@shopify/polaris";
+import { Select, Card, Box, Text, BlockStack } from "@shopify/polaris";
 
 /**
  * Collection + style selection for create-product.
@@ -12,7 +12,7 @@ import { Select, Card, Box, Text, BlockStack, InlineStack } from "@shopify/polar
  *
  * Style selection UI is only needed when any `shape_group` within the selected `collection_category`
  * has more than 1 valid style option. When every `shape_group` has exactly 1 style, we auto-assign
- * styles per shape in `useFormState` and we don't show style mode controls.
+ * styles per shape in `useFormState`. Users always pick style per shape in the grid when required.
  *
  * @param {Object} props
  * @param {Array} props.shopifyCollections - Collections from the loader
@@ -42,24 +42,6 @@ const CollectionSelector = ({
     [shopifyCollections, formState.collection?.value]
   );
 
-  const styleModeOptions = useMemo(() => [
-    { label: 'Independent style per shape', value: 'independent' }
-  ], []);
-
-  const styleOptions = useMemo(() => {
-    const styles = currentCollection?.styles;
-    if (!styles?.length) {
-      return [{ label: 'Select a style...', value: '' }];
-    }
-    return [
-      { label: 'Select a style...', value: '' },
-      ...styles.map(style => ({
-        label: style.label,
-        value: style.value
-      }))
-    ];
-  }, [currentCollection]);
-
   const showStyleControls = useMemo(() => {
     const styles = currentCollection?.styles ?? [];
     const groupCounts = styles.reduce((acc, s) => {
@@ -83,20 +65,6 @@ const CollectionSelector = ({
     }
   };
 
-  const handleStyleModeChange = (value) => {
-    if (value === 'independent') {
-      onChange('globalStyle', null);
-    }
-    onChange('styleMode', value);
-  };
-
-  const handleGlobalStyleChange = (value) => {
-    const selectedStyle = currentCollection?.styles?.find(s => s.value === value);
-    if (selectedStyle) {
-      onChange('globalStyle', selectedStyle);
-    }
-  };
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -113,33 +81,11 @@ const CollectionSelector = ({
         </Box>
 
         {showStyleControls && (
-          <InlineStack gap="400" align="start" wrap={false}>
-            <Box width="50%">
-              <Text as="h2" variant="headingMd">Style Mode</Text>
-              <Box paddingBlockStart="200">
-                <Select
-                  label="Select style mode"
-                  options={styleModeOptions}
-                  onChange={handleStyleModeChange}
-                  value={formState.styleMode || 'independent'}
-                />
-              </Box>
-            </Box>
-
-            {formState.styleMode === 'global' && (
-              <Box width="50%">
-                <Text as="h2" variant="headingMd">Global Style</Text>
-                <Box paddingBlockStart="200">
-                  <Select
-                    label="Select style"
-                    options={styleOptions}
-                    onChange={handleGlobalStyleChange}
-                    value={formState.globalStyle?.value || ''}
-                  />
-                </Box>
-              </Box>
-            )}
-          </InlineStack>
+          <Box paddingBlockStart="100">
+            <Text as="p" variant="bodyMd" tone="subdued">
+              Choose a style for each applicable shape in the grid below.
+            </Text>
+          </Box>
         )}
       </BlockStack>
     </Card>

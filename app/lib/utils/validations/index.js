@@ -85,11 +85,7 @@ export const validateProductForm = (formState, { debug = false } = {}) => {
     if (formState.collection.needsStyle) {
       validations.hasValidStyles = validateStyles(formState, debug);
       if (!validations.hasValidStyles) {
-        errors.push(
-          !formState.styleMode
-            ? 'Style mode must be selected'
-            : 'Invalid style configuration'
-        );
+        errors.push('Invalid style configuration');
       }
     } else {
       validations.hasValidStyles = true;

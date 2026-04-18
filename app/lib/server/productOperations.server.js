@@ -228,19 +228,7 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
         })) || [];
 
         let prismaStyleConnect = {};
-        if (
-          productData.styleMode === 'global' &&
-          productData.globalStyle &&
-          !isShopifyMetaobjectGid(productData.globalStyle.value)
-        ) {
-          prismaStyleConnect = {
-            style: { connect: { id: productData.globalStyle.value } },
-          };
-        } else if (
-          productData.styleMode !== 'global' &&
-          regular.style &&
-          !isShopifyMetaobjectGid(regular.style.value)
-        ) {
+        if (regular.style && !isShopifyMetaobjectGid(regular.style.value)) {
           prismaStyleConnect = {
             style: { connect: { id: regular.style.value } },
           };

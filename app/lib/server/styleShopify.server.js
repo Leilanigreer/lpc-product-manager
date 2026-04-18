@@ -265,7 +265,7 @@ export function buildStyleCategoryDebug(collectionsAfterAttach, formStyles, rawN
  * - `styles`: metaobjects whose `collectionCategory` equals the collection's `category`.
  * - `needsStyle`: true only if more than one matching style — same as legacy collections where
  *   `needsStyle === false` when there is no real “pick a style” step. A single style is still
- *   attached in `styles[]` and auto-applied in form state (`globalStyle`), but flags, validation,
+ *   attached in `styles[]` and auto-applied per shape in form state when unambiguous, but flags, validation,
  *   DB style FK, thread/shape UI, and wood collapse behave like the old false case.
  *
  * @param {object[]} collections - From getProductCollectionsFromShopify

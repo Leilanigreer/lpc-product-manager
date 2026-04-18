@@ -52,10 +52,6 @@ export const initialFormState = {
     secondary: null
   },
 
-  // Style Configuration
-  styleMode: null, // 'global' | 'independent'
-  globalStyle: null, // Only used when styleMode is 'global'
-  
   // Thread Configuration
   threadMode: {
     embroidery: null, // 'global' | 'perShape'

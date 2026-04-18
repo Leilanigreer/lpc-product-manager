@@ -33,9 +33,10 @@ const getVariantName = (shapeData, formState) => {
 
   // Handle color designation variants
   if (shapeData.needsColorDesignation && leatherColor) {
-    const styleSource = formState.styleMode === 'global'
-      ? formState.globalStyle
-      : shapeData.style
+    const styleSource = shapeData.style;
+    if (!styleSource) {
+      return `${prefix} ${shapeLabel} ${suffix}`;
+    }
 
     const leatherPhrase = styleSource.leatherPhrase || 'leather as';
     let colorLabel = leatherColor.label;
@@ -52,10 +53,10 @@ const getVariantName = (shapeData, formState) => {
         return `${prefix} ${shapeLabel} - ${styleSource.label} with ${colorLabel} ${leatherPhrase} ${suffix}`;
 
       case 'CUSTOM':
-        if (style.customNamePattern) {
-          const name = style.customNamePattern
+        if (styleSource.customNamePattern) {
+          const name = styleSource.customNamePattern
             .replace('{shape.label}', shapeLabel)
-            .replace('{style.label}', style.label)
+            .replace('{style.label}', styleSource.label)
             .replace('{leather.label}', colorLabel);
           return `${prefix} ${name} ${suffix}`;
         }
@@ -150,11 +151,10 @@ export const shouldCollapseWoodVariants = (
 
   if (!collection.needsStyle) return true;
 
-  const { styleMode, globalStyle } = formState;
-  const currentStyle = styleMode === 'global' ? globalStyle : currentShape.style;
+  const currentStyle = currentShape.style;
 
-  return processedShapes.some(processedShape => {
-    const processedStyle = styleMode === 'global' ? globalStyle : processedShape.style;
+  return processedShapes.some((processedShape) => {
+    const processedStyle = processedShape.style;
     const stylesMatch = currentStyle?.value === processedStyle?.value;
     const colorDesignationsMatch = !currentShape.needsColorDesignation ||
       (currentShape.colorDesignation?.value === processedShape.colorDesignation?.value);

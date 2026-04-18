@@ -32,7 +32,7 @@ const ShapeGrid = ({
 
   // Calculate visibility flags for all shapes at once
   const visibilityFlags = useMemo(() => {
-    const { collection, styleMode, threadMode, allShapes } = formState;
+    const { collection, threadMode, allShapes } = formState;
     const collectionStyles = collection?.styles ?? [];
     
     return sortedShapes.reduce((acc, shape) => {
@@ -57,7 +57,7 @@ const ShapeGrid = ({
   
       acc[shape.value] = {
         isSelected,
-        showStyleFields: isSelected && needsStyleForThisShape && styleMode === 'independent',
+        showStyleFields: isSelected && needsStyleForThisShape,
         showEmbroideryFields:
           isSelected &&
           needsStyleForThisShape &&

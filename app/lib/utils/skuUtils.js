@@ -90,7 +90,7 @@ export const formatSKU = (baseParts, version, shapeValue, formState, options = {
       if (isPutter(shapeData)) {
         fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-Custom`;
       } else {
-        const styleAbbrev = shapeData.style?.abbreviation || formState.globalStyle?.abbreviation;
+        const styleAbbrev = shapeData.style?.abbreviation;
         if (styleAbbrev) {
           // Handle style-specific custom SKUs
           if (shapeData.needsColorDesignation && shapeData.colorDesignation?.abbreviation) {
