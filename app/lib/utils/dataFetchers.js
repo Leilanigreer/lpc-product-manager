@@ -357,6 +357,7 @@ export const getShapes = async () => {
       displayOrder,
       abbreviation,
       shapeType: shapeType || 'OTHER',
+      shapeGroup: null,
       isActive: isActive ?? true
     }));
   } catch (error) {
@@ -370,8 +371,6 @@ const shopifyCollectionFormInclude = {
   styles: {
     select: {
       styleId: true,
-      overrideSecondaryLeather: true,
-      overrideStitchingColor: true,
       overrideColorDesignation: true,
       skuPattern: true,
       titleTemplate: true,
@@ -420,7 +419,6 @@ const mapShopifyCollectionRowToFormShape = ({
   description,
   commonDescription,
   needsSecondaryLeather,
-  needsStitchingColor,
   needsColorDesignation,
   needsStyle,
   defaultStyleNamePattern,
@@ -440,7 +438,6 @@ const mapShopifyCollectionRowToFormShape = ({
   description,
   commonDescription,
   needsSecondaryLeather,
-  needsStitchingColor,
   needsColorDesignation,
   needsStyle,
   defaultStyleNamePattern,
@@ -455,18 +452,14 @@ const mapShopifyCollectionRowToFormShape = ({
       url_id: sc.style.url_id,
       useOppositeLeather: sc.style.useOppositeLeather,
       leatherPhrase: sc.style.leatherPhrase,
-      namePattern: sc.style.namePattern,
-      customNamePattern: sc.style.customNamePattern,
-      overrideSecondaryLeather: sc.overrideSecondaryLeather,
-      overrideStitchingColor: sc.overrideStitchingColor,
-      overrideColorDesignation: sc.overrideColorDesignation,
+      namePattern: sc.overrideNamePattern ?? sc.style.namePattern,
+      customNamePattern: sc.overrideCustomNamePattern ?? sc.style.customNamePattern,
+      needsColorDesignation: sc.overrideColorDesignation === true,
       skuPattern: sc.skuPattern,
       titleTemplate: sc.titleTemplate,
       seoTemplate: sc.seoTemplate,
       handleTemplate: sc.handleTemplate,
       validation: sc.validation,
-      overrideNamePattern: sc.overrideNamePattern,
-      overrideCustomNamePattern: sc.overrideCustomNamePattern,
     }))
     .sort((a, b) => a.label.localeCompare(b.label)),
   titleFormat: titleFormat
@@ -873,12 +866,6 @@ export const getColorTags = async () => {
   }
 };
 
-/** Same rule as requirementsUtils: thread type set and not NONE → stitching color UX. */
-function prismaThreadTypeRequiresStitchingColor(threadType) {
-  if (threadType === undefined || threadType === null || threadType === "") return false;
-  return threadType !== "NONE";
-}
-
 // This fetcher is now optional since the data is included in getShopifyCollections
 export const getStyles = async () => {
   try {
@@ -886,9 +873,11 @@ export const getStyles = async () => {
       include: {
         collections: {
           select: {
-            overrideSecondaryLeather: true,
-            overrideStitchingColor: true,
             overrideColorDesignation: true,
+            titleTemplate: true,
+            seoTemplate: true,
+            handleTemplate: true,
+            validation: true,
             collection: {
               select: {
                 handle: true,
@@ -909,10 +898,8 @@ export const getStyles = async () => {
         url_id,
         collections: collections.map(sc => ({
           handle: sc.collection.handle,
-          needsSecondaryLeather: sc.overrideSecondaryLeather ?? sc.collection.needsSecondaryLeather,
-          needsStitchingColor:
-            sc.overrideStitchingColor === true ||
-            prismaThreadTypeRequiresStitchingColor(sc.collection.threadType),
+          threadType: sc.collection.threadType,
+          needsSecondaryLeather: sc.collection.needsSecondaryLeather,
           needsColorDesignation: sc.overrideColorDesignation === true,
           titleTemplate: sc.titleTemplate,
           seoTemplate: sc.seoTemplate,

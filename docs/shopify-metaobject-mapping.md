@@ -88,6 +88,13 @@ These models are already partially migrated to Shopify; they should guide how we
 
 This section lists models that could reasonably move to Shopify metaobjects, plus what would remain in Postgres.
 
+### 3.0 Shapes (implemented for create-product)
+
+- **Metaobject type**: `shape`
+- **Field `shape_type`**: use a **single choice list** (not plain single-line text). The app reads `jsonValue` when present, otherwise parses `value` (often a JSON array string like `["PUTTER"]`), takes the first choice, and normalizes to the same tokens as Prisma `ShapeType` (`DRIVER`, `WOOD`, `HYBRID`, `PUTTER`, `ZERO_MALLET`, `OTHER`).
+- **Field `shape_group`**: **single choice list** — same parsing as `shape_type`; exposed on the form as `shapeGroup` (uppercase snake). Use for merchandising / style-family grouping separate from pricing `shape_type`. Postgres-sourced shapes set `shapeGroup` to `null`.
+- Other fields on the type: `shape`, `is_representative`, `abbreviation`, `display_order` — see `app/lib/server/shapeShopify.server.js`.
+
 ### 3.1 Leather colors
 
 - **Current Postgres model**: `LeatherColor`

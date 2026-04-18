@@ -1,5 +1,9 @@
 import React, { useMemo, useCallback } from 'react';
 import { Select } from "@shopify/polaris";
+import {
+  getShapeGroup,
+  styleCategoryMatchesShapeGroup,
+} from '../../../lib/utils/shapeUtils';
 
 const StyleField = ({ 
   shape,
@@ -11,30 +15,30 @@ const StyleField = ({
   // Generate style options from collection styles
   const styleOptions = useMemo(() => {
     const collectionStyles = formState.collection?.styles || [];
-    
+
+    let sourceStyles = collectionStyles;
+    const group = getShapeGroup(shape);
+    if (group) {
+      sourceStyles = collectionStyles.filter((style) =>
+        styleCategoryMatchesShapeGroup(style.shapeGroup, group)
+      );
+    }
+
     return [
       { label: 'Select a style...', value: '' },
-      ...collectionStyles.map(style => ({
+      ...sourceStyles.map((style) => ({
         label: style.label,
         value: style.value,
-        // Only include required style data
-        style: {
-          value: style.value,
-          label: style.label,
-          abbreviation: style.abbreviation,
-          useOppositeLeather: style.useOppositeLeather,
-          leatherPhrase: style.leatherPhrase,
-          namePattern: style.namePattern
-        }
-      }))
+        style: { ...style },
+      })),
     ];
-  }, [formState.collection?.styles]);
+  }, [formState.collection?.styles, shape]);
 
   // Handle style selection for independent mode
   const handleStyleChange = useCallback((value) => {
     if (!value) {
       handleChange('shapeField', {
-        shapValue: shape.value,
+        shapeValue: shape.value,
         field: 'style',
         value: null
       });

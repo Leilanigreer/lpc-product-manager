@@ -50,8 +50,7 @@ export const generateSEOTitle = async (formState, title) => {
   }
 
   try {
-    const template = formState.globalStyle?.overrides?.seoTemplate || 
-                    formState.collection?.titleFormat?.seoTemplate;
+    const template = formState.collection?.titleFormat?.seoTemplate;
 
     if (!template) {
       return DEFAULT_SEO_TITLE;
@@ -73,8 +72,7 @@ export const generateMainHandle = async (formState, title, version) => {
   }
 
   try {
-    const template = formState.globalStyle?.overrides?.handleTemplate || 
-                    formState.collection?.titleFormat?.handleTemplate;
+    const template = formState.collection?.titleFormat?.handleTemplate;
 
     if (!template) {
       return DEFAULT_HANDLE;

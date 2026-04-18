@@ -1,5 +1,5 @@
 import { useReducer, useCallback } from 'react';
-import { calculateFinalRequirements, isPutter, isWoodType, findMatchingWoodStyles, extractExistingProducts, filterProductsByCollection } from '../lib/utils';
+import { calculateFinalRequirements, isPutter, isWoodType, findMatchingWoodStyles, extractExistingProducts, filterProductsByCollection, getShapeGroup } from '../lib/utils';
 import { createInitialShapeState } from '../lib/forms/formState';
 
 const ACTION_TYPES = {
@@ -50,18 +50,58 @@ const formReducer = (state, action) => {
       const filteredProducts = filterProductsByCollection(existingProducts, collection.value);
 
       const styles = collection.styles ?? [];
+
+      const toGroupKey = (raw) => {
+        if (raw == null) return 'UNKNOWN';
+        const s = String(raw).trim();
+        if (!s) return 'UNKNOWN';
+        return s.toUpperCase().replace(/\s+/g, '_');
+      };
+
+      // Style selection is per shape_group within the current collection_category.
+      const groupCounts = styles.reduce((acc, s) => {
+        const key = toGroupKey(s.shapeGroup);
+        acc[key] = (acc[key] ?? 0) + 1;
+        return acc;
+      }, {});
+
+      const anyGroupHasMultipleStyles = Object.values(groupCounts).some((count) => count > 1);
+
+      const uniqueStyleByGroup = styles.reduce((acc, s) => {
+        const key = toGroupKey(s.shapeGroup);
+        if (groupCounts[key] === 1) acc[key] = s;
+        return acc;
+      }, {});
+
       const singleStyle = styles.length === 1 ? styles[0] : null;
+      const shouldUseGlobalStyle = Boolean(singleStyle && !anyGroupHasMultipleStyles);
 
       // Create new state with collection and reset relevant fields
+      // Auto-assign styles for shape_groups that have exactly one valid style option.
+      const shapesWithAutoStyles = { ...allShapes };
+      for (const shapeDef of initialState.shapes) {
+        const group = getShapeGroup(shapeDef);
+        const key = toGroupKey(group);
+        if (uniqueStyleByGroup[key]) {
+          const assigned = uniqueStyleByGroup[key];
+          shapesWithAutoStyles[shapeDef.value] = {
+            ...shapesWithAutoStyles[shapeDef.value],
+            style: assigned,
+            needsColorDesignation:
+              !isPutter(shapeDef) && assigned.needsColorDesignation === true,
+          };
+        }
+      }
+
       const newState = {
         ...initialState,
         collection,
-        styleMode: singleStyle ? 'global' : '',
-        globalStyle: singleStyle,
+        styleMode: shouldUseGlobalStyle ? 'global' : anyGroupHasMultipleStyles ? 'independent' : '',
+        globalStyle: shouldUseGlobalStyle ? singleStyle : null,
         threadMode: { embroidery: '' },
         globalEmbroideryThread: null,
         stitchingThreads: {},
-        allShapes,
+        allShapes: shapesWithAutoStyles,
         existingProducts: filteredProducts // Store processed products in state
       };
 
@@ -109,12 +149,13 @@ const formReducer = (state, action) => {
               selectedShapes
             );
     
-            updatedShape.needsColorDesignation = 
+            updatedShape.needsColorDesignation =
+              updatedShape.style?.needsColorDesignation === true ||
               state.finalRequirements?.needsColorDesignation ||
-              (isWoodType(shapeDefinition) && 
-               Object.values(matchingWoodStyles).some(group => 
-                 group.includes(shapeValue)
-               ));
+              (isWoodType(shapeDefinition) &&
+                Object.values(matchingWoodStyles).some((group) =>
+                  group.includes(shapeValue)
+                ));
           }
         }
     
@@ -215,14 +256,11 @@ const formReducer = (state, action) => {
           isSelected: true,
           // weight: weight || '',
           needsColorDesignation: !isPutter(shape) && (
+            state.allShapes[shape.value]?.style?.needsColorDesignation === true ||
             state.finalRequirements?.needsColorDesignation ||
-            (state.styleMode === 'independent' && 
-             isWoodType(shape) && 
-             findMatchingWoodStyles(
-              state.shapes,
-              newAllShapes
-             )[shape.value]
-            )
+            (state.styleMode === 'independent' &&
+              isWoodType(shape) &&
+              findMatchingWoodStyles(state.shapes, newAllShapes)[shape.value])
           )
         };
       } else {
@@ -265,12 +303,13 @@ const formReducer = (state, action) => {
 
           newAllShapes[currentShapeValue] = {
             ...currentShape,
-            needsColorDesignation: 
+            needsColorDesignation:
+              currentShape.style?.needsColorDesignation === true ||
               state.finalRequirements?.needsColorDesignation ||
-              (isWoodType(currentShape) && 
-               Object.values(matchingWoodStyles).some(group => 
-                 group.includes(currentShapeValue)
-               ))
+              (isWoodType(currentShape) &&
+                Object.values(matchingWoodStyles).some((group) =>
+                  group.includes(currentShapeValue)
+                )),
           };
         });
       }

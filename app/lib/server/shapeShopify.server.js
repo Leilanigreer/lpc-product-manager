@@ -2,7 +2,12 @@
  * Shopify `shape` metaobjects for create-product.
  *
  * Field keys (Content → Metaobject definition) must match Shopify:
- *   shape, is_representative, abbreviation, shape_type, display_order
+ *   shape, is_representative, abbreviation, shape_type (single choice list),
+ *   shape_group (single choice list), display_order
+ *
+ * Choice lists (`shape_type`, `shape_group`): Shopify may return `jsonValue` or `value` as a JSON
+ * array string; we take the first choice. `shape_type` is normalized to Prisma `ShapeType` tokens;
+ * `shape_group` is normalized to a single UPPER_SNAKE token (no fixed enum in app).
  *
  * DB save: variants still connect to Prisma `Shape` by id. When `value` is a metaobject GID,
  * `productOperations.server.js` resolves via `Shape.name` === variant shape label (the `shape`
@@ -35,7 +40,14 @@ const LIST_SHAPES = `#graphql
         shapeField: field(key: "shape") { value }
         isRepresentativeField: field(key: "is_representative") { value }
         abbreviationField: field(key: "abbreviation") { value }
-        shapeTypeField: field(key: "shape_type") { value }
+        shapeTypeField: field(key: "shape_type") {
+          value
+          jsonValue
+        }
+        shapeGroupField: field(key: "shape_group") {
+          value
+          jsonValue
+        }
         displayOrderField: field(key: "display_order") { value }
       }
     }
@@ -45,6 +57,79 @@ const LIST_SHAPES = `#graphql
 function stringField(field) {
   if (field == null || field.value == null) return null;
   const s = String(field.value).trim();
+  return s.length ? s : null;
+}
+
+function firstChoiceToken(el) {
+  if (el == null) return null;
+  if (typeof el === "object" && el !== null) {
+    if (el.handle != null) {
+      const h = String(el.handle).trim();
+      if (h) return h;
+    }
+    if (el.value != null) {
+      const s = String(el.value).trim();
+      if (s) return s;
+    }
+  }
+  const s = String(el).trim();
+  return s.length ? s : null;
+}
+
+/**
+ * Single choice-list fields: Shopify may expose `jsonValue` (array) or `value` as a JSON array string.
+ * Also accepts a plain string (legacy single-line text).
+ */
+function choiceListSingleValueField(field) {
+  if (field == null) return null;
+
+  const jv = field.jsonValue;
+  if (jv != null) {
+    if (Array.isArray(jv) && jv.length > 0) {
+      for (const el of jv) {
+        const t = firstChoiceToken(el);
+        if (t) return t;
+      }
+      return null;
+    }
+    if (typeof jv === "string") {
+      const t = jv.trim();
+      return t.length ? t : null;
+    }
+  }
+
+  const v = field.value;
+  if (v == null || v === "") return null;
+
+  if (Array.isArray(v)) {
+    for (const el of v) {
+      const t = firstChoiceToken(el);
+      if (t) return t;
+    }
+    return null;
+  }
+
+  if (typeof v === "string") {
+    const t = v.trim();
+    if (!t) return null;
+    if (t.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(t);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          for (const el of parsed) {
+            const t = firstChoiceToken(el);
+            if (t) return t;
+          }
+          return null;
+        }
+      } catch {
+        /* fall through to plain string */
+      }
+    }
+    return t;
+  }
+
+  const s = String(v).trim();
   return s.length ? s : null;
 }
 
@@ -77,6 +162,13 @@ function normalizeShapeType(raw) {
   return "OTHER";
 }
 
+/** Choice-list token for merchandising / style-family grouping; not restricted to a fixed enum here. */
+function normalizeShapeGroupToken(raw) {
+  if (raw == null || raw === "") return null;
+  const s = String(raw).trim().toUpperCase().replace(/\s+/g, "_");
+  return s.length ? s : null;
+}
+
 function fallbackAbbreviation(label) {
   if (!label || typeof label !== "string") return "SHP";
   const cleaned = label.replace(/[^a-zA-Z0-9]+/g, "").slice(0, 8);
@@ -98,7 +190,10 @@ export function mapShapeMetaobjectNodeToFormShape(node) {
     label,
     displayOrder: parseDisplayOrder(node.displayOrderField),
     abbreviation,
-    shapeType: normalizeShapeType(stringField(node.shapeTypeField)),
+    shapeType: normalizeShapeType(choiceListSingleValueField(node.shapeTypeField)),
+    shapeGroup: normalizeShapeGroupToken(
+      choiceListSingleValueField(node.shapeGroupField)
+    ),
     isActive: parseRepresentativeAsActive(node.isRepresentativeField),
     url_id: node.handle || null,
   };

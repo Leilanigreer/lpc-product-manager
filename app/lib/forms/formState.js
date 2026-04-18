@@ -6,6 +6,8 @@ export const createInitialShapeState = (shape) => ({
   label: shape.label,
   abbreviation: shape.abbreviation,
   shapeType: shape.shapeType,
+  /** Shopify `shape_group` choice list; null when from Postgres or unset. */
+  shapeGroup: shape.shapeGroup ?? null,
   displayOrder: shape.displayOrder,
   isActive: shape.isActive,
 
@@ -46,7 +48,7 @@ export const initialFormState = {
       // image_url: "",
       colorTags: []
     },
-    // Optional: Only used when collection.needsSecondaryLeather or style override requires it
+    // Optional: Only used when collection.needsSecondaryLeather
     secondary: null
   },
 
@@ -65,7 +67,6 @@ export const initialFormState = {
 
   finalRequirements: {
     needsSecondaryLeather: false,
-    needsStitchingColor: false,
     needsColorDesignation: false,
     titleTemplate: null,
     seoTemplate: null,

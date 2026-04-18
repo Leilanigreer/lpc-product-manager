@@ -27,7 +27,6 @@ export const validateFinalRequirements = (formState) => {
   const requiredBooleanFields = [
     'needsColorDesignation',
     'needsSecondaryLeather',
-    'needsStitchingColor'
   ];
 
   const hasValidBooleans = requiredBooleanFields.every(field => 

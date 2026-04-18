@@ -5,10 +5,14 @@ import { Select, Card, Box, Text, BlockStack, InlineStack } from "@shopify/polar
  * Collection + style selection for create-product.
  *
  * Collections and `styles[]` come from the loader (Shopify: `style` metaobjects filtered by
- * `style.category === collection.category`). When there is more than one matching style,
- * the user picks style mode and (in global mode) a style. A single matching style is
- * auto-applied in form state (see useFormState). `collection.needsStyle` is only true when
- * there are multiple matching styles (same idea as legacy `needsStyle === false` for a single style).
+ * `style.collectionCategory === collection.category`).
+ *
+ * Styles are then matched to shapes via `shape_group`:
+ * `style.shapeGroup` is compared against each shape's `shape_group`.
+ *
+ * Style selection UI is only needed when any `shape_group` within the selected `collection_category`
+ * has more than 1 valid style option. When every `shape_group` has exactly 1 style, we auto-assign
+ * styles per shape in `useFormState` and we don't show style mode controls.
  *
  * @param {Object} props
  * @param {Array} props.shopifyCollections - Collections from the loader
@@ -39,8 +43,6 @@ const CollectionSelector = ({
   );
 
   const styleModeOptions = useMemo(() => [
-    { label: 'Select style mode...', value: '' },
-    { label: 'Global style for all shapes', value: 'global' },
     { label: 'Independent style per shape', value: 'independent' }
   ], []);
 
@@ -58,7 +60,18 @@ const CollectionSelector = ({
     ];
   }, [currentCollection]);
 
-  const showStyleControls = (currentCollection?.styles?.length ?? 0) > 1;
+  const showStyleControls = useMemo(() => {
+    const styles = currentCollection?.styles ?? [];
+    const groupCounts = styles.reduce((acc, s) => {
+      const key =
+        s.shapeGroup != null && String(s.shapeGroup).trim() !== ''
+          ? String(s.shapeGroup).trim()
+          : 'UNKNOWN';
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.values(groupCounts).some((count) => count > 1);
+  }, [currentCollection?.styles]);
 
   const handleCollectionChange = (value) => {
     const selectedCollection = shopifyCollections?.find(c => c.value === value);
@@ -108,7 +121,7 @@ const CollectionSelector = ({
                   label="Select style mode"
                   options={styleModeOptions}
                   onChange={handleStyleModeChange}
-                  value={formState.styleMode || ''}
+                  value={formState.styleMode || 'independent'}
                 />
               </Box>
             </Box>

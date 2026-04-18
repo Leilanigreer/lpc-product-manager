@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { BlockStack, Box, Divider } from "@shopify/polaris";
-import { isPutter } from '../../lib/utils';
+import { isPutter, getShapeGroup, styleCategoryMatchesShapeGroup } from '../../lib/utils';
 import ShapeRow from './ShapeRow';
 import ShapeGridHeader from './ShapeGridHeader';
 import { COLUMN_WIDTHS } from './constants';
@@ -33,16 +33,36 @@ const ShapeGrid = ({
   // Calculate visibility flags for all shapes at once
   const visibilityFlags = useMemo(() => {
     const { collection, styleMode, threadMode, allShapes } = formState;
+    const collectionStyles = collection?.styles ?? [];
     
     return sortedShapes.reduce((acc, shape) => {
       const shapeState = allShapes[shape.value];
       const isSelected = shapeState?.isSelected;
       const isPutterShape = isPutter(shape);
+
+      const group = getShapeGroup(shape);
+      const matchingStyleCount =
+        group == null
+          ? null
+          : collectionStyles.filter((s) =>
+              styleCategoryMatchesShapeGroup(s.shapeGroup, group)
+            ).length;
+
+      // If we don't have a group, fall back to legacy behavior:
+      // only show style selection for non-putters.
+      const needsStyleForThisShape =
+        matchingStyleCount == null
+          ? Boolean(collection?.needsStyle && !isPutterShape)
+          : matchingStyleCount > 1;
   
       acc[shape.value] = {
         isSelected,
-        showStyleFields: isSelected && collection.needsStyle && !isPutterShape && styleMode === 'independent',
-        showEmbroideryFields: isSelected && collection.needsStyle && !isPutterShape && threadMode.embroidery === 'perShape',
+        showStyleFields: isSelected && needsStyleForThisShape && styleMode === 'independent',
+        showEmbroideryFields:
+          isSelected &&
+          needsStyleForThisShape &&
+          !isPutterShape &&
+          threadMode.embroidery === 'perShape',
         showColorDesignation: isSelected && shapeState?.needsColorDesignation,
         isPutterShape
       };

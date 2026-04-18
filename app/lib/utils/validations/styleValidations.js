@@ -1,6 +1,6 @@
 // app/lib/utils/validations/styleValidations.js
 
-import { isPutter } from "../shapeUtils";
+import { isPutter, getShapeGroup, styleCategoryMatchesShapeGroup } from "../shapeUtils";
 
 /**
  * Enum for valid style name patterns
@@ -65,6 +65,11 @@ const validateStyle = (style, debug = false) => {
     return false;
   }
 
+  if (typeof style.needsColorDesignation !== 'boolean') {
+    if (debug) console.warn('Invalid needsColorDesignation:', style.needsColorDesignation);
+    return false;
+  }
+
   return true;
 };
 
@@ -85,9 +90,27 @@ export const validateShapeStyles = (formState, debug = false) => {
     return false;
   }
 
-  // Get selected shapes that need styles (not putters)
+  const collectionStyles = formState.collection?.styles ?? [];
+
+  // Get selected shapes that actually need a style selection.
+  // In the new Shopify model, this is determined per shape_group within the current collection_category.
   const shapesNeedingStyles = Object.values(formState.allShapes)
-    .filter((shape) => shape.isSelected && !isPutter(shape));
+    .filter((shape) => shape.isSelected)
+    .filter((shape) => {
+      const group = getShapeGroup(shape);
+
+      // Legacy fallback when shape_group is not available:
+      // only non-putters could previously select styles.
+      if (group == null) {
+        return Boolean(formState.collection?.needsStyle && !isPutter(shape));
+      }
+
+      const matchCount = collectionStyles.filter((s) =>
+        styleCategoryMatchesShapeGroup(s.shapeGroup, group)
+      ).length;
+
+      return matchCount > 1;
+    });
 
   if (shapesNeedingStyles.length === 0) {
     return true;

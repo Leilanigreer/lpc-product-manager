@@ -2,11 +2,14 @@
  * Shopify `style` metaobjects for create-product.
  *
  * Field keys (Content → Metaobject definition) must match Shopify:
- *   style, abbreviation, category, use_opposite_leather, leather_phrase, name_pattern,
- *   needs_secondary_leather, needs_stitching_color, needs_color_designation
+ *   style, abbreviation, collection_category, shape_group,
+ *   use_opposite_leather, leather_phrase, name_pattern, custom_name_pattern, needs_color_designation
+ *
+ * Collection-level flags (e.g. needs_secondary_leather, stitching/thread rules) live on collection
+ * metafields — not on style.
  *
  * Styles are matched to collections by exact string equality:
- *   metaobject.category === collection.category (same choice-list value as custom.category).
+ *   metaobject.collection_category === collection.category (same choice-list value as custom.category).
  */
 
 const TYPE_STYLE = "style";
@@ -25,12 +28,18 @@ const LIST_STYLES = `#graphql
         displayName
         styleField: field(key: "style") { value }
         abbreviationField: field(key: "abbreviation") { value }
-        categoryField: field(key: "category") { value }
+        collectionCategoryField: field(key: "collection_category") {
+          value
+          jsonValue
+        }
+        shapeGroupField: field(key: "shape_group") {
+          value
+          jsonValue
+        }
         useOppositeLeatherField: field(key: "use_opposite_leather") { value }
         leatherPhraseField: field(key: "leather_phrase") { value }
         namePatternField: field(key: "name_pattern") { value }
-        needsSecondaryLeatherField: field(key: "needs_secondary_leather") { value }
-        needsStitchingColorField: field(key: "needs_stitching_color") { value }
+        customNamePatternField: field(key: "custom_name_pattern") { value }
         needsColorDesignationField: field(key: "needs_color_designation") { value }
       }
     }
@@ -40,6 +49,76 @@ const LIST_STYLES = `#graphql
 function stringField(field) {
   if (field == null || field.value == null) return null;
   const s = String(field.value).trim();
+  return s.length ? s : null;
+}
+
+function firstChoiceToken(el) {
+  if (el == null) return null;
+  if (typeof el === "object" && el !== null) {
+    if (el.handle != null) {
+      const h = String(el.handle).trim();
+      if (h) return h;
+    }
+    if (el.value != null) {
+      const s = String(el.value).trim();
+      if (s) return s;
+    }
+  }
+  const s = String(el).trim();
+  return s.length ? s : null;
+}
+
+/** Shopify choice list single value (jsonValue array or value as JSON array string). */
+function choiceListSingleValueField(field) {
+  if (field == null) return null;
+
+  const jv = field.jsonValue;
+  if (jv != null) {
+    if (Array.isArray(jv) && jv.length > 0) {
+      for (const el of jv) {
+        const t = firstChoiceToken(el);
+        if (t) return t;
+      }
+      return null;
+    }
+    if (typeof jv === "string") {
+      const t = jv.trim();
+      return t.length ? t : null;
+    }
+  }
+
+  const v = field.value;
+  if (v == null || v === "") return null;
+
+  if (Array.isArray(v)) {
+    for (const el of v) {
+      const t = firstChoiceToken(el);
+      if (t) return t;
+    }
+    return null;
+  }
+
+  if (typeof v === "string") {
+    const t = v.trim();
+    if (!t) return null;
+    if (t.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(t);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          for (const el of parsed) {
+            const token = firstChoiceToken(el);
+            if (token) return token;
+          }
+          return null;
+        }
+      } catch {
+        /* fall through to plain string */
+      }
+    }
+    return t;
+  }
+
+  const s = String(v).trim();
   return s.length ? s : null;
 }
 
@@ -70,7 +149,8 @@ export function mapStyleMetaobjectNodeToFormStyle(node) {
   const styleChoice = stringField(node.styleField);
   const label = styleChoice || node.displayName || node.handle || node.id;
   const abbreviation = stringField(node.abbreviationField) || fallbackAbbreviation(label);
-  const category = stringField(node.categoryField);
+  const collectionCategory = choiceListSingleValueField(node.collectionCategoryField);
+  const shapeGroup = choiceListSingleValueField(node.shapeGroupField);
 
   return {
     source: "shopify",
@@ -79,22 +159,14 @@ export function mapStyleMetaobjectNodeToFormStyle(node) {
     label,
     abbreviation,
     url_id: node.handle || null,
-    category,
+    collectionCategory,
+    shapeGroup,
     styleChoice,
     useOppositeLeather: parseBoolField(node.useOppositeLeatherField),
     leatherPhrase: stringField(node.leatherPhraseField) ?? null,
     namePattern: normalizeNamePattern(stringField(node.namePatternField)),
-    customNamePattern: null,
-    overrideSecondaryLeather: parseBoolField(node.needsSecondaryLeatherField),
-    overrideStitchingColor: parseBoolField(node.needsStitchingColorField),
-    overrideColorDesignation: parseBoolField(node.needsColorDesignationField),
-    skuPattern: null,
-    titleTemplate: null,
-    seoTemplate: null,
-    handleTemplate: null,
-    validation: null,
-    overrideNamePattern: null,
-    overrideCustomNamePattern: null,
+    customNamePattern: stringField(node.customNamePatternField) ?? null,
+    needsColorDesignation: parseBoolField(node.needsColorDesignationField),
   };
 }
 
@@ -138,7 +210,7 @@ export async function getStylesFromShopify(admin) {
 }
 
 /**
- * Temporary UI/debug payload for collection custom.category vs style category matching.
+ * Temporary UI/debug payload for collection custom.category vs style collection_category matching.
  * Remove when matching is verified.
  */
 export function buildStyleCategoryDebug(collectionsAfterAttach, formStyles, rawNodes) {
@@ -155,16 +227,23 @@ export function buildStyleCategoryDebug(collectionsAfterAttach, formStyles, rawN
     stylesGraphql: (rawNodes ?? []).map((n) => ({
       handle: n.handle,
       displayName: n.displayName,
-      categoryField_value: n.categoryField?.value ?? null,
-      categoryField_type: n.categoryField?.type ?? null,
-      categoryAfterTrim: stringField(n.categoryField),
+      collectionCategoryField_value: n.collectionCategoryField?.value ?? null,
+      collectionCategoryField_type: n.collectionCategoryField?.type ?? null,
+      collectionCategoryAfterParse:
+        choiceListSingleValueField(n.collectionCategoryField),
+      shapeGroupField_value: n.shapeGroupField?.value ?? null,
+      shapeGroupField_type: n.shapeGroupField?.type ?? null,
+      shapeGroupAfterParse: choiceListSingleValueField(n.shapeGroupField),
     })),
     stylesMapped: formStyles.map((s) => ({
       label: s.label,
       handle: s.url_id,
-      category: s.category,
-      categoryStringified:
-        s.category == null ? null : JSON.stringify(s.category),
+      collectionCategory: s.collectionCategory,
+      collectionCategoryStringified:
+        s.collectionCategory == null ? null : JSON.stringify(s.collectionCategory),
+      shapeGroup: s.shapeGroup,
+      shapeGroupStringified:
+        s.shapeGroup == null ? null : JSON.stringify(s.shapeGroup),
     })),
     matchResults: shopifyCols.map((c) => {
       const collCat = c.category != null ? String(c.category).trim() : "";
@@ -183,7 +262,7 @@ export function buildStyleCategoryDebug(collectionsAfterAttach, formStyles, rawN
  * Attaches `styles` and flags to each Shopify-sourced collection.
  * Category match is exact after trim on both sides.
  *
- * - `styles`: metaobjects whose `category` equals the collection's `category`.
+ * - `styles`: metaobjects whose `collectionCategory` equals the collection's `category`.
  * - `needsStyle`: true only if more than one matching style — same as legacy collections where
  *   `needsStyle === false` when there is no real “pick a style” step. A single style is still
  *   attached in `styles[]` and auto-applied in form state (`globalStyle`), but flags, validation,
@@ -202,17 +281,31 @@ export function attachStylesToShopifyCollections(collections, formStyles) {
     const filtered = !collCat
       ? []
       : formStyles.filter((s) => {
-          const sc = s.category != null ? String(s.category).trim() : "";
+          const sc =
+            s.collectionCategory != null
+              ? String(s.collectionCategory).trim()
+              : "";
           return sc === collCat;
         });
 
     filtered.sort((a, b) => a.label.localeCompare(b.label));
 
-    const n = filtered.length;
+    const groupCounts = filtered.reduce((acc, s) => {
+      const key = s.shapeGroup != null && String(s.shapeGroup).trim() !== ''
+        ? String(s.shapeGroup).trim()
+        : 'UNKNOWN';
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    // Only require user style selection when any shape_group has >1 valid styles
+    // within the current collection_category.
+    const needsStyle = Object.values(groupCounts).some((count) => count > 1);
+
     return {
       ...c,
       styles: filtered,
-      needsStyle: n > 1,
+      needsStyle,
     };
   });
 }
