@@ -11,20 +11,10 @@ export const validateLeatherColors = (formState, needsSecondaryColor, debug = fa
 
   const hasPrimary = leatherColors.primary?.value && 
                     leatherColors.primary?.label && 
-                    leatherColors.primary?.abbreviation &&
-                    Array.isArray(leatherColors?.primary?.colorTags);
+                    leatherColors.primary?.abbreviation;
 
   if (!hasPrimary) {
     if (debug) console.warn('Primary leather validation failed', leatherColors.primary);
-    return false;
-  }
-
-  const hasValidPrimaryTags = leatherColors.primary.colorTags.every(tag => 
-      tag?.value && tag?.label
-  );
-  
-  if (!hasValidPrimaryTags) {
-    if (debug) console.warn('Primary leather tags validation failed', leatherColors.primary.colorTags);
     return false;
   }
 
@@ -32,10 +22,7 @@ export const validateLeatherColors = (formState, needsSecondaryColor, debug = fa
 
   const isValid = !!(leatherColors.secondary?.value && 
     leatherColors.secondary?.label && 
-    leatherColors.secondary?.abbreviation &&
-    Array.isArray(leatherColors?.secondary?.colorTags) &&
-    leatherColors.secondary.colorTags.every(tag => 
-      tag?.value && tag?.label)
+    leatherColors.secondary?.abbreviation
   );
 
   if (!isValid && debug) {
@@ -68,16 +55,7 @@ export const validateColorDesignation = (designation, debug = false) => {
     return isValid;
   });
 
-  // Validate colorTags if present
-  const hasValidColorTags = !designation.colorTags || 
-    (Array.isArray(designation.colorTags) && 
-     designation.colorTags.every(tag => tag?.value && tag?.label));
-
-  if (!hasValidColorTags && debug) {
-    console.warn('Invalid colorTags in color designation:', designation.colorTags);
-  }
-
-  return hasRequiredFields && hasValidColorTags;
+  return hasRequiredFields;
 };
 
 /**

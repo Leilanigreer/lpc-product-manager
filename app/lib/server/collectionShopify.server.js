@@ -6,7 +6,7 @@
  *
  * Metafields requested (namespace custom):
  *   validation, handle_template, seo_template, title_template, google_driver_folder_id,
- *   category, sku_pattern, thread_type, needs_secondary_leather, pricing_tier (metaobject reference)
+ *   category, sku_pattern, thread_type, needs_secondary_leather, tag, pricing_tier (metaobject reference)
  */
 
 const PAGE_SIZE = 100;
@@ -58,6 +58,10 @@ const PRODUCT_COLLECTIONS_QUERY = `#graphql
             type
           }
           needsSecondaryLeather: metafield(namespace: "custom", key: "needs_secondary_leather") {
+            value
+            type
+          }
+          tag: metafield(namespace: "custom", key: "tag") {
             value
             type
           }
@@ -177,6 +181,7 @@ function mapCollectionNodeToFormCollection(node) {
     skuPattern: metafieldString(node.skuPattern),
     threadType: normalizeThreadType(metafieldString(node.threadType)),
     needsSecondaryLeather: parseBoolMetafield(node.needsSecondaryLeather),
+    tag: metafieldString(node.tag),
 
     pricingTierMetaobject,
     /** Populated later when pricing is read from the tier metaobject in Shopify. */
@@ -192,6 +197,7 @@ function mapCollectionNodeToFormCollection(node) {
       sku_pattern: node.skuPattern,
       thread_type: node.threadType,
       needs_secondary_leather: node.needsSecondaryLeather,
+      tag: node.tag,
       pricing_tier: node.pricingTier,
     },
 

@@ -38,23 +38,6 @@ export const validateThreadStructure = (thread, threadType, debug = false) => {
 
   if (!hasBaseFields) return false;
 
-  // Validate colorTags if present
-  if (thread.colorTags) {
-    if (!Array.isArray(thread.colorTags)) {
-      if (debug) console.warn(`${threadType} colorTags is not an array:`, thread);
-      return false;
-    }
-
-    const hasValidColorTags = thread.colorTags.every(tag => 
-      tag && typeof tag === 'object' && tag.value && tag.label
-    );
-
-    if (!hasValidColorTags) {
-      if (debug) console.warn(`Invalid color tags in ${threadType}:`, thread.colorTags);
-      return false;
-    }
-  }
-
   // Validate thread-specific number arrays
   const numberArrayKey = threadType === 'stitching' ? 'amannNumbers' : 'isacordNumbers';
   const numbers = thread[numberArrayKey];
