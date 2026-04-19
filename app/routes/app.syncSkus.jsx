@@ -16,28 +16,59 @@ import {
   Badge,
   Checkbox,
   Divider,
+  Select,
 } from "@shopify/polaris";
 import {
   scanBaseSkuDrift,
   syncBaseSkuMetafields,
+  fetchCreationCollectionsForSkuSync,
+  collectionIsInCreationDropdown,
 } from "../lib/server/skuSyncShopify.server.js";
 
 export const loader = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop ?? "";
   const storeHandle = shop.replace(/\.myshopify\.com$/i, "");
-  return json({ shop, storeHandle });
+  const creationCollections = await fetchCreationCollectionsForSkuSync((query, options) =>
+    admin.graphql(query, options)
+  );
+  return json({ shop, storeHandle, creationCollections });
 };
 
 export const action = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
+  const graphql = (query, options) => admin.graphql(query, options);
   const formData = await request.formData();
   const intent = formData.get("intent");
 
   if (intent === "scan") {
     try {
+      const rawScope = formData.get("scopeCollectionId");
+      const scope =
+        typeof rawScope === "string" && rawScope.trim() ? rawScope.trim() : "all";
+
+      let collectionIds;
+      if (scope === "all") {
+        const creationRows = await fetchCreationCollectionsForSkuSync(graphql);
+        collectionIds = creationRows.map((c) => c.id);
+      } else {
+        const allowed = await collectionIsInCreationDropdown(graphql, scope);
+        if (!allowed) {
+          return json(
+            {
+              ok: false,
+              phase: "scan",
+              error: "That collection is not in the create-product set.",
+            },
+            { status: 400 }
+          );
+        }
+        collectionIds = [scope];
+      }
+
       const { discrepancies, totalProducts } = await scanBaseSkuDrift(
-        (query, options) => admin.graphql(query, options)
+        graphql,
+        collectionIds
       );
       return json({
         ok: true,
@@ -71,10 +102,7 @@ export const action = async ({ request }) => {
       );
     }
     try {
-      const result = await syncBaseSkuMetafields(
-        (query, options) => admin.graphql(query, options),
-        productIds
-      );
+      const result = await syncBaseSkuMetafields(graphql, productIds);
       return json({ ok: true, phase: "sync", ...result });
     } catch (e) {
       return json(
@@ -123,13 +151,24 @@ function kindTone(kind) {
 }
 
 export default function SyncSkus() {
-  const { storeHandle } = useLoaderData();
+  const { storeHandle, creationCollections } = useLoaderData();
   const fetcher = useFetcher();
   const busy = fetcher.state !== "idle";
 
   const [rows, setRows] = useState([]);
   const [totalProducts, setTotalProducts] = useState(null);
   const [selected, setSelected] = useState(() => new Set());
+  const [scopeCollectionId, setScopeCollectionId] = useState("all");
+
+  const scopeOptions = useMemo(() => {
+    return [
+      { label: "All creation collections", value: "all" },
+      ...creationCollections.map((c) => ({
+        label: c.title,
+        value: c.id,
+      })),
+    ];
+  }, [creationCollections]);
 
   useEffect(() => {
     const data = fetcher.data;
@@ -198,6 +237,7 @@ export default function SyncSkus() {
   const runScan = () => {
     const fd = new FormData();
     fd.set("intent", "scan");
+    fd.set("scopeCollectionId", scopeCollectionId);
     fetcher.submit(fd, { method: "post" });
   };
 
@@ -232,11 +272,12 @@ export default function SyncSkus() {
                 custom.base_sku vs derived base (variant SKU minus shape)
               </Text>
               <Text as="p" variant="bodyMd">
-                Only products with vendor{" "}
+                Only products in collections whose metafield{" "}
                 <Text as="span" fontWeight="semibold">
-                  Little Prince Customs
+                  custom.show_in_creation_dropdown
                 </Text>{" "}
-                are scanned. The target base is the first variant’s SKU
+                is true (same set as the create-product collection dropdown) are scanned. The
+                target base is the first variant’s SKU
                 (by position) with the last{" "}
                 <Text as="span" fontWeight="semibold">
                   -
@@ -260,6 +301,13 @@ export default function SyncSkus() {
                 </Text>
                 .
               </Text>
+              <Select
+                label="Collection scope"
+                options={scopeOptions}
+                value={scopeCollectionId}
+                onChange={setScopeCollectionId}
+                disabled={busy}
+              />
               <InlineStack gap="300" blockAlign="center">
                 <Button onClick={runScan} loading={busy} disabled={busy}>
                   Scan products

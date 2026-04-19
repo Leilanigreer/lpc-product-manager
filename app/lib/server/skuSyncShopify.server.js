@@ -4,33 +4,77 @@
  *
  * Example: `Classic-BRG-HP-V2-Driver` → `Classic-BRG-HP-V2`
  *
- * Assumes the variant SKU always includes a trailing segment after the base; unusual SKUs with
- * no hyphen may be skipped.
+ * Scan scope: products belonging to any collection whose `custom.show_in_creation_dropdown`
+ * metafield is true (same rule as create-product). Assumes the variant SKU includes a trailing
+ * segment after the base; unusual SKUs with no hyphen may be skipped.
  */
 
-/** Canonical vendor for LPC catalog filtering (Admin search + product rows). */
-export const LPC_VENDOR_NAME = "Little Prince Customs";
+/** Shopify boolean metafields often store "true" / "false" strings. */
+function parseBoolMetafield(mf) {
+  if (!mf || mf.value == null) return false;
+  const v = mf.value;
+  if (typeof v === "boolean") return v;
+  const s = String(v).trim().toLowerCase();
+  return s === "true" || s === "1";
+}
 
-/** Shopify Admin `products` search — only this vendor’s catalog. */
-export const SKU_SYNC_PRODUCTS_SEARCH_QUERY = `vendor:"${LPC_VENDOR_NAME}"`;
-
-const PRODUCTS_PAGE_QUERY = `#graphql
-  query SkuSyncProductsPage($cursor: String, $query: String) {
-    products(first: 50, after: $cursor, query: $query) {
+const CREATION_COLLECTIONS_QUERY = `#graphql
+  query SkuSyncCreationCollections($first: Int!, $after: String) {
+    collections(first: $first, after: $after) {
       pageInfo {
         hasNextPage
         endCursor
       }
-      nodes {
-        id
-        title
-        handle
-        metafield(namespace: "custom", key: "base_sku") {
-          value
+      edges {
+        node {
+          id
+          title
+          showInCreationDropdown: metafield(
+            namespace: "custom"
+            key: "show_in_creation_dropdown"
+          ) {
+            value
+          }
         }
-        variants(first: 1, sortKey: POSITION) {
-          nodes {
-            sku
+      }
+    }
+  }
+`;
+
+const COLLECTION_CREATION_FLAG_QUERY = `#graphql
+  query SkuSyncCollectionCreationFlag($id: ID!) {
+    collection(id: $id) {
+      id
+      showInCreationDropdown: metafield(
+        namespace: "custom"
+        key: "show_in_creation_dropdown"
+      ) {
+        value
+      }
+    }
+  }
+`;
+
+const COLLECTION_PRODUCTS_PAGE_QUERY = `#graphql
+  query SkuSyncCollectionProductsPage($id: ID!, $cursor: String) {
+    collection(id: $id) {
+      id
+      products(first: 50, after: $cursor) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          id
+          title
+          handle
+          metafield(namespace: "custom", key: "base_sku") {
+            value
+          }
+          variants(first: 1, sortKey: POSITION) {
+            nodes {
+              sku
+            }
           }
         }
       }
@@ -124,46 +168,125 @@ export function classifyBaseSkuDrift(metafieldValue, firstVariantSku) {
   return { kind: "ok" };
 }
 
-/**
- * Walks all products (paginated) and returns rows that need attention.
- * @param {(query: string, options?: { variables?: object }) => Promise<Response>} graphql
- */
-export async function scanBaseSkuDrift(graphql) {
-  const discrepancies = [];
-  let cursor = null;
-  let totalProducts = 0;
+const COLLECTIONS_PAGE_SIZE = 100;
 
-  do {
-    const response = await graphql(PRODUCTS_PAGE_QUERY, {
-      variables: { cursor, query: SKU_SYNC_PRODUCTS_SEARCH_QUERY },
+/**
+ * Collections where `custom.show_in_creation_dropdown` is true (same rule as create-product), for
+ * Sync SKUs scope UI and server validation.
+ * @param {(query: string, options?: { variables?: object }) => Promise<Response>} graphql
+ * @returns {Promise<Array<{ id: string, title: string }>>}
+ */
+export async function fetchCreationCollectionsForSkuSync(graphql) {
+  const rows = [];
+  let after = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const response = await graphql(CREATION_COLLECTIONS_QUERY, {
+      variables: { first: COLLECTIONS_PAGE_SIZE, after },
     });
     const json = await response.json();
     if (json.errors?.length) {
       throw new Error(json.errors.map((e) => e.message).join("; "));
     }
-    const conn = json.data?.products;
-    if (!conn) break;
-
-    for (const node of conn.nodes ?? []) {
-      totalProducts++;
-      const mfValue = node.metafield?.value;
-      const firstSku = node.variants?.nodes?.[0]?.sku;
-      const c = classifyBaseSkuDrift(mfValue, firstSku);
-      if (c.kind === "ok") continue;
-
-      discrepancies.push({
-        productId: node.id,
-        title: node.title ?? "",
-        handle: node.handle ?? "",
-        kind: c.kind,
-        currentMetafield: c.currentMetafield,
-        derivedBaseSku: c.derivedBaseSku,
-        firstVariantSkuRaw: c.firstVariantSkuRaw,
+    const conn = json.data?.collections;
+    for (const edge of conn?.edges ?? []) {
+      const node = edge?.node;
+      if (!node?.id) continue;
+      if (!parseBoolMetafield(node.showInCreationDropdown)) continue;
+      rows.push({
+        id: node.id,
+        title: (node.title ?? "").trim() || "(Untitled)",
       });
     }
+    hasNextPage = conn?.pageInfo?.hasNextPage ?? false;
+    after = conn?.pageInfo?.endCursor ?? null;
+  }
 
-    cursor = conn.pageInfo?.hasNextPage ? conn.pageInfo.endCursor : null;
-  } while (cursor);
+  rows.sort((a, b) => a.title.localeCompare(b.title));
+  return rows;
+}
+
+/**
+ * True if the collection exists and `custom.show_in_creation_dropdown` is true. Used to validate
+ * scan scope without listing every collection in the store.
+ * @param {(query: string, options?: { variables?: object }) => Promise<Response>} graphql
+ * @param {string} collectionGid
+ */
+export async function collectionIsInCreationDropdown(graphql, collectionGid) {
+  const id = (collectionGid ?? "").trim();
+  if (!id) return false;
+  const response = await graphql(COLLECTION_CREATION_FLAG_QUERY, {
+    variables: { id },
+  });
+  const json = await response.json();
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+  const col = json.data?.collection;
+  if (!col) return false;
+  return parseBoolMetafield(col.showInCreationDropdown);
+}
+
+function processProductNodeForDrift(node, discrepancies, seenProductIds) {
+  if (!node?.id || seenProductIds.has(node.id)) return;
+  seenProductIds.add(node.id);
+
+  const mfValue = node.metafield?.value;
+  const firstSku = node.variants?.nodes?.[0]?.sku;
+  const c = classifyBaseSkuDrift(mfValue, firstSku);
+  if (c.kind === "ok") return;
+
+  discrepancies.push({
+    productId: node.id,
+    title: node.title ?? "",
+    handle: node.handle ?? "",
+    kind: c.kind,
+    currentMetafield: c.currentMetafield,
+    derivedBaseSku: c.derivedBaseSku,
+    firstVariantSkuRaw: c.firstVariantSkuRaw,
+  });
+}
+
+/**
+ * Walks products in the given creation-collection id list (paginated) and returns rows that need
+ * attention. Products in multiple collections are counted once.
+ * @param {(query: string, options?: { variables?: object }) => Promise<Response>} graphql
+ * @param {string[]} collectionIds — Shopify Collection GIDs (e.g. from {@link fetchCreationCollectionsForSkuSync})
+ */
+export async function scanBaseSkuDrift(graphql, collectionIds) {
+  const ids = [...new Set((collectionIds ?? []).filter(Boolean))];
+  if (ids.length === 0) {
+    return { discrepancies: [], totalProducts: 0 };
+  }
+
+  const discrepancies = [];
+  const seenProductIds = new Set();
+  let totalProducts = 0;
+
+  for (const collectionId of ids) {
+    let cursor = null;
+    do {
+      const response = await graphql(COLLECTION_PRODUCTS_PAGE_QUERY, {
+        variables: { id: collectionId, cursor },
+      });
+      const json = await response.json();
+      if (json.errors?.length) {
+        throw new Error(json.errors.map((e) => e.message).join("; "));
+      }
+      const collection = json.data?.collection;
+      if (!collection) break;
+
+      const conn = collection.products;
+      for (const node of conn?.nodes ?? []) {
+        if (!node?.id) continue;
+        if (!seenProductIds.has(node.id)) totalProducts++;
+        processProductNodeForDrift(node, discrepancies, seenProductIds);
+      }
+
+      cursor = conn?.pageInfo?.hasNextPage ? conn.pageInfo.endCursor : null;
+    } while (cursor);
+  }
 
   return { discrepancies, totalProducts };
 }

@@ -1,7 +1,7 @@
 /**
  * Collection `custom.base_sku` scan for SKU version bumping (replaces legacy Postgres
  * `productSetDataLPC` for create-product). Vendor filtering is not applied: LPC collections only
- * contain LPC products; vendor scoping stays on store-wide tools (e.g. Sync base SKUs scan).
+ * contain LPC products. Sync base SKUs scopes by collections with `show_in_creation_dropdown`.
  *
  * ---------------------------------------------------------------------------
  * Why this runs in the Remix loader — not via `fetch("/app/api/...")` from the browser
