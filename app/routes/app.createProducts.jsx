@@ -154,6 +154,8 @@ export default function CreateProduct() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
+  /** Set after each successful `/app/api/collection-base-skus` fetch in Preview (before generate). */
+  const [previewCollectionSkuDebug, setPreviewCollectionSkuDebug] = useState(null);
   const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
     if (!productData) return;
 
@@ -265,6 +267,7 @@ export default function CreateProduct() {
   const handleGenerateData = async () => {
     setIsGenerating(true);
     setGenerationError(null);
+    setPreviewCollectionSkuDebug(null);
 
     try {
       const validation = validateProductForm(formState);
@@ -292,6 +295,14 @@ export default function CreateProduct() {
         throw new Error(skuPayload.error);
       }
       const existingProducts = skuPayload.existingProducts ?? [];
+
+      setPreviewCollectionSkuDebug({
+        collectionId: formState.collection.value,
+        collectionLabel: formState.collection?.label ?? null,
+        rowCount: existingProducts.length,
+        baseSkuStrings: existingProducts.map((r) => r.baseSKU).filter(Boolean),
+        rows: existingProducts,
+      });
 
       const data = await generateProductData(
         { ...formState, existingProducts },
@@ -372,80 +383,45 @@ export default function CreateProduct() {
           <Card>
             <BlockStack gap="300">
               <Text as="h2" variant="headingSm">
-                Debug: collection data (Shopify query → form state)
+                Debug: collection base SKUs
               </Text>
-              {!formState.collection?.value ? (
+              {!previewCollectionSkuDebug ? (
                 <Text as="p" variant="bodyMd" tone="subdued">
-                  Select a collection to inspect the mapped payload (metafields, pricing tier
-                  reference, styles, thread type, tag, etc.).
+                  Select a collection, then click Preview Product Data to load{" "}
+                  <Text as="span" fontWeight="semibold">
+                    custom.base_sku
+                  </Text>{" "}
+                  values from Shopify for versioning.
                 </Text>
               ) : (
-                <Box
-                  padding="300"
-                  background="bg-surface-secondary"
-                  borderWidth="025"
-                  borderColor="border"
-                  borderRadius="200"
-                >
-                  <pre
-                    style={{
-                      margin: 0,
-                      fontSize: "12px",
-                      overflow: "auto",
-                      maxHeight: "min(70vh, 640px)",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {JSON.stringify(formState.collection, null, 2)}
-                  </pre>
-                </Box>
-              )}
-
-              {formState.collection?.value && (
                 <BlockStack gap="200">
-                  <Text as="h3" variant="headingSm">
-                    Debug: shape_type_adjustment (this collection's price tier)
-                  </Text>
-                  {!formState.collection.priceTier ? (
-                    <Text as="p" variant="bodyMd" tone="subdued">
-                      No price tier object on the collection (tier metaobject or base prices may be
-                      missing in Shopify).
+                  {previewCollectionSkuDebug.collectionId !==
+                    formState.collection?.value && (
+                    <Text as="p" variant="bodyMd" tone="caution">
+                      Collection changed since this run — click Preview again to refresh this
+                      list.
                     </Text>
-                  ) : (
-                    <Box
-                      padding="300"
-                      background="bg-surface-secondary"
-                      borderWidth="025"
-                      borderColor="border"
-                      borderRadius="200"
-                    >
-                      <pre
-                        style={{
-                          margin: 0,
-                          fontSize: "12px",
-                          overflow: "auto",
-                          maxHeight: "min(50vh, 480px)",
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {JSON.stringify(
-                          {
-                            tierGid: formState.collection.priceTier.value,
-                            name: formState.collection.priceTier.name,
-                            shopifyPrice: formState.collection.priceTier.shopifyPrice,
-                            marketplacePrice: formState.collection.priceTier.marketplacePrice,
-                            adjustmentCount:
-                              formState.collection.priceTier.adjustments?.length ?? 0,
-                            adjustments: formState.collection.priceTier.adjustments ?? [],
-                          },
-                          null,
-                          2
-                        )}
-                      </pre>
-                    </Box>
                   )}
+                  <Box
+                    padding="300"
+                    background="bg-surface-secondary"
+                    borderWidth="025"
+                    borderColor="border"
+                    borderRadius="200"
+                  >
+                    <pre
+                      style={{
+                        margin: 0,
+                        fontSize: "12px",
+                        overflow: "auto",
+                        maxHeight: "min(60vh, 560px)",
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {JSON.stringify(previewCollectionSkuDebug, null, 2)}
+                    </pre>
+                  </Box>
                 </BlockStack>
               )}
             </BlockStack>
