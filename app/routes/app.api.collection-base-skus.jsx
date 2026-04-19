@@ -7,12 +7,16 @@ export const loader = async ({ request }) => {
   const url = new URL(request.url);
   const collectionId = url.searchParams.get("collectionId")?.trim();
   if (!collectionId) {
-    return json({
-      collectionId: null,
-      existingProducts: [],
-      shopifyGraphqlPages: [],
-      error: null,
-    });
+    return json(
+      {
+        collectionId: null,
+        existingProducts: [],
+        shopifyGraphqlPages: [],
+        error:
+          "Missing collectionId query parameter. The request URL must include ?collectionId=gid%3A%2F%2Fshopify%2FCollection%2F…",
+      },
+      { status: 400 }
+    );
   }
   try {
     const { existingProducts, shopifyGraphqlPages } =

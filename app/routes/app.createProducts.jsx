@@ -279,11 +279,15 @@ export default function CreateProduct() {
         throw new Error('Invalid collection configuration');
       }
 
-      const skuRes = await fetch(
-        `/app/api/collection-base-skus?collectionId=${encodeURIComponent(
-          formState.collection.value
-        )}`
-      );
+      const collectionGid = formState.collection.value;
+      const skuUrl = `/app/api/collection-base-skus?collectionId=${encodeURIComponent(
+        collectionGid
+      )}&_=${Date.now()}`;
+      const skuRes = await fetch(skuUrl, {
+        credentials: "include",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
       const skuPayload = await skuRes.json().catch(() => ({}));
       if (!skuRes.ok) {
         throw new Error(
@@ -296,14 +300,17 @@ export default function CreateProduct() {
       }
       const existingProducts = skuPayload.existingProducts ?? [];
       const shopifyGraphqlPages = skuPayload.shopifyGraphqlPages ?? [];
+      const collectionIdFromApi = skuPayload.collectionId ?? null;
 
       setPreviewCollectionSkuDebug({
-        collectionId: formState.collection.value,
+        collectionIdFromForm: collectionGid,
+        collectionIdFromApi,
         collectionLabel: formState.collection?.label ?? null,
         rowCount: existingProducts.length,
         baseSkuStrings: existingProducts.map((r) => r.baseSKU).filter(Boolean),
         rows: existingProducts,
         shopifyGraphqlPages,
+        skuRequestUrl: skuUrl,
       });
 
       const data = await generateProductData(
@@ -397,7 +404,7 @@ export default function CreateProduct() {
                 </Text>
               ) : (
                 <BlockStack gap="200">
-                  {previewCollectionSkuDebug.collectionId !==
+                  {previewCollectionSkuDebug.collectionIdFromForm !==
                     formState.collection?.value && (
                     <Text as="p" variant="bodyMd" tone="caution">
                       Collection changed since this run — click Preview again to refresh this
