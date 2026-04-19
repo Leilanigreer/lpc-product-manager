@@ -17,6 +17,8 @@
  * - Variant `custom.customizable` (boolean); `custom.customizable_variant_id` (variant_reference) on
  *   base variants. Wood pairing uses `customizeRepresentativeShapeValue` on base woods — see
  *   `buildWoodBaseToRepresentativeShapeValueMap` / `woodCollapseColorDesignationsMatch`.
+ * - Product `custom.base_sku` — versioned base SKU (from first generated variant’s `baseSKU`), for
+ *   Admin versioning / `fetchCollectionBaseSkusForVersioning`.
  */
 
 import {
@@ -174,6 +176,19 @@ async function setProductAndVariantMetafields(
         value: JSON.stringify(leShapeStyle.styleList),
       });
     }
+  }
+
+  const firstPv = productDataVariants[0];
+  const baseSkuMeta =
+    typeof firstPv?.baseSKU === "string" ? firstPv.baseSKU.trim() : "";
+  if (baseSkuMeta) {
+    metafields.push({
+      ownerId: productId,
+      namespace: "custom",
+      key: "base_sku",
+      type: "single_line_text_field",
+      value: baseSkuMeta,
+    });
   }
 
   const list = Array.isArray(createdVariants) ? createdVariants : [];

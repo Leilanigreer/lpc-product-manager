@@ -1,5 +1,5 @@
 import { useReducer, useCallback } from 'react';
-import { calculateFinalRequirements, isPutter, extractExistingProducts, filterProductsByCollection, getShapeGroup, computeShapeNeedsColorDesignation } from '../lib/utils';
+import { calculateFinalRequirements, isPutter, getShapeGroup, computeShapeNeedsColorDesignation } from '../lib/utils';
 import { createInitialShapeState } from '../lib/forms/formState';
 
 const ACTION_TYPES = {
@@ -35,17 +35,22 @@ const formReducer = (state, action) => {
 
   switch (type) {
     case ACTION_TYPES.UPDATE_COLLECTION: {
-      const { collection, productSets } = payload;
-    
+      const { collection, existingProducts: existingProductsFromPayload } = payload;
+
       // Initialize all shapes with base state only
       const allShapes = initialState.shapes.reduce((acc, shape) => ({
         ...acc,
         [shape.value]: createInitialShapeState(shape)
       }), {});
 
-      // Process existing products during collection selection
-      const existingProducts = extractExistingProducts(productSets);
-      const filteredProducts = filterProductsByCollection(existingProducts, collection.value);
+      /**
+       * Cleared on collection change; fresh rows load at Preview from Shopify
+       * (`/app/api/collection-base-skus`). Passing `existingProducts` is only needed if hydrating
+       * from elsewhere.
+       */
+      const existingProducts = Array.isArray(existingProductsFromPayload)
+        ? existingProductsFromPayload
+        : [];
 
       const styles = collection.styles ?? [];
 
@@ -97,7 +102,7 @@ const formReducer = (state, action) => {
         globalEmbroideryThread: null,
         stitchingThreads: {},
         allShapes: shapesWithAutoStyles,
-        existingProducts: filteredProducts // Store processed products in state
+        existingProducts
       };
 
       // Calculate final requirements and reset preview

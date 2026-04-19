@@ -8,8 +8,11 @@
  * no hyphen may be skipped.
  */
 
+/** Canonical vendor for LPC catalog filtering (Admin search + product rows). */
+export const LPC_VENDOR_NAME = "Little Prince Customs";
+
 /** Shopify Admin `products` search — only this vendor’s catalog. */
-export const SKU_SYNC_PRODUCTS_SEARCH_QUERY = 'vendor:"Little Prince Customs"';
+export const SKU_SYNC_PRODUCTS_SEARCH_QUERY = `vendor:"${LPC_VENDOR_NAME}"`;
 
 const PRODUCTS_PAGE_QUERY = `#graphql
   query SkuSyncProductsPage($cursor: String, $query: String) {

@@ -7,8 +7,7 @@ import {
   getEmbroideryThreadColors, 
   getFonts, 
   getFontsFromShopify,
-  getCommonDescription, 
-  getProductSets,
+  getCommonDescription,
   getColorTags,
   getUnlinkedIsacordNumbers,
   getShopifyColorMetaobjects,
@@ -104,8 +103,6 @@ export const loader = async ({ admin } = {}) => {
     const leatherColors = leatherResult?.leatherColors ?? [];
     const leatherColorsLoadError = leatherResult?.loadError ?? null;
 
-    const productSets = await getProductSets(fonts, leatherColors);
-
     return {
       leatherColors,
       leatherColorsLoadError,
@@ -115,7 +112,6 @@ export const loader = async ({ admin } = {}) => {
       shapes,
       shopifyCollections,
       commonDescription,
-      productSets,
       colorTags,
       unlinkedIsacordNumbers,
       unlinkedAmannNumbers: stitchingData.unlinkedAmannNumbers,
@@ -135,7 +131,6 @@ export const loader = async ({ admin } = {}) => {
         shapes: [],
         shopifyCollections: [],
         commonDescription: [],
-        productSets: [],
         colorTags: [],
         unlinkedIsacordNumbers: [],
         unlinkedAmannNumbers: [],

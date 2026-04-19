@@ -16,16 +16,14 @@ import { Select, Card, Box, Text, BlockStack } from "@shopify/polaris";
  *
  * @param {Object} props
  * @param {Array} props.shopifyCollections - Collections from the loader
- * @param {Object} props.productSets - Product sets (existing SKU hints per collection)
  * @param {Object} props.formState - Current form state
- * @param {Function} props.onChange - Callback when form state changes
+ * @param {Function} props.onChange - Form dispatch; uses `updateCollection` with `{ collection }`. Existing base SKUs for versioning load at Preview time.
  */
 
-const CollectionSelector = ({ 
+const CollectionSelector = ({
   shopifyCollections,
-  productSets,
   formState,
-  onChange
+  onChange,
 }) => {
   const collectionOptions = useMemo(() => [    
     { label: 'Select a collection...', value: '' }, 
@@ -56,12 +54,9 @@ const CollectionSelector = ({
   }, [currentCollection?.styles]);
 
   const handleCollectionChange = (value) => {
-    const selectedCollection = shopifyCollections?.find(c => c.value === value);
+    const selectedCollection = shopifyCollections?.find((c) => c.value === value);
     if (selectedCollection) {
-      onChange('updateCollection', {
-        collection: selectedCollection, 
-        productSets 
-      });
+      onChange("updateCollection", { collection: selectedCollection });
     }
   };
 

@@ -106,9 +106,8 @@ export default function CreateProduct() {
     fonts, 
     shapes, 
     shopifyCollections,
-    commonDescription, 
-    productSets, 
-    error 
+    commonDescription,
+    error
   } = useLoaderData();
 
   // Only show active leather colors when creating products (draft = reactivate list on add leather page)
@@ -144,13 +143,15 @@ export default function CreateProduct() {
       ...initialFormState,
       shapes, // Add shapes array for reference
       allShapes, // Add initialized shape states
-      existingProducts: productSets // Update reference to use productSets
+      existingProducts: [],
     };
-  }, [shapes, productSets]);
+  }, [shapes]);
 
   const fetcher = useFetcher();
+
   const [productData, setProductData] = useState(null);
   const [formState, handleChange] = useFormState(completeInitialState, setProductData);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
   const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
@@ -275,7 +276,27 @@ export default function CreateProduct() {
         throw new Error('Invalid collection configuration');
       }
 
-      const data = await generateProductData(formState, commonDescription);
+      const skuRes = await fetch(
+        `/app/api/collection-base-skus?collectionId=${encodeURIComponent(
+          formState.collection.value
+        )}`
+      );
+      const skuPayload = await skuRes.json().catch(() => ({}));
+      if (!skuRes.ok) {
+        throw new Error(
+          skuPayload?.error ||
+            `Could not load existing base SKUs (${skuRes.status}). Try again.`
+        );
+      }
+      if (skuPayload.error) {
+        throw new Error(skuPayload.error);
+      }
+      const existingProducts = skuPayload.existingProducts ?? [];
+
+      const data = await generateProductData(
+        { ...formState, existingProducts },
+        commonDescription
+      );
       
       // Use the already sanitized mainHandle for the folder name
       data.productPictureFolder = data.mainHandle;
@@ -434,10 +455,9 @@ export default function CreateProduct() {
             <BlockStack gap="400">
               <CollectionSelector
                 shopifyCollections={shopifyCollections}
-                productSets={productSets}
                 formState={formState}
                 onChange={handleChange}
-                />
+              />
               <ProductTypeSelector
                 formState={formState}
                 onChange={handleChange}
