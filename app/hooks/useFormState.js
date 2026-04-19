@@ -44,9 +44,10 @@ const formReducer = (state, action) => {
       }), {});
 
       /**
-       * Cleared on collection change; fresh rows load at Preview from Shopify
-       * (`/app/api/collection-base-skus`). Passing `existingProducts` is only needed if hydrating
-       * from elsewhere.
+       * Cleared on collection change. The selected `collection` may carry `versioningSkus` from
+       * the page loader; Preview also calls `/app/api/collection-base-skus` and uses loader data as
+       * fallback when that response is empty. Passing `existingProducts` in the payload overrides
+       * the initial empty list when hydrating from elsewhere.
        */
       const existingProducts = Array.isArray(existingProductsFromPayload)
         ? existingProductsFromPayload

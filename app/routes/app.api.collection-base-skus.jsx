@@ -19,11 +19,22 @@ export const loader = async ({ request }) => {
     );
   }
   try {
-    const { existingProducts, shopifyGraphqlPages } =
-      await fetchCollectionBaseSkusForVersioning(
-        (query, options) => admin.graphql(query, options),
-        collectionId
+    const raw = await fetchCollectionBaseSkusForVersioning(
+      (query, options) => admin.graphql(query, options),
+      collectionId
+    );
+    let existingProducts;
+    let shopifyGraphqlPages;
+    if (Array.isArray(raw)) {
+      console.warn(
+        "[collection-base-skus] fetchCollectionBaseSkusForVersioning returned a legacy array shape; redeploy server bundle."
       );
+      existingProducts = raw;
+      shopifyGraphqlPages = [];
+    } else {
+      existingProducts = raw?.existingProducts ?? [];
+      shopifyGraphqlPages = raw?.shopifyGraphqlPages ?? [];
+    }
     return json({ collectionId, existingProducts, shopifyGraphqlPages, error: null });
   } catch (e) {
     console.error("[collection-base-skus]", e);

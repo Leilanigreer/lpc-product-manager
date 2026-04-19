@@ -298,8 +298,24 @@ export default function CreateProduct() {
       if (skuPayload.error) {
         throw new Error(skuPayload.error);
       }
-      const existingProducts = skuPayload.existingProducts ?? [];
-      const shopifyGraphqlPages = skuPayload.shopifyGraphqlPages ?? [];
+      let existingProducts = skuPayload.existingProducts ?? [];
+      let shopifyGraphqlPages = skuPayload.shopifyGraphqlPages ?? [];
+      const loaderVs = formState.collection?.versioningSkus;
+      const apiSkuEmpty =
+        existingProducts.length === 0 && shopifyGraphqlPages.length === 0;
+      const loaderSkuUsable =
+        (loaderVs?.existingProducts?.length ?? 0) > 0 ||
+        (loaderVs?.shopifyGraphqlPages?.length ?? 0) > 0;
+
+      let skuDataSource = "api";
+      if (apiSkuEmpty && loaderSkuUsable) {
+        existingProducts = loaderVs.existingProducts ?? [];
+        shopifyGraphqlPages = loaderVs.shopifyGraphqlPages ?? [];
+        skuDataSource = "loader-fallback";
+      } else if (apiSkuEmpty) {
+        skuDataSource = "none";
+      }
+
       /** API echoes this; fall back to parsing the request URL if an older deploy omits the field. */
       let collectionIdFromApi = skuPayload.collectionId ?? null;
       if (collectionIdFromApi == null && typeof window !== "undefined") {
@@ -321,6 +337,8 @@ export default function CreateProduct() {
         rows: existingProducts,
         shopifyGraphqlPages,
         skuRequestUrl: skuUrl,
+        skuDataSource,
+        versioningSkusLoaderError: loaderVs?.loadError ?? null,
       });
 
       const data = await generateProductData(

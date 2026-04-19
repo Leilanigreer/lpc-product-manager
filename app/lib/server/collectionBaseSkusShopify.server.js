@@ -72,6 +72,19 @@ export async function fetchCollectionBaseSkusForVersioning(graphql, collectionGi
     const json = await response.json();
     shopifyGraphqlPages.push(graphqlPageForDebug(json));
 
+    if (process.env.DEBUG_COLLECTION_BASE_SKUS === "1") {
+      const nodes = json?.data?.collection?.products?.nodes;
+      console.log("[DEBUG_COLLECTION_BASE_SKUS]", {
+        collectionGid: collectionGid.trim(),
+        cursor,
+        responseKeys: json && typeof json === "object" ? Object.keys(json) : [],
+        errorsIsArray: Array.isArray(json?.errors),
+        collectionPresent: Boolean(json?.data?.collection),
+        nodeCount: Array.isArray(nodes) ? nodes.length : null,
+        bodyPreview: JSON.stringify(graphqlPageForDebug(json)).slice(0, 2000),
+      });
+    }
+
     if (json.errors?.length) {
       throw new Error(json.errors.map((e) => e.message).join("; "));
     }
@@ -102,4 +115,50 @@ export async function fetchCollectionBaseSkusForVersioning(graphql, collectionGi
     existingProducts: _.uniqBy(rows, "baseSKU"),
     shopifyGraphqlPages,
   };
+}
+
+/**
+ * Runs {@link fetchCollectionBaseSkusForVersioning} for each collection (same Admin session as
+ * the create-product loader). Used as a reliable source for versioning rows when the in-app
+ * resource-route fetch misbehaves in embedded contexts.
+ *
+ * @param {{ graphql: (q: string, o?: object) => Promise<Response> }} admin
+ * @param {object[]} collections - Loader collection rows with `value` (Collection GID)
+ * @returns {Promise<object[]>} New array: each item is the input row plus `versioningSkus`
+ */
+export async function attachVersioningSkusToShopifyCollections(admin, collections) {
+  if (!admin?.graphql || !collections?.length) {
+    return collections ?? [];
+  }
+  const graphql = (query, options) => admin.graphql(query, options);
+  return Promise.all(
+    collections.map(async (col) => {
+      const gid = col?.value;
+      if (!gid?.trim()) {
+        return { ...col, versioningSkus: null };
+      }
+      try {
+        const { existingProducts, shopifyGraphqlPages } =
+          await fetchCollectionBaseSkusForVersioning(graphql, gid);
+        return {
+          ...col,
+          versioningSkus: { existingProducts, shopifyGraphqlPages },
+        };
+      } catch (err) {
+        console.error(
+          "[attachVersioningSkusToShopifyCollections] base_sku scan failed for",
+          gid,
+          err
+        );
+        return {
+          ...col,
+          versioningSkus: {
+            existingProducts: [],
+            shopifyGraphqlPages: [],
+            loadError: err?.message ?? String(err),
+          },
+        };
+      }
+    })
+  );
 }

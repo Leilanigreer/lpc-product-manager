@@ -14,6 +14,7 @@ import {
 } from "../utils/dataFetchers";
 import { getStitchingThreadColorDataFromShopify } from "../server/stitchingThreadShopify.server";
 import { getProductCollectionsFromShopify } from "../server/collectionShopify.server";
+import { attachVersioningSkusToShopifyCollections } from "../server/collectionBaseSkusShopify.server.js";
 import {
   fetchStyleMetaobjectNodes,
   mapStyleMetaobjectNodeToFormStyle,
@@ -41,7 +42,11 @@ async function loadShopifyCollectionsForLoader(admin) {
     );
   }
   const attached = attachStylesToShopifyCollections(collections, formStyles);
-  return { collections: attached };
+  const withVersioningSkus = await attachVersioningSkusToShopifyCollections(
+    admin,
+    attached
+  );
+  return { collections: withVersioningSkus };
 }
 
 async function loadShapesForLoader(admin) {
