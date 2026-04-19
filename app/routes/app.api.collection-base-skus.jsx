@@ -7,19 +7,25 @@ export const loader = async ({ request }) => {
   const url = new URL(request.url);
   const collectionId = url.searchParams.get("collectionId")?.trim();
   if (!collectionId) {
-    return json({ collectionId: null, existingProducts: [], error: null });
+    return json({
+      collectionId: null,
+      existingProducts: [],
+      stats: null,
+      error: null,
+    });
   }
   try {
-    const existingProducts = await fetchCollectionBaseSkusForVersioning(
+    const { existingProducts, stats } = await fetchCollectionBaseSkusForVersioning(
       (query, options) => admin.graphql(query, options),
       collectionId
     );
-    return json({ collectionId, existingProducts, error: null });
+    return json({ collectionId, existingProducts, stats, error: null });
   } catch (e) {
     console.error("[collection-base-skus]", e);
     return json({
       collectionId,
       existingProducts: [],
+      stats: null,
       error: e?.message ?? String(e),
     });
   }
