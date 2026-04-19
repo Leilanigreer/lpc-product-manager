@@ -166,57 +166,73 @@ async function fetchAllMetaobjectPages(admin, query, variablesBase) {
 /**
  * Loader data: stitching threads with linked Amann numbers + unlinked Amann.
  * Shape expected by AddStitchingThreadColorForm and ThreadColorSelector (value/label + amannNumbers).
+ *
+ * @returns {Promise<{ stitchingThreadColors: object[], unlinkedAmannNumbers: object[], loadError?: string }>}
  */
 export async function getStitchingThreadColorDataFromShopify(admin) {
   if (!admin?.graphql) {
-    return { stitchingThreadColors: [], unlinkedAmannNumbers: [] };
-  }
-
-  const [threadNodes, amannNodes] = await Promise.all([
-    fetchAllMetaobjectPages(admin, LIST_STITCHING_THREADS, {
-      type: TYPE_STITCHING_THREAD,
-    }),
-    fetchAllMetaobjectPages(admin, LIST_AMANN_NUMBERS, {
-      type: TYPE_AMANN_NUMBER,
-    }),
-  ]);
-
-  const threadMap = new Map();
-  for (const node of threadNodes) {
-    const name = node.nameField?.value ?? node.displayName ?? "";
-    const abbreviation = node.abbreviationField?.value ?? "";
-    threadMap.set(node.id, {
-      value: node.id,
-      label: name,
-      abbreviation,
-      amannNumbers: [],
-    });
-  }
-
-  const unlinkedAmannNumbers = [];
-
-  for (const node of amannNodes) {
-    const numLabel = node.numberField?.value ?? "";
-    const amannEntry = {
-      value: node.id,
-      label: numLabel || node.id,
+    return {
+      stitchingThreadColors: [],
+      unlinkedAmannNumbers: [],
+      loadError: "No Shopify admin GraphQL client available.",
     };
-    const threadId = linkedThreadIdFromAmannNode(node);
-    if (threadId && threadMap.has(threadId)) {
-      threadMap.get(threadId).amannNumbers.push(amannEntry);
-    } else if (threadId && !threadMap.has(threadId)) {
-      unlinkedAmannNumbers.push({ ...amannEntry, threadId, threadName: null });
-    } else {
-      unlinkedAmannNumbers.push(amannEntry);
-    }
   }
 
-  const stitchingThreadColors = Array.from(threadMap.values()).sort((a, b) =>
-    a.label.localeCompare(b.label)
-  );
-  unlinkedAmannNumbers.sort((a, b) => a.label.localeCompare(b.label));
+  try {
+    const [threadNodes, amannNodes] = await Promise.all([
+      fetchAllMetaobjectPages(admin, LIST_STITCHING_THREADS, {
+        type: TYPE_STITCHING_THREAD,
+      }),
+      fetchAllMetaobjectPages(admin, LIST_AMANN_NUMBERS, {
+        type: TYPE_AMANN_NUMBER,
+      }),
+    ]);
 
-  return { stitchingThreadColors, unlinkedAmannNumbers };
+    const threadMap = new Map();
+    for (const node of threadNodes) {
+      const name = node.nameField?.value ?? node.displayName ?? "";
+      const abbreviation = node.abbreviationField?.value ?? "";
+      threadMap.set(node.id, {
+        value: node.id,
+        label: name,
+        abbreviation,
+        amannNumbers: [],
+      });
+    }
+
+    const unlinkedAmannNumbers = [];
+
+    for (const node of amannNodes) {
+      const numLabel = node.numberField?.value ?? "";
+      const amannEntry = {
+        value: node.id,
+        label: numLabel || node.id,
+      };
+      const threadId = linkedThreadIdFromAmannNode(node);
+      if (threadId && threadMap.has(threadId)) {
+        threadMap.get(threadId).amannNumbers.push(amannEntry);
+      } else if (threadId && !threadMap.has(threadId)) {
+        unlinkedAmannNumbers.push({ ...amannEntry, threadId, threadName: null });
+      } else {
+        unlinkedAmannNumbers.push(amannEntry);
+      }
+    }
+
+    const stitchingThreadColors = Array.from(threadMap.values()).sort((a, b) =>
+      a.label.localeCompare(b.label)
+    );
+    unlinkedAmannNumbers.sort((a, b) => a.label.localeCompare(b.label));
+
+    return { stitchingThreadColors, unlinkedAmannNumbers };
+  } catch (error) {
+    const msg = error?.message ?? String(error);
+    console.error("[getStitchingThreadColorDataFromShopify]", error);
+    return {
+      stitchingThreadColors: [],
+      unlinkedAmannNumbers: [],
+      loadError: msg,
+    };
+  }
 }
 
 function threadRefFieldValue(threadGid) {

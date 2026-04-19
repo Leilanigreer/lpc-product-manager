@@ -58,7 +58,6 @@ const EmbroideryField = ({
             value: thread.value,
             label: thread.label,
             abbreviation: thread.abbreviation,
-            colorTags: thread.colorTags,
             isacordNumbers: [{
               value: number.value,
               label: number.label

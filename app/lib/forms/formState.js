@@ -46,7 +46,6 @@ export const initialFormState = {
       label: "",
       abbreviation: "",
       // image_url: "",
-      colorTags: []
     },
     // Optional: Only used when collection.needsSecondaryLeather
     secondary: null

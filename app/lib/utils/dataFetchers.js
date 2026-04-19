@@ -297,19 +297,27 @@ const FONTS_METAOBJECT_QUERY = `#graphql
 
 /**
  * Fetches fonts from Shopify custom.font metaobjects (name + preview_image).
- * Returns same shape as getFonts() for drop-in use: { value, label, url_id }.
  * @param {Object} admin - Shopify Admin API GraphQL client
- * @returns {Promise<Array<{ value: string, label: string, url_id: string|null }>>}
+ * @returns {Promise<{ fonts: Array<{ value: string, label: string, url_id: string|null }>, loadError?: string }>}
  */
 export const getFontsFromShopify = async (admin) => {
   if (!admin?.graphql) {
-    return [];
+    return {
+      fonts: [],
+      loadError: "No Shopify admin GraphQL client available.",
+    };
   }
   try {
     const response = await admin.graphql(FONTS_METAOBJECT_QUERY, {
       variables: { first: 250 },
     });
     const json = await response.json();
+    const gqlErrors = json?.errors ?? [];
+    if (gqlErrors.length) {
+      const msg = gqlErrors.map((e) => e.message).join("; ");
+      console.error("Shopify GraphQL errors (font):", msg);
+      return { fonts: [], loadError: msg };
+    }
     const nodes = json?.data?.metaobjects?.nodes ?? [];
     const fonts = nodes
       .map((node) => {
@@ -324,10 +332,11 @@ export const getFontsFromShopify = async (admin) => {
       })
       .filter((f) => f.label)
       .sort((a, b) => a.label.localeCompare(b.label));
-    return fonts;
+    return { fonts };
   } catch (error) {
+    const msg = error?.message ?? String(error);
     console.error("Error fetching fonts from Shopify:", error);
-    return [];
+    return { fonts: [], loadError: msg };
   }
 };
 

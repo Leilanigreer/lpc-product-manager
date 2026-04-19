@@ -1,18 +1,14 @@
 // app/lib/loaders/index.js
 
 import { 
-  getLeatherColors, 
   getLeatherColorsFromShopify,
   getLeatherCollectionNamesFromShopify,
-  getEmbroideryThreadColors, 
-  getFonts, 
   getFontsFromShopify,
   getCommonDescription,
-  getColorTags,
-  getUnlinkedIsacordNumbers,
   getShopifyColorMetaobjects,
 } from "../utils/dataFetchers";
 import { getStitchingThreadColorDataFromShopify } from "../server/stitchingThreadShopify.server";
+import { getEmbroideryThreadColorDataFromShopify } from "../server/embroideryThreadShopify.server.js";
 import { getProductCollectionsFromShopify } from "../server/collectionShopify.server";
 import { attachVersioningSkusToShopifyCollections } from "../server/collectionBaseSkusShopify.server.js";
 import {
@@ -66,42 +62,43 @@ async function loadShapesForLoader(admin) {
 
 export const loader = async ({ admin } = {}) => {  
   try {
-    const fontsPromise = admin ? getFontsFromShopify(admin) : getFonts();
-    const leatherResultPromise = admin
-      ? getLeatherColorsFromShopify(admin)
-      : getLeatherColors().then((arr) => ({ leatherColors: arr }));
+    const fontsPromise = getFontsFromShopify(admin);
+    const leatherResultPromise = getLeatherColorsFromShopify(admin);
     const shopifyColorsPromise = admin ? getShopifyColorMetaobjects(admin) : Promise.resolve([]);
     const leatherCollectionNamesPromise = admin ? getLeatherCollectionNamesFromShopify(admin) : Promise.resolve([]);
-    const stitchingDataPromise = admin
-      ? getStitchingThreadColorDataFromShopify(admin)
-      : Promise.resolve({ stitchingThreadColors: [], unlinkedAmannNumbers: [] });
+    const stitchingDataPromise = getStitchingThreadColorDataFromShopify(admin);
+    const embroideryDataPromise = getEmbroideryThreadColorDataFromShopify(admin);
     const shopifyCollectionsPromise = loadShopifyCollectionsForLoader(admin);
     const shapesPromise = loadShapesForLoader(admin);
     const [
       leatherResult,
       stitchingData,
-      embroideryThreadColors,
-      fonts,
+      embroideryData,
+      fontsData,
       shapes,
       shopifyLoad,
       commonDescription,
-      colorTags,
-      unlinkedIsacordNumbers,
       shopifyColors,
       leatherCollectionNames,
     ] = await Promise.all([
       leatherResultPromise,
       stitchingDataPromise,
-      getEmbroideryThreadColors(),
+      embroideryDataPromise,
       fontsPromise,
       shapesPromise,
       shopifyCollectionsPromise,
       getCommonDescription(),
-      getColorTags(),
-      getUnlinkedIsacordNumbers(),
       shopifyColorsPromise,
       leatherCollectionNamesPromise,
     ]);
+
+    const embroideryThreadColors = embroideryData.embroideryThreadColors;
+    const unlinkedIsacordNumbers = embroideryData.unlinkedIsacordNumbers;
+    const embroideryThreadColorsLoadError = embroideryData.loadError ?? null;
+    const stitchingThreadColorsLoadError = stitchingData.loadError ?? null;
+
+    const fonts = fontsData.fonts ?? [];
+    const fontsLoadError = fontsData.loadError ?? null;
 
     const shopifyCollections = shopifyLoad.collections;
 
@@ -112,12 +109,14 @@ export const loader = async ({ admin } = {}) => {
       leatherColors,
       leatherColorsLoadError,
       stitchingThreadColors: stitchingData.stitchingThreadColors,
+      stitchingThreadColorsLoadError,
       embroideryThreadColors,
+      embroideryThreadColorsLoadError,
       fonts,
+      fontsLoadError,
       shapes,
       shopifyCollections,
       commonDescription,
-      colorTags,
       unlinkedIsacordNumbers,
       unlinkedAmannNumbers: stitchingData.unlinkedAmannNumbers,
       shopifyColors,
@@ -131,12 +130,14 @@ export const loader = async ({ admin } = {}) => {
         leatherColors: [],
         leatherColorsLoadError: error.message,
         stitchingThreadColors: [],
+        stitchingThreadColorsLoadError: error.message,
         embroideryThreadColors: [],
+        embroideryThreadColorsLoadError: error.message,
         fonts: [],
+        fontsLoadError: error.message,
         shapes: [],
         shopifyCollections: [],
         commonDescription: [],
-        colorTags: [],
         unlinkedIsacordNumbers: [],
         unlinkedAmannNumbers: [],
         shopifyColors: [],

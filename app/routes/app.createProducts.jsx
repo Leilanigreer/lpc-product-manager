@@ -101,14 +101,32 @@ export const action = async ({ request }) => {
 export default function CreateProduct() {
   const { 
     leatherColors: allLeatherColors, 
+    leatherColorsLoadError,
     stitchingThreadColors,
+    stitchingThreadColorsLoadError,
     embroideryThreadColors,
+    embroideryThreadColorsLoadError,
     fonts, 
+    fontsLoadError,
     shapes, 
     shopifyCollections,
     commonDescription,
     error
   } = useLoaderData();
+
+  const shopifyResourceLoadErrors = React.useMemo(() => {
+    const parts = [];
+    if (leatherColorsLoadError) parts.push(`Leather colors: ${leatherColorsLoadError}`);
+    if (fontsLoadError) parts.push(`Fonts: ${fontsLoadError}`);
+    if (stitchingThreadColorsLoadError) parts.push(`Stitching threads: ${stitchingThreadColorsLoadError}`);
+    if (embroideryThreadColorsLoadError) parts.push(`Embroidery threads: ${embroideryThreadColorsLoadError}`);
+    return parts;
+  }, [
+    leatherColorsLoadError,
+    fontsLoadError,
+    stitchingThreadColorsLoadError,
+    embroideryThreadColorsLoadError,
+  ]);
 
   // Only show active leather colors when creating products (draft = reactivate list on add leather page)
   const leatherColors = React.useMemo(
@@ -374,6 +392,20 @@ export default function CreateProduct() {
               onDismiss={() => setNotification(null)}
             >
               {notification.message}
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {shopifyResourceLoadErrors.length > 0 && (
+          <Layout.Section>
+            <Banner status="critical" title="Could not load some data from Shopify">
+              <BlockStack gap="200">
+                {shopifyResourceLoadErrors.map((msg, i) => (
+                  <Text key={i} as="p" variant="bodyMd">
+                    {msg}
+                  </Text>
+                ))}
+              </BlockStack>
             </Banner>
           </Layout.Section>
         )}

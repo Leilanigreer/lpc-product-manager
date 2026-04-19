@@ -40,7 +40,27 @@ export const action = async ({ request }) => {
 };
 
 export default function AddColorTag() {
-  const { colorTags, stitchingThreadColors, embroideryThreadColors, leatherColors } = useLoaderData();
+  const {
+    colorTags,
+    stitchingThreadColors,
+    stitchingThreadColorsLoadError,
+    embroideryThreadColors,
+    embroideryThreadColorsLoadError,
+    leatherColors,
+    leatherColorsLoadError,
+  } = useLoaderData();
+
+  const colorTagLoaderErrors = React.useMemo(() => {
+    const parts = [];
+    if (leatherColorsLoadError) parts.push(`Leather colors: ${leatherColorsLoadError}`);
+    if (stitchingThreadColorsLoadError) parts.push(`Stitching threads: ${stitchingThreadColorsLoadError}`);
+    if (embroideryThreadColorsLoadError) parts.push(`Embroidery threads: ${embroideryThreadColorsLoadError}`);
+    return parts;
+  }, [
+    leatherColorsLoadError,
+    stitchingThreadColorsLoadError,
+    embroideryThreadColorsLoadError,
+  ]);
   const colorTagFetcher = useFetcher();
   const [showBanner, setShowBanner] = React.useState(false);
   const [bannerType, setBannerType] = React.useState("");
@@ -68,6 +88,15 @@ export default function AddColorTag() {
         }
       />
       <BlockStack gap="400">
+        {colorTagLoaderErrors.length > 0 && (
+          <Banner status="critical" title="Could not load some data from Shopify">
+            <BlockStack gap="200">
+              {colorTagLoaderErrors.map((msg, i) => (
+                <Box key={i}>{msg}</Box>
+              ))}
+            </BlockStack>
+          </Banner>
+        )}
         <Card>
           <TitleBar title="Add a New Color Tag" />
           <Box paddingBlock="100">

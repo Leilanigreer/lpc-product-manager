@@ -50,7 +50,6 @@ const ThreadColorSelector = ({
           threadValue: thread.value,
           threadLabel: thread.label,
           threadAbbreviation: thread.abbreviation,
-          threadColorTags: thread.colorTags,
         };
         
         return {
@@ -86,7 +85,6 @@ const ThreadColorSelector = ({
           threadValue: thread.value,
           threadLabel: thread.label,
           threadAbbreviation: thread.abbreviation,
-          threadColorTags: thread.colorTags,
         };
 
         return {
@@ -122,7 +120,6 @@ const ThreadColorSelector = ({
           value: _fullData.threadValue,
           label: _fullData.threadLabel,
           abbreviation: _fullData.threadAbbreviation,
-          colorTags: _fullData.threadColorTags,
           isacordNumbers: [{
             value: selectedOption.value,
             label: selectedOption.label
@@ -144,7 +141,6 @@ const ThreadColorSelector = ({
       value: _fullData.threadValue,
       label: _fullData.threadLabel,
       abbreviation: _fullData.threadAbbreviation,
-      colorTags: _fullData.threadColorTags,
       amannNumbers: [{
         value: selectedOption.value,
         label: selectedOption.label

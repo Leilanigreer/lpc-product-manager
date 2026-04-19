@@ -165,57 +165,73 @@ async function fetchAllMetaobjectPages(admin, query, variablesBase) {
 /**
  * Loader data: embroidery threads with linked isacord numbers + unlinked isacords.
  * Shape matches legacy Postgres mapping for AddEmbroideryThreadColorForm.
+ *
+ * @returns {Promise<{ embroideryThreadColors: object[], unlinkedIsacordNumbers: object[], loadError?: string }>}
  */
 export async function getEmbroideryThreadColorDataFromShopify(admin) {
   if (!admin?.graphql) {
-    return { embroideryThreadColors: [], unlinkedIsacordNumbers: [] };
-  }
-
-  const [threadNodes, isacordNodes] = await Promise.all([
-    fetchAllMetaobjectPages(admin, LIST_EMBROIDERY_THREADS, {
-      type: TYPE_EMBROIDERY_THREAD,
-    }),
-    fetchAllMetaobjectPages(admin, LIST_ISACORD_NUMBERS, {
-      type: TYPE_ISACORD_NUMBER,
-    }),
-  ]);
-
-  const threadMap = new Map();
-  for (const node of threadNodes) {
-    const name = node.nameField?.value ?? node.displayName ?? "";
-    const abbreviation = node.abbreviationField?.value ?? "";
-    threadMap.set(node.id, {
-      value: node.id,
-      label: name,
-      abbreviation,
-      isacordNumbers: [],
-    });
-  }
-
-  const unlinkedIsacordNumbers = [];
-
-  for (const node of isacordNodes) {
-    const numLabel = node.numberField?.value ?? "";
-    const isacordEntry = {
-      value: node.id,
-      label: numLabel || node.id,
+    return {
+      embroideryThreadColors: [],
+      unlinkedIsacordNumbers: [],
+      loadError: "No Shopify admin GraphQL client available.",
     };
-    const threadId = linkedThreadIdFromIsacordNode(node);
-    if (threadId && threadMap.has(threadId)) {
-      threadMap.get(threadId).isacordNumbers.push(isacordEntry);
-    } else if (threadId && !threadMap.has(threadId)) {
-      unlinkedIsacordNumbers.push({ ...isacordEntry, threadId, threadName: null });
-    } else {
-      unlinkedIsacordNumbers.push(isacordEntry);
-    }
   }
 
-  const embroideryThreadColors = Array.from(threadMap.values()).sort((a, b) =>
-    a.label.localeCompare(b.label)
-  );
-  unlinkedIsacordNumbers.sort((a, b) => a.label.localeCompare(b.label));
+  try {
+    const [threadNodes, isacordNodes] = await Promise.all([
+      fetchAllMetaobjectPages(admin, LIST_EMBROIDERY_THREADS, {
+        type: TYPE_EMBROIDERY_THREAD,
+      }),
+      fetchAllMetaobjectPages(admin, LIST_ISACORD_NUMBERS, {
+        type: TYPE_ISACORD_NUMBER,
+      }),
+    ]);
 
-  return { embroideryThreadColors, unlinkedIsacordNumbers };
+    const threadMap = new Map();
+    for (const node of threadNodes) {
+      const name = node.nameField?.value ?? node.displayName ?? "";
+      const abbreviation = node.abbreviationField?.value ?? "";
+      threadMap.set(node.id, {
+        value: node.id,
+        label: name,
+        abbreviation,
+        isacordNumbers: [],
+      });
+    }
+
+    const unlinkedIsacordNumbers = [];
+
+    for (const node of isacordNodes) {
+      const numLabel = node.numberField?.value ?? "";
+      const isacordEntry = {
+        value: node.id,
+        label: numLabel || node.id,
+      };
+      const threadId = linkedThreadIdFromIsacordNode(node);
+      if (threadId && threadMap.has(threadId)) {
+        threadMap.get(threadId).isacordNumbers.push(isacordEntry);
+      } else if (threadId && !threadMap.has(threadId)) {
+        unlinkedIsacordNumbers.push({ ...isacordEntry, threadId, threadName: null });
+      } else {
+        unlinkedIsacordNumbers.push(isacordEntry);
+      }
+    }
+
+    const embroideryThreadColors = Array.from(threadMap.values()).sort((a, b) =>
+      a.label.localeCompare(b.label)
+    );
+    unlinkedIsacordNumbers.sort((a, b) => a.label.localeCompare(b.label));
+
+    return { embroideryThreadColors, unlinkedIsacordNumbers };
+  } catch (error) {
+    const msg = error?.message ?? String(error);
+    console.error("[getEmbroideryThreadColorDataFromShopify]", error);
+    return {
+      embroideryThreadColors: [],
+      unlinkedIsacordNumbers: [],
+      loadError: msg,
+    };
+  }
 }
 
 /**

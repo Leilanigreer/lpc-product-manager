@@ -1,13 +1,12 @@
 import React from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { Page, Layout, Box } from "@shopify/polaris";
+import { Page, Layout, Box, Banner, BlockStack, Text } from "@shopify/polaris";
 import AddEmbroideryThreadColorForm from "../components/AddEmbroideryThreadColorForm";
 import AddStitchingThreadColorForm from "../components/AddStitchingThreadColorForm";
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
 import {
-  getEmbroideryThreadColorDataFromShopify,
   createEmbroideryThreadAndLinkIsacordNumbers,
   updateEmbroideryThreadIsacordLinks,
 } from "../lib/server/embroideryThreadShopify.server";
@@ -21,9 +20,22 @@ export default function AddThreadColors() {
   const {
     unlinkedIsacordNumbers,
     stitchingThreadColors,
+    stitchingThreadColorsLoadError,
     embroideryThreadColors,
+    embroideryThreadColorsLoadError,
     unlinkedAmannNumbers,
   } = useLoaderData();
+
+  const threadColorLoadErrors = React.useMemo(() => {
+    const parts = [];
+    if (stitchingThreadColorsLoadError) {
+      parts.push(`Stitching threads: ${stitchingThreadColorsLoadError}`);
+    }
+    if (embroideryThreadColorsLoadError) {
+      parts.push(`Embroidery threads: ${embroideryThreadColorsLoadError}`);
+    }
+    return parts;
+  }, [stitchingThreadColorsLoadError, embroideryThreadColorsLoadError]);
   const fetcher = useFetcher();
 
   const [showBanner, setShowBanner] = React.useState(false);
@@ -48,6 +60,19 @@ export default function AddThreadColors() {
             : `Thread color ${fetcher.data?.threadColor?.name} updated successfully!`
         }
       />
+      {threadColorLoadErrors.length > 0 && (
+        <Box paddingBlockEnd="400">
+          <Banner status="critical" title="Could not load thread data from Shopify">
+            <BlockStack gap="200">
+              {threadColorLoadErrors.map((msg, i) => (
+                <Text key={i} as="p" variant="bodyMd">
+                  {msg}
+                </Text>
+              ))}
+            </BlockStack>
+          </Banner>
+        </Box>
+      )}
       <Box paddingBlockEnd="400">
         <Layout>
           <Layout.Section variant="oneHalf">
@@ -72,13 +97,7 @@ export default function AddThreadColors() {
 
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
-  const base = await dataLoader({ admin });
-  const shopifyEmbroidery = await getEmbroideryThreadColorDataFromShopify(admin);
-  return {
-    ...base,
-    embroideryThreadColors: shopifyEmbroidery.embroideryThreadColors,
-    unlinkedIsacordNumbers: shopifyEmbroidery.unlinkedIsacordNumbers,
-  };
+  return dataLoader({ admin });
 };
 
 export const action = async ({ request }) => {
