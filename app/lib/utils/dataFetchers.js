@@ -89,13 +89,16 @@ export const getLeatherColorsFromShopify = async (admin) => {
         const abbreviation = node.abbreviationField?.value ?? "";
         const collectionName = node.collectionNameField?.value ?? null;
         const blendedCollectionName = node.blendedCollectionNameField?.value ?? null;
+        const blendedTrimmed =
+          typeof blendedCollectionName === "string" ? blendedCollectionName.trim() : "";
+        const label = blendedTrimmed || name.trim();
         const file = node.previewImageField?.thumbnail?.file;
         const url_id = file?.image?.url ?? file?.url ?? null;
         const isLimitedEditionLeather = parseMetaobjectBoolean(node.isLimitedEditionField);
         const colorMetaobjectIds = (node.colorsField?.references?.nodes ?? []).map((n) => n.id).filter(Boolean);
         return {
           value: node.id,
-          label: name,
+          label,
           abbreviation,
           collectionName,
           blendedCollectionName,
