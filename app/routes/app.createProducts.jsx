@@ -381,16 +381,23 @@ export default function CreateProduct() {
         <Layout.Section>
           <BlockStack gap="400">
 
-          {process.env.NODE_ENV === "development" && (
-            <Card>
-              <BlockStack gap="300">
-                <Text as="h2" variant="headingSm">
-                  Debug: custom.show_in_creation_dropdown (Shopify payload, all collections)
+          <Card>
+            <BlockStack gap="300">
+              <Text as="h2" variant="headingSm">
+                Debug: custom.show_in_creation_dropdown (Shopify payload, all collections)
+              </Text>
+              <Text as="p" variant="bodyMd" tone="subdued">
+                Raw metafield objects from the Admin GraphQL scan (one row per collection). The
+                dropdown only lists rows where parseBoolMetafield is true; null or missing counts as
+                false.
+              </Text>
+              {collectionShowInCreationMetafieldDebug.length === 0 ? (
+                <Text as="p" variant="bodyMd" tone="caution">
+                  No rows returned. Usually this means the shared loader did not run the collections
+                  query (check server logs), an older deploy is missing this field, or the shop has
+                  no collections visible to the Admin API.
                 </Text>
-                <Text as="p" variant="bodyMd" tone="subdued">
-                  Raw metafield objects from the loader query. The dropdown uses
-                  parseBoolMetafield; null or missing counts as false.
-                </Text>
+              ) : (
                 <Box
                   padding="300"
                   background="bg-surface-secondary"
@@ -411,9 +418,9 @@ export default function CreateProduct() {
                     {JSON.stringify(collectionShowInCreationMetafieldDebug, null, 2)}
                   </pre>
                 </Box>
-              </BlockStack>
-            </Card>
-          )}
+              )}
+            </BlockStack>
+          </Card>
 
           <Card>
             <BlockStack gap="300">
