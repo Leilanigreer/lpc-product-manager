@@ -67,6 +67,30 @@ export function styleCategoryMatchesShapeGroup(styleCategory, shapeGroup) {
   return norm(sc) === norm(String(shapeGroup).trim());
 }
 
+/**
+ * Matches {@link ShapeGrid} style column: show when more than one style applies to this shape’s
+ * group; legacy fallback when `shape_group` is missing uses `collection.needsStyle`.
+ * @param {Object} formState
+ * @param {Object} shapeRow - Row from `allShapes` (shapeType, shapeGroup, …)
+ */
+export function showStyleDropdownForShape(formState, shapeRow) {
+  const collection = formState?.collection;
+  const collectionStyles = collection?.styles ?? [];
+  const isPutterShape = isPutter(shapeRow);
+  const group = getShapeGroup(shapeRow);
+  const matchingStyleCount =
+    group == null
+      ? null
+      : collectionStyles.filter((s) =>
+          styleCategoryMatchesShapeGroup(s.shapeGroup, group)
+        ).length;
+
+  if (matchingStyleCount == null) {
+    return Boolean(collection?.needsStyle && !isPutterShape);
+  }
+  return matchingStyleCount > 1;
+}
+
 export const getShapeCategory = (shape) => {
   if (!isValidShape(shape)) return 'Other';
   return shape.shapeType;

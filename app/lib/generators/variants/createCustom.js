@@ -1,6 +1,11 @@
 // app/lib/generators/variants/createCustom.js
 
-import { formatSKU, calculatePrice, isPutter } from "../../utils";
+import {
+  formatSKU,
+  calculatePrice,
+  isPutter,
+  showStyleDropdownForShape,
+} from "../../utils";
 import { leatherNameForListing } from "../../utils/leatherListing.js";
 
 /** Weight not captured in UI for now; Shopify/Prisma still require a numeric weight. */
@@ -10,6 +15,8 @@ const getVariantName = (shapeData, formState) => {
   // Base name prefix and suffix
   const prefix = 'Customize';
   const suffix = '+$15';
+
+  const includeStyleName = showStyleDropdownForShape(formState, shapeData);
 
   // Get shape label, using "Fairway" for wood types
   const shapeLabel = shapeData.shapeType === 'WOOD' ? 'Fairway' : shapeData.label;
@@ -29,6 +36,9 @@ const getVariantName = (shapeData, formState) => {
 
   // Handle non-color designation styled variants
   if (style && !shapeData.needsColorDesignation) {
+    if (!includeStyleName) {
+      return `${prefix} ${shapeLabel} ${suffix}`;
+    }
     return `${prefix} ${shapeLabel} - ${style.label} ${suffix}`;
   }
 
@@ -49,6 +59,10 @@ const getVariantName = (shapeData, formState) => {
         leatherColor.value === primary?.value
           ? leatherNameForListing(secondary)
           : leatherNameForListing(primary);
+    }
+
+    if (!includeStyleName) {
+      return `${prefix} ${shapeLabel} - ${colorLabel} ${leatherPhrase} ${suffix}`;
     }
 
     // Apply naming pattern

@@ -1,6 +1,6 @@
 // app/lib/generators/variants/createRegular.js
 
-import { formatSKU, calculatePrice } from "../../utils";
+import { formatSKU, calculatePrice, showStyleDropdownForShape } from "../../utils";
 
 /** Weight not captured in UI for now; Shopify/Prisma still require a numeric weight. */
 const PLACEHOLDER_WEIGHT = "0";
@@ -23,6 +23,9 @@ export const createRegularVariants = (formState, skuInfo) => {
           return null;
         }
 
+        const useStyleInVariantName =
+          showStyleDropdownForShape(formState, shape) && shape.style;
+
         const variant = {
           shapeValue: shape.value,
           shape: shape.label,
@@ -31,9 +34,9 @@ export const createRegularVariants = (formState, skuInfo) => {
           colorDesignation: shape.colorDesignation || null,
           sku: variantSku.fullSKU,
           baseSKU: variantSku.baseSKU,
-          variantName: shape.style ? 
-            `${shape.label} - ${shape.style.label}` : 
-            shape.label,
+          variantName: useStyleInVariantName
+            ? `${shape.label} - ${shape.style.label}`
+            : shape.label,
           price: calculatePrice(shape.value, formState),
           // weight: shape.weight,
           weight: PLACEHOLDER_WEIGHT,
