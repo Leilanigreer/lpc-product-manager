@@ -1,5 +1,6 @@
 // app/lib/utils/index.js
 
+export * from './shopifyGid';
 export * from './validations';
 export * from './optionSanitizer';
 export * from './priceUtils';

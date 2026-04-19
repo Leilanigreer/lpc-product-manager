@@ -4,8 +4,88 @@ import { generateTitle, generateMainHandle, generateSEOTitle } from './titleGene
 import { generateDescriptionHTML } from './htmlDescription';
 import { generateSEODescription } from './seoDescription';
 import { generateTags } from './tagsGenerator';
-import { generateVariants } from './variants'; 
+import { generateVariants } from './variants';
 import { generateBaseParts, calculateVersionFromParts } from '../utils';
+import { isShopifyMetaobjectGid } from '../utils/shopifyGid';
+import { mapStitchingThreads, mapEmbroideryThreads } from '../utils/threadUtils';
+
+/** Shopify Color metaobject GIDs linked on leather_color (shopify--color-pattern). */
+function collectShopifyColorMetaobjectIdsFromLeathers(formState) {
+  const ids = new Set();
+  for (const key of ['primary', 'secondary']) {
+    const lc = formState.leatherColors?.[key];
+    if (!lc) continue;
+    const arr = lc.colorMetaobjectIds;
+    if (!Array.isArray(arr)) continue;
+    for (const id of arr) {
+      if (isShopifyMetaobjectGid(id)) ids.add(id);
+    }
+  }
+  return [...ids];
+}
+
+/** Leather_color metaobject GIDs (primary / secondary). */
+function collectLeatherMetaobjectGids(formState) {
+  const out = [];
+  for (const key of ['primary', 'secondary']) {
+    const v = formState.leatherColors?.[key]?.value;
+    if (isShopifyMetaobjectGid(v)) out.push(v);
+  }
+  return [...new Set(out)];
+}
+
+/**
+ * Product-level Shopify metafield payloads (GIDs only). Used by `createShopifyProduct` metafieldsSet.
+ */
+function buildShopifyProductMetafields(formState) {
+  const amannRows = mapStitchingThreads(formState.stitchingThreads);
+  const embroideryRows = mapEmbroideryThreads(formState);
+
+  const amannThreadsUsed = [
+    ...new Set(
+      amannRows.map((r) => r.amannNumberValue).filter(isShopifyMetaobjectGid)
+    ),
+  ];
+  const isacordThreadsUsed = [
+    ...new Set(
+      embroideryRows.map((r) => r.isacordNumberValue).filter(isShopifyMetaobjectGid)
+    ),
+  ];
+
+  const selectedShapes = Object.values(formState.allShapes ?? {}).filter(
+    (s) => s.isSelected
+  );
+  const selectedShapeCount = selectedShapes.length;
+
+  let limitedEditionProductShapeStyle = null;
+  if (
+    formState.selectedOfferingType === 'limitedEdition' &&
+    selectedShapeCount === 1
+  ) {
+    const sh = selectedShapes[0];
+    const shapeGid =
+      sh?.value && isShopifyMetaobjectGid(sh.value) ? sh.value : null;
+    const styleGid =
+      sh?.style?.value && isShopifyMetaobjectGid(sh.style.value)
+        ? sh.style.value
+        : null;
+    limitedEditionProductShapeStyle = {
+      shapeList: shapeGid ? [shapeGid] : [],
+      styleList: styleGid ? [styleGid] : [],
+    };
+  }
+
+  return {
+    leathersUsed: collectLeatherMetaobjectGids(formState),
+    shopifyColors: collectShopifyColorMetaobjectIdsFromLeathers(formState),
+    amannThreadsUsed,
+    isacordThreadsUsed,
+    fontGid: isShopifyMetaobjectGid(formState.selectedFont)
+      ? formState.selectedFont
+      : null,
+    limitedEditionProductShapeStyle,
+  };
+}
 
 /**
  * Generates complete product data by coordinating all generators
@@ -53,7 +133,10 @@ export const generateProductData = async (formState, commonDescription) => {
       selectedLeatherColor1: formState.leatherColors.primary.value,
       selectedLeatherColor2: formState.leatherColors?.secondary?.value || null,
       stitchingThreads: formState.stitchingThreads,
-      
+
+      /** Payload for `metafieldsSet` on Product (and variant metafields use `variants`). */
+      shopifyProductMetafields: buildShopifyProductMetafields(formState),
+
       createdAt: new Date().toISOString()
     };
 

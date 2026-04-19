@@ -1,7 +1,8 @@
 // app/lib/generators/variants/generateVariants.js
 
-import { createRegularVariants } from "./createRegular"; 
+import { createRegularVariants } from "./createRegular";
 import { createCustomVariants } from "./createCustom";
+import { buildWoodBaseToRepresentativeShapeValueMap } from "./woodCustomizePairing";
 
 /**
  * Assigns positions to variants based on shape display order
@@ -69,8 +70,15 @@ export const generateVariants = async (formState, skuInfo) => {
       }))
     ];
 
-    // Sort by position before returning
-    return allVariants.sort((a, b) => a.position - b.position);
+    const sorted = allVariants.sort((a, b) => a.position - b.position);
+    const woodRepMap = buildWoodBaseToRepresentativeShapeValueMap(formState);
+
+    return sorted.map((v) => {
+      if (v.isCustom || v.shapeType !== "WOOD") return v;
+      const rep = woodRepMap.get(v.shapeValue);
+      if (rep == null) return v;
+      return { ...v, customizeRepresentativeShapeValue: rep };
+    });
  
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {

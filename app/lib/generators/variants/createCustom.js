@@ -95,6 +95,7 @@ const generateCustomVariant = (shapeData, formState, skuInfo) => {
     return {
       shapeValue: shapeData.value,
       shape: shapeData.label,
+      shapeType: shapeData.shapeType || "DEFAULT",
       style: shapeData.style || null,
       colorDesignation: shapeData.colorDesignation || null,
       sku: customSku.fullSKU,
@@ -140,6 +141,41 @@ export const createCustomVariants = (formState, skuInfo) => {
   return [...nonWoodVariants, ...woodVariants];
 };
 
+/** How many selected woods use each style metaobject GID (for collapse / pairing). */
+function getWoodStyleValueCounts(formState) {
+  const counts = new Map();
+  for (const s of Object.values(formState.allShapes ?? {})) {
+    if (!s?.isSelected || s.shapeType !== "WOOD") continue;
+    const sv = s.style?.value;
+    if (!sv) continue;
+    counts.set(sv, (counts.get(sv) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
+ * Color designation is defined on the style and only differentiates woods when at least two
+ * selected woods share that style. If a style appears on only one wood, ignore color for collapse.
+ */
+export function woodCollapseColorDesignationsMatch(
+  currentShape,
+  processedShape,
+  formState
+) {
+  const styleVal = currentShape.style?.value;
+  if (!styleVal) {
+    return true;
+  }
+  const counts = getWoodStyleValueCounts(formState);
+  if ((counts.get(styleVal) ?? 0) < 2) {
+    return true;
+  }
+  return (
+    !currentShape.needsColorDesignation ||
+    currentShape.colorDesignation?.value === processedShape.colorDesignation?.value
+  );
+}
+
 export const shouldCollapseWoodVariants = (
   currentShape,
   processedShapes,
@@ -156,9 +192,11 @@ export const shouldCollapseWoodVariants = (
   return processedShapes.some((processedShape) => {
     const processedStyle = processedShape.style;
     const stylesMatch = currentStyle?.value === processedStyle?.value;
-    const colorDesignationsMatch = !currentShape.needsColorDesignation ||
-      (currentShape.colorDesignation?.value === processedShape.colorDesignation?.value);
-    
-    return stylesMatch && colorDesignationsMatch;
+    if (!stylesMatch) return false;
+    return woodCollapseColorDesignationsMatch(
+      currentShape,
+      processedShape,
+      formState
+    );
   });
 };

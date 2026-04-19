@@ -1,10 +1,263 @@
-// app/lib/shopifyOperations.server.js
+// app/lib/server/shopifyOperations.server.js
 /**
  * Creates a product in Shopify with all necessary operations
  * @param {Object} admin - Shopify admin API client
  * @param {Object} productData - Generated product data
  * @returns {Promise<Object>} Complete Shopify response with all product data
+ *
+ * Metafields (after variants exist, via `metafieldsSet`):
+ * - Product `custom.leathers_used` — list.metaobject_reference (leather_color GIDs).
+ * - Product `custom.amann_threads_used` — list (amann_number GIDs from stitching selections).
+ * - Product `custom.isacord_threads_used` — list (isacord_number GIDs from embroidery selections).
+ * - Product `custom.font` — single metaobject_reference (font), when set.
+ * - Product `custom.color` — list (shopify--color-pattern GIDs from leather rows’ `colorMetaobjectIds`).
+ * - Product `custom.shape` / `custom.style` — lists only when Limited Edition **and** exactly one
+ *   shape is selected (`shopifyProductMetafields.limitedEditionProductShapeStyle`); otherwise omitted.
+ * - Variant `custom.single_shape` / `custom.single_style`: single metaobject_reference per variant.
+ * - Variant `custom.customizable` (boolean); `custom.customizable_variant_id` (variant_reference) on
+ *   base variants. Wood pairing uses `customizeRepresentativeShapeValue` on base woods — see
+ *   `buildWoodBaseToRepresentativeShapeValueMap` / `woodCollapseColorDesignationsMatch`.
  */
+
+import {
+  isShopifyMetaobjectGid,
+  isShopifyProductVariantGid,
+} from "../utils/shopifyGid.js";
+
+const METAFIELDS_SET_MUTATION = `#graphql
+  mutation MetafieldsSet($metafields: [MetafieldsSetInput!]!) {
+    metafieldsSet(metafields: $metafields) {
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+/** Same shape + style + color designation (non-wood one-to-one pairs). */
+function variantPairingKey(v) {
+  if (!v) return "";
+  return [
+    v.shapeValue ?? "",
+    v.style?.value ?? "",
+    v.colorDesignation?.value ?? "",
+  ].join("|");
+}
+
+/**
+ * Base variant index → customize variant index (`isCustom === true`).
+ * Wood: match the custom row whose `shapeValue` equals the base’s
+ * `customizeRepresentativeShapeValue` (set in `generateVariants` to mirror `createCustomVariants`).
+ * Other shapes: match full `variantPairingKey` (shape + style + color).
+ * @returns {number}
+ */
+function findCustomizeVariantIndexForBase(variants, baseIndex) {
+  const base = variants[baseIndex];
+  if (!base || base.isCustom) return -1;
+
+  if (base.shapeType === "WOOD") {
+    const rep =
+      typeof base.customizeRepresentativeShapeValue === "string" &&
+      isShopifyMetaobjectGid(base.customizeRepresentativeShapeValue)
+        ? base.customizeRepresentativeShapeValue
+        : base.shapeValue;
+    for (let j = 0; j < variants.length; j++) {
+      if (j === baseIndex) continue;
+      const row = variants[j];
+      if (!row?.isCustom || row.shapeType !== "WOOD") continue;
+      if (row.shapeValue === rep) return j;
+    }
+    return -1;
+  }
+
+  const key = variantPairingKey(base);
+  for (let j = 0; j < variants.length; j++) {
+    if (j === baseIndex) continue;
+    const row = variants[j];
+    if (!row?.isCustom) continue;
+    if (variantPairingKey(row) === key) return j;
+  }
+  return -1;
+}
+
+/**
+ * @param {string} productId
+ * @param {object} productData - Includes `variants` and `shopifyProductMetafields` from `generateProductData`
+ * @param {{ id: string }[]} createdVariants - Same order as bulk create
+ */
+async function setProductAndVariantMetafields(
+  admin,
+  productId,
+  productData,
+  createdVariants
+) {
+  const productDataVariants = productData?.variants;
+  if (!productId || !Array.isArray(productDataVariants)) return;
+
+  const metafields = [];
+  const smf = productData.shopifyProductMetafields ?? {};
+
+  if (Array.isArray(smf.leathersUsed) && smf.leathersUsed.length > 0) {
+    metafields.push({
+      ownerId: productId,
+      namespace: "custom",
+      key: "leathers_used",
+      type: "list.metaobject_reference",
+      value: JSON.stringify(smf.leathersUsed),
+    });
+  }
+
+  if (Array.isArray(smf.amannThreadsUsed) && smf.amannThreadsUsed.length > 0) {
+    metafields.push({
+      ownerId: productId,
+      namespace: "custom",
+      key: "amann_threads_used",
+      type: "list.metaobject_reference",
+      value: JSON.stringify(smf.amannThreadsUsed),
+    });
+  }
+
+  if (Array.isArray(smf.isacordThreadsUsed) && smf.isacordThreadsUsed.length > 0) {
+    metafields.push({
+      ownerId: productId,
+      namespace: "custom",
+      key: "isacord_threads_used",
+      type: "list.metaobject_reference",
+      value: JSON.stringify(smf.isacordThreadsUsed),
+    });
+  }
+
+  if (isShopifyMetaobjectGid(smf.fontGid)) {
+    metafields.push({
+      ownerId: productId,
+      namespace: "custom",
+      key: "font",
+      type: "metaobject_reference",
+      value: smf.fontGid,
+    });
+  }
+
+  if (Array.isArray(smf.shopifyColors) && smf.shopifyColors.length > 0) {
+    metafields.push({
+      ownerId: productId,
+      namespace: "custom",
+      key: "color",
+      type: "list.metaobject_reference",
+      value: JSON.stringify(smf.shopifyColors),
+    });
+  }
+
+  const leShapeStyle = smf.limitedEditionProductShapeStyle;
+  if (leShapeStyle) {
+    if (
+      Array.isArray(leShapeStyle.shapeList) &&
+      leShapeStyle.shapeList.length > 0
+    ) {
+      metafields.push({
+        ownerId: productId,
+        namespace: "custom",
+        key: "shape",
+        type: "list.metaobject_reference",
+        value: JSON.stringify(leShapeStyle.shapeList),
+      });
+    }
+    if (
+      Array.isArray(leShapeStyle.styleList) &&
+      leShapeStyle.styleList.length > 0
+    ) {
+      metafields.push({
+        ownerId: productId,
+        namespace: "custom",
+        key: "style",
+        type: "list.metaobject_reference",
+        value: JSON.stringify(leShapeStyle.styleList),
+      });
+    }
+  }
+
+  const list = Array.isArray(createdVariants) ? createdVariants : [];
+  const n = Math.min(productDataVariants.length, list.length);
+  if (productDataVariants.length !== list.length) {
+    console.warn(
+      "[createShopifyProduct] Variant count mismatch for shape/style metafields:",
+      { generated: productDataVariants.length, created: list.length }
+    );
+  }
+
+  for (let i = 0; i < n; i++) {
+    const pv = productDataVariants[i];
+    const cv = list[i];
+    if (!cv?.id) continue;
+
+    if (isShopifyMetaobjectGid(pv.shapeValue)) {
+      metafields.push({
+        ownerId: cv.id,
+        namespace: "custom",
+        key: "single_shape",
+        type: "metaobject_reference",
+        value: pv.shapeValue,
+      });
+    }
+
+    if (isShopifyMetaobjectGid(pv.style?.value)) {
+      metafields.push({
+        ownerId: cv.id,
+        namespace: "custom",
+        key: "single_style",
+        type: "metaobject_reference",
+        value: pv.style.value,
+      });
+    }
+
+    if (pv.isCustom) {
+      metafields.push({
+        ownerId: cv.id,
+        namespace: "custom",
+        key: "customizable",
+        type: "boolean",
+        value: "false",
+      });
+    } else {
+      metafields.push({
+        ownerId: cv.id,
+        namespace: "custom",
+        key: "customizable",
+        type: "boolean",
+        value: "true",
+      });
+      const customizeIdx = findCustomizeVariantIndexForBase(
+        productDataVariants,
+        i
+      );
+      const customizeGid =
+        customizeIdx >= 0 ? list[customizeIdx]?.id : null;
+      if (isShopifyProductVariantGid(customizeGid)) {
+        metafields.push({
+          ownerId: cv.id,
+          namespace: "custom",
+          key: "customizable_variant_id",
+          type: "variant_reference",
+          value: customizeGid,
+        });
+      }
+    }
+  }
+
+  const response = await admin.graphql(METAFIELDS_SET_MUTATION, {
+    variables: { metafields },
+  });
+  const json = await response.json();
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+  const userErrors = json?.data?.metafieldsSet?.userErrors ?? [];
+  if (userErrors.length) {
+    const messages = userErrors.map((e) => e.message).filter(Boolean);
+    if (messages.length) throw new Error(messages.join("; "));
+  }
+}
+
 export const createShopifyProduct = async (admin, productData) => {
   try {
     // 1. Get shop data
@@ -242,6 +495,19 @@ export const createShopifyProduct = async (admin, productData) => {
       console.error('Variant Creation Errors:', variantsJson.data.productVariantsBulkCreate.userErrors);
       throw new Error(variantsJson.data.productVariantsBulkCreate.userErrors.map(e => e.message).join(', '));
     }
+
+    const bulkCreate = variantsJson.data.productVariantsBulkCreate;
+    const createdVariantNodes =
+      bulkCreate?.productVariants?.length > 0
+        ? bulkCreate.productVariants
+        : (bulkCreate?.product?.variants?.edges ?? []).map(({ node }) => node);
+
+    await setProductAndVariantMetafields(
+      admin,
+      productJson.data.productCreate.product.id,
+      productData,
+      createdVariantNodes
+    );
 
     // 6. Add default image
     const mediaResponse = await admin.graphql(`#graphql
