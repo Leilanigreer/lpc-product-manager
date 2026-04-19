@@ -18,6 +18,9 @@ import { Select, Card, Box, Text, BlockStack } from "@shopify/polaris";
  * @param {Array} props.shopifyCollections - Collections from the loader
  * @param {Object} props.formState - Current form state
  * @param {Function} props.onChange - Form dispatch; uses `updateCollection` with `{ collection }`. Existing base SKUs for versioning load at Preview time.
+ *
+ * When the selected collection has no `priceTier`, an informational note explains manual
+ * pricing and that templated fields are not applied yet.
  */
 
 const CollectionSelector = ({
@@ -35,8 +38,9 @@ const CollectionSelector = ({
       }))
   ], [shopifyCollections]);
 
-  const currentCollection = useMemo(() =>
-    shopifyCollections?.find(col => col.value === formState.collection?.value),
+  const currentCollection = useMemo(
+    () =>
+      shopifyCollections?.find((col) => col.value === formState.collection?.value),
     [shopifyCollections, formState.collection?.value]
   );
 
@@ -73,6 +77,21 @@ const CollectionSelector = ({
               value={formState.collection?.value || ''}
             />
           </Box>
+
+          {formState.collection?.value && !formState.collection?.priceTier && (
+            <Box paddingBlockStart="200">
+              <Text as="p" variant="bodyMd" tone="subdued">
+                No pricing tier is linked to this collection in Shopify. Set product and
+                variant pricing manually after creation.
+              </Text>
+              <Box paddingBlockStart="150">
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Title, SEO title, variant names, and other fields that usually come from
+                  collection templates are not filled by the app here yet. Plan to enter those manually until full in-app support for this collection is built.
+                </Text>
+              </Box>
+            </Box>
+          )}
         </Box>
 
         {showStyleControls && (
