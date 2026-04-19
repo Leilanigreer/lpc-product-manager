@@ -1,5 +1,7 @@
 // app/lib/generators/titleGenerator.js
 
+import { leatherNameForListing } from "../utils/leatherListing.js";
+
 const DEFAULT_HANDLE = "pending-main-handle";
 const DEFAULT_SEO_TITLE = "pending-seo-title";
 const DEFAULT_TITLE = "Pending Title";
@@ -30,8 +32,14 @@ export const generateTitle = async (formState) => {
     }
 
     return template
-      .replace('{leatherColors.primary.label}', formState.leatherColors?.primary?.label || '')
-      .replace('{leatherColors.secondary.label}', formState.leatherColors?.secondary?.label || '')
+      .replace(
+        "{leatherColors.primary.label}",
+        leatherNameForListing(formState.leatherColors?.primary)
+      )
+      .replace(
+        "{leatherColors.secondary.label}",
+        leatherNameForListing(formState.leatherColors?.secondary)
+      )
       .replace('{stitchingThreads.[0].label}', Object.values(formState.stitchingThreads || {})[0]?.label || '')
       .replace('{globalEmbroideryThread.label}', formState.globalEmbroideryThread?.label || '')
       || DEFAULT_TITLE;

@@ -91,6 +91,7 @@ export const getLeatherColorsFromShopify = async (admin) => {
         const blendedCollectionName = node.blendedCollectionNameField?.value ?? null;
         const blendedTrimmed =
           typeof blendedCollectionName === "string" ? blendedCollectionName.trim() : "";
+        /** Dropdown / admin display: blended collection line when set, else metaobject name. */
         const label = blendedTrimmed || name.trim();
         const file = node.previewImageField?.thumbnail?.file;
         const url_id = file?.image?.url ?? file?.url ?? null;
@@ -98,6 +99,8 @@ export const getLeatherColorsFromShopify = async (admin) => {
         const colorMetaobjectIds = (node.colorsField?.references?.nodes ?? []).map((n) => n.id).filter(Boolean);
         return {
           value: node.id,
+          /** Metaobject `name` — use for listing title, SEO, customer-facing copy (`leatherNameForListing`). */
+          name: name.trim(),
           label,
           abbreviation,
           collectionName,

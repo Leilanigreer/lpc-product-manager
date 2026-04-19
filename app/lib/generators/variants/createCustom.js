@@ -1,6 +1,7 @@
 // app/lib/generators/variants/createCustom.js
 
-import { formatSKU, calculatePrice, isPutter } from '../../utils';
+import { formatSKU, calculatePrice, isPutter } from "../../utils";
+import { leatherNameForListing } from "../../utils/leatherListing.js";
 
 /** Weight not captured in UI for now; Shopify/Prisma still require a numeric weight. */
 const PLACEHOLDER_WEIGHT = "0";
@@ -39,12 +40,15 @@ const getVariantName = (shapeData, formState) => {
     }
 
     const leatherPhrase = styleSource.leatherPhrase || 'leather as';
-    let colorLabel = leatherColor.label;
+    let colorLabel = leatherNameForListing(leatherColor);
 
     // Handle opposite leather case
     if (styleSource.useOppositeLeather) {
       const { primary, secondary } = formState.leatherColors;
-      colorLabel = leatherColor.value === primary?.value ? secondary?.label : primary?.label;
+      colorLabel =
+        leatherColor.value === primary?.value
+          ? leatherNameForListing(secondary)
+          : leatherNameForListing(primary);
     }
 
     // Apply naming pattern

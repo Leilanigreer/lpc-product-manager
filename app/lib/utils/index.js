@@ -1,5 +1,6 @@
 // app/lib/utils/index.js
 
+export * from './leatherListing';
 export * from './shopifyGid';
 export * from './validations';
 export * from './optionSanitizer';
