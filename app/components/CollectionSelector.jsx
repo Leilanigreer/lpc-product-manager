@@ -1,18 +1,11 @@
 import React, { useMemo } from 'react';
-import { Select, Card, Box, Text, BlockStack } from "@shopify/polaris";
+import { Select, Card, Box, Text } from "@shopify/polaris";
 
 /**
- * Collection + style selection for create-product.
+ * Collection selection for create-product.
  *
- * Collections and `styles[]` come from the loader (Shopify: `style` metaobjects filtered by
- * `style.collectionCategory === collection.category`).
- *
- * Styles are then matched to shapes via `shape_group`:
- * `style.shapeGroup` is compared against each shape's `shape_group`.
- *
- * Style selection UI is only needed when any `shape_group` within the selected `collection_category`
- * has more than 1 valid style option. When every `shape_group` has exactly 1 style, we auto-assign
- * styles per shape in `useFormState`. Users always pick style per shape in the grid when required.
+ * Collection objects (including `styles[]` from the loader) are passed through; shape/style
+ * choices happen in the grid elsewhere.
  *
  * @param {Object} props
  * @param {Array} props.shopifyCollections - Collections from the loader
@@ -38,25 +31,6 @@ const CollectionSelector = ({
       }))
   ], [shopifyCollections]);
 
-  const currentCollection = useMemo(
-    () =>
-      shopifyCollections?.find((col) => col.value === formState.collection?.value),
-    [shopifyCollections, formState.collection?.value]
-  );
-
-  const showStyleControls = useMemo(() => {
-    const styles = currentCollection?.styles ?? [];
-    const groupCounts = styles.reduce((acc, s) => {
-      const key =
-        s.shapeGroup != null && String(s.shapeGroup).trim() !== ''
-          ? String(s.shapeGroup).trim()
-          : 'UNKNOWN';
-      acc[key] = (acc[key] ?? 0) + 1;
-      return acc;
-    }, {});
-    return Object.values(groupCounts).some((count) => count > 1);
-  }, [currentCollection?.styles]);
-
   const handleCollectionChange = (value) => {
     const selectedCollection = shopifyCollections?.find((c) => c.value === value);
     if (selectedCollection) {
@@ -66,42 +40,32 @@ const CollectionSelector = ({
 
   return (
     <Card>
-      <BlockStack gap="400">
-        <Box width="100%">
-          <Text as="h2" variant="headingMd">Collection Selection</Text>
-          <Box paddingBlockStart="200">
-            <Select
-              label="Select a collection"
-              options={collectionOptions}
-              onChange={handleCollectionChange}
-              value={formState.collection?.value || ''}
-            />
-          </Box>
-
-          {formState.collection?.value && !formState.collection?.priceTier && (
-            <Box paddingBlockStart="200">
-              <Text as="p" variant="bodyMd" tone="subdued">
-                No pricing tier is linked to this collection in Shopify. Set product and
-                variant pricing manually after creation.
-              </Text>
-              <Box paddingBlockStart="150">
-                <Text as="p" variant="bodyMd" tone="subdued">
-                  Title, SEO title, variant names, and other fields that usually come from
-                  collection templates are not filled by the app here yet. Plan to enter those manually until full in-app support for this collection is built.
-                </Text>
-              </Box>
-            </Box>
-          )}
+      <Box width="100%">
+        <Text as="h2" variant="headingMd">Collection Selection</Text>
+        <Box paddingBlockStart="200">
+          <Select
+            label="Select a collection"
+            options={collectionOptions}
+            onChange={handleCollectionChange}
+            value={formState.collection?.value || ''}
+          />
         </Box>
 
-        {showStyleControls && (
-          <Box paddingBlockStart="100">
+        {formState.collection?.value && !formState.collection?.priceTier && (
+          <Box paddingBlockStart="200">
             <Text as="p" variant="bodyMd" tone="subdued">
-              Choose a style for each applicable shape in the grid below.
+              No pricing tier is linked to this collection in Shopify. Set product and
+              variant pricing manually after creation.
             </Text>
+            <Box paddingBlockStart="150">
+              <Text as="p" variant="bodyMd" tone="subdued">
+                Title, SEO title, variant names, and other fields that usually come from
+                collection templates are not filled by the app here yet. Plan to enter those manually until full in-app support for this collection is built.
+              </Text>
+            </Box>
           </Box>
         )}
-      </BlockStack>
+      </Box>
     </Card>
   );
 };
