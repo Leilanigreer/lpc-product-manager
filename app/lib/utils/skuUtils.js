@@ -5,8 +5,8 @@ import { isPutter } from './shapeUtils';
 
 /**
  * Extracts unique `{ baseSKU, collection }` rows from legacy Prisma `productSetDataLPC`-shaped
- * payloads. Create-product now loads bases from Shopify (`fetchCollectionBaseSkusForVersioning`)
- * instead; this helper remains for any code still using Postgres product sets.
+ * payloads. Create-product loads bases via the page loader (`attachVersioningSkusToShopifyCollections`
+ * / `fetchCollectionBaseSkusForVersioning`); this helper remains for any code still using Postgres product sets.
  *
  * @param {Array<Object>} productSets - Mapped product sets (each has `collections[]` with value, shopifyAdminGid, …)
  * @returns {Array<Object>} Unique rows: { baseSKU, collection }

@@ -11,8 +11,8 @@ import { Select, Card, Box, Text } from "@shopify/polaris";
  * @param {Array} props.shopifyCollections - Collections from the loader
  * @param {Object} props.formState - Current form state
  * @param {Function} props.onChange - Form dispatch; uses `updateCollection` with `{ collection }`.
- *   Each collection may include `versioningSkus` from the loader (base SKUs + raw GraphQL pages);
- *   Preview still refetches via API and falls back to loader data when the API payload is empty.
+ *   Each collection includes `versioningSkus` from the page loader (base SKUs + optional GraphQL
+ *   debug pages). Preview reads that data only — no client fetch to a resource route.
  *
  * When the selected collection has no `priceTier`, an informational note explains manual
  * pricing and that templated fields are not applied yet.

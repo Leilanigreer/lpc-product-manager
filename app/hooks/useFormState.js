@@ -44,10 +44,10 @@ const formReducer = (state, action) => {
       }), {});
 
       /**
-       * Cleared on collection change. The selected `collection` may carry `versioningSkus` from
-       * the page loader; Preview also calls `/app/api/collection-base-skus` and uses loader data as
-       * fallback when that response is empty. Passing `existingProducts` in the payload overrides
-       * the initial empty list when hydrating from elsewhere.
+       * Cleared on collection change. The selected `collection` includes `versioningSkus` from the
+       * create-product loader (server-side Shopify GraphQL). Preview uses that only — no separate
+       * client fetch. Passing `existingProducts` in the payload overrides the initial list when
+       * hydrating from elsewhere.
        */
       const existingProducts = Array.isArray(existingProductsFromPayload)
         ? existingProductsFromPayload

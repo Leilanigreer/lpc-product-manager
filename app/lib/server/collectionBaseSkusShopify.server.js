@@ -1,9 +1,29 @@
 /**
- * Loads `custom.base_sku` values from Shopify products in a collection for SKU version bumping.
- * Replaces legacy Postgres `productSetDataLPC` for the create-product version bump (see
- * `fetchCollectionBaseSkusForVersioning`). Also returns each paginated GraphQL JSON body (data /
- * errors / extensions) for debugging. Vendor filtering is not applied here: LPC collections only
+ * Collection `custom.base_sku` scan for SKU version bumping (replaces legacy Postgres
+ * `productSetDataLPC` for create-product). Vendor filtering is not applied: LPC collections only
  * contain LPC products; vendor scoping stays on store-wide tools (e.g. Sync base SKUs scan).
+ *
+ * ---------------------------------------------------------------------------
+ * Why this runs in the Remix loader — not via `fetch("/app/api/...")` from the browser
+ * ---------------------------------------------------------------------------
+ * Both paths ultimately call the same Admin GraphQL query (`collection(id){ products{ nodes {
+ * metafield(namespace:"custom", key:"base_sku") }}}`) through `admin.graphql`.
+ *
+ * **Loader (this module + `attachVersioningSkusToShopifyCollections`):**
+ * - Runs on the server inside `authenticate.admin(request)` during the document request.
+ * - `admin.graphql` returns a normal `Response`; we `await response.json()` and get a plain
+ *   object with `data`, optional `errors`, `extensions` — the same shape GraphiQL shows.
+ * - Remix serializes that into `useLoaderData()` → `shopifyCollections[].versioningSkus`.
+ *
+ * **Old pattern: resource route called from the embedded admin iframe with `fetch`:**
+ * - The Remix `admin.graphql` wrapper stringifies the client result into a *new* `Response` for
+ *   the resource route. In the Shopify embedded app, the browser’s `fetch` to that route often
+ *   returned a body that parsed to **empty** `shopifyGraphqlPages` / missing nested `data`, while
+ *   the same GraphQL call succeeded in GraphiQL and here in the loader. So the bug was not the
+ *   query text — it was **transport + parsing in the iframe client** vs **server loader JSON**.
+ *
+ * Create-product therefore uses **only** `versioningSkus` from the loader (no duplicate client
+ * fetch). Optional `DEBUG_COLLECTION_BASE_SKUS=1` logs each Shopify response page on the server.
  */
 
 import _ from "lodash";
@@ -29,7 +49,7 @@ const COLLECTION_PRODUCTS_BASE_SKU_QUERY = `#graphql
 `;
 
 /**
- * Serializable slice of a GraphQL HTTP JSON body for loaders / API responses.
+ * Serializable slice of a GraphQL HTTP JSON body for loader-side debug snapshots.
  * @param {object} json
  */
 function graphqlPageForDebug(json) {
@@ -118,9 +138,9 @@ export async function fetchCollectionBaseSkusForVersioning(graphql, collectionGi
 }
 
 /**
- * Runs {@link fetchCollectionBaseSkusForVersioning} for each collection (same Admin session as
- * the create-product loader). Used as a reliable source for versioning rows when the in-app
- * resource-route fetch misbehaves in embedded contexts.
+ * Runs {@link fetchCollectionBaseSkusForVersioning} for each collection in the create-product
+ * loader (same `admin` session as the rest of the page). Results are attached as
+ * `versioningSkus` on each collection for Preview / `generateProductData`.
  *
  * @param {{ graphql: (q: string, o?: object) => Promise<Response> }} admin
  * @param {object[]} collections - Loader collection rows with `value` (Collection GID)

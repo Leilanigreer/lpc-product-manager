@@ -154,7 +154,7 @@ export default function CreateProduct() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
-  /** Set after each successful `/app/api/collection-base-skus` fetch in Preview (before generate). */
+  /** Populated on Preview from `formState.collection.versioningSkus` (loader; see collectionBaseSkusShopify.server.js). */
   const [previewCollectionSkuDebug, setPreviewCollectionSkuDebug] = useState(null);
   const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
     if (!productData) return;
@@ -280,65 +280,29 @@ export default function CreateProduct() {
       }
 
       const collectionGid = formState.collection.value;
-      const skuUrl = `/app/api/collection-base-skus?collectionId=${encodeURIComponent(
-        collectionGid
-      )}&_=${Date.now()}`;
-      const skuRes = await fetch(skuUrl, {
-        credentials: "include",
-        cache: "no-store",
-        headers: { Accept: "application/json" },
-      });
-      const skuPayload = await skuRes.json().catch(() => ({}));
-      if (!skuRes.ok) {
+      const vs = formState.collection?.versioningSkus;
+      if (vs == null) {
         throw new Error(
-          skuPayload?.error ||
-            `Could not load existing base SKUs (${skuRes.status}). Try again.`
+          "Collection base SKU data is missing. Reload this page so the server can load Shopify data (versioningSkus on the collection)."
         );
       }
-      if (skuPayload.error) {
-        throw new Error(skuPayload.error);
-      }
-      let existingProducts = skuPayload.existingProducts ?? [];
-      let shopifyGraphqlPages = skuPayload.shopifyGraphqlPages ?? [];
-      const loaderVs = formState.collection?.versioningSkus;
-      const apiSkuEmpty =
-        existingProducts.length === 0 && shopifyGraphqlPages.length === 0;
-      const loaderSkuUsable =
-        (loaderVs?.existingProducts?.length ?? 0) > 0 ||
-        (loaderVs?.shopifyGraphqlPages?.length ?? 0) > 0;
-
-      let skuDataSource = "api";
-      if (apiSkuEmpty && loaderSkuUsable) {
-        existingProducts = loaderVs.existingProducts ?? [];
-        shopifyGraphqlPages = loaderVs.shopifyGraphqlPages ?? [];
-        skuDataSource = "loader-fallback";
-      } else if (apiSkuEmpty) {
-        skuDataSource = "none";
+      if (vs.loadError) {
+        throw new Error(
+          `Could not load existing base SKUs for this collection: ${vs.loadError}`
+        );
       }
 
-      /** API echoes this; fall back to parsing the request URL if an older deploy omits the field. */
-      let collectionIdFromApi = skuPayload.collectionId ?? null;
-      if (collectionIdFromApi == null && typeof window !== "undefined") {
-        try {
-          collectionIdFromApi = new URL(skuUrl, window.location.origin).searchParams.get(
-            "collectionId"
-          );
-        } catch {
-          /* ignore */
-        }
-      }
+      const existingProducts = vs.existingProducts ?? [];
+      const shopifyGraphqlPages = vs.shopifyGraphqlPages ?? [];
 
       setPreviewCollectionSkuDebug({
-        collectionIdFromForm: collectionGid,
-        collectionIdFromApi,
+        collectionId: collectionGid,
         collectionLabel: formState.collection?.label ?? null,
         rowCount: existingProducts.length,
         baseSkuStrings: existingProducts.map((r) => r.baseSKU).filter(Boolean),
         rows: existingProducts,
         shopifyGraphqlPages,
-        skuRequestUrl: skuUrl,
-        skuDataSource,
-        versioningSkusLoaderError: loaderVs?.loadError ?? null,
+        skuDataSource: "loader",
       });
 
       const data = await generateProductData(
@@ -424,11 +388,12 @@ export default function CreateProduct() {
               </Text>
               {!previewCollectionSkuDebug ? (
                 <Text as="p" variant="bodyMd" tone="subdued">
-                  Select a collection, then click Preview Product Data to load{" "}
+                  Select a collection, then click Preview Product Data. Base SKUs are read from
+                  Shopify on the server when this page loads (see debug JSON after Preview).{" "}
                   <Text as="span" fontWeight="semibold">
                     custom.base_sku
                   </Text>{" "}
-                  values from Shopify for versioning.
+                  is loaded per collection for versioning.
                 </Text>
               ) : (
                 <BlockStack gap="200">
