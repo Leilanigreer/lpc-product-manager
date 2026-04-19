@@ -21,16 +21,15 @@ import {
 } from "../server/styleShopify.server";
 import { getShapesFromShopify } from "../server/shapeShopify.server";
 
-/** @returns {Promise<{ collections: object[]; collectionShowInCreationMetafieldDebug: object[] }>} */
+/** @returns {Promise<{ collections: object[] }>} */
 async function loadShopifyCollectionsForLoader(admin) {
   if (!admin) {
     console.warn(
       "loadShopifyCollectionsForLoader: no admin client; returning empty collections (Shopify-only)."
     );
-    return { collections: [], collectionShowInCreationMetafieldDebug: [] };
+    return { collections: [] };
   }
-  const { collections, collectionShowInCreationMetafieldDebug } =
-    await getProductCollectionsFromShopify(admin);
+  const collections = await getProductCollectionsFromShopify(admin);
   let formStyles = [];
   try {
     const rawNodes = await fetchStyleMetaobjectNodes(admin);
@@ -42,7 +41,7 @@ async function loadShopifyCollectionsForLoader(admin) {
     );
   }
   const attached = attachStylesToShopifyCollections(collections, formStyles);
-  return { collections: attached, collectionShowInCreationMetafieldDebug };
+  return { collections: attached };
 }
 
 async function loadShapesForLoader(admin) {
@@ -100,8 +99,6 @@ export const loader = async ({ admin } = {}) => {
     ]);
 
     const shopifyCollections = shopifyLoad.collections;
-    const collectionShowInCreationMetafieldDebug =
-      shopifyLoad.collectionShowInCreationMetafieldDebug ?? [];
 
     const leatherColors = leatherResult?.leatherColors ?? [];
     const leatherColorsLoadError = leatherResult?.loadError ?? null;
@@ -114,7 +111,6 @@ export const loader = async ({ admin } = {}) => {
       fonts,
       shapes,
       shopifyCollections,
-      collectionShowInCreationMetafieldDebug,
       commonDescription,
       colorTags,
       unlinkedIsacordNumbers,
@@ -134,7 +130,6 @@ export const loader = async ({ admin } = {}) => {
         fonts: [],
         shapes: [],
         shopifyCollections: [],
-        collectionShowInCreationMetafieldDebug: [],
         commonDescription: [],
         colorTags: [],
         unlinkedIsacordNumbers: [],

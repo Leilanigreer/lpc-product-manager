@@ -106,7 +106,6 @@ export default function CreateProduct() {
     fonts, 
     shapes, 
     shopifyCollections,
-    collectionShowInCreationMetafieldDebug = [],
     commonDescription,
     error
   } = useLoaderData();
@@ -380,47 +379,6 @@ export default function CreateProduct() {
 
         <Layout.Section>
           <BlockStack gap="400">
-
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingSm">
-                Debug: custom.show_in_creation_dropdown (Shopify payload, all collections)
-              </Text>
-              <Text as="p" variant="bodyMd" tone="subdued">
-                Raw metafield objects from the Admin GraphQL scan (one row per collection). The
-                dropdown only lists rows where parseBoolMetafield is true; null or missing counts as
-                false.
-              </Text>
-              {collectionShowInCreationMetafieldDebug.length === 0 ? (
-                <Text as="p" variant="bodyMd" tone="caution">
-                  No rows returned. Usually this means the shared loader did not run the collections
-                  query (check server logs), an older deploy is missing this field, or the shop has
-                  no collections visible to the Admin API.
-                </Text>
-              ) : (
-                <Box
-                  padding="300"
-                  background="bg-surface-secondary"
-                  borderWidth="025"
-                  borderColor="border"
-                  borderRadius="200"
-                >
-                  <pre
-                    style={{
-                      margin: 0,
-                      fontSize: "12px",
-                      overflow: "auto",
-                      maxHeight: "min(50vh, 480px)",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {JSON.stringify(collectionShowInCreationMetafieldDebug, null, 2)}
-                  </pre>
-                </Box>
-              )}
-            </BlockStack>
-          </Card>
 
           <Card>
             <BlockStack gap="300">

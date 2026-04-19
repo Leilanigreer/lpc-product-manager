@@ -453,11 +453,10 @@ function mapCollectionNodeToFormCollection(node, adjustmentsByTierGid) {
 }
 
 /**
- * Product-creation collections (`show_in_creation_dropdown` true only) plus a parallel debug list
- * of the raw metafield payload from Shopify for every collection in the Admin scan.
+ * Product-creation collections (`show_in_creation_dropdown` true only), with product metafields above.
  *
  * @param {Object} admin - Shopify authenticate.admin() client
- * @returns {Promise<{ collections: object[]; collectionShowInCreationMetafieldDebug: object[] }>}
+ * @returns {Promise<object[]>}
  */
 export async function getProductCollectionsFromShopify(admin) {
   let adjustmentsByTierGid = new Map();
@@ -472,8 +471,6 @@ export async function getProductCollectionsFromShopify(admin) {
   }
 
   const out = [];
-  /** One row per collection node from the Admin API (before inclusion filter). */
-  const collectionShowInCreationMetafieldDebug = [];
   let after = null;
   let hasNextPage = true;
 
@@ -487,16 +484,10 @@ export async function getProductCollectionsFromShopify(admin) {
     }
     const conn = json.data?.collections;
     for (const edge of conn?.edges ?? []) {
-      const node = edge?.node;
-      if (!node) continue;
-      collectionShowInCreationMetafieldDebug.push({
-        id: node.id,
-        handle: node.handle ?? "",
-        title: node.title ?? "",
-        /** Raw `metafield(namespace: "custom", key: "show_in_creation_dropdown")` from Shopify */
-        showInCreationDropdown: node.showInCreationDropdown,
-      });
-      const mapped = mapCollectionNodeToFormCollection(node, adjustmentsByTierGid);
+      const mapped = mapCollectionNodeToFormCollection(
+        edge?.node,
+        adjustmentsByTierGid
+      );
       if (mapped) out.push(mapped);
     }
     hasNextPage = conn?.pageInfo?.hasNextPage ?? false;
@@ -504,8 +495,5 @@ export async function getProductCollectionsFromShopify(admin) {
   }
 
   out.sort((a, b) => a.label.localeCompare(b.label));
-  collectionShowInCreationMetafieldDebug.sort((a, b) =>
-    (a.title || "").localeCompare(b.title || "")
-  );
-  return { collections: out, collectionShowInCreationMetafieldDebug };
+  return out;
 }
