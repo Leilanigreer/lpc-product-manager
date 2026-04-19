@@ -3,7 +3,8 @@
  *
  * Field keys (Content → Metaobject definition) must match Shopify:
  *   style, abbreviation, collection_category, shape_group,
- *   use_opposite_leather, leather_phrase, name_pattern, custom_name_pattern, needs_color_designation
+ *   use_opposite_leather, leather_phrase, name_pattern, custom_name_pattern, needs_color_designation,
+ *   use_in_variant_title (boolean, default true when omitted)
  *
  * Collection-level flags (e.g. needs_secondary_leather, stitching/thread rules) live on collection
  * metafields — not on style.
@@ -41,6 +42,7 @@ const LIST_STYLES = `#graphql
         namePatternField: field(key: "name_pattern") { value }
         customNamePatternField: field(key: "custom_name_pattern") { value }
         needsColorDesignationField: field(key: "needs_color_designation") { value }
+        useInVariantTitleField: field(key: "use_in_variant_title") { value }
       }
     }
   }
@@ -152,6 +154,14 @@ export function mapStyleMetaobjectNodeToFormStyle(node) {
   const collectionCategory = choiceListSingleValueField(node.collectionCategoryField);
   const shapeGroup = choiceListSingleValueField(node.shapeGroupField);
 
+  const useInVariantTitleRaw = node.useInVariantTitleField;
+  const useInVariantTitle =
+    useInVariantTitleRaw == null ||
+    useInVariantTitleRaw.value === null ||
+    useInVariantTitleRaw.value === ""
+      ? true
+      : parseBoolField(useInVariantTitleRaw);
+
   return {
     source: "shopify",
     value: node.id,
@@ -167,6 +177,7 @@ export function mapStyleMetaobjectNodeToFormStyle(node) {
     namePattern: normalizeNamePattern(stringField(node.namePatternField)),
     customNamePattern: stringField(node.customNamePatternField) ?? null,
     needsColorDesignation: parseBoolField(node.needsColorDesignationField),
+    useInVariantTitle,
   };
 }
 

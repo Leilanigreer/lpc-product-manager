@@ -67,28 +67,46 @@ export function styleCategoryMatchesShapeGroup(styleCategory, shapeGroup) {
   return norm(sc) === norm(String(shapeGroup).trim());
 }
 
-/**
- * Matches {@link ShapeGrid} style column: show when more than one style applies to this shape’s
- * group; legacy fallback when `shape_group` is missing uses `collection.needsStyle`.
- * @param {Object} formState
- * @param {Object} shapeRow - Row from `allShapes` (shapeType, shapeGroup, …)
- */
-export function showStyleDropdownForShape(formState, shapeRow) {
-  const collection = formState?.collection;
-  const collectionStyles = collection?.styles ?? [];
-  const isPutterShape = isPutter(shapeRow);
-  const group = getShapeGroup(shapeRow);
-  const matchingStyleCount =
-    group == null
-      ? null
-      : collectionStyles.filter((s) =>
-          styleCategoryMatchesShapeGroup(s.shapeGroup, group)
-        ).length;
+const DRIVERS_WOODS_HYBRIDS_NORM = "drivers_woods_hybrids";
 
-  if (matchingStyleCount == null) {
-    return Boolean(collection?.needsStyle && !isPutterShape);
+function normShapeGroupKey(g) {
+  if (g == null || String(g).trim() === "") return "";
+  return String(g).trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+/** Shape row belongs to the drivers/woods/hybrids shape_group (Shopify choice). */
+export function isDriversWoodsHybridsShape(shapeRow) {
+  return normShapeGroupKey(getShapeGroup(shapeRow)) === DRIVERS_WOODS_HYBRIDS_NORM;
+}
+
+/**
+ * True when every selected shape in the drivers/woods/hybrids group shares the same style metaobject
+ * (or all have no style). Used to omit redundant style names from variant titles.
+ */
+export function allSelectedDriversWoodsHybridsShareSameStyle(formState) {
+  const selected = Object.values(formState.allShapes ?? {}).filter((s) => s?.isSelected);
+  const dwh = selected.filter((s) => isDriversWoodsHybridsShape(s));
+  if (dwh.length === 0) return false;
+  const styleIds = dwh.map((s) => s.style?.value ?? null);
+  return new Set(styleIds).size <= 1;
+}
+
+/**
+ * Whether to include the style label in base/customize variant titles.
+ * - Honors `style.useInVariantTitle` from Shopify (defaults true when unset).
+ * - If all selected DWH shapes share one style, omit the style name (redundant).
+ */
+export function includeStyleInVariantTitle(formState, shapeRow) {
+  const style = shapeRow?.style;
+  if (!style) return false;
+  if (style.useInVariantTitle === false) return false;
+  if (
+    isDriversWoodsHybridsShape(shapeRow) &&
+    allSelectedDriversWoodsHybridsShareSameStyle(formState)
+  ) {
+    return false;
   }
-  return matchingStyleCount > 1;
+  return true;
 }
 
 export const getShapeCategory = (shape) => {

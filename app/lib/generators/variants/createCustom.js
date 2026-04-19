@@ -4,7 +4,7 @@ import {
   formatSKU,
   calculatePrice,
   isPutter,
-  showStyleDropdownForShape,
+  includeStyleInVariantTitle,
 } from "../../utils";
 import { leatherNameForListing } from "../../utils/leatherListing.js";
 
@@ -16,7 +16,7 @@ const getVariantName = (shapeData, formState) => {
   const prefix = 'Customize';
   const suffix = '+$15';
 
-  const includeStyleName = showStyleDropdownForShape(formState, shapeData);
+  const includeStyleName = includeStyleInVariantTitle(formState, shapeData);
 
   // Get shape label, using "Fairway" for wood types
   const shapeLabel = shapeData.shapeType === 'WOOD' ? 'Fairway' : shapeData.label;
