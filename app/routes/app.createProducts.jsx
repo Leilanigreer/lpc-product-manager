@@ -106,6 +106,7 @@ export default function CreateProduct() {
     fonts, 
     shapes, 
     shopifyCollections,
+    collectionShowInCreationMetafieldDebug = [],
     commonDescription,
     error
   } = useLoaderData();
@@ -379,6 +380,40 @@ export default function CreateProduct() {
 
         <Layout.Section>
           <BlockStack gap="400">
+
+          {process.env.NODE_ENV === "development" && (
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h2" variant="headingSm">
+                  Debug: custom.show_in_creation_dropdown (Shopify payload, all collections)
+                </Text>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Raw metafield objects from the loader query. The dropdown uses
+                  parseBoolMetafield; null or missing counts as false.
+                </Text>
+                <Box
+                  padding="300"
+                  background="bg-surface-secondary"
+                  borderWidth="025"
+                  borderColor="border"
+                  borderRadius="200"
+                >
+                  <pre
+                    style={{
+                      margin: 0,
+                      fontSize: "12px",
+                      overflow: "auto",
+                      maxHeight: "min(50vh, 480px)",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {JSON.stringify(collectionShowInCreationMetafieldDebug, null, 2)}
+                  </pre>
+                </Box>
+              </BlockStack>
+            </Card>
+          )}
 
           <Card>
             <BlockStack gap="300">

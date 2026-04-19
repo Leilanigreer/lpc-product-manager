@@ -1,8 +1,9 @@
 /**
  * Shopify Admin API: collections that drive create-product.
  *
- * Source of truth is Shopify — no Postgres join for the list. We only return
- * collections with custom.show_in_creation_dropdown = true.
+ * Source of truth is Shopify — no Postgres join for the list. A collection is included only when
+ * `custom.show_in_creation_dropdown` parses as true (`parseBoolMetafield`). Missing or empty
+ * metafield is treated as false.
  *
  * Metafields requested (namespace custom):
  *   validation, handle_template, seo_template, title_template, google_driver_folder_id,
@@ -445,17 +446,18 @@ function mapCollectionNodeToFormCollection(node, adjustmentsByTierGid) {
     commonDescription: true,
     needsStyle: false,
     stylePerCollection: false,
-    showInDropdown: parseBoolMetafield(node.showInCreationDropdown),
+    showInDropdown: true,
     defaultStyleNamePattern: "STANDARD",
     styles: [],
   };
 }
 
 /**
- * Collections flagged with custom.show_in_creation_dropdown, with product metafields above.
+ * Product-creation collections (`show_in_creation_dropdown` true only) plus a parallel debug list
+ * of the raw metafield payload from Shopify for every collection in the Admin scan.
  *
  * @param {Object} admin - Shopify authenticate.admin() client
- * @returns {Promise<object[]>}
+ * @returns {Promise<{ collections: object[]; collectionShowInCreationMetafieldDebug: object[] }>}
  */
 export async function getProductCollectionsFromShopify(admin) {
   let adjustmentsByTierGid = new Map();
@@ -470,6 +472,8 @@ export async function getProductCollectionsFromShopify(admin) {
   }
 
   const out = [];
+  /** One row per collection node from the Admin API (before inclusion filter). */
+  const collectionShowInCreationMetafieldDebug = [];
   let after = null;
   let hasNextPage = true;
 
@@ -483,10 +487,16 @@ export async function getProductCollectionsFromShopify(admin) {
     }
     const conn = json.data?.collections;
     for (const edge of conn?.edges ?? []) {
-      const mapped = mapCollectionNodeToFormCollection(
-        edge?.node,
-        adjustmentsByTierGid
-      );
+      const node = edge?.node;
+      if (!node) continue;
+      collectionShowInCreationMetafieldDebug.push({
+        id: node.id,
+        handle: node.handle ?? "",
+        title: node.title ?? "",
+        /** Raw `metafield(namespace: "custom", key: "show_in_creation_dropdown")` from Shopify */
+        showInCreationDropdown: node.showInCreationDropdown,
+      });
+      const mapped = mapCollectionNodeToFormCollection(node, adjustmentsByTierGid);
       if (mapped) out.push(mapped);
     }
     hasNextPage = conn?.pageInfo?.hasNextPage ?? false;
@@ -494,5 +504,8 @@ export async function getProductCollectionsFromShopify(admin) {
   }
 
   out.sort((a, b) => a.label.localeCompare(b.label));
-  return out;
+  collectionShowInCreationMetafieldDebug.sort((a, b) =>
+    (a.title || "").localeCompare(b.title || "")
+  );
+  return { collections: out, collectionShowInCreationMetafieldDebug };
 }
