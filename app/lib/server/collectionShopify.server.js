@@ -2,11 +2,12 @@
  * Shopify Admin API: collections that drive create-product.
  *
  * Source of truth is Shopify — no Postgres join for the list. We only return
- * collections that have custom.pricing_tier set so the catalog matches “product-ready” sets.
+ * collections with custom.show_in_creation_dropdown = true.
  *
  * Metafields requested (namespace custom):
  *   validation, handle_template, seo_template, title_template, google_driver_folder_id,
- *   category, sku_pattern, thread_type, needs_secondary_leather, tag, pricing_tier (metaobject reference)
+ *   category, sku_pattern, thread_type, needs_secondary_leather, tag, show_in_creation_dropdown,
+ *   pricing_tier (metaobject reference, optional — still loaded when set)
  *
  * Pricing tier metaobject (`price_tier`): shopify_price, marketplace_price, name — inlined on the
  * collection query reference. Shape adjustments (`shape_type_adjustment`) are loaded separately and
@@ -80,6 +81,10 @@ const PRODUCT_COLLECTIONS_QUERY = `#graphql
             value
             type
           }
+          showInCreationDropdown: metafield(namespace: "custom", key: "show_in_creation_dropdown") {
+            value
+            type
+          }
           pricingTier: metafield(namespace: "custom", key: "pricing_tier") {
             value
             type
@@ -141,12 +146,6 @@ function metafieldString(mf) {
   if (mf == null || mf.value == null) return null;
   const s = String(mf.value).trim();
   return s.length ? s : null;
-}
-
-function hasPricingTierSet(mf) {
-  if (!mf) return false;
-  if (mf.reference != null) return true;
-  return Boolean(metafieldString(mf));
 }
 
 function parseTitleValidationJson(raw) {
@@ -341,7 +340,8 @@ async function fetchAllShapeTypeAdjustmentNodes(admin) {
  * @param {Map<string, object[]>} adjustmentsByTierGid
  */
 function mapCollectionNodeToFormCollection(node, adjustmentsByTierGid) {
-  if (!node || !hasPricingTierSet(node.pricingTier)) return null;
+  if (!node) return null;
+  if (!parseBoolMetafield(node.showInCreationDropdown)) return null;
 
   const titleTemplate = metafieldString(node.titleTemplate) ?? "";
   const seoTemplate = metafieldString(node.seoTemplate) ?? "";
@@ -437,6 +437,7 @@ function mapCollectionNodeToFormCollection(node, adjustmentsByTierGid) {
       thread_type: node.threadType,
       needs_secondary_leather: node.needsSecondaryLeather,
       tag: node.tag,
+      show_in_creation_dropdown: node.showInCreationDropdown,
       pricing_tier: node.pricingTier,
     },
 
@@ -444,14 +445,14 @@ function mapCollectionNodeToFormCollection(node, adjustmentsByTierGid) {
     commonDescription: true,
     needsStyle: false,
     stylePerCollection: false,
-    showInDropdown: true,
+    showInDropdown: parseBoolMetafield(node.showInCreationDropdown),
     defaultStyleNamePattern: "STANDARD",
     styles: [],
   };
 }
 
 /**
- * All collections with custom.pricing_tier set, with the product metafields above.
+ * Collections flagged with custom.show_in_creation_dropdown, with product metafields above.
  *
  * @param {Object} admin - Shopify authenticate.admin() client
  * @returns {Promise<object[]>}
