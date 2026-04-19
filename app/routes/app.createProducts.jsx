@@ -300,7 +300,17 @@ export default function CreateProduct() {
       }
       const existingProducts = skuPayload.existingProducts ?? [];
       const shopifyGraphqlPages = skuPayload.shopifyGraphqlPages ?? [];
-      const collectionIdFromApi = skuPayload.collectionId ?? null;
+      /** API echoes this; fall back to parsing the request URL if an older deploy omits the field. */
+      let collectionIdFromApi = skuPayload.collectionId ?? null;
+      if (collectionIdFromApi == null && typeof window !== "undefined") {
+        try {
+          collectionIdFromApi = new URL(skuUrl, window.location.origin).searchParams.get(
+            "collectionId"
+          );
+        } catch {
+          /* ignore */
+        }
+      }
 
       setPreviewCollectionSkuDebug({
         collectionIdFromForm: collectionGid,
