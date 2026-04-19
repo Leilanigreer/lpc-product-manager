@@ -37,9 +37,10 @@ export default function App() {
           Home
         </Link>
         <Link to="/app/createProducts">Create a new product</Link>
-        <Link to="/app/addColorTags">Manage Color Tags</Link>
+        <Link to="/app/syncSkus">Sync base SKUs</Link>
         <Link to="/app/addLeatherColor">Manage Leather Color</Link>
         <Link to="/app/addThreadColors">Manage Thread Colors</Link>
+        <Link to="/app/addColorTags">Manage Color Tags</Link>
         <Link to="/app/updatePricing">Update Pricing</Link>
       </NavMenu>
       <Outlet />
