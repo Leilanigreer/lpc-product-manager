@@ -295,7 +295,7 @@ export default function CreateProduct() {
         throw new Error(skuPayload.error);
       }
       const existingProducts = skuPayload.existingProducts ?? [];
-      const stats = skuPayload.stats ?? null;
+      const shopifyGraphqlPages = skuPayload.shopifyGraphqlPages ?? [];
 
       setPreviewCollectionSkuDebug({
         collectionId: formState.collection.value,
@@ -303,10 +303,7 @@ export default function CreateProduct() {
         rowCount: existingProducts.length,
         baseSkuStrings: existingProducts.map((r) => r.baseSKU).filter(Boolean),
         rows: existingProducts,
-        collectionProductCount: stats?.collectionProductCount ?? null,
-        productsWithBaseSkuMetafield: stats?.productsWithBaseSkuMetafield ?? null,
-        productsWithNonEmptyBaseSku: stats?.productsWithNonEmptyBaseSku ?? null,
-        collectionResolved: stats?.collectionResolved ?? null,
+        shopifyGraphqlPages,
       });
 
       const data = await generateProductData(

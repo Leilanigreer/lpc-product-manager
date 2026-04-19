@@ -10,22 +10,23 @@ export const loader = async ({ request }) => {
     return json({
       collectionId: null,
       existingProducts: [],
-      stats: null,
+      shopifyGraphqlPages: [],
       error: null,
     });
   }
   try {
-    const { existingProducts, stats } = await fetchCollectionBaseSkusForVersioning(
-      (query, options) => admin.graphql(query, options),
-      collectionId
-    );
-    return json({ collectionId, existingProducts, stats, error: null });
+    const { existingProducts, shopifyGraphqlPages } =
+      await fetchCollectionBaseSkusForVersioning(
+        (query, options) => admin.graphql(query, options),
+        collectionId
+      );
+    return json({ collectionId, existingProducts, shopifyGraphqlPages, error: null });
   } catch (e) {
     console.error("[collection-base-skus]", e);
     return json({
       collectionId,
       existingProducts: [],
-      stats: null,
+      shopifyGraphqlPages: [],
       error: e?.message ?? String(e),
     });
   }
