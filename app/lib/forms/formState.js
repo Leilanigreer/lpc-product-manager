@@ -4,10 +4,12 @@ export const createInitialShapeState = (shape) => ({
   // Base properties from shape
   value: shape.value,
   label: shape.label,
+  cardDisplayName: shape.cardDisplayName ?? shape.label,
   abbreviation: shape.abbreviation,
   shapeType: shape.shapeType,
   /** Shopify `shape_group` choice list; null when from Postgres or unset. */
   shapeGroup: shape.shapeGroup ?? null,
+  sizingGuideGroup: shape.sizingGuideGroup ?? null,
   displayOrder: shape.displayOrder,
   isActive: shape.isActive,
 

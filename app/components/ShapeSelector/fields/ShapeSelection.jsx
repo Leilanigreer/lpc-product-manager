@@ -10,6 +10,7 @@ const ShapeSelection = ({
 }) => {
   const shapeState = formState.allShapes[shape.value];
   const isSelected = shapeState?.isSelected;
+  const displayLabel = shape.cardDisplayName || shape.label;
 
   // Updated to work with new shape state structure
   const handleSelect = useCallback((checked) => {
@@ -42,7 +43,7 @@ const ShapeSelection = ({
       <Box width="125px">
         <Checkbox
           id={shape.value}
-          label={shape.label}
+          label={displayLabel}
           checked={isSelected}
           onChange={handleSelect}
         />

@@ -2,8 +2,8 @@
  * Shopify `shape` metaobjects for create-product.
  *
  * Field keys (Content → Metaobject definition) must match Shopify:
- *   shape, is_representative, abbreviation, shape_type (single choice list),
- *   shape_group (single choice list), display_order
+ *   shape, card_display_name, sizing_guide_group, is_representative, abbreviation,
+ *   shape_type (single choice list), shape_group (single choice list), display_order
  *
  * Choice lists (`shape_type`, `shape_group`): Shopify may return `jsonValue` or `value` as a JSON
  * array string; we take the first choice. `shape_type` is normalized to Prisma `ShapeType` tokens;
@@ -38,6 +38,8 @@ const LIST_SHAPES = `#graphql
         handle
         displayName
         shapeField: field(key: "shape") { value }
+        cardDisplayNameField: field(key: "card_display_name") { value }
+        sizingGuideGroupField: field(key: "sizing_guide_group") { value }
         isRepresentativeField: field(key: "is_representative") { value }
         abbreviationField: field(key: "abbreviation") { value }
         shapeTypeField: field(key: "shape_type") {
@@ -181,6 +183,7 @@ function fallbackAbbreviation(label) {
 export function mapShapeMetaobjectNodeToFormShape(node) {
   const shapeName = stringField(node.shapeField);
   const label = shapeName || node.displayName || node.handle || node.id;
+  const cardDisplayName = stringField(node.cardDisplayNameField) || label;
   const abbreviation =
     stringField(node.abbreviationField) || fallbackAbbreviation(label);
 
@@ -188,6 +191,8 @@ export function mapShapeMetaobjectNodeToFormShape(node) {
     source: "shopify",
     value: node.id,
     label,
+    cardDisplayName,
+    sizingGuideGroup: stringField(node.sizingGuideGroupField),
     displayOrder: parseDisplayOrder(node.displayOrderField),
     abbreviation,
     shapeType: normalizeShapeType(choiceListSingleValueField(node.shapeTypeField)),
@@ -223,7 +228,7 @@ async function fetchAllShapePages(admin) {
 
 /**
  * @param {Object} admin - Shopify authenticate.admin() client
- * @returns {Promise<object[]>} Sorted, active-only shape rows (same general shape as getShapes())
+ * @returns {Promise<object[]>} Sorted shape rows (includes non-representative rows for sizing-group expansion)
  */
 export async function getShapesFromShopify(admin) {
   if (!admin?.graphql) {
@@ -232,7 +237,6 @@ export async function getShapesFromShopify(admin) {
   const nodes = await fetchAllShapePages(admin);
   return nodes
     .map(mapShapeMetaobjectNodeToFormShape)
-    .filter((s) => s.isActive)
     .sort((a, b) => {
       if (a.displayOrder !== b.displayOrder) {
         return a.displayOrder - b.displayOrder;

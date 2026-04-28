@@ -29,9 +29,16 @@ const ShapeSelector = ({
   formState, 
   handleChange
 }) => {
+  // Keep non-representative shapes in form state for downstream expansion logic,
+  // but only show representative/active rows in this selector UI.
+  const visibleShapes = useMemo(
+    () => shapes.filter((shape) => shape.isActive !== false),
+    [shapes]
+  );
+
   // Split shapes into putter and non-putter groups
   const { putterShapes, nonPutterShapes } = useMemo(() => {
-    return shapes.reduce((acc, shape) => {
+    return visibleShapes.reduce((acc, shape) => {
       if (isPutter(shape)) {
         acc.putterShapes.push(shape);
       } else {
@@ -39,7 +46,7 @@ const ShapeSelector = ({
       }
       return acc;
     }, { putterShapes: [], nonPutterShapes: [] });
-  }, [shapes]);
+  }, [visibleShapes]);
 
   // Memoize props for each grid
   const gridProps = useMemo(() => ({

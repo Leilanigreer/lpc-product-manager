@@ -23,6 +23,41 @@ const assignVariantPositions = (variants, allShapes) => {
   }));
  };
 
+const normalizeSizingGuideGroup = (value) => {
+  if (value == null) return null;
+  const normalized = String(value).trim();
+  return normalized.length ? normalized : null;
+};
+
+const expandSelectionsBySizingGuideGroup = (allShapes) => {
+  const shapeRows = Object.values(allShapes ?? {});
+  if (!shapeRows.length) {
+    return allShapes;
+  }
+
+  const selectedGroups = new Set(
+    shapeRows
+      .filter((shape) => shape?.isSelected)
+      .map((shape) => normalizeSizingGuideGroup(shape?.sizingGuideGroup))
+      .filter(Boolean)
+  );
+
+  if (selectedGroups.size === 0) {
+    return allShapes;
+  }
+
+  const expanded = { ...allShapes };
+  for (const row of shapeRows) {
+    const rowGroup = normalizeSizingGuideGroup(row?.sizingGuideGroup);
+    if (!rowGroup || !selectedGroups.has(rowGroup) || row?.isSelected) continue;
+    expanded[row.value] = {
+      ...row,
+      isSelected: true,
+    };
+  }
+  return expanded;
+};
+
 /**
  * Generates all variants (regular and custom) for a product based on form state
  * @param {Object} formState - Enhanced form state containing all product configuration
@@ -50,15 +85,23 @@ export const generateVariants = async (formState, skuInfo) => {
       return [];
     }
 
-    const regularVariants = assignVariantPositions(
-      createRegularVariants(formState, skuInfo),
+    const allShapesForGeneration = expandSelectionsBySizingGuideGroup(
       formState.allShapes
+    );
+    const effectiveFormState = {
+      ...formState,
+      allShapes: allShapesForGeneration,
+    };
+
+    const regularVariants = assignVariantPositions(
+      createRegularVariants(effectiveFormState, skuInfo),
+      effectiveFormState.allShapes
     );
 
     // Create and position custom variants
     const customVariants = assignVariantPositions(
-      createCustomVariants(formState, skuInfo),
-      formState.allShapes
+      createCustomVariants(effectiveFormState, skuInfo),
+      effectiveFormState.allShapes
     );
 
     const allVariants = [
@@ -66,12 +109,16 @@ export const generateVariants = async (formState, skuInfo) => {
       ...customVariants.map(variant => ({
         ...variant,
         position: variant.position + regularVariants.length,
-        shapeType: formState.allShapes[variant.shapeValue]?.shapeType || 'DEFAULT'
+        shapeType:
+          effectiveFormState.allShapes[variant.shapeValue]?.shapeType ||
+          'DEFAULT'
       }))
     ];
 
     const sorted = allVariants.sort((a, b) => a.position - b.position);
-    const woodRepMap = buildWoodBaseToRepresentativeShapeValueMap(formState);
+    const woodRepMap = buildWoodBaseToRepresentativeShapeValueMap(
+      effectiveFormState
+    );
 
     return sorted.map((v) => {
       if (v.isCustom || v.shapeType !== "WOOD") return v;

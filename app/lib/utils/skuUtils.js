@@ -1,7 +1,6 @@
 // app/lib/utils/skuUtils.js
 
 import _ from 'lodash';
-import { isPutter } from './shapeUtils';
 
 /**
  * Extracts unique `{ baseSKU, collection }` rows from legacy Prisma `productSetDataLPC`-shaped
@@ -89,24 +88,19 @@ export const formatSKU = (baseParts, version, shapeValue, formState, options = {
     if (options.isCustom) {
       const shapeAbbrev = shapeData.shapeType === 'WOOD' ? 'Fairway' : shapeData.abbreviation;
       
-      // Skip style abbreviation for putters
-      if (isPutter(shapeData)) {
-        fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-Custom`;
-      } else {
-        const styleAbbrev = shapeData.style?.abbreviation;
-        if (styleAbbrev) {
-          // Handle style-specific custom SKUs
-          if (shapeData.needsColorDesignation && shapeData.colorDesignation?.abbreviation) {
-            // With color designation (e.g., QClassic)
-            fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${shapeData.colorDesignation.abbreviation}-${styleAbbrev}-Custom`;
-          } else {
-            // Regular style custom
-            fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${styleAbbrev}-Custom`;
-          }
+      const styleAbbrev = shapeData.style?.abbreviation;
+      if (styleAbbrev) {
+        // Handle style-specific custom SKUs
+        if (shapeData.needsColorDesignation && shapeData.colorDesignation?.abbreviation) {
+          // With color designation (e.g., QClassic)
+          fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${shapeData.colorDesignation.abbreviation}-${styleAbbrev}-Custom`;
         } else {
-          // Regular custom
-          fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-Custom`;
+          // Regular style custom
+          fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${styleAbbrev}-Custom`;
         }
+      } else {
+        // Regular custom
+        fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-Custom`;
       }
     } else {
       // Regular variant

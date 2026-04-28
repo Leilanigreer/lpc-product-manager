@@ -3,7 +3,6 @@
 import {
   formatSKU,
   calculatePrice,
-  isPutter,
   includeStyleInVariantTitle,
 } from "../../utils";
 import { leatherNameForListing } from "../../utils/leatherListing.js";
@@ -21,10 +20,6 @@ const getVariantName = (shapeData, formState) => {
   // Get shape label, using "Fairway" for wood types
   const shapeLabel = shapeData.shapeType === 'WOOD' ? 'Fairway' : shapeData.label;
   
-  if (isPutter(shapeData)) {
-    return `${prefix} ${shapeLabel} ${suffix}`;
-  }
-
   // If no shapeData style or color designation needed, return simple name
   if (!shapeData.style && !shapeData.needsColorDesignation) {
     return `${prefix} ${shapeLabel} ${suffix}`;
