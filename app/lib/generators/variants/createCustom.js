@@ -13,7 +13,7 @@ const PLACEHOLDER_WEIGHT = "0";
 
 const getVariantName = (shapeData, formState) => {
   // Base name prefix and suffix
-  const prefix = 'Customize';
+  const prefix = 'Customized';
   const suffix = '+$15';
 
   const includeStyleName = includeStyleInVariantTitle(formState, shapeData);
