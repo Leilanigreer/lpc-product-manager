@@ -87,6 +87,3 @@ export async function action({ request }) {
   }
 }
 
-export default function GenerateProductDescriptionApi() {
-  return null;
-}
