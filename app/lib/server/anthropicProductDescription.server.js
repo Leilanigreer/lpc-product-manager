@@ -2,9 +2,16 @@
  * Claude Messages API — product description from reference image + title + collection examples.
  */
 
+import sharp from "sharp";
+
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
-const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+/** Anthropic Messages API: max ~5 MB decoded per image (docs.anthropic.com vision). */
+const ANTHROPIC_MAX_DECODED_IMAGE_BYTES = 5 * 1024 * 1024;
+/** Guardrail before Sharp — large workshop RAWs; output is always shrunk for Claude. */
+const MAX_INCOMING_DECODED_BYTES = 28 * 1024 * 1024;
+/** Anthropic recommends ~1568px long edge for vision; keeps payload well under 5MB. */
+const VISION_MAX_EDGE = 1568;
 
 function messageFromAnthropicErrorBody(json, resStatus, rawText) {
   const err = json?.error;
@@ -51,9 +58,45 @@ export async function generateProductDescriptionViaClaude({
     throw new Error("imageBase64 is required.");
   }
 
-  const approxBytes = Math.ceil((imageBase64.length * 3) / 4);
-  if (approxBytes > MAX_IMAGE_BYTES) {
-    throw new Error("Image payload is too large.");
+  const trimmedB64 = imageBase64.trim();
+  const approxIncoming = Math.ceil((trimmedB64.length * 3) / 4);
+  if (approxIncoming > MAX_INCOMING_DECODED_BYTES) {
+    throw new Error(
+      `Reference image is about ${Math.ceil(approxIncoming / (1024 * 1024))}MB after decoding; max ${Math.floor(MAX_INCOMING_DECODED_BYTES / (1024 * 1024))}MB before processing.`
+    );
+  }
+
+  let imageBase64ForApi;
+  let mediaTypeForApi;
+  /** @type {number} */
+  let jpegBytesOut = 0;
+  try {
+    const inputBuf = Buffer.from(trimmedB64, "base64");
+    const outBuf = await sharp(inputBuf)
+      .rotate()
+      .resize({
+        width: VISION_MAX_EDGE,
+        height: VISION_MAX_EDGE,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 80, mozjpeg: true })
+      .toBuffer();
+
+    if (outBuf.length > ANTHROPIC_MAX_DECODED_IMAGE_BYTES) {
+      throw new Error(
+        "Compressed image still exceeds Anthropic's 5MB per-image limit; try a smaller source file."
+      );
+    }
+    jpegBytesOut = outBuf.length;
+    imageBase64ForApi = outBuf.toString("base64");
+    mediaTypeForApi = "image/jpeg";
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("Anthropic's 5MB")) {
+      throw e;
+    }
+    const hint = e instanceof Error ? e.message : String(e);
+    throw new Error(`Could not prepare image for Claude (${hint}).`);
   }
 
   const titleStr = String(title ?? "").trim() || "Untitled";
@@ -75,8 +118,8 @@ export async function generateProductDescriptionViaClaude({
             type: "image",
             source: {
               type: "base64",
-              media_type: mediaType,
-              data: imageBase64.trim(),
+              media_type: mediaTypeForApi,
+              data: imageBase64ForApi,
             },
           },
           {
@@ -89,13 +132,17 @@ export async function generateProductDescriptionViaClaude({
   });
 
   const messagesJsonUtf8Bytes = Buffer.byteLength(body, "utf8");
-  console.info("[anthropicProductDescription] outbound request size", {
-    model,
-    mediaType,
-    imageDecodedApproxBytes: approxBytes,
-    imageBase64CharLength: imageBase64.trim().length,
-    messagesJsonUtf8Bytes,
-  });
+  console.info(
+    `[anthropicProductDescription] outbound request size ${JSON.stringify({
+      model,
+      mediaTypeIn: mediaType,
+      mediaTypeOut: mediaTypeForApi,
+      imageDecodedApproxBytesIn: approxIncoming,
+      imageJpegBytesOut: jpegBytesOut,
+      imageBase64CharLengthOut: imageBase64ForApi.length,
+      messagesJsonUtf8Bytes,
+    })}`
+  );
 
   const res = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
