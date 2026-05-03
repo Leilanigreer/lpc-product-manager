@@ -55,6 +55,30 @@ const expandSelectionsBySizingGuideGroup = (allShapes) => {
       isSelected: true,
     };
   }
+
+  // Same sizing_guide_group shares one style choice from the form (representative row).
+  // Auto-expanded siblings must inherit it so variant titles and custom SKUs keep the style segment.
+  const styleByGroup = new Map();
+  for (const row of Object.values(expanded)) {
+    const g = normalizeSizingGuideGroup(row?.sizingGuideGroup);
+    if (!g || !row?.isSelected || !row.style?.value) continue;
+    if (!styleByGroup.has(g)) {
+      styleByGroup.set(g, row.style);
+    }
+  }
+
+  for (const [shapeValue, row] of Object.entries(expanded)) {
+    const g = normalizeSizingGuideGroup(row?.sizingGuideGroup);
+    if (!g || !row?.isSelected || row.style?.value) continue;
+    const inherited = styleByGroup.get(g);
+    if (inherited) {
+      expanded[shapeValue] = {
+        ...row,
+        style: inherited,
+      };
+    }
+  }
+
   return expanded;
 };
 
