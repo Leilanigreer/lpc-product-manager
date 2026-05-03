@@ -180,10 +180,6 @@ export default function CreateProduct() {
   const [referencePreviewUrl, setReferencePreviewUrl] = useState(null);
   const prevCollectionIdRef = useRef(undefined);
 
-  const manualDescriptionMode =
-    Boolean(formState.collection?.value) &&
-    formState.collection?.exampleProductDescriptions == null;
-
   const claudeDescriptionMode =
     Boolean(formState.collection?.value) &&
     formState.collection?.exampleProductDescriptions != null;
@@ -395,9 +391,6 @@ export default function CreateProduct() {
 
       if (isManual) {
         descriptionPlain = String(aiDescription).trim();
-        if (!descriptionPlain) {
-          throw new Error("Enter a product description.");
-        }
       } else {
         if (!referenceImage?.base64 || !referenceImage?.mediaType) {
           throw new Error("Upload a reference product image before preview.");
@@ -455,6 +448,11 @@ export default function CreateProduct() {
   const handleSubmit = () => {
     if (!productData) {
       setSubmissionError("Please generate product data first");
+      return;
+    }
+
+    if (!String(aiDescription ?? "").trim()) {
+      setSubmissionError("Please write a description before creating the product.");
       return;
     }
 
@@ -574,26 +572,10 @@ export default function CreateProduct() {
                 onChange={handleChange}
               />
 
-              {manualDescriptionMode && (
-                <Banner status="warning" title="Collection has no example descriptions">
-                  <Text as="p" variant="bodyMd">
-                    This collection does not have a usable{" "}
-                    <Text as="span" fontWeight="semibold">
-                      custom.example_product_descriptions
-                    </Text>{" "}
-                    metafield (or it could not be parsed as JSON). Write the product description by
-                    hand below. AI generation is disabled for this collection.
-                  </Text>
-                </Banner>
-              )}
-
               {claudeDescriptionMode && (
-                <BlockStack gap="200">
+                <>
                   <Text as="h2" variant="headingSm">
                     Reference product image
-                  </Text>
-                  <Text as="p" variant="bodyMd" tone="subdued">
-                    Upload a group shot (HEIC, JPEG, or PNG). Used only for AI description generation.
                   </Text>
                   <DropZone
                     accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
@@ -605,27 +587,12 @@ export default function CreateProduct() {
                     <Box maxWidth="320px">
                       <img
                         src={referencePreviewUrl}
-                        alt="Reference preview"
+                        alt="Uploaded reference"
                         style={{ width: "100%", borderRadius: 8 }}
                       />
                     </Box>
                   )}
-                </BlockStack>
-              )}
-
-              {Boolean(formState.collection?.value) && (
-                <TextField
-                  label="Product description"
-                  multiline={6}
-                  autoComplete="off"
-                  value={aiDescription}
-                  onChange={setAiDescription}
-                  helpText={
-                    claudeDescriptionMode
-                      ? "Generated from Claude after Preview; edit before creating the product."
-                      : "Required before Preview. This text becomes the Shopify product description."
-                  }
-                />
+                </>
               )}
 
               <LeatherColorSelector
@@ -649,59 +616,96 @@ export default function CreateProduct() {
 
           <Card>
             <BlockStack gap="400">
-            <ShapeSelector
-              shapes={shapes}
-              leatherColors={leatherColors}
-              embroideryThreadColors={embroideryThreadColors}
-              formState={formState}
-              handleChange={handleChange}
+              <ShapeSelector
+                shapes={shapes}
+                leatherColors={leatherColors}
+                embroideryThreadColors={embroideryThreadColors}
+                formState={formState}
+                handleChange={handleChange}
               />
               {generationError && (
                 <Banner status="critical">
                   {generationError}
                 </Banner>
               )}
-              
+
               <Button
                 primary
                 size="large"
                 onClick={handleGenerateData}
                 loading={isGenerating}
                 disabled={!formState.collection || isGenerating}
-                >
+              >
                 Preview Product Data
               </Button>
             </BlockStack>
           </Card>
 
-              {productData && (
-                <Card>
-                  <BlockStack gap="400">
-                    <div ref={previewRef}>
-                      <ProductVariantCheck 
-                        productData={productData} 
-                        onImageUpload={handleImageUpload}
-                      />
-                    </div>
-                    
-                    {submissionError && (
-                      <Banner status="critical">
-                        {submissionError}
-                      </Banner>
-                    )}
-                    
-                    <Button
-                      primary
-                      loading={isSubmitting}
-                      disabled={isSubmitting}
-                      onClick={handleSubmit}
-                      >
-                      Create Product
-                    </Button>
-                  </BlockStack>
-                </Card>
-              )}
+          {productData && (
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  Preview product data
+                </Text>
+
+                <BlockStack gap="100">
+                  <Text as="p" variant="bodyMd">
+                    <Text as="span" fontWeight="semibold">
+                      Collection:{" "}
+                    </Text>
+                    {formState.collection?.label ?? productData.collection?.label ?? "—"}
+                  </Text>
+                  <Text as="p" variant="bodyMd">
+                    <Text as="span" fontWeight="semibold">
+                      Listing title:{" "}
+                    </Text>
+                    {productData.title ?? "—"}
+                  </Text>
+                  <Text as="p" variant="bodyMd">
+                    <Text as="span" fontWeight="semibold">
+                      Listing SEO title:{" "}
+                    </Text>
+                    {productData.seoTitle ?? "—"}
+                  </Text>
+                </BlockStack>
+
+                <TextField
+                  label="Description"
+                  multiline={6}
+                  autoComplete="off"
+                  value={aiDescription}
+                  onChange={setAiDescription}
+                  placeholder="Please write a description"
+                />
+
+                <Text as="h3" variant="headingSm">
+                  Base variants
+                </Text>
+                <div ref={previewRef}>
+                  <ProductVariantCheck
+                    productData={productData}
+                    onImageUpload={handleImageUpload}
+                  />
+                </div>
+
+                {submissionError && (
+                  <Banner status="critical">
+                    {submissionError}
+                  </Banner>
+                )}
+
+                <Button
+                  primary
+                  loading={isSubmitting}
+                  disabled={isSubmitting}
+                  onClick={handleSubmit}
+                >
+                  Create Product
+                </Button>
               </BlockStack>
+            </Card>
+          )}
+        </BlockStack>
         </Layout.Section>
       </Layout>
     </Page>

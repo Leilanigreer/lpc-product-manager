@@ -95,9 +95,6 @@ function buildShopifyProductMetafields(formState) {
 export const generateProductData = async (formState, productDescriptionPlain) => {
   try {
     const desc = String(productDescriptionPlain ?? "").trim();
-    if (!desc) {
-      throw new Error("Product description is required.");
-    }
 
     // Generate SKU information
     const skuParts = generateBaseParts(formState);    
