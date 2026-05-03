@@ -422,7 +422,13 @@ export default function CreateProduct() {
           );
         }
         if (!payload.description || typeof payload.description !== "string") {
-          throw new Error("Invalid response from description service.");
+          const ct = res.headers.get("content-type") || "";
+          const hint = raw
+            ? raw.slice(0, 240).replace(/\s+/g, " ")
+            : "(empty body)";
+          throw new Error(
+            `Invalid response from description service (Content-Type: ${ct || "unknown"}): ${hint}`
+          );
         }
         const descFromApi = payload.description.trim();
         setAiDescription(descFromApi);
