@@ -1,7 +1,7 @@
 // app/routes/app.createProducts.jsx
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useLoaderData, useFetcher, useLocation } from "@remix-run/react";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { validateProductForm } from "../lib/utils";
@@ -39,6 +39,10 @@ import {
   Text,
   Box,
 } from "@shopify/polaris";
+
+/** Remix data request — without `_data`, same-origin POST is a document request and returns root HTML. */
+const GENERATE_DESCRIPTION_REMIX_ROUTE_ID =
+  "routes/app.api.generate-product-description";
 
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
@@ -103,6 +107,7 @@ export const action = async ({ request }) => {
 
 export default function CreateProduct() {
   const shopify = useAppBridge();
+  const location = useLocation();
 
   const { 
     leatherColors: allLeatherColors, 
@@ -390,12 +395,19 @@ export default function CreateProduct() {
           throw new Error("Upload a reference product image before preview.");
         }
         const title = await generateTitle(formState);
-        // Embedded admin auth: authenticate.admin expects Authorization Bearer (session JWT), not only cookies.
+        // Embedded auth: Bearer JWT; keep Shopify session query params (e.g. id_token) on the URL.
         const idToken = await shopify.idToken();
-        const res = await fetch("/app/api/generate-product-description", {
+        const qs = location.search.startsWith("?")
+          ? location.search.slice(1)
+          : location.search;
+        const dataParams = new URLSearchParams(qs);
+        dataParams.set("_data", GENERATE_DESCRIPTION_REMIX_ROUTE_ID);
+        const apiUrl = `/app/api/generate-product-description?${dataParams.toString()}`;
+        const res = await fetch(apiUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Accept: "application/json",
             Authorization: `Bearer ${idToken}`,
           },
           credentials: "same-origin",
