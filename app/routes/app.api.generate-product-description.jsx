@@ -48,7 +48,19 @@ export async function action({ request }) {
     return json({ description });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return json({ error: message }, { status: 502 });
+    const upstream =
+      err && typeof err === "object" && typeof err.status === "number" ? err.status : null;
+
+    let status = 502;
+    if (message.includes("ANTHROPIC_API_KEY")) {
+      status = 503;
+    } else if (upstream === 429) {
+      status = 429;
+    } else if (upstream != null && upstream >= 400 && upstream < 500) {
+      status = 400;
+    }
+
+    return json({ error: message }, { status });
   }
 }
 

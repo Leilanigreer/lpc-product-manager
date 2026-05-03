@@ -399,9 +399,27 @@ export default function CreateProduct() {
             mediaType: referenceImage.mediaType,
           }),
         });
-        const payload = await res.json().catch(() => ({}));
+        const raw = await res.text();
+        let payload = {};
+        try {
+          payload = raw ? JSON.parse(raw) : {};
+        } catch {
+          payload = {};
+        }
         if (!res.ok) {
-          throw new Error(payload.error || `Description generation failed (${res.status})`);
+          const fromJson = typeof payload.error === "string" ? payload.error.trim() : "";
+          const fromBody =
+            raw &&
+            raw.length > 0 &&
+            raw.length < 600 &&
+            !raw.trim().startsWith("<")
+              ? raw.trim()
+              : "";
+          throw new Error(
+            fromJson ||
+              fromBody ||
+              `Description generation failed (${res.status}). If this persists, the tunnel or host may be timing out before Claude responds.`
+          );
         }
         if (!payload.description || typeof payload.description !== "string") {
           throw new Error("Invalid response from description service.");

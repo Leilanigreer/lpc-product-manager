@@ -6,6 +6,19 @@ const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 
+function messageFromAnthropicErrorBody(json, resStatus, rawText) {
+  const err = json?.error;
+  if (err && typeof err === "object" && typeof err.message === "string") {
+    return err.message;
+  }
+  if (typeof err === "string") return err;
+  if (typeof json?.message === "string") return json.message;
+  if (rawText && rawText.length > 0 && rawText.length < 800 && !rawText.trim().startsWith("<")) {
+    return rawText.trim();
+  }
+  return `Anthropic request failed (${resStatus}).`;
+}
+
 /**
  * @param {object} params
  * @param {string} params.title
@@ -45,8 +58,14 @@ export async function generateProductDescriptionViaClaude({
 
   const titleStr = String(title ?? "").trim() || "Untitled";
 
+  const model =
+    typeof process.env.ANTHROPIC_PRODUCT_DESCRIPTION_MODEL === "string" &&
+    process.env.ANTHROPIC_PRODUCT_DESCRIPTION_MODEL.trim()
+      ? process.env.ANTHROPIC_PRODUCT_DESCRIPTION_MODEL.trim()
+      : "claude-sonnet-4-6";
+
   const body = JSON.stringify({
-    model: "claude-sonnet-4-6",
+    model,
     max_tokens: 1024,
     messages: [
       {
@@ -69,6 +88,15 @@ export async function generateProductDescriptionViaClaude({
     ],
   });
 
+  const messagesJsonUtf8Bytes = Buffer.byteLength(body, "utf8");
+  console.info("[anthropicProductDescription] outbound request size", {
+    model,
+    mediaType,
+    imageDecodedApproxBytes: approxBytes,
+    imageBase64CharLength: imageBase64.trim().length,
+    messagesJsonUtf8Bytes,
+  });
+
   const res = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
@@ -79,14 +107,19 @@ export async function generateProductDescriptionViaClaude({
     body,
   });
 
-  const json = await res.json().catch(() => ({}));
+  const rawText = await res.text();
+  let json = {};
+  try {
+    json = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    json = {};
+  }
+
   if (!res.ok) {
-    const msg =
-      json?.error?.message ||
-      json?.message ||
-      (typeof json === "string" ? json : null) ||
-      res.statusText;
-    throw new Error(msg || `Anthropic API error (${res.status})`);
+    const msg = messageFromAnthropicErrorBody(json, res.status, rawText);
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
   }
 
   const parts = json?.content;
