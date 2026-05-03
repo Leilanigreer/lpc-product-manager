@@ -22,6 +22,8 @@ const CollectionSelector = ({
   shopifyCollections,
   formState,
   onChange,
+  /** When true, omit outer Card (e.g. beside group image in a shared Card). */
+  embedded = false,
 }) => {
   const collectionOptions = useMemo(() => [    
     { label: 'Select a collection...', value: '' }, 
@@ -40,36 +42,40 @@ const CollectionSelector = ({
     }
   };
 
-  return (
-    <Card>
-      <Box width="100%">
-        <Text as="h2" variant="headingMd">Collection Selection</Text>
-        <Box paddingBlockStart="200">
-          <Select
-            label="Select a collection"
-            options={collectionOptions}
-            onChange={handleCollectionChange}
-            value={formState.collection?.value || ''}
-          />
-        </Box>
-
-        {formState.collection?.value && !formState.collection?.priceTier && (
-          <Box paddingBlockStart="200">
-            <Text as="p" variant="bodyMd" tone="subdued">
-              No pricing tier is linked to this collection in Shopify. Set product and
-              variant pricing manually after creation.
-            </Text>
-            <Box paddingBlockStart="150">
-              <Text as="p" variant="bodyMd" tone="subdued">
-                Title, SEO title, variant names, and other fields that usually come from
-                collection templates are not filled by the app here yet. Plan to enter those manually until full in-app support for this collection is built.
-              </Text>
-            </Box>
-          </Box>
-        )}
+  const body = (
+    <Box width="100%">
+      <Text as="h2" variant="headingMd">Collection Selection</Text>
+      <Box paddingBlockStart="200">
+        <Select
+          label="Select a collection"
+          options={collectionOptions}
+          onChange={handleCollectionChange}
+          value={formState.collection?.value || ''}
+        />
       </Box>
-    </Card>
+
+      {formState.collection?.value && !formState.collection?.priceTier && (
+        <Box paddingBlockStart="200">
+          <Text as="p" variant="bodyMd" tone="subdued">
+            No pricing tier is linked to this collection in Shopify. Set product and
+            variant pricing manually after creation.
+          </Text>
+          <Box paddingBlockStart="150">
+            <Text as="p" variant="bodyMd" tone="subdued">
+              Title, SEO title, variant names, and other fields that usually come from
+              collection templates are not filled by the app here yet. Plan to enter those manually until full in-app support for this collection is built.
+            </Text>
+          </Box>
+        </Box>
+      )}
+    </Box>
   );
+
+  if (embedded) {
+    return body;
+  }
+
+  return <Card>{body}</Card>;
 };
 
 export default CollectionSelector;

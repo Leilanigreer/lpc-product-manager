@@ -27,6 +27,7 @@ import {
   ThreadColorSelector,
   ProductVariantCheck,
 } from "../components";
+import ImageDropZone from "../components/ImageDropZone.jsx";
 
 import {
   Page,
@@ -37,8 +38,6 @@ import {
   Banner,
   Text,
   Box,
-  DropZone,
-  TextField,
 } from "@shopify/polaris";
 
 export const loader = async ({ request }) => {
@@ -209,28 +208,25 @@ export default function CreateProduct() {
     });
   }, [aiDescription]);
 
-  const handleReferenceDrop = useCallback(
-    async (_dropFiles, acceptedFiles, _rejectedFiles) => {
-      setGenerationError(null);
-      const file = acceptedFiles?.[0];
-      if (!file) {
-        setGenerationError("Please drop a valid image file.");
-        return;
-      }
-      try {
-        const { base64, mediaType, previewBlob } = await convertDroppedFileToReferenceImage(file);
-        setReferencePreviewUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return URL.createObjectURL(previewBlob);
-        });
-        setReferenceImage({ base64, mediaType });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setGenerationError(msg);
-      }
-    },
-    []
-  );
+  const handleReferenceFiles = useCallback(async (files) => {
+    setGenerationError(null);
+    const file = files?.[0];
+    if (!file) {
+      setGenerationError("Please drop a valid image file.");
+      return;
+    }
+    try {
+      const { base64, mediaType, previewBlob } = await convertDroppedFileToReferenceImage(file);
+      setReferencePreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(previewBlob);
+      });
+      setReferenceImage({ base64, mediaType });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setGenerationError(msg);
+    }
+  }, []);
 
   const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
     if (!productData) return;
@@ -438,7 +434,13 @@ export default function CreateProduct() {
           shapes: Object.keys(formState.allShapes || {})
         }
       });
-      setGenerationError(error.message);
+      const msg =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : "An unexpected error occurred";
+      setGenerationError(msg && String(msg).trim() ? msg : "An unexpected error occurred");
       setProductData(null);
     } finally {
       setIsGenerating(false);
@@ -566,34 +568,58 @@ export default function CreateProduct() {
                 formState={formState}
                 onChange={handleChange}
               />
-              <CollectionSelector
-                shopifyCollections={shopifyCollections}
-                formState={formState}
-                onChange={handleChange}
-              />
 
-              {claudeDescriptionMode && (
-                <>
-                  <Text as="h2" variant="headingSm">
-                    Reference product image
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+                  gap: "24px",
+                  alignItems: "start",
+                }}
+              >
+                <CollectionSelector
+                  shopifyCollections={shopifyCollections}
+                  formState={formState}
+                  onChange={handleChange}
+                  embedded
+                />
+                <BlockStack gap="200">
+                  <Text as="h2" variant="headingMd">
+                    Group image
                   </Text>
-                  <DropZone
-                    accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
-                    onDrop={handleReferenceDrop}
-                    label="Drop image to upload"
-                    variableHeight
-                  />
-                  {referencePreviewUrl && (
-                    <Box maxWidth="320px">
-                      <img
-                        src={referencePreviewUrl}
-                        alt="Uploaded reference"
-                        style={{ width: "100%", borderRadius: 8 }}
-                      />
-                    </Box>
+                  {!formState.collection?.value ? (
+                    <Text as="p" variant="bodyMd" tone="subdued">
+                      Select a collection first. You can add or replace the shot anytime; it is
+                      only sent to the AI when this collection uses example descriptions.
+                    </Text>
+                  ) : (
+                    <>
+                      {claudeDescriptionMode ? (
+                        <Text as="p" variant="bodyMd" tone="subdued">
+                          Required before Preview for this collection. Click the image to replace
+                          it.
+                        </Text>
+                      ) : (
+                        <Text as="p" variant="bodyMd" tone="subdued">
+                          Optional group reference. Not used for AI on this collection. Click the
+                          image to replace it.
+                        </Text>
+                      )}
+                      <Box minWidth={0}>
+                        <ImageDropZone
+                          size="additional"
+                          label="Drop or click to upload"
+                          customWidth="100%"
+                          customHeight="220px"
+                          uploadedImageUrl={referencePreviewUrl}
+                          onDrop={handleReferenceFiles}
+                          accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
+                        />
+                      </Box>
+                    </>
                   )}
-                </>
-              )}
+                </BlockStack>
+              </div>
 
               <LeatherColorSelector
                 leatherColors={leatherColors}
@@ -648,45 +674,15 @@ export default function CreateProduct() {
                   Preview product data
                 </Text>
 
-                <BlockStack gap="100">
-                  <Text as="p" variant="bodyMd">
-                    <Text as="span" fontWeight="semibold">
-                      Collection:{" "}
-                    </Text>
-                    {formState.collection?.label ?? productData.collection?.label ?? "—"}
-                  </Text>
-                  <Text as="p" variant="bodyMd">
-                    <Text as="span" fontWeight="semibold">
-                      Listing title:{" "}
-                    </Text>
-                    {productData.title ?? "—"}
-                  </Text>
-                  <Text as="p" variant="bodyMd">
-                    <Text as="span" fontWeight="semibold">
-                      Listing SEO title:{" "}
-                    </Text>
-                    {productData.seoTitle ?? "—"}
-                  </Text>
-                </BlockStack>
-
-                <TextField
-                  label="Description"
-                  multiline={6}
-                  autoComplete="off"
-                  value={aiDescription}
-                  onChange={setAiDescription}
-                  placeholder="Please write a description"
+                <ProductVariantCheck
+                  productData={productData}
+                  onImageUpload={handleImageUpload}
+                  previewScrollRef={previewRef}
+                  listingCollection={formState.collection}
+                  descriptionPlainText={aiDescription}
+                  onDescriptionPlainTextChange={setAiDescription}
+                  descriptionPlaceholder="Please write a description"
                 />
-
-                <Text as="h3" variant="headingSm">
-                  Base variants
-                </Text>
-                <div ref={previewRef}>
-                  <ProductVariantCheck
-                    productData={productData}
-                    onImageUpload={handleImageUpload}
-                  />
-                </div>
 
                 {submissionError && (
                   <Banner status="critical">

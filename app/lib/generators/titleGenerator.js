@@ -6,6 +6,15 @@ const DEFAULT_HANDLE = "pending-main-handle";
 const DEFAULT_SEO_TITLE = "pending-seo-title";
 const DEFAULT_TITLE = "Pending Title";
 
+/** Ensures template tokens never stringify as "[object Object]". */
+const asTitleToken = (value) => {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "boolean") return value ? "true" : "false";
+  return "";
+};
+
 /**
  * Sanitizes text for URL handles
  */
@@ -34,14 +43,20 @@ export const generateTitle = async (formState) => {
     return template
       .replace(
         "{leatherColors.primary.label}",
-        leatherNameForListing(formState.leatherColors?.primary)
+        asTitleToken(leatherNameForListing(formState.leatherColors?.primary))
       )
       .replace(
         "{leatherColors.secondary.label}",
-        leatherNameForListing(formState.leatherColors?.secondary)
+        asTitleToken(leatherNameForListing(formState.leatherColors?.secondary))
       )
-      .replace('{stitchingThreads.[0].label}', Object.values(formState.stitchingThreads || {})[0]?.label || '')
-      .replace('{globalEmbroideryThread.label}', formState.globalEmbroideryThread?.label || '')
+      .replace(
+        "{stitchingThreads.[0].label}",
+        asTitleToken(Object.values(formState.stitchingThreads || {})[0]?.label)
+      )
+      .replace(
+        "{globalEmbroideryThread.label}",
+        asTitleToken(formState.globalEmbroideryThread?.label)
+      )
       || DEFAULT_TITLE;
 
   } catch (error) {
@@ -64,7 +79,7 @@ export const generateSEOTitle = async (formState, title) => {
       return DEFAULT_SEO_TITLE;
     }
 
-    return template.replace('{title}', title) || DEFAULT_SEO_TITLE;
+    return template.replace("{title}", asTitleToken(title)) || DEFAULT_SEO_TITLE;
 
   } catch (error) {
     return DEFAULT_SEO_TITLE;
@@ -86,10 +101,11 @@ export const generateMainHandle = async (formState, title, version) => {
       return DEFAULT_HANDLE;
     }
 
-    const tempMainHandle = sanitizeHandle(title);
+    const titleStr = asTitleToken(title);
+    const tempMainHandle = sanitizeHandle(titleStr);
     let handle = template
-      .replace('{tempMainHandle}', tempMainHandle)
-      .replace('{title}', title);
+      .replace("{tempMainHandle}", tempMainHandle)
+      .replace("{title}", titleStr);
 
     if (version) {
       handle = `${handle}-v${version}`;

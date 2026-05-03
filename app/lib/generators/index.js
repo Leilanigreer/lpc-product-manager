@@ -116,10 +116,15 @@ export const generateProductData = async (formState, productDescriptionPlain) =>
     }
 
     // Build the complete product data object
+    const collectionLabel =
+      typeof formState.collection?.label === "string"
+        ? formState.collection.label
+        : "";
+
     const productData = {
       title,
       mainHandle: await generateMainHandle(formState, title, version),
-      productType: formState.collection.label || '',
+      productType: collectionLabel,
       seoTitle: await generateSEOTitle(formState, title),
       descriptionHTML: plainProductDescriptionToHtml(desc),
       seoDescription: generateSEODescription(formState),

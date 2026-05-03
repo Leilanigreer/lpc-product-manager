@@ -44,7 +44,11 @@ export const useFormNotifications = ({ fetcher, handleChange, onSuccess }) => {
   }, [handleChange, onSuccess]);
 
   const handleError = useCallback((errors) => {
-    const errorMessage = errors.join(', ');
+    const errorMessage = (Array.isArray(errors) ? errors : [errors])
+      .map((e) =>
+        typeof e === "string" ? e : e?.message ?? JSON.stringify(e)
+      )
+      .join(", ");
     setSubmissionError(errorMessage);
     setNotification({
       message: errorMessage,

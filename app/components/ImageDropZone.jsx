@@ -27,6 +27,8 @@ const ImageDropZone = ({
   customWidth,
   customHeight,
   uploadedImageUrl,
+  /** Passed to DropZone and file input (e.g. HEIC). Defaults to any image. */
+  accept = "image/*",
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const sizeConfig = SIZES[size] || SIZES.small;
@@ -76,7 +78,7 @@ const ImageDropZone = ({
         type="file"
         ref={fileInputRef}
         style={{ display: 'none' }}
-        accept="image/*"
+        accept={accept}
         onChange={(e) => {
           if (e.target.files?.length) {
             handleDrop(e.target.files);
@@ -102,7 +104,7 @@ const ImageDropZone = ({
           renderUploadedImage()
         ) : (
           <DropZone
-            accept="image/*"
+            accept={accept}
             type="image"
             onDrop={handleDrop}
             allowMultiple={false}

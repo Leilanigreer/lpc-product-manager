@@ -1,7 +1,7 @@
 // app/components/ProductVariantCheck.jsx
 
 import React, { memo, useCallback } from 'react';
-import { Text, BlockStack, Box, InlineStack, Card } from '@shopify/polaris';
+import { Text, BlockStack, Box, InlineStack, Card, TextField } from '@shopify/polaris';
 import { isDevelopment } from '../lib/config/environment';
 import ImageDropZone from './ImageDropZone';
 import AdditionalViews from './AdditionalViews';
@@ -229,13 +229,38 @@ const VariantGroup = memo(({ variantGroup, title, productData, onImageUpload }) 
 ));
 VariantGroup.displayName = 'VariantGroup';
 
-const ProductVariantCheck = ({ productData, onImageUpload }) => {
+function previewListingText(value) {
+  if (value == null) return "—";
+  if (typeof value === "string") return value.trim() || "—";
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "—";
+}
+
+function collectionLabelForPreview(collection) {
+  if (!collection) return "—";
+  const lab = collection.label;
+  if (typeof lab === "string" && lab.trim()) return lab.trim();
+  return "—";
+}
+
+const ProductVariantCheck = ({
+  productData,
+  onImageUpload,
+  /** Overrides collection label row when form state is fresher than `productData.collection`. */
+  listingCollection,
+  /** Plain-text Shopify body; shown with TextField when `onDescriptionPlainTextChange` is passed. */
+  descriptionPlainText,
+  onDescriptionPlainTextChange,
+  descriptionPlaceholder = "Please write a description",
+  /** Optional ref on a wrapper for scroll-into-view (create flow after Preview). */
+  previewScrollRef,
+}) => {
   if (!productData?.variants?.length) return null;
 
   const baseVariants = productData.variants.filter(v => v && !v.isCustom);
   const customVariants = productData.variants.filter(v => v && v.isCustom);
 
-  const { title, productType, seoTitle, mainHandle, tags, descriptionHTML, seoDescription } = productData;
+  const { title, seoTitle, mainHandle, tags, descriptionHTML, seoDescription } = productData;
 
   // Get the baseSKU from the first variant
   const baseSKU = baseVariants[0]?.baseSKU || '';
@@ -256,67 +281,94 @@ const ProductVariantCheck = ({ productData, onImageUpload }) => {
     onImageUpload(sku, label, displayUrl, data);
   };
 
+  const collectionSource = listingCollection ?? productData.collection;
+
   return (
-    <BlockStack gap="400">
-      {productType && (
-        <Text variant="bodyMd">Collection: {productType}</Text>
-      )}
-      {title && (
-        <Text variant="bodyMd">Listing Title: {title}</Text>
-      )}
-      {seoTitle && (
-        <Text variant="bodyMd">Listing SEO Title: {seoTitle}</Text>
-      )}
-      {isDevelopment() && (
-        <>
-          {mainHandle && (
-            <Text variant="bodyMd">Generated Main Handle: {mainHandle}</Text>
-          )}
-          {tags && (
-            <Text variant="bodyMd">Generated tags: {tags}</Text>
-          )}
-          {descriptionHTML && (
-            <Text variant="bodyMd">Generated descriptionHTML: {descriptionHTML}</Text>
-          )}
-          {seoDescription && (
-            <Text variant="bodyMd">Generated seoDescription: {seoDescription}</Text>
-          )}
-        </>
-      )}
+    <div ref={previewScrollRef ?? undefined}>
+      <BlockStack gap="400">
+        <BlockStack gap="100">
+          <Text as="p" variant="bodyMd">
+            <Text as="span" fontWeight="semibold">
+              Collection:{" "}
+            </Text>
+            {collectionLabelForPreview(collectionSource)}
+          </Text>
+          <Text as="p" variant="bodyMd">
+            <Text as="span" fontWeight="semibold">
+              Listing title:{" "}
+            </Text>
+            {previewListingText(title)}
+          </Text>
+          <Text as="p" variant="bodyMd">
+            <Text as="span" fontWeight="semibold">
+              Listing SEO title:{" "}
+            </Text>
+            {previewListingText(seoTitle)}
+          </Text>
+        </BlockStack>
 
-      {baseVariants.length > 0 && (
-        <VariantGroup 
-          variantGroup={baseVariants} 
-          title="Base Variants"
-          productData={productData}
-          onImageUpload={onImageUpload}
-        />
-      )}
+        {typeof onDescriptionPlainTextChange === "function" && (
+          <TextField
+            label="Description"
+            multiline={6}
+            autoComplete="off"
+            value={descriptionPlainText ?? ""}
+            onChange={onDescriptionPlainTextChange}
+            placeholder={descriptionPlaceholder}
+          />
+        )}
 
-      {/* Additional Views section */}
-      <BlockStack gap="200">
-        <Text variant="headingMd" as="h3">Additional Views</Text>
-        <Card>
-          <Box padding="100">
-            <AdditionalViews 
-              formState={formState} 
-              handleChange={() => {}} 
-              onImageUpload={handleAdditionalViewUpload}
-              productData={productData}
-            />
-          </Box>
-        </Card>
+        {isDevelopment() && (
+          <>
+            {mainHandle && (
+              <Text variant="bodyMd">Generated Main Handle: {mainHandle}</Text>
+            )}
+            {tags && (
+              <Text variant="bodyMd">Generated tags: {tags}</Text>
+            )}
+            {descriptionHTML && (
+              <Text variant="bodyMd">Generated descriptionHTML: {descriptionHTML}</Text>
+            )}
+            {seoDescription && (
+              <Text variant="bodyMd">Generated seoDescription: {seoDescription}</Text>
+            )}
+          </>
+        )}
+
+        {baseVariants.length > 0 && (
+          <VariantGroup 
+            variantGroup={baseVariants} 
+            title="Base Variants"
+            productData={productData}
+            onImageUpload={onImageUpload}
+          />
+        )}
+
+        {/* Additional Views section */}
+        <BlockStack gap="200">
+          <Text variant="headingMd" as="h3">Additional Views</Text>
+          <Card>
+            <Box padding="100">
+              <AdditionalViews 
+                formState={formState} 
+                handleChange={() => {}} 
+                onImageUpload={handleAdditionalViewUpload}
+                productData={productData}
+              />
+            </Box>
+          </Card>
+        </BlockStack>
+
+        {customVariants.length > 0 && (
+          <VariantGroup 
+            variantGroup={customVariants} 
+            title="Custom Variants"
+            productData={productData}
+            onImageUpload={onImageUpload}
+          />
+        )}
       </BlockStack>
-
-      {customVariants.length > 0 && (
-        <VariantGroup 
-          variantGroup={customVariants} 
-          title="Custom Variants"
-          productData={productData}
-          onImageUpload={onImageUpload}
-        />
-      )}
-    </BlockStack>
+    </div>
   );
 };
 
