@@ -1,23 +1,30 @@
 // app/lib/generators/variants/createRegular.js
 
-import { formatSKU, calculatePrice, includeStyleInVariantTitle } from "../../utils";
+import {
+  formatSKU,
+  calculatePrice,
+  includeStyleInVariantTitle,
+  sortShapeRowsForVariantOrder,
+} from "../../utils";
 
 /** Weight not captured in UI for now; Shopify/Prisma still require a numeric weight. */
 const PLACEHOLDER_WEIGHT = "0";
 
 export const createRegularVariants = (formState, skuInfo) => {
-  return Object.values(formState.allShapes)
-    .filter(shape => shape.isSelected)
-    .map(shape => {
+  const selectedRows = Object.values(formState.allShapes).filter(
+    (shape) => shape.isSelected
+  );
+  return sortShapeRowsForVariantOrder(selectedRows)
+    .map((shape) => {
       try {
         const variantSku = formatSKU(
-          skuInfo.parts, 
-          skuInfo.version, 
-          shape.value, 
+          skuInfo.parts,
+          skuInfo.version,
+          shape.value,
           formState,
           { isCustom: false }
         );
-        
+
         if (!variantSku.fullSKU) {
           console.error('Failed to generate SKU for regular variant:', shape.label);
           return null;
@@ -53,8 +60,8 @@ export const createRegularVariants = (formState, skuInfo) => {
         }
 
         // Get embroidery abbreviation based on mode
-        const embroideryAbbr = formState.globalEmbroideryThread?.abbreviation || 
-                             shape.embroideryThread?.abbreviation;
+        const embroideryAbbr = formState.globalEmbroideryThread?.abbreviation ||
+          shape.embroideryThread?.abbreviation;
         if (embroideryAbbr) {
           variant.embroideryAbbreviation = embroideryAbbr;
         }

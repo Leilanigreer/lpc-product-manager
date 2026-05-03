@@ -4,6 +4,7 @@ import {
   formatSKU,
   calculatePrice,
   includeStyleInVariantTitle,
+  sortShapeRowsForVariantOrder,
 } from "../../utils";
 import { leatherNameForListing } from "../../utils/leatherListing.js";
 
@@ -129,16 +130,24 @@ const generateCustomVariant = (shapeData, formState, skuInfo) => {
 };
 
 export const createCustomVariants = (formState, skuInfo) => {
-  const nonWoodVariants = Object.values(formState.allShapes)
-    .filter(shape => shape.isSelected && shape.shapeType !== 'WOOD')
-    .map(shape => generateCustomVariant(shape, formState, skuInfo))
+  const selectedNonWood = sortShapeRowsForVariantOrder(
+    Object.values(formState.allShapes).filter(
+      (shape) => shape.isSelected && shape.shapeType !== 'WOOD'
+    )
+  );
+  const nonWoodVariants = selectedNonWood
+    .map((shape) => generateCustomVariant(shape, formState, skuInfo))
     .filter(Boolean);
 
   const processedWoodShapes = [];
 
-  const woodVariants = Object.values(formState.allShapes)
-    .filter(shape => shape.isSelected && shape.shapeType === 'WOOD')
-    .reduce((acc, shape) => {
+  const selectedWoods = sortShapeRowsForVariantOrder(
+    Object.values(formState.allShapes).filter(
+      (shape) => shape.isSelected && shape.shapeType === 'WOOD'
+    )
+  );
+
+  const woodVariants = selectedWoods.reduce((acc, shape) => {
       if (shouldCollapseWoodVariants(shape, processedWoodShapes, formState)) {
         return acc;
       }

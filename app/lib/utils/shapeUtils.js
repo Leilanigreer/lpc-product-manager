@@ -109,6 +109,57 @@ export function includeStyleInVariantTitle(formState, shapeRow) {
   return true;
 }
 
+/**
+ * Primary bucket for listing / variant generation order.
+ * Matches create-product UI: driver/fairways/hybrid first, then putters (blades, then mallet families).
+ */
+function variantOrderTier(shapeRow) {
+  if (!shapeRow || typeof shapeRow !== "object") return 99;
+  if (isDriversWoodsHybridsShape(shapeRow)) return 0;
+  const g = normShapeGroupKey(getShapeGroup(shapeRow));
+  if (g === "blades") return 1;
+  if (g === "mallets") return 2;
+  if (isPutter(shapeRow)) return 3;
+  return 4;
+}
+
+/** Within `shape_group` mallets, cluster by `sizing_guide_group`; ungrouped sorts after real keys. */
+function variantSizingGroupSortKey(shapeRow) {
+  const raw = shapeRow?.sizingGuideGroup;
+  if (raw != null && String(raw).trim() !== "") {
+    return String(raw).trim().toLowerCase();
+  }
+  return "\uffff_ungrouped";
+}
+
+/**
+ * Stable sort for selected shape rows so variants list matches UI expectations:
+ * DWH shapes first, blades, then mallet families grouped by sizing_guide_group (HS together, LZT together).
+ *
+ * @param {object[]} rows - Selected rows from `formState.allShapes` (or equivalent)
+ * @returns {object[]} new sorted array
+ */
+export function sortShapeRowsForVariantOrder(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return rows ?? [];
+  return [...rows].sort((a, b) => {
+    const ta = variantOrderTier(a);
+    const tb = variantOrderTier(b);
+    if (ta !== tb) return ta - tb;
+
+    if (ta === 2) {
+      const ga = variantSizingGroupSortKey(a);
+      const gb = variantSizingGroupSortKey(b);
+      if (ga !== gb) return ga.localeCompare(gb);
+    }
+
+    const da = Number.isFinite(a?.displayOrder) ? a.displayOrder : 0;
+    const db = Number.isFinite(b?.displayOrder) ? b.displayOrder : 0;
+    if (da !== db) return da - db;
+
+    return String(a?.label ?? "").localeCompare(String(b?.label ?? ""));
+  });
+}
+
 export const getShapeCategory = (shape) => {
   if (!isValidShape(shape)) return 'Other';
   return shape.shapeType;

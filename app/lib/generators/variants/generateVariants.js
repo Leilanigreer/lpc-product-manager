@@ -3,6 +3,7 @@
 import { createRegularVariants } from "./createRegular";
 import { createCustomVariants } from "./createCustom";
 import { buildWoodBaseToRepresentativeShapeValueMap } from "./woodCustomizePairing";
+import { sortShapeRowsForVariantOrder } from "../../utils";
 
 /**
  * Assigns positions to variants based on shape display order
@@ -11,10 +12,9 @@ import { buildWoodBaseToRepresentativeShapeValueMap } from "./woodCustomizePairi
  * @returns {Array} Variants with assigned positions
  */
 const assignVariantPositions = (variants, allShapes) => {
-  const orderedShapeValues = Object.values(allShapes)
-    .filter(shape => shape.isSelected)
-    .sort((a, b) => a.displayOrder - b.displayOrder)
-    .map(shape => shape.value);
+  const orderedShapeValues = sortShapeRowsForVariantOrder(
+    Object.values(allShapes).filter((shape) => shape.isSelected)
+  ).map((shape) => shape.value);
  
   return variants.map(variant => ({
     ...variant,
