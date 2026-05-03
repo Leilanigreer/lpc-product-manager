@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
-import { TitleBar } from "@shopify/app-bridge-react";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { validateProductForm } from "../lib/utils";
 import { loader as dataLoader } from "../lib/loaders";
@@ -102,6 +102,8 @@ export const action = async ({ request }) => {
 };
 
 export default function CreateProduct() {
+  const shopify = useAppBridge();
+
   const { 
     leatherColors: allLeatherColors, 
     leatherColorsLoadError,
@@ -388,9 +390,14 @@ export default function CreateProduct() {
           throw new Error("Upload a reference product image before preview.");
         }
         const title = await generateTitle(formState);
+        // Embedded admin auth: authenticate.admin expects Authorization Bearer (session JWT), not only cookies.
+        const idToken = await shopify.idToken();
         const res = await fetch("/app/api/generate-product-description", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
           credentials: "same-origin",
           body: JSON.stringify({
             title,
