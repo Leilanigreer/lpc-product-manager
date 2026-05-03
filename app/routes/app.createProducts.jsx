@@ -565,37 +565,39 @@ export default function CreateProduct() {
                 onChange={handleChange}
               />
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
-                  gap: "24px",
-                  alignItems: "start",
-                }}
-              >
-                <CollectionSelector
-                  shopifyCollections={shopifyCollections}
-                  formState={formState}
-                  onChange={handleChange}
-                  embedded
-                />
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Group image
-                  </Text>
-                  <Box maxWidth="260px" minWidth={0}>
-                    <ImageDropZone
-                      size="small"
-                      label="Upload"
-                      customWidth="100%"
-                      customHeight="132px"
-                      uploadedImageUrl={referencePreviewUrl}
-                      onDrop={handleReferenceFiles}
-                      accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
-                    />
-                  </Box>
-                </BlockStack>
-              </div>
+              <Card>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+                    gap: "24px",
+                    alignItems: "start",
+                  }}
+                >
+                  <CollectionSelector
+                    shopifyCollections={shopifyCollections}
+                    formState={formState}
+                    onChange={handleChange}
+                    embedded
+                  />
+                  <BlockStack gap="200">
+                    <Text as="h2" variant="headingMd">
+                      Group image
+                    </Text>
+                    <Box maxWidth="260px" minWidth={0}>
+                      <ImageDropZone
+                        size="small"
+                        label="Upload"
+                        customWidth="100%"
+                        customHeight="132px"
+                        uploadedImageUrl={referencePreviewUrl}
+                        onDrop={handleReferenceFiles}
+                        accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
+                      />
+                    </Box>
+                  </BlockStack>
+                </div>
+              </Card>
 
               <LeatherColorSelector
                 leatherColors={leatherColors}
