@@ -8,7 +8,8 @@
  * Metafields requested (namespace custom):
  *   validation, handle_template, seo_template, title_template, google_driver_folder_id,
  *   category, sku_pattern, thread_type, needs_secondary_leather, tag, show_in_creation_dropdown,
- *   pricing_tier (metaobject reference, optional — still loaded when set)
+ *   pricing_tier (metaobject reference, optional — still loaded when set),
+ *   example_product_descriptions (JSON — Claude examples; null/missing/parse failure → manual description mode)
  *
  * Pricing tier metaobject (`price_tier`): shopify_price, marketplace_price, name — inlined on the
  * collection query reference. Shape adjustments (`shape_type_adjustment`) are loaded separately and
@@ -102,6 +103,13 @@ const PRODUCT_COLLECTIONS_QUERY = `#graphql
               }
             }
           }
+          exampleProductDescriptions: metafield(
+            namespace: "custom"
+            key: "example_product_descriptions"
+          ) {
+            value
+            type
+          }
         }
       }
     }
@@ -183,6 +191,25 @@ function parseBoolMetafield(mf) {
   if (typeof v === "boolean") return v;
   const s = String(v).trim().toLowerCase();
   return s === "true" || s === "1";
+}
+
+/**
+ * Parsed `custom.example_product_descriptions` JSON for create-product / Claude.
+ * Returns `null` when missing, empty, invalid JSON, or JSON literal `null` (manual description mode).
+ * @param {null|{ value?: string|null }} mf
+ * @returns {null|unknown}
+ */
+function parseExampleProductDescriptionsMetafield(mf) {
+  if (!mf || mf.value == null) return null;
+  const raw = String(mf.value).trim();
+  if (!raw.length) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed === null) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 function metaobjectStringField(field) {
@@ -424,6 +451,11 @@ function mapCollectionNodeToFormCollection(node, adjustmentsByTierGid) {
     needsSecondaryLeather: parseBoolMetafield(node.needsSecondaryLeather),
     tag: metafieldString(node.tag),
 
+    /** Parsed JSON from `custom.example_product_descriptions`; `null` → manual description (no Claude). */
+    exampleProductDescriptions: parseExampleProductDescriptionsMetafield(
+      node.exampleProductDescriptions
+    ),
+
     pricingTierMetaobject,
     priceTier,
 
@@ -440,6 +472,7 @@ function mapCollectionNodeToFormCollection(node, adjustmentsByTierGid) {
       tag: node.tag,
       show_in_creation_dropdown: node.showInCreationDropdown,
       pricing_tier: node.pricingTier,
+      example_product_descriptions: node.exampleProductDescriptions,
     },
 
     // Stubs until those concepts move to Shopify metafields / your next steps

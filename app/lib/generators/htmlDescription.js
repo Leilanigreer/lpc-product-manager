@@ -1,55 +1,62 @@
 // app/lib/generators/htmlDescription.js
 
 /**
- * Wraps collection description with common description if needed
- * @param {string} collectionDescription - Main collection description
- * @param {boolean} includeCommon - Whether to include common description
- * @param {string} commonDescription - Common description text
- * @returns {string} Combined HTML description
+ * Escape text for safe inclusion in HTML.
+ * @param {string} s
  */
-const wrapDescription = (collectionDescription, includeCommon, commonDescription) => {
-  const descriptionParts = [
-    '<div>',
-    '<br>',
-    `<div><span>${collectionDescription}</span></div>`,
-    '<div><span></span><br></div>'
-  ];
-
-  if (includeCommon && commonDescription) {
-    descriptionParts.push(`<div><div><div>${commonDescription}</div></div></div>`);
-  }
-
-  descriptionParts.push('</div>');
-  return descriptionParts.join('');
-};
+export function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 /**
- * Generates HTML description for a product based on collection
- * @param {Object} formState - Current form state containing collection data
- * @param {Array} commonDescription - Array of common descriptions from database
- * @returns {string} Formatted HTML description
+ * Plain product description (from AI or hand entry) → minimal HTML for Shopify `descriptionHtml`.
+ * Line breaks preserved as `<br/>`.
+ * @param {string} plain
+ */
+export function plainProductDescriptionToHtml(plain) {
+  const trimmed = String(plain ?? "").trim();
+  if (!trimmed) return "";
+  const withBreaks = escapeHtml(trimmed).replace(/\n/g, "<br/>");
+  return `<div class="product-description">${withBreaks}</div>`;
+}
+
+/**
+ * @deprecated Create-product now uses {@link plainProductDescriptionToHtml} only (no Postgres common block).
+ * Retained for any legacy callers.
  */
 export const generateDescriptionHTML = (formState, commonDescription) => {
   if (!formState?.collection?.description) {
-    return '';
+    return "";
   }
 
   try {
     const { description, commonDescription: includeCommon } = formState.collection;
 
-    // Extract active common description content
-    const commonContent = Array.isArray(commonDescription) 
-      ? commonDescription.find(desc => desc.isActive)?.content 
+    const commonContent = Array.isArray(commonDescription)
+      ? commonDescription.find((desc) => desc.isActive)?.content
       : null;
 
-    return wrapDescription(
-      description,
-      includeCommon,
-      commonContent
-    ).replace(/\s+/g, " ").trim();
+    const descriptionParts = [
+      "<div>",
+      "<br>",
+      `<div><span>${description}</span></div>`,
+      '<div><span></span><br></div>',
+    ];
 
+    if (includeCommon && commonContent) {
+      descriptionParts.push(
+        `<div><div><div>${commonContent}</div></div></div>`
+      );
+    }
+
+    descriptionParts.push("</div>");
+    return descriptionParts.join("").replace(/\s+/g, " ").trim();
   } catch (error) {
-    console.error('Error generating HTML description:', error.message);
-    return '';
+    console.error("Error generating HTML description:", error.message);
+    return "";
   }
 };

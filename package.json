@@ -52,6 +52,7 @@
     "@shopify/storefront-api-client": "^1.0.2",
     "cloudinary": "^2.6.0",
     "googleapis": "^146.0.0",
+    "heic2any": "^0.0.4",
     "isbot": "^5.1.0",
     "lodash": "^4.17.21",
     "prisma": "^5.22.0",

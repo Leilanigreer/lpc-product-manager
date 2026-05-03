@@ -1,7 +1,7 @@
 // app/lib/generators/index.js
 
 import { generateTitle, generateMainHandle, generateSEOTitle } from './titleGenerator';
-import { generateDescriptionHTML } from './htmlDescription';
+import { plainProductDescriptionToHtml } from './htmlDescription';
 import { generateSEODescription } from './seoDescription';
 import { generateTags } from './tagsGenerator';
 import { generateVariants } from './variants';
@@ -89,9 +89,16 @@ function buildShopifyProductMetafields(formState) {
 
 /**
  * Generates complete product data by coordinating all generators
+ * @param {object} formState
+ * @param {string} productDescriptionPlain Plain text product body (AI or hand-written); becomes `descriptionHTML`.
  */
-export const generateProductData = async (formState, commonDescription) => {
+export const generateProductData = async (formState, productDescriptionPlain) => {
   try {
+    const desc = String(productDescriptionPlain ?? "").trim();
+    if (!desc) {
+      throw new Error("Product description is required.");
+    }
+
     // Generate SKU information
     const skuParts = generateBaseParts(formState);    
     if (!Array.isArray(skuParts) || skuParts.length === 0) {
@@ -117,7 +124,7 @@ export const generateProductData = async (formState, commonDescription) => {
       mainHandle: await generateMainHandle(formState, title, version),
       productType: formState.collection.label || '',
       seoTitle: await generateSEOTitle(formState, title),
-      descriptionHTML: generateDescriptionHTML(formState, commonDescription),
+      descriptionHTML: plainProductDescriptionToHtml(desc),
       seoDescription: generateSEODescription(formState),
       tags: generateTags(formState),
       variants,

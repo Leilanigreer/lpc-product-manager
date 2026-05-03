@@ -1,12 +1,13 @@
 // app/routes/app.createProducts.jsx
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { validateProductForm } from "../lib/utils";
 import { loader as dataLoader } from "../lib/loaders";
-import { generateProductData } from "../lib/generators";
+import { generateProductData, generateTitle } from "../lib/generators";
+import { plainProductDescriptionToHtml } from "../lib/generators/htmlDescription";
 import { initialFormState, createInitialShapeState } from "../lib/forms/formState";
 import { useFormState } from "../hooks/useFormState";
 import { useFormNotifications } from "../hooks/useFormNotifications.js";
@@ -15,6 +16,7 @@ import { saveProductToDatabase } from "../lib/server/productOperations.server.js
 import { sendInternalEmail } from "../services/email.server";
 import { generateProductCreationNotification } from "../templates/product-creation-notification";
 import { getCloudinaryFolderPath } from "../lib/utils/cloudinary";
+import { convertDroppedFileToReferenceImage } from "../lib/utils/referenceImageClient.js";
 import {
   CollectionSelector,
   FontSelector,
@@ -35,11 +37,13 @@ import {
   Banner,
   Text,
   Box,
+  DropZone,
+  TextField,
 } from "@shopify/polaris";
 
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
-  return dataLoader({ admin });
+  return dataLoader({ admin, includeCommonDescription: false });
 };
 
 export const action = async ({ request }) => {
@@ -110,7 +114,6 @@ export default function CreateProduct() {
     fontsLoadError,
     shapes, 
     shopifyCollections,
-    commonDescription,
     error
   } = useLoaderData();
 
@@ -128,7 +131,6 @@ export default function CreateProduct() {
     embroideryThreadColorsLoadError,
   ]);
 
-  // Only show active leather colors when creating products (draft = reactivate list on add leather page)
   const leatherColors = React.useMemo(
     () => (allLeatherColors || []).filter((lc) => lc.isActive !== false),
     [allLeatherColors]
@@ -141,7 +143,7 @@ export default function CreateProduct() {
       const element = previewRef.current;
       const elementRect = element.getBoundingClientRect();
       const offsetTop = elementRect.top + window.scrollY;
-      const topPosition = offsetTop - 20; // Small 20px offset from top for better visibility
+      const topPosition = offsetTop - 20;
 
       window.scrollTo({
         top: topPosition,
@@ -151,7 +153,6 @@ export default function CreateProduct() {
   };
 
   const completeInitialState = useMemo(() => {
-    // Initialize allShapes with all available shapes
     const allShapes = shapes.reduce((acc, shape) => ({
       ...acc,
       [shape.value]: createInitialShapeState(shape)
@@ -159,8 +160,8 @@ export default function CreateProduct() {
 
     return {
       ...initialFormState,
-      shapes, // Add shapes array for reference
-      allShapes, // Add initialized shape states
+      shapes,
+      allShapes,
       existingProducts: [],
     };
   }, [shapes]);
@@ -172,31 +173,86 @@ export default function CreateProduct() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
-  /** Populated on Preview from `formState.collection.versioningSkus` (loader; see collectionBaseSkusShopify.server.js). */
   const [previewCollectionSkuDebug, setPreviewCollectionSkuDebug] = useState(null);
+
+  const [aiDescription, setAiDescription] = useState("");
+  const [referenceImage, setReferenceImage] = useState(null);
+  const [referencePreviewUrl, setReferencePreviewUrl] = useState(null);
+  const prevCollectionIdRef = useRef(undefined);
+
+  const manualDescriptionMode =
+    Boolean(formState.collection?.value) &&
+    formState.collection?.exampleProductDescriptions == null;
+
+  const claudeDescriptionMode =
+    Boolean(formState.collection?.value) &&
+    formState.collection?.exampleProductDescriptions != null;
+
+  useEffect(() => {
+    const id = formState.collection?.value;
+    if (prevCollectionIdRef.current !== undefined && prevCollectionIdRef.current !== id) {
+      setAiDescription("");
+      setReferenceImage(null);
+      setReferencePreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setProductData(null);
+      setGenerationError(null);
+      setPreviewCollectionSkuDebug(null);
+    }
+    prevCollectionIdRef.current = id;
+  }, [formState.collection?.value]);
+
+  useEffect(() => {
+    setProductData((prev) => {
+      if (!prev) return prev;
+      const nextHtml = plainProductDescriptionToHtml(aiDescription);
+      if (prev.descriptionHTML === nextHtml) return prev;
+      return { ...prev, descriptionHTML: nextHtml };
+    });
+  }, [aiDescription]);
+
+  const handleReferenceDrop = useCallback(
+    async (_dropFiles, acceptedFiles, _rejectedFiles) => {
+      setGenerationError(null);
+      const file = acceptedFiles?.[0];
+      if (!file) {
+        setGenerationError("Please drop a valid image file.");
+        return;
+      }
+      try {
+        const { base64, mediaType, previewBlob } = await convertDroppedFileToReferenceImage(file);
+        setReferencePreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return URL.createObjectURL(previewBlob);
+        });
+        setReferenceImage({ base64, mediaType });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setGenerationError(msg);
+      }
+    },
+    []
+  );
+
   const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
     if (!productData) return;
 
     setProductData(prevData => {
       const newData = { ...prevData };
       
-      // If this is the first image upload and we have drive data with a product folder URL,
-      // set the Google Drive folder URL for the entire product
       if (driveData?.folderPath?.productFolderUrl && !newData.googleDriveFolderUrl) {
         newData.googleDriveFolderUrl = driveData.folderPath.productFolderUrl;
       }
       
-      // If the SKU matches a variant's SKU, update the variant's images
       const variant = newData.variants.find(v => v.sku === sku);
       if (variant) {
-        // Initialize images array if it doesn't exist
         variant.images = variant.images || [];
         
-        // Check if an image with this label already exists
         const existingImageIndex = variant.images.findIndex(img => img.label === label);
         
         if (existingImageIndex >= 0) {
-          // Update existing image
           variant.images[existingImageIndex] = { 
             label, 
             displayUrl,
@@ -204,7 +260,6 @@ export default function CreateProduct() {
             cloudinaryData: cloudinaryData || null
           };
         } else {
-          // Add new image
           variant.images.push({ 
             label, 
             displayUrl,
@@ -213,15 +268,11 @@ export default function CreateProduct() {
           });
         }
       } else {
-        // This is an additional view
-        // Initialize additionalViews array if it doesn't exist
         newData.additionalViews = newData.additionalViews || [];
         
-        // Check if an image with this label already exists
         const existingImageIndex = newData.additionalViews.findIndex(img => img.label === label);
         
         if (existingImageIndex >= 0) {
-          // Update existing image
           newData.additionalViews[existingImageIndex] = { 
             label, 
             displayUrl,
@@ -229,7 +280,6 @@ export default function CreateProduct() {
             cloudinaryData: cloudinaryData || null
           };
         } else {
-          // Add new image
           newData.additionalViews.push({ 
             label, 
             displayUrl,
@@ -255,6 +305,15 @@ export default function CreateProduct() {
 
   const isSubmitting = ["loading", "submitting"].includes(fetcher.state) && fetcher.formMethod === "POST";
 
+  const resetDescriptionAssets = useCallback(() => {
+    setAiDescription("");
+    setReferenceImage(null);
+    setReferencePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, []);
+
   const {
     notification,
     setNotification,
@@ -267,7 +326,8 @@ export default function CreateProduct() {
     handleChange,
     onSuccess: () => {
       setProductData(null);
-      setGenerationError(null);    
+      setGenerationError(null);
+      resetDescriptionAssets();
     }
   });  
 
@@ -278,6 +338,10 @@ export default function CreateProduct() {
       setSubmissionError(null);
       setNotification(null);
       setSuccessDetails(null);
+      setReferencePreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -323,17 +387,54 @@ export default function CreateProduct() {
         skuDataSource: "loader",
       });
 
+      const examples = formState.collection.exampleProductDescriptions;
+      const isManual = examples == null;
+
+      /** Plain text body for Shopify (AI or hand-written). */
+      let descriptionPlain = "";
+
+      if (isManual) {
+        descriptionPlain = String(aiDescription).trim();
+        if (!descriptionPlain) {
+          throw new Error("Enter a product description.");
+        }
+      } else {
+        if (!referenceImage?.base64 || !referenceImage?.mediaType) {
+          throw new Error("Upload a reference product image before preview.");
+        }
+        const title = await generateTitle(formState);
+        const res = await fetch("/app/api/generate-product-description", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            title,
+            examples,
+            imageBase64: referenceImage.base64,
+            mediaType: referenceImage.mediaType,
+          }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(payload.error || `Description generation failed (${res.status})`);
+        }
+        if (!payload.description || typeof payload.description !== "string") {
+          throw new Error("Invalid response from description service.");
+        }
+        const descFromApi = payload.description.trim();
+        setAiDescription(descFromApi);
+        descriptionPlain = descFromApi;
+      }
+
       const data = await generateProductData(
         { ...formState, existingProducts },
-        commonDescription
+        descriptionPlain
       );
-      
-      // Use the already sanitized mainHandle for the folder name
+
       data.productPictureFolder = data.mainHandle;
 
       setProductData(data);
-      
-      // Scroll to the preview section after data is generated
+
       setTimeout(scrollToPreview, 100);
     } catch (error) {
       console.error("[Product Creation] Data Generation Failed:", {
@@ -363,7 +464,7 @@ export default function CreateProduct() {
     formData.append('productData', JSON.stringify(productData));
     
     fetcher.submit(formData, { 
-      method: "POST", 
+      method: 'POST', 
       enctype: "multipart/form-data" 
     });
   };
@@ -463,31 +564,86 @@ export default function CreateProduct() {
 
           <Card>
             <BlockStack gap="400">
+              <ProductTypeSelector
+                formState={formState}
+                onChange={handleChange}
+              />
               <CollectionSelector
                 shopifyCollections={shopifyCollections}
                 formState={formState}
                 onChange={handleChange}
               />
-              <ProductTypeSelector
-                formState={formState}
-                onChange={handleChange}
+
+              {manualDescriptionMode && (
+                <Banner status="warning" title="Collection has no example descriptions">
+                  <Text as="p" variant="bodyMd">
+                    This collection does not have a usable{" "}
+                    <Text as="span" fontWeight="semibold">
+                      custom.example_product_descriptions
+                    </Text>{" "}
+                    metafield (or it could not be parsed as JSON). Write the product description by
+                    hand below. AI generation is disabled for this collection.
+                  </Text>
+                </Banner>
+              )}
+
+              {claudeDescriptionMode && (
+                <BlockStack gap="200">
+                  <Text as="h2" variant="headingSm">
+                    Reference product image
+                  </Text>
+                  <Text as="p" variant="bodyMd" tone="subdued">
+                    Upload a group shot (HEIC, JPEG, or PNG). Used only for AI description generation.
+                  </Text>
+                  <DropZone
+                    accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
+                    onDrop={handleReferenceDrop}
+                    label="Drop image to upload"
+                    variableHeight
+                  />
+                  {referencePreviewUrl && (
+                    <Box maxWidth="320px">
+                      <img
+                        src={referencePreviewUrl}
+                        alt="Reference preview"
+                        style={{ width: "100%", borderRadius: 8 }}
+                      />
+                    </Box>
+                  )}
+                </BlockStack>
+              )}
+
+              {Boolean(formState.collection?.value) && (
+                <TextField
+                  label="Product description"
+                  multiline={6}
+                  autoComplete="off"
+                  value={aiDescription}
+                  onChange={setAiDescription}
+                  helpText={
+                    claudeDescriptionMode
+                      ? "Generated from Claude after Preview; edit before creating the product."
+                      : "Required before Preview. This text becomes the Shopify product description."
+                  }
                 />
+              )}
+
               <LeatherColorSelector
                 leatherColors={leatherColors}
                 formState={formState}
                 onChange={handleChange}
-                />
+              />
               <FontSelector
                 fonts={fonts}
                 formState={formState}
                 onChange={handleChange}
-                />
+              />
               <ThreadColorSelector
                 stitchingThreadColors={stitchingThreadColors}
                 embroideryThreadColors={embroideryThreadColors}
                 formState={formState}
                 onChange={handleChange}
-                />
+              />
             </BlockStack>
           </Card>
 

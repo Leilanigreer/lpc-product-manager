@@ -60,7 +60,11 @@ async function loadShapesForLoader(admin) {
   }
 }
 
-export const loader = async ({ admin } = {}) => {  
+/**
+ * @param {{ admin?: object, includeCommonDescription?: boolean }} [opts]
+ * @param {boolean} [opts.includeCommonDescription=true] Set false for create-product (no Prisma common descriptions).
+ */
+export const loader = async ({ admin, includeCommonDescription = true } = {}) => {  
   try {
     const fontsPromise = getFontsFromShopify(admin);
     const leatherResultPromise = getLeatherColorsFromShopify(admin);
@@ -70,6 +74,9 @@ export const loader = async ({ admin } = {}) => {
     const embroideryDataPromise = getEmbroideryThreadColorDataFromShopify(admin);
     const shopifyCollectionsPromise = loadShopifyCollectionsForLoader(admin);
     const shapesPromise = loadShapesForLoader(admin);
+    const commonDescriptionPromise = includeCommonDescription
+      ? getCommonDescription()
+      : Promise.resolve(null);
     const [
       leatherResult,
       stitchingData,
@@ -87,7 +94,7 @@ export const loader = async ({ admin } = {}) => {
       fontsPromise,
       shapesPromise,
       shopifyCollectionsPromise,
-      getCommonDescription(),
+      commonDescriptionPromise,
       shopifyColorsPromise,
       leatherCollectionNamesPromise,
     ]);
@@ -116,7 +123,9 @@ export const loader = async ({ admin } = {}) => {
       fontsLoadError,
       shapes,
       shopifyCollections,
-      commonDescription,
+      ...(includeCommonDescription
+        ? { commonDescription: commonDescription ?? [] }
+        : {}),
       unlinkedIsacordNumbers,
       unlinkedAmannNumbers: stitchingData.unlinkedAmannNumbers,
       shopifyColors,
@@ -137,7 +146,7 @@ export const loader = async ({ admin } = {}) => {
         fontsLoadError: error.message,
         shapes: [],
         shopifyCollections: [],
-        commonDescription: [],
+        ...(includeCommonDescription ? { commonDescription: [] } : {}),
         unlinkedIsacordNumbers: [],
         unlinkedAmannNumbers: [],
         shopifyColors: [],
