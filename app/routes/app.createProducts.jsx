@@ -179,10 +179,6 @@ export default function CreateProduct() {
   const [referencePreviewUrl, setReferencePreviewUrl] = useState(null);
   const prevCollectionIdRef = useRef(undefined);
 
-  const claudeDescriptionMode =
-    Boolean(formState.collection?.value) &&
-    formState.collection?.exampleProductDescriptions != null;
-
   useEffect(() => {
     const id = formState.collection?.value;
     if (prevCollectionIdRef.current !== undefined && prevCollectionIdRef.current !== id) {
@@ -587,37 +583,17 @@ export default function CreateProduct() {
                   <Text as="h2" variant="headingMd">
                     Group image
                   </Text>
-                  {!formState.collection?.value ? (
-                    <Text as="p" variant="bodyMd" tone="subdued">
-                      Select a collection first. You can add or replace the shot anytime; it is
-                      only sent to the AI when this collection uses example descriptions.
-                    </Text>
-                  ) : (
-                    <>
-                      {claudeDescriptionMode ? (
-                        <Text as="p" variant="bodyMd" tone="subdued">
-                          Required before Preview for this collection. Click the image to replace
-                          it.
-                        </Text>
-                      ) : (
-                        <Text as="p" variant="bodyMd" tone="subdued">
-                          Optional group reference. Not used for AI on this collection. Click the
-                          image to replace it.
-                        </Text>
-                      )}
-                      <Box minWidth={0}>
-                        <ImageDropZone
-                          size="additional"
-                          label="Drop or click to upload"
-                          customWidth="100%"
-                          customHeight="220px"
-                          uploadedImageUrl={referencePreviewUrl}
-                          onDrop={handleReferenceFiles}
-                          accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
-                        />
-                      </Box>
-                    </>
-                  )}
+                  <Box maxWidth="260px" minWidth={0}>
+                    <ImageDropZone
+                      size="small"
+                      label="Upload"
+                      customWidth="100%"
+                      customHeight="132px"
+                      uploadedImageUrl={referencePreviewUrl}
+                      onDrop={handleReferenceFiles}
+                      accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
+                    />
+                  </Box>
                 </BlockStack>
               </div>
 
