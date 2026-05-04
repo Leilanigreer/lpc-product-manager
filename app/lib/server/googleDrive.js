@@ -196,6 +196,48 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
   }
 }
 
+/**
+ * Download a Drive file’s bytes using the same service account as uploads.
+ * Used to pipe images into Shopify staged uploads (no public Cloudinary URL).
+ *
+ * @param {string} fileId
+ * @returns {Promise<{ buffer: Buffer, mimeType: string, fileName: string }>}
+ */
+export async function downloadDriveFileById(fileId) {
+  const id = typeof fileId === "string" ? fileId.trim() : "";
+  if (!id) {
+    throw new Error("downloadDriveFileById: fileId is required");
+  }
+
+  const meta = await drive.files.get({
+    fileId: id,
+    fields: "id, name, mimeType",
+    supportsAllDrives: true,
+  });
+
+  const mimeType = meta.data.mimeType || "application/octet-stream";
+  if (mimeType === "application/vnd.google-apps.folder") {
+    throw new Error("downloadDriveFileById: target is a folder, not a file");
+  }
+  if (mimeType.startsWith("application/vnd.google-apps.")) {
+    throw new Error(
+      `downloadDriveFileById: Google Workspace file type (${mimeType}) is not supported; use a binary image (JPEG, PNG, WEBP, etc.).`
+    );
+  }
+
+  const media = await drive.files.get(
+    { fileId: id, alt: "media", supportsAllDrives: true },
+    { responseType: "arraybuffer" }
+  );
+  const buffer = Buffer.from(media.data);
+  const fileName =
+    typeof meta.data.name === "string" && meta.data.name.trim()
+      ? meta.data.name.trim()
+      : "group-image.jpg";
+
+  return { buffer, mimeType, fileName };
+}
+
 export async function updateToGoogleDrive(file, fileId) {
   try {
     // Convert file to buffer

@@ -23,15 +23,22 @@
  * - Product `custom.base_sku` — versioned base SKU (from first generated variant’s `baseSKU`), for
  *   Admin versioning / `fetchCollectionBaseSkusForVersioning`.
  *
- * Primary product image (`productUpdate` media): currently **Google Drive** (`groupImage.driveData`
- * `webViewLink` or thumbnail URL from `fileId`). Cloudinary-first logic is left commented in-code to revert.
+ * Primary product image (`productUpdate` media): **Staged upload** — download from Drive by
+ * `fileId`, push bytes via `stagedUploadsCreate`, then use returned `resourceUrl` as `originalSource`.
+ * On failure: **placeholder only** (Cloudinary URL fallbacks left commented below until you re-enable).
+ * Requires `write_files` scope.
  */
 
 import {
   isShopifyMetaobjectGid,
   isShopifyProductVariantGid,
 } from "../utils/shopifyGid.js";
-import { getGoogleDriveUrl } from "../utils/urlUtils.js";
+import { downloadDriveFileById } from "./googleDrive.server.js";
+import {
+  mimeForStagedProductImage,
+  stagedFilenameFromDrive,
+  uploadBufferAsStagedProductImage,
+} from "./shopifyStagedProductMedia.server.js";
 
 const METAFIELDS_SET_MUTATION = `#graphql
   mutation MetafieldsSet($metafields: [MetafieldsSetInput!]!) {
@@ -560,21 +567,8 @@ export const createShopifyProduct = async (admin, productData) => {
       createdVariantNodes
     );
 
-    // 6. Product media: group image for Shopify `originalSource`.
-    // Experiment: prefer Google Drive only (Cloudinary still uploaded client-side for other uses).
-    // If Shopify fails to import from Drive, restore the commented Cloudinary-first block below.
-    const PLACEHOLDER_IMAGE_URL =
-      "https://cdn.shopify.com/s/files/1/0690/4414/2359/files/Placeholder_new_product.png?v=1730926173";
-    const drive = productData?.groupImage?.driveData ?? null;
-    const groupDriveUrl =
-      typeof drive?.webViewLink === "string" &&
-      drive.webViewLink.trim().startsWith("http")
-        ? drive.webViewLink.trim()
-        : typeof drive?.fileId === "string" && drive.fileId.trim()
-          ? getGoogleDriveUrl(drive.fileId.trim()) || ""
-          : "";
-
-    // --- Previous: Cloudinary (or any https displayUrl) first — uncomment to revert ---
+    // 6. Product media: group image — Drive → staged upload only; placeholder if that fails.
+    // Cloudinary / https displayUrl fallbacks (still uploaded client-side) — uncomment when ready:
     // const groupSecure =
     //   typeof productData?.groupImage?.cloudinaryData?.secure_url === "string"
     //     ? productData.groupImage.cloudinaryData.secure_url.trim()
@@ -583,23 +577,56 @@ export const createShopifyProduct = async (admin, productData) => {
     //   typeof productData?.groupImage?.displayUrl === "string"
     //     ? productData.groupImage.displayUrl.trim()
     //     : "";
-    // const groupMainUrl =
-    //   groupSecure ||
-    //   (groupDisplay.startsWith("http") ? groupDisplay : "");
-    // const mainProductImageUrl = groupMainUrl || PLACEHOLDER_IMAGE_URL;
-    // const mainProductImageAlt = groupMainUrl
-    //   ? (typeof productData?.groupImage?.label === "string" &&
-    //       productData.groupImage.label.trim()) ||
-    //     "Group image"
-    //   : "Pictures of new headcovers coming soon.";
-    // --- end revert block ---
+    // const cloudinaryOrDisplayUrl =
+    //   groupSecure || (groupDisplay.startsWith("http") ? groupDisplay : "");
 
-    const mainProductImageUrl = groupDriveUrl || PLACEHOLDER_IMAGE_URL;
-    const mainProductImageAlt = groupDriveUrl
-      ? (typeof productData?.groupImage?.label === "string" &&
-          productData.groupImage.label.trim()) ||
-        "Group image"
-      : "Pictures of new headcovers coming soon.";
+    const PLACEHOLDER_IMAGE_URL =
+      "https://cdn.shopify.com/s/files/1/0690/4414/2359/files/Placeholder_new_product.png?v=1730926173";
+    const groupAlt =
+      (typeof productData?.groupImage?.label === "string" &&
+        productData.groupImage.label.trim()) ||
+      "Group image";
+
+    let mainProductImageUrl = PLACEHOLDER_IMAGE_URL;
+    let mainProductImageAlt = "Pictures of new headcovers coming soon.";
+
+    const driveFileId =
+      typeof productData?.groupImage?.driveData?.fileId === "string"
+        ? productData.groupImage.driveData.fileId.trim()
+        : "";
+
+    if (driveFileId) {
+      try {
+        const { buffer, mimeType, fileName } =
+          await downloadDriveFileById(driveFileId);
+        const stagedMime = mimeForStagedProductImage(mimeType, fileName);
+        const stagedName = stagedFilenameFromDrive(
+          fileName,
+          stagedMime,
+          driveFileId
+        );
+        mainProductImageUrl = await uploadBufferAsStagedProductImage(
+          admin,
+          buffer,
+          stagedName,
+          stagedMime
+        );
+        mainProductImageAlt = groupAlt;
+      } catch (stagedErr) {
+        console.warn(
+          "[createShopifyProduct] Drive → staged product image failed:",
+          stagedErr instanceof Error ? stagedErr.message : String(stagedErr)
+        );
+        // if (cloudinaryOrDisplayUrl) {
+        //   mainProductImageUrl = cloudinaryOrDisplayUrl;
+        //   mainProductImageAlt = groupAlt;
+        // }
+      }
+    }
+    // else if (cloudinaryOrDisplayUrl) {
+    //   mainProductImageUrl = cloudinaryOrDisplayUrl;
+    //   mainProductImageAlt = groupAlt;
+    // }
 
     const mediaResponse = await admin.graphql(`#graphql
       mutation UpdateProductWithNewMedia($input: ProductInput!, $media: [CreateMediaInput!]) {
