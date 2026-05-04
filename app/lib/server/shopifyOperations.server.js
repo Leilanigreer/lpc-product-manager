@@ -5,7 +5,7 @@
  * @param {Object} productData - Generated product data
  * @returns {Promise<Object>} Complete Shopify response with all product data
  *
- * Metafields (after variants exist, via `metafieldsSet`):
+ * Metafields (after variants exist, via one or more `metafieldsSet` calls, chunked to 25 inputs each):
  * - Product `custom.leathers_used` — list.metaobject_reference (leather_color GIDs).
  * - Product `custom.amann_threads_used` — list (amann_number GIDs from stitching selections).
  * - Product `custom.isacord_threads_used` — list (isacord_number GIDs from embroidery selections).
@@ -43,6 +43,17 @@ const METAFIELDS_SET_MUTATION = `#graphql
     }
   }
 `;
+
+/** Admin API: `metafieldsSet` rejects more than 25 inputs per call. */
+const METAFIELDS_SET_INPUT_LIMIT = 25;
+
+function chunkMetafieldsForSet(metafields) {
+  const chunks = [];
+  for (let i = 0; i < metafields.length; i += METAFIELDS_SET_INPUT_LIMIT) {
+    chunks.push(metafields.slice(i, i + METAFIELDS_SET_INPUT_LIMIT));
+  }
+  return chunks;
+}
 
 /** Same shape + style + color designation (non-wood one-to-one pairs). */
 function variantPairingKey(v) {
@@ -280,17 +291,21 @@ async function setProductAndVariantMetafields(
     }
   }
 
-  const response = await admin.graphql(METAFIELDS_SET_MUTATION, {
-    variables: { metafields },
-  });
-  const json = await response.json();
-  if (json.errors?.length) {
-    throw new Error(json.errors.map((e) => e.message).join("; "));
-  }
-  const userErrors = json?.data?.metafieldsSet?.userErrors ?? [];
-  if (userErrors.length) {
-    const messages = userErrors.map((e) => e.message).filter(Boolean);
-    if (messages.length) throw new Error(messages.join("; "));
+  if (metafields.length === 0) return;
+
+  for (const batch of chunkMetafieldsForSet(metafields)) {
+    const response = await admin.graphql(METAFIELDS_SET_MUTATION, {
+      variables: { metafields: batch },
+    });
+    const json = await response.json();
+    if (json.errors?.length) {
+      throw new Error(json.errors.map((e) => e.message).join("; "));
+    }
+    const userErrors = json?.data?.metafieldsSet?.userErrors ?? [];
+    if (userErrors.length) {
+      const messages = userErrors.map((e) => e.message).filter(Boolean);
+      if (messages.length) throw new Error(messages.join("; "));
+    }
   }
 }
 
