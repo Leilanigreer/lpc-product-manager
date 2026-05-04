@@ -4,8 +4,7 @@ import { createInitialShapeState } from '../lib/forms/formState';
 
 const ACTION_TYPES = {
   UPDATE_COLLECTION: 'UPDATE_COLLECTION',
-  UPDATE_THREAD_MODE: 'UPDATE_THREAD_MODE',
-  UPDATE_GLOBAL_EMBROIDERY: 'UPDATE_GLOBAL_EMBROIDERY',
+  UPDATE_EMBROIDERY_THREADS: 'UPDATE_EMBROIDERY_THREADS',
   UPDATE_STITCHING_THREADS: 'UPDATE_STITCHING_THREADS',
   UPDATE_LEATHER_COLORS: 'UPDATE_LEATHER_COLORS',
   UPDATE_SHAPE: 'UPDATE_SHAPE',
@@ -102,8 +101,7 @@ const formReducer = (state, action) => {
         // Keep offering type + quantity when switching collection (same UX as font / leather).
         selectedOfferingType: state.selectedOfferingType,
         limitedEditionQuantity: state.limitedEditionQuantity,
-        threadMode: { embroidery: '' },
-        globalEmbroideryThread: null,
+        embroideryThreads: {},
         stitchingThreads: {},
         allShapes: shapesWithAutoStyles,
         existingProducts
@@ -116,43 +114,10 @@ const formReducer = (state, action) => {
       });
     }
 
-    case ACTION_TYPES.UPDATE_THREAD_MODE: {
-      const { threadType, mode } = payload;
-      if (threadType !== 'embroidery') return state;
-
-      const newAllShapes = { ...state.allShapes };
-
-      if (mode === 'global') {
-        // Clear thread data from shapes when switching to global
-        Object.keys(newAllShapes).forEach(shapeValue => {
-          if (newAllShapes[shapeValue].isSelected) {
-            newAllShapes[shapeValue] = {
-              ...newAllShapes[shapeValue],
-              embroideryThread: null
-            };
-          }
-        });
-      }
-
-      const newState = {
-        ...state,
-        threadMode: {
-          ...state.threadMode,
-          [threadType]: mode
-        },
-        globalEmbroideryThread: mode === 'perShape' ? null : state.globalEmbroideryThread,
-        allShapes: newAllShapes
-      };
-
-      return resetPreviewIfExists(newState);
-    }
-
-    case ACTION_TYPES.UPDATE_GLOBAL_EMBROIDERY: {
-      if (state.threadMode?.embroidery !== 'global') return state;
-
+    case ACTION_TYPES.UPDATE_EMBROIDERY_THREADS: {
       return resetPreviewIfExists({
         ...state,
-        globalEmbroideryThread: payload
+        embroideryThreads: payload,
       });
     }
 
@@ -290,12 +255,8 @@ export const useFormState = (initialState, onFormChange) => {
         payload: value,
         initialState
       }),
-      threadMode: () => ({
-        type: ACTION_TYPES.UPDATE_THREAD_MODE,
-        payload: value // { threadType, mode }
-      }),
-      globalEmbroideryThread: () => ({
-        type: ACTION_TYPES.UPDATE_GLOBAL_EMBROIDERY,
+      embroideryThreads: () => ({
+        type: ACTION_TYPES.UPDATE_EMBROIDERY_THREADS,
         payload: value
       }),
       stitchingThreads: () => ({

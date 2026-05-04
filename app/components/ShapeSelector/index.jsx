@@ -9,34 +9,24 @@ import { isPutter } from '../../lib/utils/shapeUtils';
 
 /**
  * Shape configuration component managing shape selection and properties
- * Handles shape selection and additional fields based on 
+ * Handles shape selection and additional fields based on
  * collection requirements and shape types.
- * 
+ *
  * @param {Object} props
  * @param {Array<Object>} props.shapes - Available shapes
- *   @param {string} props.shapes[].value - Shape identifier
- *   @param {string} props.shapes[].label - Display name
- *   @param {string} props.shapes[].abbreviation - Shape code
- *   @param {string} props.shapes[].shapeType - WOOD, PUTTER, or OTHER
- *   @param {number} [props.shapes[].displayOrder] - Optional display order
- * @param {Array<Object>} props.embroideryThreadColors - Available thread colors and their numbers
  * @param {Object} props.formState - Current form state containing allShapes and configurations
  * @param {Function} props.handleChange - Form state update callback
  */
-const ShapeSelector = ({ 
+const ShapeSelector = ({
   shapes,
-  embroideryThreadColors,
-  formState, 
+  formState,
   handleChange
 }) => {
-  // Keep non-representative shapes in form state for downstream expansion logic,
-  // but only show representative/active rows in this selector UI.
   const visibleShapes = useMemo(
     () => shapes.filter((shape) => shape.isActive !== false),
     [shapes]
   );
 
-  // Split shapes into putter and non-putter groups
   const { putterShapes, nonPutterShapes } = useMemo(() => {
     return visibleShapes.reduce((acc, shape) => {
       if (isPutter(shape)) {
@@ -48,37 +38,33 @@ const ShapeSelector = ({
     }, { putterShapes: [], nonPutterShapes: [] });
   }, [visibleShapes]);
 
-  // Memoize props for each grid
   const gridProps = useMemo(() => ({
-    embroideryThreadColors,
     formState,
     handleChange
-  }), [embroideryThreadColors, formState, handleChange]);
+  }), [formState, handleChange]);
 
   return (
     <ErrorBoundary errorMessage="Error in shape configuration">
       <BlockStack gap="400">
-        {/* Box 1: Non-Putter Shapes */}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingLg">Driver, Fairways & Hybrid</Text>
             <Divider borderColor="border-inverse" />
             <style>{preventWheelChange}</style>
-            <ShapeGrid 
-              {...gridProps} 
+            <ShapeGrid
+              {...gridProps}
               shapes={nonPutterShapes}
             />
           </BlockStack>
         </Card>
 
-        {/* Box 2: Putter Shapes */}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingLg">Putters</Text>
             <Divider borderColor="border-inverse" />
             <style>{preventWheelChange}</style>
-            <ShapeGrid 
-              {...gridProps} 
+            <ShapeGrid
+              {...gridProps}
               shapes={putterShapes}
             />
           </BlockStack>

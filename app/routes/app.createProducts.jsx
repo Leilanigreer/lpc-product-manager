@@ -665,8 +665,6 @@ export default function CreateProduct() {
             <BlockStack gap="400">
               <ShapeSelector
                 shapes={shapes}
-                leatherColors={leatherColors}
-                embroideryThreadColors={embroideryThreadColors}
                 formState={formState}
                 handleChange={handleChange}
               />

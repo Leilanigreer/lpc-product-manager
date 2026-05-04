@@ -29,7 +29,6 @@ export { createCustomVariants } from './createCustom';
  * @property {Object} finalRequirements - Resolved requirements from collection/style
  * @property {Object} allShapes - Map of shape configurations
  * @property {Object} leatherColors - Primary/secondary leather selections
- * @property {Object} threadMode - Thread selection mode configuration
- * @property {Object} [globalEmbroideryThread] - Global embroidery if using global mode
- * @property {Object} stitchingThreads - Selected stitching threads
+ * @property {Object} embroideryThreads - Isacord rows keyed by Isacord metaobject GID (single entry when threadType is EMBROIDERY); canonical `[0]` sorts by Isacord label
+ * @property {Object} stitchingThreads - Selected stitching threads (Amann rows; canonical `[0]` / first row uses sorted order by Amann label, same as embroidery)
  */

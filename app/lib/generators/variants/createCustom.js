@@ -7,6 +7,7 @@ import {
   sortShapeRowsForVariantOrder,
 } from "../../utils";
 import { leatherNameForListing } from "../../utils/leatherListing.js";
+import { firstCanonicalEmbroideryThread } from "../../utils/threadUtils.js";
 
 /** Weight not captured in UI for now; Shopify/Prisma still require a numeric weight. */
 const PLACEHOLDER_WEIGHT = "0";
@@ -119,9 +120,8 @@ const generateCustomVariant = (shapeData, formState, skuInfo) => {
       // weight: shapeData.weight,
       weight: PLACEHOLDER_WEIGHT,
       isCustom: true,
-      embroideryThread: formState.threadMode?.embroidery === 'perShape'
-        ? shapeData.embroideryThread || null
-        : formState.globalEmbroideryThread || null
+      embroideryThread:
+        firstCanonicalEmbroideryThread(formState.embroideryThreads) || null
     };
   } catch (error) {
     console.error('Error generating custom variant:', error);

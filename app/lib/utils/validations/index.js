@@ -5,7 +5,7 @@ import { validateCollection } from './collectionValidations';
 import { validateLeatherColors, validateShapeColorDesignations } from './colorValidations';
 import { validateShapes } from './shapeValidations';
 import { validateStyles } from './styleValidations';
-import { validateGlobalEmbroideryThread, validateStitchingThreads, validateShapeEmbroideryThreads } from './threadValidations';
+import { validateEmbroiderySelection, validateStitchingThreads } from './threadValidations';
 import { validateFinalRequirements } from './requirementValidations';
 /**
  * Helper function to check if a validation result is valid
@@ -97,14 +97,9 @@ export const validateProductForm = (formState, { debug = false } = {}) => {
       errors.push('Invalid stitching thread configuration');
     }
 
-    validations.hasValidGlobalEmbroidery = validateGlobalEmbroideryThread(formState, debug);
-    if (formState.threadMode?.embroidery === 'global' && !validations.hasValidGlobalEmbroidery) {
-      errors.push('Invalid global embroidery thread');
-    }
-
-    validations.hasValidShapeEmbroidery = validateShapeEmbroideryThreads(formState, debug);
-    if (formState.threadMode?.embroidery === 'perShape' && !validations.hasValidShapeEmbroidery) {
-      errors.push('Invalid shape-specific embroidery threads');
+    validations.hasValidEmbroidery = validateEmbroiderySelection(formState, debug);
+    if (!validations.hasValidEmbroidery) {
+      errors.push('Invalid embroidery thread configuration');
     }
 
     // Final Requirements

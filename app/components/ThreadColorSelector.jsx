@@ -3,6 +3,12 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Card, Combobox, Listbox, Icon, Box, InlineStack, BlockStack, Text, Tag } from "@shopify/polaris";
 import { SearchIcon } from '@shopify/polaris-icons';
+import {
+  isSingleEmbroideryMode,
+  firstCanonicalEmbroideryThread,
+  sortedEmbroideryThreadsList,
+  sortedStitchingThreadsList,
+} from '../lib/utils/threadUtils';
 
 // Styled Combobox List component to reduce repetition
 const ComboboxList = ({ options, selectedValue, onSelect }) => (
@@ -23,219 +29,277 @@ const ComboboxList = ({ options, selectedValue, onSelect }) => (
   )
 );
 
-const ThreadColorSelector = ({ 
+const ThreadColorSelector = ({
   stitchingThreadColors,
   embroideryThreadColors,
   formState,
   onChange
 }) => {
-  // Local state for input fields
   const [isacordInputValue, setIsacordInputValue] = useState('');
   const [amannInputValue, setAmannInputValue] = useState('');
 
-  // Derive key states from formState
   const isSingleStitchingMode = formState.collection?.threadType === 'STITCHING';
-  const showsIndependentOption =
-    formState.collection?.threadType === 'EMBROIDERY' ||
-    formState.collection?.needsStyle;
-  const isIndependentMode = formState.threadMode?.embroidery === 'perShape';
-  const embroideryMode = formState.threadMode?.embroidery || 'global';
-  const collection = formState.collection.label;
+  const singleEmbroidery = isSingleEmbroideryMode(formState);
 
-  // Prepare Isacord thread options
   const isacordOptions = useMemo(() => {
-    const baseOptions = embroideryThreadColors.map(thread => 
-      thread.isacordNumbers?.map(number => {
-        const fullData = {
-          threadValue: thread.value,
-          threadLabel: thread.label,
-          threadAbbreviation: thread.abbreviation,
-        };
-        
-        return {
-          label: number.label,
-          value: number.value,
-          displayText: `${number.label} - ${thread.label}`,
-          searchText: `${number.label} ${thread.label}`.toLowerCase(),
-          _fullData: fullData
-        };
-      })
-    ).flat().filter(Boolean);
+    return embroideryThreadColors
+      .map((thread) =>
+        thread.isacordNumbers?.map((number) => {
+          const fullData = {
+            threadValue: thread.value,
+            threadLabel: thread.label,
+            threadAbbreviation: thread.abbreviation,
+          };
 
-    if (showsIndependentOption) {
-      return [
-        {
-          label: "Independent for each shape",
-          value: "independent",
-          displayText: "Independent for each shape",
-          searchText: "independent shape"
-        },
-        ...baseOptions
-      ];
-    }
+          return {
+            label: number.label,
+            value: number.value,
+            displayText: `${number.label} - ${thread.label}`,
+            searchText: `${number.label} ${thread.label}`.toLowerCase(),
+            _fullData: fullData,
+          };
+        })
+      )
+      .flat()
+      .filter(Boolean);
+  }, [embroideryThreadColors]);
 
-    return baseOptions;
-  }, [embroideryThreadColors, showsIndependentOption]);
+  const amannOptions = useMemo(
+    () =>
+      stitchingThreadColors
+        .map((thread) =>
+          thread.amannNumbers?.map((number) => {
+            const fullData = {
+              threadValue: thread.value,
+              threadLabel: thread.label,
+              threadAbbreviation: thread.abbreviation,
+            };
 
-  // Prepare Amann thread options
-  const amannOptions = useMemo(() => 
-    stitchingThreadColors.map(thread => 
-      thread.amannNumbers?.map(number => {
-        const fullData = {
-          threadValue: thread.value,
-          threadLabel: thread.label,
-          threadAbbreviation: thread.abbreviation,
-        };
-
-        return {
-          label: number.label,
-          value: number.value,
-          displayText: `${number.label} - ${thread.label}`,
-          searchText: `${number.label} ${thread.label}`.toLowerCase(),
-          _fullData: fullData
-        };
-      })
-    ).flat().filter(Boolean),
+            return {
+              label: number.label,
+              value: number.value,
+              displayText: `${number.label} - ${thread.label}`,
+              searchText: `${number.label} ${thread.label}`.toLowerCase(),
+              _fullData: fullData,
+            };
+          })
+        )
+        .flat()
+        .filter(Boolean),
     [stitchingThreadColors]
   );
 
-  // Handle Isacord thread selection
-  const handleIsacordSelect = useCallback((value) => {
-    if (value === 'independent') {
-      onChange('threadMode', {
-        threadType: 'embroidery',
-        mode: 'perShape'
-      });
-      // Clear global selection when switching to per-shape
-      setIsacordInputValue(''); // Clear input
-    } else {
-      const selectedOption = isacordOptions.find(option => option.value === value);
-      if (selectedOption) {
-        const { _fullData } = selectedOption;
-        onChange('threadMode', {
-          threadType: 'embroidery',
-          mode: 'global'
-        });
-        onChange('globalEmbroideryThread', {
-          value: _fullData.threadValue,
-          label: _fullData.threadLabel,
-          abbreviation: _fullData.threadAbbreviation,
-          isacordNumbers: [{
+  const handleIsacordSelectSingle = useCallback(
+    (value) => {
+      const selectedOption = isacordOptions.find((option) => option.value === value);
+      if (!selectedOption) return;
+      const { _fullData } = selectedOption;
+      const threadData = {
+        value: _fullData.threadValue,
+        label: _fullData.threadLabel,
+        abbreviation: _fullData.threadAbbreviation,
+        isacordNumbers: [
+          {
             value: selectedOption.value,
-            label: selectedOption.label
-          }],
-          isThread: true
-        });
-      }
-    }
-    setIsacordInputValue('');
-  }, [isacordOptions, onChange]);
+            label: selectedOption.label,
+          },
+        ],
+        isThread: true,
+      };
+      onChange('embroideryThreads', { [selectedOption.value]: threadData });
+      setIsacordInputValue('');
+    },
+    [isacordOptions, onChange]
+  );
 
-  // Handle Amann thread selection
-  const handleAmannSelect = useCallback((value) => {
-    const selectedOption = amannOptions.find(option => option.value === value);
-    if (!selectedOption) return;
-    const { _fullData } = selectedOption;
+  const handleIsacordSelectMulti = useCallback(
+    (value) => {
+      const selectedOption = isacordOptions.find((option) => option.value === value);
+      if (!selectedOption) return;
+      const { _fullData } = selectedOption;
+      const threadData = {
+        value: _fullData.threadValue,
+        label: _fullData.threadLabel,
+        abbreviation: _fullData.threadAbbreviation,
+        isacordNumbers: [
+          {
+            value: selectedOption.value,
+            label: selectedOption.label,
+          },
+        ],
+        isThread: true,
+      };
+      onChange('embroideryThreads', {
+        ...formState.embroideryThreads,
+        [selectedOption.value]: threadData,
+      });
+      setIsacordInputValue('');
+    },
+    [isacordOptions, onChange, formState.embroideryThreads]
+  );
 
-    const threadData = {
-      value: _fullData.threadValue,
-      label: _fullData.threadLabel,
-      abbreviation: _fullData.threadAbbreviation,
-      amannNumbers: [{
-        value: selectedOption.value,
-        label: selectedOption.label
-      }],
-      isThread: true
-    };
+  const handleRemoveEmbroideryThread = useCallback(
+    (isacordGid) => {
+      const next = { ...formState.embroideryThreads };
+      delete next[isacordGid];
+      onChange('embroideryThreads', next);
+    },
+    [formState.embroideryThreads, onChange]
+  );
 
-    // In single mode, replace existing selection. In multi mode, add to selection
-    onChange('stitchingThreads', isSingleStitchingMode 
-      ? { [threadData.value]: threadData }
-      : {
-          ...formState.stitchingThreads,
-          [threadData.value]: threadData
-        }
-    );
-    
-    setAmannInputValue('');
-  }, [amannOptions, onChange, formState.stitchingThreads, isSingleStitchingMode]);
+  const handleAmannSelect = useCallback(
+    (value) => {
+      const selectedOption = amannOptions.find((option) => option.value === value);
+      if (!selectedOption) return;
+      const { _fullData } = selectedOption;
 
-  // Handle removing a stitching thread
-  const handleRemoveStitchingThread = useCallback((threadValue) => {
-    const newThreads = { ...formState.stitchingThreads };
-    delete newThreads[threadValue];
-    onChange('stitchingThreads', newThreads);
-  }, [formState.stitchingThreads, onChange]);
+      const threadData = {
+        value: _fullData.threadValue,
+        label: _fullData.threadLabel,
+        abbreviation: _fullData.threadAbbreviation,
+        amannNumbers: [
+          {
+            value: selectedOption.value,
+            label: selectedOption.label,
+          },
+        ],
+        isThread: true,
+      };
 
-  // Filter options based on search input
+      onChange(
+        'stitchingThreads',
+        isSingleStitchingMode
+          ? { [threadData.value]: threadData }
+          : {
+              ...formState.stitchingThreads,
+              [threadData.value]: threadData,
+            }
+      );
+
+      setAmannInputValue('');
+    },
+    [amannOptions, onChange, formState.stitchingThreads, isSingleStitchingMode]
+  );
+
+  const handleRemoveStitchingThread = useCallback(
+    (threadValue) => {
+      const newThreads = { ...formState.stitchingThreads };
+      delete newThreads[threadValue];
+      onChange('stitchingThreads', newThreads);
+    },
+    [formState.stitchingThreads, onChange]
+  );
+
   const filteredIsacordOptions = useMemo(() => {
     const searchTerm = isacordInputValue.toLowerCase();
-    return searchTerm === '' 
-      ? isacordOptions 
-      : isacordOptions.filter(option => option.searchText?.includes(searchTerm));
-  }, [isacordOptions, isacordInputValue]);
+    let opts =
+      searchTerm === ''
+        ? isacordOptions
+        : isacordOptions.filter((option) => option.searchText?.includes(searchTerm));
+    if (!singleEmbroidery) {
+      const selectedIds = new Set(Object.keys(formState.embroideryThreads || {}));
+      opts = opts.filter((o) => !selectedIds.has(o.value));
+    }
+    return opts;
+  }, [isacordOptions, isacordInputValue, singleEmbroidery, formState.embroideryThreads]);
 
   const filteredAmannOptions = useMemo(() => {
     const searchTerm = amannInputValue.toLowerCase();
-    return searchTerm === '' 
-      ? amannOptions 
-      : amannOptions.filter(option => option.searchText?.includes(searchTerm));
+    return searchTerm === ''
+      ? amannOptions
+      : amannOptions.filter((option) => option.searchText?.includes(searchTerm));
   }, [amannOptions, amannInputValue]);
 
-  // Get placeholder text for embroidery thread input
   const getEmbroideryPlaceholder = () => {
-    if (isIndependentMode) {
-      return "Shape-specific threads enabled";
+    if (singleEmbroidery) {
+      const thread = firstCanonicalEmbroideryThread(formState.embroideryThreads);
+      return thread?.isacordNumbers?.[0]?.label
+        ? `${thread.isacordNumbers[0].label} - ${thread.label}`
+        : "Search by number or color name";
     }
-    const thread = formState.globalEmbroideryThread;
-    return thread?.isacordNumbers[0].label 
-      ? `${thread.isacordNumbers[0].label} - ${thread.label}`
-      : "Search by number or color name";
+    return "Search by number or color name";
   };
+
+  const singleSelectedIsacordValue =
+    firstCanonicalEmbroideryThread(formState.embroideryThreads)?.isacordNumbers?.[0]
+      ?.value ?? null;
 
   return (
     <Card>
       <BlockStack gap="400">
-        {/* Embroidery Thread Section */}
         <BlockStack gap="300">
           <Text variant="headingMd">
-            Embroidery Thread 
-            {showsIndependentOption && (
+            Embroidery Thread
+            {singleEmbroidery && (
               <Text variant="bodySm" as="span" color="subdued">
-                {embroideryMode === 'perShape' 
-                  ? " (Per Shape Mode)" 
-                  : " (Global Mode)"}
+                {" "}
+                (single selection)
               </Text>
             )}
           </Text>
-          <Box width="100%">
-            <Combobox
-              activator={
-                <Combobox.TextField
-                prefix={<Icon source={SearchIcon} />}
-                onChange={setIsacordInputValue}
-                label={collection == 'Quilted' ? "Select Isacord Number - Used in Title and SKU" : "Select Isacord Number"}
-                value={embroideryMode === 'perShape' 
-                  ? "Independent for each shape" 
-                  : isacordInputValue}
-                placeholder={getEmbroideryPlaceholder()}
-                autoComplete="off"
-              />
-              }
-            >
-              <ComboboxList 
-                options={filteredIsacordOptions}
-                selectedValue={isIndependentMode ? 'independent' : formState.globalEmbroideryThread?.isacordNumbers[0].label}
-                onSelect={handleIsacordSelect}
-              />
-            </Combobox>
-          </Box>
+
+          {singleEmbroidery ? (
+            <Box width="100%">
+              <Combobox
+                activator={
+                  <Combobox.TextField
+                    prefix={<Icon source={SearchIcon} />}
+                    onChange={setIsacordInputValue}
+                    label="Select Isacord Number - Used in Title and SKU"
+                    value={isacordInputValue}
+                    placeholder={getEmbroideryPlaceholder()}
+                    autoComplete="off"
+                  />
+                }
+              >
+                <ComboboxList
+                  options={filteredIsacordOptions}
+                  selectedValue={singleSelectedIsacordValue}
+                  onSelect={handleIsacordSelectSingle}
+                />
+              </Combobox>
+            </Box>
+          ) : (
+            <BlockStack gap="200">
+              <Box width="100%">
+                <Combobox
+                  activator={
+                    <Combobox.TextField
+                      prefix={<Icon source={SearchIcon} />}
+                      onChange={setIsacordInputValue}
+                      label="Add Isacord Number"
+                      value={isacordInputValue}
+                      placeholder={getEmbroideryPlaceholder()}
+                      autoComplete="off"
+                    />
+                  }
+                >
+                  <ComboboxList
+                    options={filteredIsacordOptions}
+                    selectedValue={null}
+                    onSelect={handleIsacordSelectMulti}
+                  />
+                </Combobox>
+              </Box>
+              <InlineStack gap="200" wrap>
+                {sortedEmbroideryThreadsList(formState.embroideryThreads).map((thread) => {
+                  const isacordGid = thread.isacordNumbers[0].value;
+                  return (
+                    <Tag key={isacordGid} onRemove={() => handleRemoveEmbroideryThread(isacordGid)}>
+                      {thread.isacordNumbers?.[0]?.label && thread.label
+                        ? `${thread.isacordNumbers[0].label} - ${thread.label}`
+                        : "Unknown thread"}
+                    </Tag>
+                  );
+                })}
+              </InlineStack>
+            </BlockStack>
+          )}
         </BlockStack>
 
-        {/* Stitching Thread Section */}
         <BlockStack gap="300">
           <Text variant="headingMd">
-            Stitching Thread 
+            Stitching Thread
             {isSingleStitchingMode && " (Single Selection)"}
           </Text>
           <Box width="100%">
@@ -244,16 +308,22 @@ const ThreadColorSelector = ({
                 <Combobox.TextField
                   prefix={<Icon source={SearchIcon} />}
                   onChange={setAmannInputValue}
-                  label={collection == 'Argyle' ? "Add Amann Number - Used in Title and SKU" : "Add Amann Number"}
+                  label={
+                    isSingleStitchingMode
+                      ? "Select Amann Number - Used in Title and SKU"
+                      : "Add Amann Number"
+                  }
                   value={amannInputValue}
                   placeholder="Search by number or color name"
                   autoComplete="off"
-                  disabled={isSingleStitchingMode && 
-                    Object.keys(formState.stitchingThreads || {}).length > 0}
+                  disabled={
+                    isSingleStitchingMode &&
+                    Object.keys(formState.stitchingThreads || {}).length > 0
+                  }
                 />
               }
             >
-              <ComboboxList 
+              <ComboboxList
                 options={filteredAmannOptions}
                 selectedValue={null}
                 onSelect={handleAmannSelect}
@@ -262,12 +332,12 @@ const ThreadColorSelector = ({
           </Box>
 
           <InlineStack gap="200" wrap>
-            {Object.values(formState.stitchingThreads || {}).map((thread) => (
-              <Tag 
-                key={thread.value} 
+            {sortedStitchingThreadsList(formState.stitchingThreads).map((thread) => (
+              <Tag
+                key={thread.value}
                 onRemove={() => handleRemoveStitchingThread(thread.value)}
               >
-                {thread.amannNumbers[0].label && thread.label 
+                {thread.amannNumbers[0].label && thread.label
                   ? `${thread.amannNumbers[0].label} - ${thread.label}`
                   : "Unknown thread"}
               </Tag>

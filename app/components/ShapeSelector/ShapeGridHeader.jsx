@@ -28,12 +28,6 @@ const ShapeGridHeader = ({ gridColumns, headerText }) => (
               <Text variant="bodyMd" fontWeight="bold">Style</Text>
             </Box>
           );
-        case 'embroidery':
-          return (
-            <Box key={column.id} width={column.width}>
-              <Text variant="bodyMd" fontWeight="bold">Embroidery</Text>
-            </Box>
-          );
         case 'colorDesignation':
           return (
             <Box key={column.id} width={column.width}>

@@ -20,21 +20,18 @@ const sortShapes = (shapes) => {
 
 const ShapeGrid = ({
   shapes,
-  embroideryThreadColors,
   formState,
   handleChange
 }) => {
-  // Sort shapes
-  const sortedShapes = useMemo(() => 
+  const sortedShapes = useMemo(() =>
     sortShapes(shapes),
     [shapes]
   );
 
-  // Calculate visibility flags for all shapes at once
   const visibilityFlags = useMemo(() => {
-    const { collection, threadMode, allShapes } = formState;
+    const { collection, allShapes } = formState;
     const collectionStyles = collection?.styles ?? [];
-    
+
     return sortedShapes.reduce((acc, shape) => {
       const shapeState = allShapes[shape.value];
       const isSelected = shapeState?.isSelected;
@@ -48,45 +45,33 @@ const ShapeGrid = ({
               styleCategoryMatchesShapeGroup(s.shapeGroup, group)
             ).length;
 
-      // If we don't have a group, fall back to legacy behavior:
-      // only show style selection for non-putters.
       const needsStyleForThisShape =
         matchingStyleCount == null
           ? Boolean(collection?.needsStyle && !isPutterShape)
           : matchingStyleCount > 1;
-  
+
       acc[shape.value] = {
         isSelected,
         showStyleFields: isSelected && needsStyleForThisShape,
-        showEmbroideryFields:
-          isSelected &&
-          needsStyleForThisShape &&
-          !isPutterShape &&
-          threadMode.embroidery === 'perShape',
         showColorDesignation: isSelected && shapeState?.needsColorDesignation,
-        isPutterShape
+        isPutterShape,
       };
       return acc;
     }, {});
   }, [formState, sortedShapes]);
 
-  // Determine which columns to show
   const gridColumns = useMemo(() => {
     const anyShapeHas = {
       style: Object.values(visibilityFlags).some(flags => flags.showStyleFields),
-      embroidery: Object.values(visibilityFlags).some(flags => flags.showEmbroideryFields),
       colorDesignation: Object.values(visibilityFlags).some(flags => flags.showColorDesignation)
     };
 
     const columns = [
       { id: 'shape', width: COLUMN_WIDTHS.shapeColumn }
     ];
-    
+
     if (anyShapeHas.style) {
       columns.push({ id: 'style', width: COLUMN_WIDTHS.styleColumn });
-    }
-    if (anyShapeHas.embroidery) {
-      columns.push({ id: 'embroidery', width: COLUMN_WIDTHS.embroideryColumn });
     }
     if (anyShapeHas.colorDesignation) {
       columns.push({ id: 'colorDesignation', width: COLUMN_WIDTHS.colorDesignationColumn });
@@ -95,7 +80,6 @@ const ShapeGrid = ({
     return columns;
   }, [visibilityFlags]);
 
-  // Header text for color designation column
   const headerText = formState.collection?.label?.toLowerCase().includes('quilted')
     ? 'Quilted Leather'
     : 'Named Leather';
@@ -107,17 +91,16 @@ const ShapeGrid = ({
   return (
     <BlockStack gap="400">
       <ErrorBoundary errorMessage="Error loading shape configuration">
-        <ShapeGridHeader 
+        <ShapeGridHeader
           gridColumns={gridColumns}
           headerText={headerText}
         />
-        
+
         {sortedShapes.map((shape, index) => (
           <Box key={shape.value} paddingBlockEnd="400">
-            <ShapeRow 
+            <ShapeRow
               shape={shape}
               shapes={shapes}
-              embroideryThreadColors={embroideryThreadColors}
               formState={formState}
               handleChange={handleChange}
               gridColumns={gridColumns}

@@ -53,14 +53,10 @@ export const initialFormState = {
     secondary: null
   },
 
-  // Thread Configuration
-  threadMode: {
-    embroidery: null, // 'global' | 'perShape'
-  },
-  
   // Thread Selections (based on collection.threadType)
   stitchingThreads: {}, // Can be multiple unless collection.threadType === 'STITCHING'
-  globalEmbroideryThread: null, // Used when threadMode.embroidery === 'global'
+  /** Product-level Isacord rows (keyed by Isacord metaobject GID). EMBROIDERY: at most one entry. */
+  embroideryThreads: {},
 
   finalRequirements: {
     needsSecondaryLeather: false,

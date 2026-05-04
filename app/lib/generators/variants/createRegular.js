@@ -6,6 +6,10 @@ import {
   includeStyleInVariantTitle,
   sortShapeRowsForVariantOrder,
 } from "../../utils";
+import {
+  firstCanonicalEmbroideryThread,
+  firstCanonicalStitchingThread,
+} from "../../utils/threadUtils.js";
 
 /** Weight not captured in UI for now; Shopify/Prisma still require a numeric weight. */
 const PLACEHOLDER_WEIGHT = "0";
@@ -48,20 +52,20 @@ export const createRegularVariants = (formState, skuInfo) => {
           // weight: shape.weight,
           weight: PLACEHOLDER_WEIGHT,
           isCustom: false,
-          embroideryThread: formState.threadMode?.embroidery === 'perShape'
-            ? shape.embroideryThread || null
-            : formState.globalEmbroideryThread || null
+          embroideryThread:
+            firstCanonicalEmbroideryThread(formState.embroideryThreads) || null,
         };
 
         // Get first stitching thread's abbreviation if exists
-        const firstStitchingThread = Object.values(formState.stitchingThreads || {})[0];
+        const firstStitchingThread = firstCanonicalStitchingThread(
+          formState.stitchingThreads
+        );
         if (firstStitchingThread?.abbreviation) {
           variant.stitchingAbbreviation = firstStitchingThread.abbreviation;
         }
 
-        // Get embroidery abbreviation based on mode
-        const embroideryAbbr = formState.globalEmbroideryThread?.abbreviation ||
-          shape.embroideryThread?.abbreviation;
+        const embroideryAbbr =
+          firstCanonicalEmbroideryThread(formState.embroideryThreads)?.abbreviation;
         if (embroideryAbbr) {
           variant.embroideryAbbreviation = embroideryAbbr;
         }

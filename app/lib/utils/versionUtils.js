@@ -1,5 +1,10 @@
 // app/lib/utils/versionUtils.js
 
+import {
+  sortedEmbroideryThreadsList,
+  sortedStitchingThreadsList,
+} from "./threadUtils.js";
+
 /**
  * Evaluates a pattern with provided data context
  * @param {string} pattern - Pattern string containing placeholders
@@ -49,14 +54,18 @@ export const generateBaseParts = (formState) => {
       return [];
     }
 
-    // Create context object matching the pattern structure
+    const stitchingList = sortedStitchingThreadsList(formState.stitchingThreads);
+    const embroideryList = sortedEmbroideryThreadsList(formState.embroideryThreads);
+
     const context = {
       leatherColors: {
         primary: formState.leatherColors?.primary,
         secondary: formState.leatherColors?.secondary
       },
-      stitchingThreadColor: formState.stitchingThreads?.['thread-value'],
-      globalEmbroideryThread: formState.globalEmbroideryThread
+      stitchingThreads: stitchingList,
+      stitchingThreadColor: stitchingList[0] ?? null,
+      embroideryThreads: embroideryList,
+      embroideryThreadColor: embroideryList[0] ?? null,
     };
 
     // Evaluate the pattern

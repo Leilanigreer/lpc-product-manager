@@ -1,6 +1,10 @@
 // app/lib/generators/titleGenerator.js
 
 import { leatherNameForListing } from "../utils/leatherListing.js";
+import {
+  firstCanonicalEmbroideryThread,
+  firstCanonicalStitchingThread,
+} from "../utils/threadUtils.js";
 
 const DEFAULT_HANDLE = "pending-main-handle";
 const DEFAULT_SEO_TITLE = "pending-seo-title";
@@ -50,12 +54,22 @@ export const generateTitle = async (formState) => {
         asTitleToken(leatherNameForListing(formState.leatherColors?.secondary))
       )
       .replace(
-        "{stitchingThreads.[0].label}",
-        asTitleToken(Object.values(formState.stitchingThreads || {})[0]?.label)
+        "{stitchingThreads[0].label}",
+        asTitleToken(
+          firstCanonicalStitchingThread(formState.stitchingThreads)?.label
+        )
       )
       .replace(
-        "{globalEmbroideryThread.label}",
-        asTitleToken(formState.globalEmbroideryThread?.label)
+        "{stitchingThreads.[0].label}",
+        asTitleToken(
+          firstCanonicalStitchingThread(formState.stitchingThreads)?.label
+        )
+      )
+      .replace(
+        "{embroideryThreads[0].label}",
+        asTitleToken(
+          firstCanonicalEmbroideryThread(formState.embroideryThreads)?.label
+        )
       )
       || DEFAULT_TITLE;
 

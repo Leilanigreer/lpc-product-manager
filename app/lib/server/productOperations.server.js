@@ -1,6 +1,7 @@
 // app/lib/server/productOperations.server.js
 
 import prisma from "../../db.server.js";
+import { sortedStitchingThreadsList } from "../utils/threadUtils.js";
 
 /**
  * Maps image label to the correct ImageType enum value
@@ -125,14 +126,16 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
           : { leatherColor2: { connect: { id: productData.selectedLeatherColor2 } } }
       )),
       stitchingThreads: {
-        create: Object.entries(productData.stitchingThreads).map(([_, thread]) => ({
-          stitchingThread: {
-            connect: { id: thread.value }
-          },
-          amann: {
-            connect: { id: thread.amannNumbers[0].value }
-          }
-        }))
+        create: sortedStitchingThreadsList(productData.stitchingThreads).map(
+          (thread) => ({
+            stitchingThread: {
+              connect: { id: thread.value },
+            },
+            amann: {
+              connect: { id: thread.amannNumbers[0].value },
+            },
+          })
+        ),
       },
       // Add Google Drive folder URL if available
       ...(productData.googleDriveFolderUrl && {
