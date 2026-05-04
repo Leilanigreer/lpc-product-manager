@@ -13,7 +13,10 @@ export const useFormNotifications = ({ fetcher, handleChange, onSuccess }) => {
     const productId = data.product.id.replace('gid://shopify/Product/', '');
     const shopDomain = data.shop?.myshopifyDomain?.replace('.myshopify.com', '');
     const host = data.shop?.host;
-    const productHandle = data.databaseSave.mainProduct.mainHandle;
+    const productHandle =
+      data.mainHandle ??
+      data.databaseSave?.mainProduct?.mainHandle ??
+      null;
 
     if (productId && shopDomain && host && productHandle) {
       // Set all states in a single batch
@@ -68,7 +71,11 @@ export const useFormNotifications = ({ fetcher, handleChange, onSuccess }) => {
       // Mark this response as processed
       lastProcessedResponseRef.current = responseKey;
 
-      if (data.product && data.shop && data.databaseSave?.mainProduct) {
+      if (
+        data.product &&
+        data.shop &&
+        (data.mainHandle || data.databaseSave?.mainProduct?.mainHandle)
+      ) {
         handleSuccess(data);
       } else if (data.errors) {
         handleError(data.errors);

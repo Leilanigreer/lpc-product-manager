@@ -12,10 +12,13 @@ import { initialFormState, createInitialShapeState } from "../lib/forms/formStat
 import { useFormState } from "../hooks/useFormState";
 import { useFormNotifications } from "../hooks/useFormNotifications.js";
 import { createShopifyProduct } from "../lib/server/shopifyOperations.server.js";
-import { saveProductToDatabase } from "../lib/server/productOperations.server.js";
+// import { saveProductToDatabase } from "../lib/server/productOperations.server.js";
 import { sendInternalEmail } from "../services/email.server";
 import { generateProductCreationNotification } from "../templates/product-creation-notification";
-import { getCloudinaryFolderPath } from "../lib/utils/cloudinary";
+import { getCloudinaryFolderPath, uploadToCloudinaryWithSignature } from "../lib/utils/cloudinary";
+import { uploadToGoogleDrive, updateToGoogleDrive } from "../lib/utils/googleDrive";
+import { getGoogleDriveUrl } from "../lib/utils/urlUtils";
+import { isDevelopment } from "../lib/config/environment";
 import { convertDroppedFileToReferenceImage } from "../lib/utils/referenceImageClient.js";
 import {
   CollectionSelector,
@@ -44,6 +47,64 @@ import {
 const GENERATE_DESCRIPTION_REMIX_ROUTE_ID =
   "routes/app.api.generate-product-description";
 
+const GROUP_IMAGE_LABEL = "Group image";
+
+/**
+ * Upload group image to Google Drive + Cloudinary (same pattern as variant / additional views).
+ * @returns {{ groupImage: { label: string, displayUrl: string, driveData: object, cloudinaryData: object | null }, googleDriveFolderUrl: string | null }}
+ */
+async function uploadGroupImageToDriveAndCloudinary(file, productData) {
+  const sku = productData.variants?.[0]?.sku;
+  if (!sku) {
+    throw new Error("Cannot upload group image: no variant SKU on product data.");
+  }
+  const baseSKU =
+    productData.variants?.[0]?.baseSKU ?? productData.variants?.[0]?.sku;
+
+  let driveData = null;
+  const existing = productData.groupImage?.driveData?.fileId;
+  if (existing) {
+    driveData = await updateToGoogleDrive(file, existing);
+  } else {
+    driveData = await uploadToGoogleDrive(file, {
+      collection: productData.productType,
+      folderName: productData.productPictureFolder,
+      sku,
+      label: "group-image",
+    });
+  }
+
+  let cloudinaryData = null;
+  try {
+    const publicId = `${productData.productType}/${productData.productPictureFolder}/${baseSKU}-group-image`;
+    cloudinaryData = await uploadToCloudinaryWithSignature(
+      file,
+      publicId,
+      productData.productType,
+      productData.productPictureFolder
+    );
+  } catch (cloudinaryError) {
+    if (isDevelopment) {
+      console.error("Group image Cloudinary upload failed:", cloudinaryError);
+    }
+  }
+
+  const displayUrl =
+    cloudinaryData?.secure_url || getGoogleDriveUrl(driveData.fileId);
+  const googleDriveFolderUrl =
+    driveData?.folderPath?.productFolderUrl?.trim() || null;
+
+  return {
+    groupImage: {
+      label: GROUP_IMAGE_LABEL,
+      displayUrl,
+      driveData,
+      cloudinaryData,
+    },
+    googleDriveFolderUrl,
+  };
+}
+
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
   return dataLoader({ admin, includeCommonDescription: false });
@@ -59,20 +120,37 @@ export const action = async ({ request }) => {
 
     // Only get Cloudinary folder ID if there are images
     let cloudinaryFolderId = null;
-    if (productData.additionalViews?.length > 0 || 
-        Object.values(productData.variants || {}).some(v => v.images?.length > 0)) {
-      cloudinaryFolderId = await getCloudinaryFolderPath(`products/${productData.productType}/${productData.mainHandle}`);
+    const hasVariantOrViewImages =
+      (productData.additionalViews?.length ?? 0) > 0 ||
+      Object.values(productData.variants || {}).some((v) => v.images?.length > 0);
+    const hasGroupImage = !!productData.groupImage?.displayUrl;
+    if (hasVariantOrViewImages || hasGroupImage) {
+      cloudinaryFolderId = await getCloudinaryFolderPath(
+        `products/${productData.productType}/${productData.mainHandle}`
+      );
     }
 
-    const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse, cloudinaryFolderId);
+    // Postgres persistence paused — restore when ProductSet sync is needed again.
+    // const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse, cloudinaryFolderId);
+    const databaseSaveStub = {
+      mainProduct: {
+        mainHandle: productData.mainHandle,
+        googleDriveFolderUrl: productData.googleDriveFolderUrl ?? "",
+      },
+    };
+
+    const hasImages = !!(
+      cloudinaryFolderId ||
+      (productData.googleDriveFolderUrl && String(productData.googleDriveFolderUrl).trim())
+    );
 
     // Send notification email about new product creation
     const htmlContent = generateProductCreationNotification({
       product: shopifyResponse.product,
-      databaseSave: dbSaveResult,
+      databaseSave: databaseSaveStub,
       shop: shopifyResponse.shop,
       cloudinaryFolderId: cloudinaryFolderId,
-      hasImages: !!cloudinaryFolderId
+      hasImages,
     });
 
     await sendInternalEmail(
@@ -83,8 +161,10 @@ export const action = async ({ request }) => {
 
     return {
       ...shopifyResponse,
-      databaseSave: dbSaveResult,
-      success: true
+      mainHandle: productData.mainHandle,
+      googleDriveFolderUrl: productData.googleDriveFolderUrl ?? null,
+      databaseSave: databaseSaveStub,
+      success: true,
     };
   } catch (error) {
     console.error('Product creation failed:', {
@@ -185,6 +265,15 @@ export default function CreateProduct() {
   const [referenceImage, setReferenceImage] = useState(null);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState(null);
   const prevCollectionIdRef = useRef(undefined);
+  const productDataRef = useRef(null);
+  /** Group image file dropped before preview exists — uploaded after `generateProductData`. */
+  const groupImagePendingFileRef = useRef(null);
+  /** Last successful group image payload for merge on re-preview when handle unchanged. */
+  const groupImagePayloadRef = useRef(null);
+
+  useEffect(() => {
+    productDataRef.current = productData;
+  }, [productData]);
 
   useEffect(() => {
     const id = formState.collection?.value;
@@ -198,6 +287,8 @@ export default function CreateProduct() {
       setProductData(null);
       setGenerationError(null);
       setPreviewCollectionSkuDebug(null);
+      groupImagePendingFileRef.current = null;
+      groupImagePayloadRef.current = null;
     }
     prevCollectionIdRef.current = id;
   }, [formState.collection?.value]);
@@ -211,25 +302,60 @@ export default function CreateProduct() {
     });
   }, [aiDescription]);
 
-  const handleReferenceFiles = useCallback(async (files) => {
-    setGenerationError(null);
-    const file = files?.[0];
-    if (!file) {
-      setGenerationError("Please drop a valid image file.");
-      return;
-    }
-    try {
-      const { base64, mediaType, previewBlob } = await convertDroppedFileToReferenceImage(file);
-      setReferencePreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return URL.createObjectURL(previewBlob);
-      });
-      setReferenceImage({ base64, mediaType });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setGenerationError(msg);
-    }
-  }, []);
+  const handleReferenceFiles = useCallback(
+    async (files) => {
+      setGenerationError(null);
+      const file = files?.[0];
+      if (!file) {
+        setGenerationError("Please drop a valid image file.");
+        return;
+      }
+      try {
+        const { base64, mediaType, previewBlob } =
+          await convertDroppedFileToReferenceImage(file);
+        setReferencePreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return URL.createObjectURL(previewBlob);
+        });
+        setReferenceImage({ base64, mediaType });
+
+        const pd = productDataRef.current;
+        if (pd) {
+          try {
+            const { groupImage, googleDriveFolderUrl } =
+              await uploadGroupImageToDriveAndCloudinary(file, pd);
+            setProductData((prevData) => {
+              if (!prevData) return prevData;
+              const next = { ...prevData, groupImage };
+              if (googleDriveFolderUrl && !next.googleDriveFolderUrl) {
+                next.googleDriveFolderUrl = googleDriveFolderUrl;
+              }
+              return next;
+            });
+            groupImagePayloadRef.current = {
+              groupImage,
+              googleDriveFolderUrl:
+                googleDriveFolderUrl ?? pd.googleDriveFolderUrl ?? null,
+              mainHandle: pd.mainHandle,
+            };
+            groupImagePendingFileRef.current = null;
+          } catch (uploadErr) {
+            const uploadMsg =
+              uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
+            setGenerationError(
+              `Group image could not be uploaded to Drive/Cloudinary: ${uploadMsg}`
+            );
+          }
+        } else {
+          groupImagePendingFileRef.current = file;
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setGenerationError(msg);
+      }
+    },
+    []
+  );
 
   const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
     if (!productData) return;
@@ -307,6 +433,8 @@ export default function CreateProduct() {
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
+    groupImagePendingFileRef.current = null;
+    groupImagePayloadRef.current = null;
   }, []);
 
   const {
@@ -460,6 +588,42 @@ export default function CreateProduct() {
       );
 
       data.productPictureFolder = data.mainHandle;
+
+      const prevHandle = productDataRef.current?.mainHandle;
+      const prevGroup = productDataRef.current?.groupImage;
+      const prevFolderUrl = productDataRef.current?.googleDriveFolderUrl;
+
+      if (
+        prevHandle &&
+        data.mainHandle === prevHandle &&
+        prevGroup &&
+        !groupImagePendingFileRef.current
+      ) {
+        data.groupImage = { ...prevGroup };
+        if (prevFolderUrl && !data.googleDriveFolderUrl) {
+          data.googleDriveFolderUrl = prevFolderUrl;
+        }
+      }
+
+      if (groupImagePendingFileRef.current) {
+        const pendingFile = groupImagePendingFileRef.current;
+        const { groupImage, googleDriveFolderUrl } =
+          await uploadGroupImageToDriveAndCloudinary(pendingFile, data);
+        data.groupImage = groupImage;
+        if (googleDriveFolderUrl) {
+          data.googleDriveFolderUrl =
+            data.googleDriveFolderUrl || googleDriveFolderUrl;
+        }
+        groupImagePendingFileRef.current = null;
+      }
+
+      groupImagePayloadRef.current = data.groupImage
+        ? {
+            groupImage: data.groupImage,
+            googleDriveFolderUrl: data.googleDriveFolderUrl ?? null,
+            mainHandle: data.mainHandle,
+          }
+        : null;
 
       setProductData(data);
 
@@ -633,7 +797,10 @@ export default function CreateProduct() {
                         label="Upload"
                         customWidth="100%"
                         customHeight="132px"
-                        uploadedImageUrl={referencePreviewUrl}
+                        uploadedImageUrl={
+                          productData?.groupImage?.displayUrl ||
+                          referencePreviewUrl
+                        }
                         onDrop={handleReferenceFiles}
                         accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
                       />

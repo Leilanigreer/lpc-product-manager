@@ -11,20 +11,27 @@
  * - Product `custom.isacord_threads_used` — list (isacord_number GIDs from embroidery selections).
  * - Product `custom.font` — single metaobject_reference (font), when set.
  * - Product `custom.color` — list (shopify--color-pattern GIDs from leather rows’ `colorMetaobjectIds`).
- * - Product `custom.shape` / `custom.style` — lists only when Limited Edition **and** exactly one
- *   shape is selected (`shopifyProductMetafields.limitedEditionProductShapeStyle`); otherwise omitted.
+ * - Product `custom.shape` / `custom.style` — lists only when exactly **one** variant is generated
+ *   (`shopifyProductMetafields.productShapeStyleLists`); otherwise omitted.
+ *   TODO: Re-evaluate with Limited Edition / Artisan collection work — logic may need to change.
+ * - Product `custom.google_drive_images` — same folder URL as creation email (`productData.googleDriveFolderUrl`);
+ *   type `url` in Admin (omit when no folder URL yet).
  * - Variant `custom.single_shape` / `custom.single_style`: single metaobject_reference per variant.
  * - Variant `custom.customizable` (boolean); `custom.customizable_variant_id` (variant_reference) on
  *   base variants. Wood pairing uses `customizeRepresentativeShapeValue` on base woods — see
  *   `buildWoodBaseToRepresentativeShapeValueMap` / `woodCollapseColorDesignationsMatch`.
  * - Product `custom.base_sku` — versioned base SKU (from first generated variant’s `baseSKU`), for
  *   Admin versioning / `fetchCollectionBaseSkusForVersioning`.
+ *
+ * Primary product image (`productUpdate` media): currently **Google Drive** (`groupImage.driveData`
+ * `webViewLink` or thumbnail URL from `fileId`). Cloudinary-first logic is left commented in-code to revert.
  */
 
 import {
   isShopifyMetaobjectGid,
   isShopifyProductVariantGid,
 } from "../utils/shopifyGid.js";
+import { getGoogleDriveUrl } from "../utils/urlUtils.js";
 
 const METAFIELDS_SET_MUTATION = `#graphql
   mutation MetafieldsSet($metafields: [MetafieldsSetInput!]!) {
@@ -150,32 +157,46 @@ async function setProductAndVariantMetafields(
     });
   }
 
-  const leShapeStyle = smf.limitedEditionProductShapeStyle;
-  if (leShapeStyle) {
+  const productShapeStyle = smf.productShapeStyleLists;
+  if (productShapeStyle) {
     if (
-      Array.isArray(leShapeStyle.shapeList) &&
-      leShapeStyle.shapeList.length > 0
+      Array.isArray(productShapeStyle.shapeList) &&
+      productShapeStyle.shapeList.length > 0
     ) {
       metafields.push({
         ownerId: productId,
         namespace: "custom",
         key: "shape",
         type: "list.metaobject_reference",
-        value: JSON.stringify(leShapeStyle.shapeList),
+        value: JSON.stringify(productShapeStyle.shapeList),
       });
     }
     if (
-      Array.isArray(leShapeStyle.styleList) &&
-      leShapeStyle.styleList.length > 0
+      Array.isArray(productShapeStyle.styleList) &&
+      productShapeStyle.styleList.length > 0
     ) {
       metafields.push({
         ownerId: productId,
         namespace: "custom",
         key: "style",
         type: "list.metaobject_reference",
-        value: JSON.stringify(leShapeStyle.styleList),
+        value: JSON.stringify(productShapeStyle.styleList),
       });
     }
+  }
+
+  const driveFolderUrl =
+    typeof productData.googleDriveFolderUrl === "string"
+      ? productData.googleDriveFolderUrl.trim()
+      : "";
+  if (driveFolderUrl) {
+    metafields.push({
+      ownerId: productId,
+      namespace: "custom",
+      key: "google_drive_images",
+      type: "url",
+      value: driveFolderUrl,
+    });
   }
 
   const firstPv = productDataVariants[0];
@@ -524,7 +545,47 @@ export const createShopifyProduct = async (admin, productData) => {
       createdVariantNodes
     );
 
-    // 6. Add default image
+    // 6. Product media: group image for Shopify `originalSource`.
+    // Experiment: prefer Google Drive only (Cloudinary still uploaded client-side for other uses).
+    // If Shopify fails to import from Drive, restore the commented Cloudinary-first block below.
+    const PLACEHOLDER_IMAGE_URL =
+      "https://cdn.shopify.com/s/files/1/0690/4414/2359/files/Placeholder_new_product.png?v=1730926173";
+    const drive = productData?.groupImage?.driveData ?? null;
+    const groupDriveUrl =
+      typeof drive?.webViewLink === "string" &&
+      drive.webViewLink.trim().startsWith("http")
+        ? drive.webViewLink.trim()
+        : typeof drive?.fileId === "string" && drive.fileId.trim()
+          ? getGoogleDriveUrl(drive.fileId.trim()) || ""
+          : "";
+
+    // --- Previous: Cloudinary (or any https displayUrl) first — uncomment to revert ---
+    // const groupSecure =
+    //   typeof productData?.groupImage?.cloudinaryData?.secure_url === "string"
+    //     ? productData.groupImage.cloudinaryData.secure_url.trim()
+    //     : "";
+    // const groupDisplay =
+    //   typeof productData?.groupImage?.displayUrl === "string"
+    //     ? productData.groupImage.displayUrl.trim()
+    //     : "";
+    // const groupMainUrl =
+    //   groupSecure ||
+    //   (groupDisplay.startsWith("http") ? groupDisplay : "");
+    // const mainProductImageUrl = groupMainUrl || PLACEHOLDER_IMAGE_URL;
+    // const mainProductImageAlt = groupMainUrl
+    //   ? (typeof productData?.groupImage?.label === "string" &&
+    //       productData.groupImage.label.trim()) ||
+    //     "Group image"
+    //   : "Pictures of new headcovers coming soon.";
+    // --- end revert block ---
+
+    const mainProductImageUrl = groupDriveUrl || PLACEHOLDER_IMAGE_URL;
+    const mainProductImageAlt = groupDriveUrl
+      ? (typeof productData?.groupImage?.label === "string" &&
+          productData.groupImage.label.trim()) ||
+        "Group image"
+      : "Pictures of new headcovers coming soon.";
+
     const mediaResponse = await admin.graphql(`#graphql
       mutation UpdateProductWithNewMedia($input: ProductInput!, $media: [CreateMediaInput!]) {
         productUpdate(input: $input, media: $media) {
@@ -553,8 +614,8 @@ export const createShopifyProduct = async (admin, productData) => {
           },
           media: [
             {
-              originalSource: "https://cdn.shopify.com/s/files/1/0690/4414/2359/files/Placeholder_new_product.png?v=1730926173",
-              alt: "Pictures of new headcovers coming soon.",
+              originalSource: mainProductImageUrl,
+              alt: mainProductImageAlt,
               mediaContentType: "IMAGE"
             }
           ]

@@ -36,8 +36,10 @@ function collectLeatherMetaobjectGids(formState) {
 
 /**
  * Product-level Shopify metafield payloads (GIDs only). Used by `createShopifyProduct` metafieldsSet.
+ * @param {object} formState
+ * @param {object[]} variants - Output of `generateVariants`; product-level shape/style lists only when length === 1.
  */
-function buildShopifyProductMetafields(formState) {
+function buildShopifyProductMetafields(formState, variants) {
   const amannRows = mapStitchingThreads(formState.stitchingThreads);
   const embroideryRows = mapEmbroideryThreads(formState);
 
@@ -52,24 +54,21 @@ function buildShopifyProductMetafields(formState) {
     ),
   ];
 
-  const selectedShapes = Object.values(formState.allShapes ?? {}).filter(
-    (s) => s.isSelected
-  );
-  const selectedShapeCount = selectedShapes.length;
-
-  let limitedEditionProductShapeStyle = null;
-  if (
-    formState.selectedOfferingType === 'limitedEdition' &&
-    selectedShapeCount === 1
-  ) {
-    const sh = selectedShapes[0];
+  /**
+   * Product `custom.shape` / `custom.style` only when exactly one Shopify variant row is generated.
+   * TODO: Revisit when Limited Edition / Artisan collection flows are built out — product-level shape
+   * rules may need to differ by offering or collection instead of variant count alone.
+   */
+  let productShapeStyleLists = null;
+  if (Array.isArray(variants) && variants.length === 1) {
+    const v = variants[0];
     const shapeGid =
-      sh?.value && isShopifyMetaobjectGid(sh.value) ? sh.value : null;
+      v?.shapeValue && isShopifyMetaobjectGid(v.shapeValue) ? v.shapeValue : null;
     const styleGid =
-      sh?.style?.value && isShopifyMetaobjectGid(sh.style.value)
-        ? sh.style.value
+      v?.style?.value && isShopifyMetaobjectGid(v.style.value)
+        ? v.style.value
         : null;
-    limitedEditionProductShapeStyle = {
+    productShapeStyleLists = {
       shapeList: shapeGid ? [shapeGid] : [],
       styleList: styleGid ? [styleGid] : [],
     };
@@ -83,7 +82,7 @@ function buildShopifyProductMetafields(formState) {
     fontGid: isShopifyMetaobjectGid(formState.selectedFont)
       ? formState.selectedFont
       : null,
-    limitedEditionProductShapeStyle,
+    productShapeStyleLists,
   };
 }
 
@@ -144,7 +143,7 @@ export const generateProductData = async (formState, productDescriptionPlain) =>
       stitchingThreads: formState.stitchingThreads,
 
       /** Payload for `metafieldsSet` on Product (and variant metafields use `variants`). */
-      shopifyProductMetafields: buildShopifyProductMetafields(formState),
+      shopifyProductMetafields: buildShopifyProductMetafields(formState, variants),
 
       createdAt: new Date().toISOString()
     };
