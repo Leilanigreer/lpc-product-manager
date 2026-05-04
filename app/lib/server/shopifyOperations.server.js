@@ -33,7 +33,7 @@ import {
   isShopifyMetaobjectGid,
   isShopifyProductVariantGid,
 } from "../utils/shopifyGid.js";
-import { downloadDriveFileById } from "./googleDrive.server.js";
+import { downloadDriveFileById } from "./googleDrive.js";
 import {
   mimeForStagedProductImage,
   stagedFilenameFromDrive,
