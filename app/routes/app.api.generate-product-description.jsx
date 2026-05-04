@@ -1,9 +1,6 @@
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import {
-  generateProductDescriptionViaClaude,
-  summarizeExamplesMetaForLog,
-} from "../lib/server/anthropicProductDescription.server.js";
+import { generateProductDescriptionViaClaude } from "../lib/server/anthropicProductDescription.server.js";
 
 /** Authenticated POST — Claude vision description (create-product only calls when examples metafield is non-null). */
 export async function action({ request }) {
@@ -40,26 +37,6 @@ export async function action({ request }) {
   if (mediaType !== "image/jpeg" && mediaType !== "image/png") {
     return json({ error: "mediaType must be image/jpeg or image/png." }, { status: 400 });
   }
-
-  const trimmedB64 = typeof imageBase64 === "string" ? imageBase64.trim() : "";
-  console.info(
-    `[generate-product-description] payloadType ${JSON.stringify({
-      kind: "remix.action.body",
-      route: "app.api.generate-product-description",
-      title: {
-        type: typeof title,
-        length: typeof title === "string" ? title.length : null,
-      },
-      examples: summarizeExamplesMetaForLog(examples),
-      imageBase64: {
-        charLength: trimmedB64.length,
-        approxDecodedBytes: trimmedB64.length
-          ? Math.ceil((trimmedB64.length * 3) / 4)
-          : 0,
-      },
-      mediaType,
-    })}`
-  );
 
   try {
     const description = await generateProductDescriptionViaClaude({

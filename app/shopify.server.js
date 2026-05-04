@@ -30,12 +30,10 @@ const shopify = shopifyApp({
       });
     },
     beforeAuth: async (request) => {
-      console.log("Starting auth for request:", request.url);
-      console.log("Request details:", {
-        method: request.method,
-        headers: Object.fromEntries(request.headers.entries()),
-        shop: request.url.searchParams?.get('shop')
-      });
+      if (process.env.NODE_ENV === "development") {
+        const shop = new URL(request.url).searchParams.get("shop");
+        console.log("[shopify] beforeAuth", request.method, request.url.split("?")[0], shop ?? "");
+      }
     },
     afterAuthFailed: async (error) => {
       console.error("Auth failed:", error);
@@ -47,10 +45,17 @@ const shopify = shopifyApp({
     : {}),
 });
 
-const customAddDocumentResponseHeaders = (request, headers) => {
-  console.log('Adding headers for request:', request.url);
-  console.log('Initial headers:', Object.fromEntries(headers.entries()));
+/** Strip secrets from URLs before logging (embedded apps put id_token, hmac, session in query). */
+function urlPathForLog(request) {
+  try {
+    const u = new URL(request.url);
+    return u.pathname;
+  } catch {
+    return "(invalid-url)";
+  }
+}
 
+const customAddDocumentResponseHeaders = (request, headers) => {
   try {
     // Apply Shopify's default headers
     shopify.addDocumentResponseHeaders(request, headers);
@@ -67,10 +72,12 @@ const customAddDocumentResponseHeaders = (request, headers) => {
       "ALLOW-FROM https://*.myshopify.com https://admin.shopify.com"
     );
   } catch (error) {
-    console.error('Error adding headers:', error);
+    console.error("Error adding document response headers:", error);
   }
 
-  console.log('Final headers:', Object.fromEntries(headers.entries()));
+  if (process.env.NODE_ENV === "development") {
+    console.log("[shopify] document headers", urlPathForLog(request));
+  }
   return headers;
 };
 
