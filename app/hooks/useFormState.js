@@ -44,10 +44,10 @@ const formReducer = (state, action) => {
       }), {});
 
       /**
-       * Cleared on collection change. The selected `collection` includes `versioningSkus` from the
-       * create-product loader (server-side Shopify GraphQL). Preview uses that only — no separate
-       * client fetch. Passing `existingProducts` in the payload overrides the initial list when
-       * hydrating from elsewhere.
+       * Resets shapes / threads for the new collection. Preserves `selectedOfferingType` and
+       * `limitedEditionQuantity` (product type UI). The selected `collection` includes
+       * `versioningSkus` from the create-product loader (server-side Shopify GraphQL). Passing
+       * `existingProducts` in the payload overrides the initial list when hydrating from elsewhere.
        */
       const existingProducts = Array.isArray(existingProductsFromPayload)
         ? existingProductsFromPayload
@@ -99,6 +99,9 @@ const formReducer = (state, action) => {
       const newState = {
         ...initialState,
         collection,
+        // Keep offering type + quantity when switching collection (same UX as font / leather).
+        selectedOfferingType: state.selectedOfferingType,
+        limitedEditionQuantity: state.limitedEditionQuantity,
         threadMode: { embroidery: '' },
         globalEmbroideryThread: null,
         stitchingThreads: {},
