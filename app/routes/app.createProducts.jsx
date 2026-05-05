@@ -265,10 +265,15 @@ export default function CreateProduct() {
   }, []);
 
   const resolveGroupImageBaseSku = useCallback((data) => {
+    const fromProduct =
+      typeof data?.versionedBaseSku === "string"
+        ? data.versionedBaseSku.trim()
+        : "";
+    if (fromProduct) return fromProduct;
     if (!data?.variants?.length) return null;
     const first = data.variants.find((v) => !v.isCustom) || data.variants[0];
-    if (first?.baseSKU) return first.baseSKU;
-    if (first?.sku) return first.sku;
+    const bs = typeof first?.baseSKU === "string" ? first.baseSKU.trim() : "";
+    if (bs) return bs;
     return null;
   }, []);
 

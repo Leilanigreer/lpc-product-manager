@@ -104,6 +104,13 @@ export const generateProductData = async (formState, productDescriptionPlain) =>
     const version = calculateVersionFromParts(skuParts, formState.existingProducts);
     const skuInfo = { parts: skuParts, version };
 
+    /** Same as each variant’s `baseSKU`: parts + optional `-V{n}`, no shape suffix (e.g. Driver). */
+    const filteredSkuParts = skuParts.filter(Boolean);
+    const joinedBase = filteredSkuParts.join("-");
+    const versionedBaseSku = version
+      ? `${joinedBase}-V${version}`
+      : joinedBase;
+
     // Generate title and variants in parallel
     const [title, variants] = await Promise.all([
       generateTitle(formState),
@@ -122,6 +129,8 @@ export const generateProductData = async (formState, productDescriptionPlain) =>
 
     const productData = {
       title,
+      /** Drive filenames like `{versionedBaseSku}-group-image`; do not use variant `sku` (includes shape). */
+      versionedBaseSku,
       mainHandle: await generateMainHandle(formState, title, version),
       productType: collectionLabel,
       seoTitle: await generateSEOTitle(formState, title),

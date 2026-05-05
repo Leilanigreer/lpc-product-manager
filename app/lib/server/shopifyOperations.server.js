@@ -214,7 +214,10 @@ async function setProductAndVariantMetafields(
 
   const firstPv = productDataVariants[0];
   const baseSkuMeta =
-    typeof firstPv?.baseSKU === "string" ? firstPv.baseSKU.trim() : "";
+    (typeof productData.versionedBaseSku === "string"
+      ? productData.versionedBaseSku.trim()
+      : "") ||
+    (typeof firstPv?.baseSKU === "string" ? firstPv.baseSKU.trim() : "");
   if (baseSkuMeta) {
     metafields.push({
       ownerId: productId,
