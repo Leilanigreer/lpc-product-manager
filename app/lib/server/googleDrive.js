@@ -112,14 +112,12 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     }
     
     // Simple verification check for the root folder
-    let isVerified = false;
     try {
       await drive.files.get({
         fileId: ROOT_FOLDER_ID,
         fields: 'id',
         supportsAllDrives: true,
       });
-      isVerified = true;
       console.log('Root folder verification successful');
     } catch (folderError) {
       console.error('Root folder verification failed:', folderError.message);
