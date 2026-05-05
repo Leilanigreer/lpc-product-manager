@@ -664,11 +664,6 @@ export default function CreateProduct() {
                     <Text as="h2" variant="headingMd">
                       Reference image
                     </Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Used for AI-generated descriptions (collections with examples) and saved to
-                      Google Drive as the group image on Create Product. Not added to Shopify
-                      product media.
-                    </Text>
                     <Box maxWidth="260px" minWidth={0}>
                       <ImageDropZone
                         size="small"
