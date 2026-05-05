@@ -4,6 +4,7 @@ import {
   formatSKU,
   calculatePrice,
   includeStyleInVariantTitle,
+  sanitizeStyleLabelForVariantName,
   sortShapeRowsForVariantOrder,
 } from "../../utils";
 import { leatherNameForListing } from "../../utils/leatherListing.js";
@@ -18,6 +19,9 @@ const getVariantName = (shapeData, formState) => {
   const suffix = '+$15';
 
   const includeStyleName = includeStyleInVariantTitle(formState, shapeData);
+  const sanitizedStyleLabel = sanitizeStyleLabelForVariantName(
+    shapeData.style?.label
+  );
 
   // Get shape label, using "Fairway" for wood types
   const shapeLabel = shapeData.shapeType === 'WOOD' ? 'Fairway' : shapeData.label;
@@ -33,10 +37,10 @@ const getVariantName = (shapeData, formState) => {
 
   // Handle non-color designation styled variants
   if (style && !shapeData.needsColorDesignation) {
-    if (!includeStyleName) {
+    if (!includeStyleName || !sanitizedStyleLabel) {
       return `${prefix} ${shapeLabel} ${suffix}`;
     }
-    return `${prefix} ${shapeLabel} - ${style.label} ${suffix}`;
+    return `${prefix} ${shapeLabel} - ${sanitizedStyleLabel} ${suffix}`;
   }
 
   // Handle color designation variants
@@ -58,20 +62,20 @@ const getVariantName = (shapeData, formState) => {
           : leatherNameForListing(primary);
     }
 
-    if (!includeStyleName) {
+    if (!includeStyleName || !sanitizedStyleLabel) {
       return `${prefix} ${shapeLabel} - ${colorLabel} ${leatherPhrase} ${suffix}`;
     }
 
     // Apply naming pattern
     switch (styleSource.namePattern) {
       case 'STYLE_FIRST':
-        return `${prefix} ${shapeLabel} - ${styleSource.label} with ${colorLabel} ${leatherPhrase} ${suffix}`;
+        return `${prefix} ${shapeLabel} - ${sanitizedStyleLabel} with ${colorLabel} ${leatherPhrase} ${suffix}`;
 
       case 'CUSTOM':
         if (styleSource.customNamePattern) {
           const name = styleSource.customNamePattern
             .replace('{shape.label}', shapeLabel)
-            .replace('{style.label}', styleSource.label)
+            .replace('{style.label}', sanitizedStyleLabel)
             .replace('{leather.label}', colorLabel);
           return `${prefix} ${name} ${suffix}`;
         }
@@ -79,7 +83,7 @@ const getVariantName = (shapeData, formState) => {
 
       case 'STANDARD':
       default:
-        return `${prefix} ${shapeLabel} - ${colorLabel} ${leatherPhrase} ${styleSource.label} ${suffix}`;
+        return `${prefix} ${shapeLabel} - ${colorLabel} ${leatherPhrase} ${sanitizedStyleLabel} ${suffix}`;
     }
   }
 

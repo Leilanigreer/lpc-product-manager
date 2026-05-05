@@ -92,9 +92,22 @@ export function allSelectedDriversWoodsHybridsShareSameStyle(formState) {
 }
 
 /**
+ * True when every selected putter shape (blades/mallets) shares the same style metaobject
+ * (or all have no style). Used to omit redundant style names from variant titles.
+ */
+export function allSelectedPuttersShareSameStyle(formState) {
+  const selected = Object.values(formState.allShapes ?? {}).filter((s) => s?.isSelected);
+  const putters = selected.filter((s) => isPutter(s));
+  if (putters.length === 0) return false;
+  const styleIds = putters.map((s) => s.style?.value ?? null);
+  return new Set(styleIds).size <= 1;
+}
+
+/**
  * Whether to include the style label in base/customize variant titles.
  * - Honors `style.useInVariantTitle` from Shopify (defaults true when unset).
  * - If all selected DWH shapes share one style, omit the style name (redundant).
+ * - If all selected putter shapes share one style, omit the style name (redundant).
  */
 export function includeStyleInVariantTitle(formState, shapeRow) {
   const style = shapeRow?.style;
@@ -106,7 +119,23 @@ export function includeStyleInVariantTitle(formState, shapeRow) {
   ) {
     return false;
   }
+  if (isPutter(shapeRow) && allSelectedPuttersShareSameStyle(formState)) {
+    return false;
+  }
   return true;
+}
+
+/**
+ * Variant-title style label cleanup:
+ * - "Argyle Mallet" -> "Argyle"
+ * - "Argyle Blade" -> "Argyle"
+ */
+export function sanitizeStyleLabelForVariantName(styleLabel) {
+  if (styleLabel == null) return "";
+  return String(styleLabel)
+    .replace(/\b(?:mallet|blade)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**

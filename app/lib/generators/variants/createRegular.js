@@ -4,6 +4,7 @@ import {
   formatSKU,
   calculatePrice,
   includeStyleInVariantTitle,
+  sanitizeStyleLabelForVariantName,
   sortShapeRowsForVariantOrder,
 } from "../../utils";
 import {
@@ -34,8 +35,9 @@ export const createRegularVariants = (formState, skuInfo) => {
           return null;
         }
 
+        const styleLabel = sanitizeStyleLabelForVariantName(shape.style?.label);
         const useStyleInVariantName =
-          includeStyleInVariantTitle(formState, shape) && shape.style;
+          includeStyleInVariantTitle(formState, shape) && Boolean(styleLabel);
 
         const variant = {
           shapeValue: shape.value,
@@ -46,7 +48,7 @@ export const createRegularVariants = (formState, skuInfo) => {
           sku: variantSku.fullSKU,
           baseSKU: variantSku.baseSKU,
           variantName: useStyleInVariantName
-            ? `${shape.label} - ${shape.style.label}`
+            ? `${shape.label} - ${styleLabel}`
             : shape.label,
           price: calculatePrice(shape.value, formState),
           // weight: shape.weight,
