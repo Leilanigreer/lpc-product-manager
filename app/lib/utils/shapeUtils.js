@@ -92,14 +92,18 @@ export function allSelectedDriversWoodsHybridsShareSameStyle(formState) {
 }
 
 /**
- * True when every selected putter shape (blades/mallets) shares the same style metaobject
- * (or all have no style). Used to omit redundant style names from variant titles.
+ * True when every selected shape in the same `shape_group` as `shapeRow` shares one style
+ * metaobject (or all have no style). Used to omit redundant style names from variant titles.
  */
-export function allSelectedPuttersShareSameStyle(formState) {
+function allSelectedInShapeGroupShareSameStyle(formState, shapeRow) {
+  const groupKey = normShapeGroupKey(getShapeGroup(shapeRow));
+  if (!groupKey) return false;
   const selected = Object.values(formState.allShapes ?? {}).filter((s) => s?.isSelected);
-  const putters = selected.filter((s) => isPutter(s));
-  if (putters.length === 0) return false;
-  const styleIds = putters.map((s) => s.style?.value ?? null);
+  const inGroup = selected.filter(
+    (s) => normShapeGroupKey(getShapeGroup(s)) === groupKey
+  );
+  if (inGroup.length === 0) return false;
+  const styleIds = inGroup.map((s) => s.style?.value ?? null);
   return new Set(styleIds).size <= 1;
 }
 
@@ -113,13 +117,7 @@ export function includeStyleInVariantTitle(formState, shapeRow) {
   const style = shapeRow?.style;
   if (!style) return false;
   if (style.useInVariantTitle === false) return false;
-  if (
-    isDriversWoodsHybridsShape(shapeRow) &&
-    allSelectedDriversWoodsHybridsShareSameStyle(formState)
-  ) {
-    return false;
-  }
-  if (isPutter(shapeRow) && allSelectedPuttersShareSameStyle(formState)) {
+  if (allSelectedInShapeGroupShareSameStyle(formState, shapeRow)) {
     return false;
   }
   return true;
