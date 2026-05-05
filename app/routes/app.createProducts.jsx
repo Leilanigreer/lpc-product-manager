@@ -201,7 +201,6 @@ export default function CreateProduct() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
-  const [previewCollectionSkuDebug, setPreviewCollectionSkuDebug] = useState(null);
 
   const [aiDescription, setAiDescription] = useState("");
   const [referenceImage, setReferenceImage] = useState(null);
@@ -222,7 +221,6 @@ export default function CreateProduct() {
       });
       setProductData(null);
       setGenerationError(null);
-      setPreviewCollectionSkuDebug(null);
       setGroupImageDriveFileId(null);
     }
     prevCollectionIdRef.current = id;
@@ -427,7 +425,6 @@ export default function CreateProduct() {
   const handleGenerateData = async () => {
     setIsGenerating(true);
     setGenerationError(null);
-    setPreviewCollectionSkuDebug(null);
 
     try {
       const validation = validateProductForm(formState);
@@ -439,7 +436,6 @@ export default function CreateProduct() {
         throw new Error('Invalid collection configuration');
       }
 
-      const collectionGid = formState.collection.value;
       const vs = formState.collection?.versioningSkus;
       if (vs == null) {
         throw new Error(
@@ -453,17 +449,6 @@ export default function CreateProduct() {
       }
 
       const existingProducts = vs.existingProducts ?? [];
-      const shopifyGraphqlPages = vs.shopifyGraphqlPages ?? [];
-
-      setPreviewCollectionSkuDebug({
-        collectionId: collectionGid,
-        collectionLabel: formState.collection?.label ?? null,
-        rowCount: existingProducts.length,
-        baseSkuStrings: existingProducts.map((r) => r.baseSKU).filter(Boolean),
-        rows: existingProducts,
-        shopifyGraphqlPages,
-        skuDataSource: "loader",
-      });
 
       const examples = formState.collection.exampleProductDescriptions;
       const isManual = examples == null;
@@ -652,54 +637,6 @@ export default function CreateProduct() {
 
         <Layout.Section>
           <BlockStack gap="400">
-
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingSm">
-                Debug: collection base SKUs
-              </Text>
-              {!previewCollectionSkuDebug ? (
-                <Text as="p" variant="bodyMd" tone="subdued">
-                  Select a collection, then click Preview Product Data. Base SKUs are read from
-                  Shopify on the server when this page loads (see debug JSON after Preview).{" "}
-                  <Text as="span" fontWeight="semibold">
-                    custom.base_sku
-                  </Text>{" "}
-                  is loaded per collection for versioning.
-                </Text>
-              ) : (
-                <BlockStack gap="200">
-                  {previewCollectionSkuDebug.collectionIdFromForm !==
-                    formState.collection?.value && (
-                    <Text as="p" variant="bodyMd" tone="caution">
-                      Collection changed since this run — click Preview again to refresh this
-                      list.
-                    </Text>
-                  )}
-                  <Box
-                    padding="300"
-                    background="bg-surface-secondary"
-                    borderWidth="025"
-                    borderColor="border"
-                    borderRadius="200"
-                  >
-                    <pre
-                      style={{
-                        margin: 0,
-                        fontSize: "12px",
-                        overflow: "auto",
-                        maxHeight: "min(60vh, 560px)",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                      }}
-                    >
-                      {JSON.stringify(previewCollectionSkuDebug, null, 2)}
-                    </pre>
-                  </Box>
-                </BlockStack>
-              )}
-            </BlockStack>
-          </Card>
 
           <Card>
             <BlockStack gap="400">
