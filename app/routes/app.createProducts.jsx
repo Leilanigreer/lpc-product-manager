@@ -205,11 +205,9 @@ export default function CreateProduct() {
 
   const [aiDescription, setAiDescription] = useState("");
   const [referenceImage, setReferenceImage] = useState(null);
+  const [referenceImageFile, setReferenceImageFile] = useState(null);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState(null);
-  /** Local preview for group shot file name `{baseSKU}-group-image` on Drive only (not Shopify). */
-  const [groupImagePreviewUrl, setGroupImagePreviewUrl] = useState(null);
   const [groupImageDriveFileId, setGroupImageDriveFileId] = useState(null);
-  const [groupImageError, setGroupImageError] = useState(null);
   const prevCollectionIdRef = useRef(undefined);
 
   useEffect(() => {
@@ -217,6 +215,7 @@ export default function CreateProduct() {
     if (prevCollectionIdRef.current !== undefined && prevCollectionIdRef.current !== id) {
       setAiDescription("");
       setReferenceImage(null);
+      setReferenceImageFile(null);
       setReferencePreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return null;
@@ -224,12 +223,7 @@ export default function CreateProduct() {
       setProductData(null);
       setGenerationError(null);
       setPreviewCollectionSkuDebug(null);
-      setGroupImagePreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
       setGroupImageDriveFileId(null);
-      setGroupImageError(null);
     }
     prevCollectionIdRef.current = id;
   }, [formState.collection?.value]);
@@ -253,6 +247,7 @@ export default function CreateProduct() {
     try {
       const { base64, mediaType, previewBlob } =
         await convertDroppedFileToReferenceImage(file);
+      setReferenceImageFile(file);
       setReferencePreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(previewBlob);
@@ -278,19 +273,12 @@ export default function CreateProduct() {
   }, []);
 
   const handleGroupImageDriveUpload = useCallback(
-    async (files) => {
-      setGroupImageError(null);
-      if (!productData) {
-        setGroupImageError("Generate preview first.");
-        return;
-      }
-      const baseSku = resolveGroupImageBaseSku(productData);
+    async (data, file) => {
+      if (!data || !file) return data;
+      const baseSku = resolveGroupImageBaseSku(data);
       if (!baseSku) {
-        setGroupImageError("Could not resolve base SKU for this product.");
-        return;
+        throw new Error("Could not resolve base SKU for this product.");
       }
-      const file = files?.[0];
-      if (!file) return;
 
       try {
         let driveData;
@@ -308,24 +296,17 @@ export default function CreateProduct() {
         if (driveData?.fileId) {
           setGroupImageDriveFileId(driveData.fileId);
         }
-        setGroupImagePreviewUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return URL.createObjectURL(file);
-        });
-
+        let nextData = data;
         if (driveData?.folderPath?.productFolderUrl) {
-          setProductData((prev) => {
-            if (!prev) return prev;
-            if (prev.googleDriveFolderUrl) return prev;
-            return {
-              ...prev,
-              googleDriveFolderUrl: driveData.folderPath.productFolderUrl,
-            };
-          });
+          nextData = {
+            ...data,
+            googleDriveFolderUrl:
+              data.googleDriveFolderUrl || driveData.folderPath.productFolderUrl,
+          };
         }
+        return nextData;
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setGroupImageError(msg);
+        throw err;
       }
     },
     [productData, groupImageDriveFileId, resolveGroupImageBaseSku]
@@ -403,16 +384,12 @@ export default function CreateProduct() {
   const resetDescriptionAssets = useCallback(() => {
     setAiDescription("");
     setReferenceImage(null);
+    setReferenceImageFile(null);
     setReferencePreviewUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
-    setGroupImagePreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
     setGroupImageDriveFileId(null);
-    setGroupImageError(null);
   }, []);
 
   const {
@@ -440,10 +417,6 @@ export default function CreateProduct() {
       setNotification(null);
       setSuccessDetails(null);
       setReferencePreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
-      setGroupImagePreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return null;
       });
@@ -571,12 +544,7 @@ export default function CreateProduct() {
 
       data.productPictureFolder = data.mainHandle;
 
-      setGroupImagePreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
       setGroupImageDriveFileId(null);
-      setGroupImageError(null);
 
       setProductData(data);
 
@@ -603,7 +571,7 @@ export default function CreateProduct() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!productData) {
       setSubmissionError("Please generate product data first");
       return;
@@ -616,8 +584,23 @@ export default function CreateProduct() {
 
     setSubmissionError(null);
 
+    let payload = productData;
+    try {
+      if (referenceImageFile) {
+        payload = await handleGroupImageDriveUpload(productData, referenceImageFile);
+        if (payload !== productData) {
+          setProductData(payload);
+        }
+      }
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : "Failed to upload group image to Google Drive.";
+      setSubmissionError(msg);
+      return;
+    }
+
     const formData = new FormData();
-    formData.append('productData', JSON.stringify(productData));
+    formData.append('productData', JSON.stringify(payload));
     
     fetcher.submit(formData, { 
       method: 'POST', 
@@ -745,8 +728,9 @@ export default function CreateProduct() {
                       Reference image
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      For AI-generated descriptions only (collections with examples). Not added to
-                      Shopify product media.
+                      Used for AI-generated descriptions (collections with examples) and saved to
+                      Google Drive as the group image on Create Product. Not added to Shopify
+                      product media.
                     </Text>
                     <Box maxWidth="260px" minWidth={0}>
                       <ImageDropZone
@@ -813,38 +797,6 @@ export default function CreateProduct() {
                 <Text as="h2" variant="headingMd">
                   Preview product data
                 </Text>
-
-                <BlockStack gap="200">
-                  <Text as="h3" variant="headingSm">
-                    Group image (Google Drive)
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    Saves to this product’s Drive folder as{" "}
-                    <Text as="span" fontWeight="semibold">
-                      {"{base SKU}-group-image"}
-                    </Text>
-                    . Not added to Shopify product media.
-                  </Text>
-                  {groupImageError && (
-                    <Banner
-                      status="critical"
-                      onDismiss={() => setGroupImageError(null)}
-                    >
-                      {groupImageError}
-                    </Banner>
-                  )}
-                  <Box maxWidth="260px" minWidth={0}>
-                    <ImageDropZone
-                      size="small"
-                      label="Group"
-                      customWidth="100%"
-                      customHeight="132px"
-                      uploadedImageUrl={groupImagePreviewUrl}
-                      onDrop={handleGroupImageDriveUpload}
-                      accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
-                    />
-                  </Box>
-                </BlockStack>
 
                 <ProductVariantCheck
                   productData={productData}
