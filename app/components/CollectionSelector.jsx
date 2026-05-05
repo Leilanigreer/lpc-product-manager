@@ -22,7 +22,7 @@ const CollectionSelector = ({
   shopifyCollections,
   formState,
   onChange,
-  /** When true, omit outer Card (e.g. beside group image in a shared Card). */
+  /** When true, omit outer Card (e.g. beside reference image in a shared Card). */
   embedded = false,
 }) => {
   const collectionOptions = useMemo(() => [    

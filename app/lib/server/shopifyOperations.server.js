@@ -23,22 +23,16 @@
  * - Product `custom.base_sku` — versioned base SKU (from first generated variant’s `baseSKU`), for
  *   Admin versioning / `fetchCollectionBaseSkusForVersioning`.
  *
- * Primary product image (`productUpdate` media): **Staged upload** — download from Drive by
- * `fileId`, push bytes via `stagedUploadsCreate`, then use returned `resourceUrl` as `originalSource`.
- * On failure: **placeholder only** (Cloudinary URL fallbacks left commented below until you re-enable).
- * Requires `write_files` scope.
+ * Product images: **no automatic media** on create. Importing a URL via `productUpdate` media
+ * (`originalSource`) creates a **new** Shopify file each time — including a static CDN placeholder.
+ * `CreateMediaInput` does not support attaching an existing `MediaImage` / Files entry by GID to a
+ * product; merchants add imagery in Admin, duplicate a product that already has media, or theme-level defaults.
  */
 
 import {
   isShopifyMetaobjectGid,
   isShopifyProductVariantGid,
 } from "../utils/shopifyGid.js";
-import { downloadDriveFileById } from "./googleDrive.js";
-import {
-  mimeForStagedProductImage,
-  stagedFilenameFromDrive,
-  uploadBufferAsStagedProductImage,
-} from "./shopifyStagedProductMedia.server.js";
 
 const METAFIELDS_SET_MUTATION = `#graphql
   mutation MetafieldsSet($metafields: [MetafieldsSetInput!]!) {
@@ -567,110 +561,7 @@ export const createShopifyProduct = async (admin, productData) => {
       createdVariantNodes
     );
 
-    // 6. Product media: group image — Drive → staged upload only; placeholder if that fails.
-    // Cloudinary / https displayUrl fallbacks (still uploaded client-side) — uncomment when ready:
-    // const groupSecure =
-    //   typeof productData?.groupImage?.cloudinaryData?.secure_url === "string"
-    //     ? productData.groupImage.cloudinaryData.secure_url.trim()
-    //     : "";
-    // const groupDisplay =
-    //   typeof productData?.groupImage?.displayUrl === "string"
-    //     ? productData.groupImage.displayUrl.trim()
-    //     : "";
-    // const cloudinaryOrDisplayUrl =
-    //   groupSecure || (groupDisplay.startsWith("http") ? groupDisplay : "");
-
-    const PLACEHOLDER_IMAGE_URL =
-      "https://cdn.shopify.com/s/files/1/0690/4414/2359/files/Placeholder_new_product.png?v=1730926173";
-    const groupAlt =
-      (typeof productData?.groupImage?.label === "string" &&
-        productData.groupImage.label.trim()) ||
-      "Group image";
-
-    let mainProductImageUrl = PLACEHOLDER_IMAGE_URL;
-    let mainProductImageAlt = "Pictures of new headcovers coming soon.";
-
-    const driveFileId =
-      typeof productData?.groupImage?.driveData?.fileId === "string"
-        ? productData.groupImage.driveData.fileId.trim()
-        : "";
-
-    if (driveFileId) {
-      try {
-        const { buffer, mimeType, fileName } =
-          await downloadDriveFileById(driveFileId);
-        const stagedMime = mimeForStagedProductImage(mimeType, fileName);
-        const stagedName = stagedFilenameFromDrive(
-          fileName,
-          stagedMime,
-          driveFileId
-        );
-        mainProductImageUrl = await uploadBufferAsStagedProductImage(
-          admin,
-          buffer,
-          stagedName,
-          stagedMime
-        );
-        mainProductImageAlt = groupAlt;
-      } catch (stagedErr) {
-        console.warn(
-          "[createShopifyProduct] Drive → staged product image failed:",
-          stagedErr instanceof Error ? stagedErr.message : String(stagedErr)
-        );
-        // if (cloudinaryOrDisplayUrl) {
-        //   mainProductImageUrl = cloudinaryOrDisplayUrl;
-        //   mainProductImageAlt = groupAlt;
-        // }
-      }
-    }
-    // else if (cloudinaryOrDisplayUrl) {
-    //   mainProductImageUrl = cloudinaryOrDisplayUrl;
-    //   mainProductImageAlt = groupAlt;
-    // }
-
-    const mediaResponse = await admin.graphql(`#graphql
-      mutation UpdateProductWithNewMedia($input: ProductInput!, $media: [CreateMediaInput!]) {
-        productUpdate(input: $input, media: $media) {
-          product {
-            id
-            media(first: 10) {
-              nodes {
-                alt
-                mediaContentType
-                preview {
-                  status
-                }
-              }
-            }
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }`,
-      {
-        variables: {
-          input: {
-            id: productJson.data.productCreate.product.id
-          },
-          media: [
-            {
-              originalSource: mainProductImageUrl,
-              alt: mainProductImageAlt,
-              mediaContentType: "IMAGE"
-            }
-          ]
-        }
-      }
-    );
-
-    const mediaJson = await mediaResponse.json();
-
-    if (mediaJson.data?.productUpdate?.userErrors?.length > 0) {
-      console.error('Media Update Errors:', mediaJson.data.productUpdate.userErrors);
-      return Response.json({ errors: ["No image saved"] }, { status: 422 });
-}
+    // 6. Product media: intentionally omitted — see file header (avoid duplicate Files + no “attach by gid” API).
 
     // 7. Publish to all publications
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -739,7 +630,7 @@ export const createShopifyProduct = async (admin, productData) => {
         },
         selectedOptions: node.selectedOptions
       })),
-      media: mediaJson.data.productUpdate.product.media,
+      media: null,
       publications: publishResults,
       shop: shopData
     };
