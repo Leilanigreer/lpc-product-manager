@@ -18,6 +18,10 @@ import { generateProductCreationNotification } from "../templates/product-creati
 import { getCloudinaryFolderPath } from "../lib/utils/cloudinary";
 import { convertDroppedFileToReferenceImage } from "../lib/utils/referenceImageClient.js";
 import {
+  uploadToGoogleDrive,
+  updateToGoogleDrive,
+} from "../lib/utils/googleDrive.js";
+import {
   CollectionSelector,
   FontSelector,
   LeatherColorSelector,
@@ -202,6 +206,10 @@ export default function CreateProduct() {
   const [aiDescription, setAiDescription] = useState("");
   const [referenceImage, setReferenceImage] = useState(null);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState(null);
+  /** Local preview for group shot file name `{baseSKU}-group-image` on Drive only (not Shopify). */
+  const [groupImagePreviewUrl, setGroupImagePreviewUrl] = useState(null);
+  const [groupImageDriveFileId, setGroupImageDriveFileId] = useState(null);
+  const [groupImageError, setGroupImageError] = useState(null);
   const prevCollectionIdRef = useRef(undefined);
 
   useEffect(() => {
@@ -216,6 +224,12 @@ export default function CreateProduct() {
       setProductData(null);
       setGenerationError(null);
       setPreviewCollectionSkuDebug(null);
+      setGroupImagePreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setGroupImageDriveFileId(null);
+      setGroupImageError(null);
     }
     prevCollectionIdRef.current = id;
   }, [formState.collection?.value]);
@@ -249,6 +263,68 @@ export default function CreateProduct() {
       setGenerationError(msg);
     }
   }, []);
+
+  const resolveGroupImageBaseSku = useCallback((data) => {
+    if (!data?.variants?.length) return null;
+    const first = data.variants.find((v) => !v.isCustom) || data.variants[0];
+    if (first?.baseSKU) return first.baseSKU;
+    if (first?.sku) return first.sku;
+    return null;
+  }, []);
+
+  const handleGroupImageDriveUpload = useCallback(
+    async (files) => {
+      setGroupImageError(null);
+      if (!productData) {
+        setGroupImageError("Generate preview first.");
+        return;
+      }
+      const baseSku = resolveGroupImageBaseSku(productData);
+      if (!baseSku) {
+        setGroupImageError("Could not resolve base SKU for this product.");
+        return;
+      }
+      const file = files?.[0];
+      if (!file) return;
+
+      try {
+        let driveData;
+        if (groupImageDriveFileId) {
+          driveData = await updateToGoogleDrive(file, groupImageDriveFileId);
+        } else {
+          driveData = await uploadToGoogleDrive(file, {
+            collection: productData.productType,
+            folderName: productData.productPictureFolder,
+            sku: baseSku,
+            label: "group-image",
+          });
+        }
+
+        if (driveData?.fileId) {
+          setGroupImageDriveFileId(driveData.fileId);
+        }
+        setGroupImagePreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return URL.createObjectURL(file);
+        });
+
+        if (driveData?.folderPath?.productFolderUrl) {
+          setProductData((prev) => {
+            if (!prev) return prev;
+            if (prev.googleDriveFolderUrl) return prev;
+            return {
+              ...prev,
+              googleDriveFolderUrl: driveData.folderPath.productFolderUrl,
+            };
+          });
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setGroupImageError(msg);
+      }
+    },
+    [productData, groupImageDriveFileId, resolveGroupImageBaseSku]
+  );
 
   const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
     if (!productData) return;
@@ -326,6 +402,12 @@ export default function CreateProduct() {
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
+    setGroupImagePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setGroupImageDriveFileId(null);
+    setGroupImageError(null);
   }, []);
 
   const {
@@ -353,6 +435,10 @@ export default function CreateProduct() {
       setNotification(null);
       setSuccessDetails(null);
       setReferencePreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setGroupImagePreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return null;
       });
@@ -479,6 +565,13 @@ export default function CreateProduct() {
       );
 
       data.productPictureFolder = data.mainHandle;
+
+      setGroupImagePreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setGroupImageDriveFileId(null);
+      setGroupImageError(null);
 
       setProductData(data);
 
@@ -715,6 +808,38 @@ export default function CreateProduct() {
                 <Text as="h2" variant="headingMd">
                   Preview product data
                 </Text>
+
+                <BlockStack gap="200">
+                  <Text as="h3" variant="headingSm">
+                    Group image (Google Drive)
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Saves to this product’s Drive folder as{" "}
+                    <Text as="span" fontWeight="semibold">
+                      {"{base SKU}-group-image"}
+                    </Text>
+                    . Not added to Shopify product media.
+                  </Text>
+                  {groupImageError && (
+                    <Banner
+                      status="critical"
+                      onDismiss={() => setGroupImageError(null)}
+                    >
+                      {groupImageError}
+                    </Banner>
+                  )}
+                  <Box maxWidth="260px" minWidth={0}>
+                    <ImageDropZone
+                      size="small"
+                      label="Group"
+                      customWidth="100%"
+                      customHeight="132px"
+                      uploadedImageUrl={groupImagePreviewUrl}
+                      onDrop={handleGroupImageDriveUpload}
+                      accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
+                    />
+                  </Box>
+                </BlockStack>
 
                 <ProductVariantCheck
                   productData={productData}

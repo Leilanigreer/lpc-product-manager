@@ -25,8 +25,9 @@
  *
  * Product images: **no automatic media** on create. Importing a URL via `productUpdate` media
  * (`originalSource`) creates a **new** Shopify file each time — including a static CDN placeholder.
- * `CreateMediaInput` does not support attaching an existing `MediaImage` / Files entry by GID to a
- * product; merchants add imagery in Admin, duplicate a product that already has media, or theme-level defaults.
+ * That URL-import shape of `CreateMediaInput` does **not** accept an existing `MediaImage` / file GID.
+ * Reusing an asset without re-importing usually means Admin UI, duplicate product, theme placeholders,
+ * or exploring Shopify’s Files / media APIs for referencing stored assets (not wired here).
  */
 
 import {
