@@ -159,32 +159,10 @@ export const getShapeCategory = (shape) => {
   return shape.shapeType;
 };
 
-export const findMatchingWoodStyles = (shapes, selectedShapes) => {
-  if (!Array.isArray(shapes) || !selectedShapes) return {};
-
-  const woodStyles = {};
-
-  shapes.forEach((shape) => {
-    const row = selectedShapes[shape.value];
-    if (!row?.isSelected || !isWoodType(shape) || !row.style?.value) return;
-    const styleValue = row.style.value;
-    woodStyles[styleValue] = woodStyles[styleValue] || [];
-    woodStyles[styleValue].push(shape.value);
-  });
-
-  return Object.entries(woodStyles)
-    .filter(([_, shapeIds]) => shapeIds.length >= 2)
-    .reduce((acc, [styleValue, shapeValues]) => {
-      acc[styleValue] = shapeValues;
-      return acc;
-    }, {});
-};
-
 /**
  * Whether the shape row should show the color-designation control.
- * Leather disambiguation for named patterns applies when the row's style requests it
- * and (for woods) at least two selected woods share that same style — e.g. 3w + 5w with
- * "50/50"; driver is not a wood and is not in that pairing set.
+ * Color designation is now purely style-driven per row:
+ * show when the selected style has `needsColorDesignation === true`.
  *
  * @param {Object} shapeDefinition - Catalog shape from loader (`value`, `shapeType`, …)
  * @param {Object} shapeRowState - Row in `allShapes` (`isSelected`, `style`, …)
@@ -197,12 +175,6 @@ export function computeShapeNeedsColorDesignation(
   shapesCatalog,
   allShapesMap
 ) {
-  if (!shapeDefinition || !shapeRowState || isPutter(shapeDefinition)) return false;
-  if (!shapeRowState.style || shapeRowState.style.needsColorDesignation !== true)
-    return false;
-  if (!isWoodType(shapeDefinition)) return false;
-  const groups = findMatchingWoodStyles(shapesCatalog, allShapesMap);
-  return Object.values(groups).some((group) =>
-    group.includes(shapeDefinition.value)
-  );
+  if (!shapeDefinition || !shapeRowState) return false;
+  return shapeRowState.style?.needsColorDesignation === true;
 }

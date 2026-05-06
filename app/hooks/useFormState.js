@@ -1,5 +1,5 @@
 import { useReducer, useCallback } from 'react';
-import { calculateFinalRequirements, isPutter, getShapeGroup, computeShapeNeedsColorDesignation } from '../lib/utils';
+import { calculateFinalRequirements, getShapeGroup, computeShapeNeedsColorDesignation } from '../lib/utils';
 import { createInitialShapeState } from '../lib/forms/formState';
 
 const ACTION_TYPES = {
@@ -151,7 +151,7 @@ const formReducer = (state, action) => {
       Object.entries(newAllShapes).forEach(([shapeValue, row]) => {
         if (!row.isSelected) return;
         const shapeDef = state.shapes.find((s) => s.value === shapeValue);
-        if (!shapeDef || isPutter(shapeDef)) return;
+        if (!shapeDef) return;
         newAllShapes[shapeValue] = {
           ...row,
           needsColorDesignation: computeShapeNeedsColorDesignation(
@@ -187,7 +187,7 @@ const formReducer = (state, action) => {
         Object.entries(newAllShapes).forEach(([currentShapeValue, currentShape]) => {
           if (!currentShape.isSelected) return;
           const shapeDef = state.shapes.find((s) => s.value === currentShapeValue);
-          if (!shapeDef || isPutter(shapeDef)) return;
+          if (!shapeDef) return;
 
           newAllShapes[currentShapeValue] = {
             ...currentShape,

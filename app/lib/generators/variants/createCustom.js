@@ -170,35 +170,16 @@ export const createCustomVariants = (formState, skuInfo) => {
   return [...nonWoodVariants, ...woodVariants];
 };
 
-/** How many selected woods use each style metaobject GID (for collapse / pairing). */
-function getWoodStyleValueCounts(formState) {
-  const counts = new Map();
-  for (const s of Object.values(formState.allShapes ?? {})) {
-    if (!s?.isSelected || s.shapeType !== "WOOD") continue;
-    const sv = s.style?.value;
-    if (!sv) continue;
-    counts.set(sv, (counts.get(sv) ?? 0) + 1);
-  }
-  return counts;
-}
-
 /**
- * Color designation is defined on the style and only differentiates woods when at least two
- * selected woods share that style. If a style appears on only one wood, ignore color for collapse.
+ * When style color designation is enabled for the row, custom wood collapse must include
+ * the selected color designation in the comparison.
  */
 export function woodCollapseColorDesignationsMatch(
   currentShape,
   processedShape,
   formState
 ) {
-  const styleVal = currentShape.style?.value;
-  if (!styleVal) {
-    return true;
-  }
-  const counts = getWoodStyleValueCounts(formState);
-  if ((counts.get(styleVal) ?? 0) < 2) {
-    return true;
-  }
+  void formState;
   return (
     !currentShape.needsColorDesignation ||
     currentShape.colorDesignation?.value === processedShape.colorDesignation?.value
