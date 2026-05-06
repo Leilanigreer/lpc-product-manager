@@ -17,7 +17,7 @@ const ColorDesignation = ({
 }) => {
   const shapeState = formState.allShapes[shape.value];
   const currentValue = shapeState?.colorDesignation?.value || '';
-  const leatherPhrase = String(shapeState?.style?.leatherPhrase || 'leather as').trim();
+  const leatherPhrase = String(shapeState?.style?.leatherPhrase || 'are').trim();
 
   const leatherOptions = useMemo(() => {
     const options = [];
@@ -55,10 +55,12 @@ const ColorDesignation = ({
 
   return (
     <InlineStack wrap={false} gap="200" align="center">
-      <Text as="span" variant="bodyMd" tone="subdued">
-        {leatherPhrase}
-      </Text>
-      <div style={{ flex: 1 }}>
+      <div style={{ minWidth: 110, maxWidth: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <Text as="span" variant="bodyMd" tone="subdued">
+          {leatherPhrase}
+        </Text>
+      </div>
+      <div style={{ flex: 1, minWidth: 180 }}>
         <Select
           options={leatherOptions}
           onChange={handleColorChange}
