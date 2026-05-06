@@ -54,7 +54,10 @@ export const generateBaseParts = (formState) => {
       return [];
     }
 
-    const stitchingList = sortedStitchingThreadsList(formState.stitchingThreads);
+    const stitchingList = sortedStitchingThreadsList(
+      formState.stitchingThreads,
+      formState
+    );
     const embroideryList = sortedEmbroideryThreadsList(formState.embroideryThreads);
 
     const context = {

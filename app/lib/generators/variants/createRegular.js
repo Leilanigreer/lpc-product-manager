@@ -60,7 +60,8 @@ export const createRegularVariants = (formState, skuInfo) => {
 
         // Get first stitching thread's abbreviation if exists
         const firstStitchingThread = firstCanonicalStitchingThread(
-          formState.stitchingThreads
+          formState.stitchingThreads,
+          formState
         );
         if (firstStitchingThread?.abbreviation) {
           variant.stitchingAbbreviation = firstStitchingThread.abbreviation;

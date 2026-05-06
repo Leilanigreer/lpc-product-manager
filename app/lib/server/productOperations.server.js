@@ -126,15 +126,19 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
           : { leatherColor2: { connect: { id: productData.selectedLeatherColor2 } } }
       )),
       stitchingThreads: {
-        create: sortedStitchingThreadsList(productData.stitchingThreads).map(
-          (thread) => ({
-            stitchingThread: {
-              connect: { id: thread.value },
-            },
-            amann: {
-              connect: { id: thread.amannNumbers[0].value },
-            },
-          })
+        create: sortedStitchingThreadsList(productData.stitchingThreads, {
+          collection: productData.collection,
+        }).flatMap((thread) =>
+          (thread.amannNumbers || [])
+            .filter((n) => n?.value)
+            .map((n) => ({
+              stitchingThread: {
+                connect: { id: thread.value },
+              },
+              amann: {
+                connect: { id: n.value },
+              },
+            }))
         ),
       },
       // Add Google Drive folder URL if available

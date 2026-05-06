@@ -56,13 +56,13 @@ export const generateTitle = async (formState) => {
       .replace(
         "{stitchingThreads[0].label}",
         asTitleToken(
-          firstCanonicalStitchingThread(formState.stitchingThreads)?.label
+          firstCanonicalStitchingThread(formState.stitchingThreads, formState)?.label
         )
       )
       .replace(
         "{stitchingThreads.[0].label}",
         asTitleToken(
-          firstCanonicalStitchingThread(formState.stitchingThreads)?.label
+          firstCanonicalStitchingThread(formState.stitchingThreads, formState)?.label
         )
       )
       .replace(
