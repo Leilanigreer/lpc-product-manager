@@ -54,7 +54,7 @@ export const initialFormState = {
   },
 
   // Thread Selections (based on collection.threadType)
-    stitchingThreads: {}, // Multiple rows unless STITCHING (then one row, two Amanns: SKU/naming + supporting)
+    stitchingThreads: {}, // Multiple rows unless STITCHING (then one row: primary Amann + N supporting)
   /** Product-level Isacord rows (keyed by Isacord metaobject GID). EMBROIDERY: at most one entry. */
   embroideryThreads: {},
 

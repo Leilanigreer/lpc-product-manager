@@ -17,7 +17,7 @@ const validStitchingThreadEntries = (stitchingThreads, formState) => {
 /**
  * Sorted list of selected stitching thread rows (Amann picks). Same order used for [0] in title/SKU.
  * @param {Record<string, object>} stitchingThreads
- * @param {object} [formState] When collection.threadType is STITCHING, only rows with primary + supporting Amann are included (SKU/metafields/persistence). Omit for UI lists that should show rows missing supporting yet.
+ * @param {object} [formState] When collection.threadType is STITCHING, only rows with primary + at least one supporting Amann are included (SKU/metafields/persistence). Omit for UI lists that should show rows missing supporting yet.
  * @returns {object[]}
  */
 export const sortedStitchingThreadsList = (stitchingThreads, formState) =>

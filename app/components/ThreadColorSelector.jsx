@@ -91,21 +91,48 @@ const ThreadColorSelector = ({
     [stitchingThreadColors]
   );
 
-  /** Single STITCHING row (one stitching_thread metaobject, two Amann picks). */
+  /** Single STITCHING row: amannNumbers[0] = primary (SKU/title); [1..] = supporting (colors). */
   const stitchingPrimaryRow = useMemo(() => {
     const rows = Object.values(formState.stitchingThreads || {});
     return rows[0] ?? null;
   }, [formState.stitchingThreads]);
+
+  const selectedSupportingAmannIds = useMemo(() => {
+    const nums = stitchingPrimaryRow?.amannNumbers;
+    if (!Array.isArray(nums) || nums.length < 2) return new Set();
+    return new Set(nums.slice(1).map((n) => n?.value).filter(Boolean));
+  }, [stitchingPrimaryRow]);
 
   const supportingAmannOptions = useMemo(() => {
     if (!singleStitchingCollection) return [];
     const row = stitchingPrimaryRow;
     if (!row?.amannNumbers?.[0]?.value) return [];
     const primaryAmannId = row.amannNumbers[0].value;
-    // Show every other Amann (not only same stitching_thread). Shopify often has one Amann per thread,
-    // so same-thread filtering leaves an empty list; supporting colors are a separate pick for one metafield list.
-    return amannOptions.filter((o) => o.value !== primaryAmannId);
-  }, [amannOptions, singleStitchingCollection, stitchingPrimaryRow]);
+    return amannOptions.filter(
+      (o) => o.value !== primaryAmannId && !selectedSupportingAmannIds.has(o.value)
+    );
+  }, [
+    amannOptions,
+    singleStitchingCollection,
+    stitchingPrimaryRow,
+    selectedSupportingAmannIds,
+  ]);
+
+  const supportingTagsSorted = useMemo(() => {
+    const nums = stitchingPrimaryRow?.amannNumbers?.slice(1) || [];
+    return [...nums].filter((n) => n?.value).sort((a, b) =>
+      String(a.label || "").localeCompare(String(b.label || ""))
+    );
+  }, [stitchingPrimaryRow]);
+
+  const labelForAmannGid = useCallback(
+    (gid, fallbackLabel) => {
+      const opt = amannOptions.find((o) => o.value === gid);
+      if (opt?.displayText) return opt.displayText;
+      return fallbackLabel || gid || "Unknown";
+    },
+    [amannOptions]
+  );
 
   const handleIsacordSelectSingle = useCallback(
     (value) => {
@@ -210,10 +237,14 @@ const ThreadColorSelector = ({
       const primaryNum = stitchingPrimaryRow.amannNumbers[0];
       if (selectedOption.value === primaryNum.value) return;
 
+      const existing = stitchingPrimaryRow.amannNumbers.slice(1);
+      if (existing.some((n) => n?.value === selectedOption.value)) return;
+
       const threadData = {
         ...stitchingPrimaryRow,
         amannNumbers: [
           primaryNum,
+          ...existing,
           {
             value: selectedOption.value,
             label: selectedOption.label,
@@ -224,11 +255,23 @@ const ThreadColorSelector = ({
       onChange('stitchingThreads', { [threadData.value]: threadData });
       setSupportingAmannInputValue('');
     },
-    [
-      supportingAmannOptions,
-      stitchingPrimaryRow,
-      onChange,
-    ]
+    [supportingAmannOptions, stitchingPrimaryRow, onChange]
+  );
+
+  const handleRemoveSupportingAmann = useCallback(
+    (amannGid) => {
+      if (!stitchingPrimaryRow?.amannNumbers?.[0]) return;
+      const primaryNum = stitchingPrimaryRow.amannNumbers[0];
+      const rest = stitchingPrimaryRow.amannNumbers
+        .slice(1)
+        .filter((n) => n?.value !== amannGid);
+      const threadData = {
+        ...stitchingPrimaryRow,
+        amannNumbers: [primaryNum, ...rest],
+      };
+      onChange('stitchingThreads', { [threadData.value]: threadData });
+    },
+    [stitchingPrimaryRow, onChange]
   );
 
   const handleRemoveStitchingThread = useCallback(
@@ -269,17 +312,6 @@ const ThreadColorSelector = ({
           option.searchText?.includes(searchTerm)
         );
   }, [supportingAmannOptions, supportingAmannInputValue]);
-
-  const stitchingTagLabel = (thread) => {
-    const primary = thread.amannNumbers?.[0];
-    const supporting = thread.amannNumbers?.[1];
-    if (!primary?.label || !thread.label) return 'Unknown thread';
-    const primaryPart = `${primary.label} — ${thread.label}`;
-    if (singleStitchingCollection && supporting?.label) {
-      return `${primaryPart} · Supporting: ${supporting.label}`;
-    }
-    return primaryPart;
-  };
 
   const getEmbroideryPlaceholder = () => {
     if (singleEmbroidery) {
@@ -381,57 +413,80 @@ const ThreadColorSelector = ({
                 gap: "var(--p-space-400)",
               }}
             >
-              <Box width="100%" minWidth="0">
-                <Combobox
-                  activator={
-                    <Combobox.TextField
-                      prefix={<Icon source={SearchIcon} />}
-                      onChange={setAmannInputValue}
-                      label="Primary Amann — Used in Title & SKU"
-                      value={amannInputValue}
-                      placeholder="Search by number or color name"
-                      autoComplete="off"
-                      disabled={
-                        Object.keys(formState.stitchingThreads || {}).length > 0
-                      }
+              <BlockStack gap="200">
+                <Box width="100%" minWidth="0">
+                  <Combobox
+                    activator={
+                      <Combobox.TextField
+                        prefix={<Icon source={SearchIcon} />}
+                        onChange={setAmannInputValue}
+                        label="Primary Amann — Used in Title & SKU"
+                        value={amannInputValue}
+                        placeholder="Search by number or color name"
+                        autoComplete="off"
+                        disabled={
+                          Object.keys(formState.stitchingThreads || {}).length > 0
+                        }
+                      />
+                    }
+                  >
+                    <ComboboxList
+                      options={filteredAmannOptions}
+                      selectedValue={null}
+                      onSelect={handleAmannSelect}
                     />
-                  }
-                >
-                  <ComboboxList
-                    options={filteredAmannOptions}
-                    selectedValue={null}
-                    onSelect={handleAmannSelect}
-                  />
-                </Combobox>
-              </Box>
-              <Box width="100%" minWidth="0">
-                <Combobox
-                  activator={
-                    <Combobox.TextField
-                      prefix={<Icon source={SearchIcon} />}
-                      onChange={setSupportingAmannInputValue}
-                      label="Supporting Amann — colors"
-                      value={supportingAmannInputValue}
-                      placeholder={
-                        stitchingPrimaryRow?.amannNumbers?.[0]
-                          ? "Search supporting Amann (any linked thread)"
-                          : "Select primary Amann first"
+                  </Combobox>
+                </Box>
+                <InlineStack gap="200" wrap>
+                  {stitchingPrimaryRow?.amannNumbers?.[0] && stitchingPrimaryRow.label ? (
+                    <Tag
+                      key={`primary-${stitchingPrimaryRow.amannNumbers[0].value}`}
+                      onRemove={() =>
+                        handleRemoveStitchingThread(stitchingPrimaryRow.value)
                       }
-                      autoComplete="off"
-                      disabled={
-                        !stitchingPrimaryRow?.amannNumbers?.[0] ||
-                        Boolean(stitchingPrimaryRow?.amannNumbers?.[1])
-                      }
+                    >
+                      {`${stitchingPrimaryRow.amannNumbers[0].label} — ${stitchingPrimaryRow.label}`}
+                    </Tag>
+                  ) : null}
+                </InlineStack>
+              </BlockStack>
+              <BlockStack gap="200">
+                <Box width="100%" minWidth="0">
+                  <Combobox
+                    activator={
+                      <Combobox.TextField
+                        prefix={<Icon source={SearchIcon} />}
+                        onChange={setSupportingAmannInputValue}
+                        label="Supporting Amann — colors"
+                        value={supportingAmannInputValue}
+                        placeholder={
+                          stitchingPrimaryRow?.amannNumbers?.[0]
+                            ? "Add supporting Amann (repeat as needed)"
+                            : "Select primary Amann first"
+                        }
+                        autoComplete="off"
+                        disabled={!stitchingPrimaryRow?.amannNumbers?.[0]}
+                      />
+                    }
+                  >
+                    <ComboboxList
+                      options={filteredSupportingAmannOptions}
+                      selectedValue={null}
+                      onSelect={handleSupportingAmannSelect}
                     />
-                  }
-                >
-                  <ComboboxList
-                    options={filteredSupportingAmannOptions}
-                    selectedValue={null}
-                    onSelect={handleSupportingAmannSelect}
-                  />
-                </Combobox>
-              </Box>
+                  </Combobox>
+                </Box>
+                <InlineStack gap="200" wrap>
+                  {supportingTagsSorted.map((n) => (
+                    <Tag
+                      key={n.value}
+                      onRemove={() => handleRemoveSupportingAmann(n.value)}
+                    >
+                      {labelForAmannGid(n.value, n.label)}
+                    </Tag>
+                  ))}
+                </InlineStack>
+              </BlockStack>
             </div>
           ) : (
             <Box width="100%">
@@ -456,16 +511,20 @@ const ThreadColorSelector = ({
             </Box>
           )}
 
-          <InlineStack gap="200" wrap>
-            {sortedStitchingThreadsList(formState.stitchingThreads).map((thread) => (
-              <Tag
-                key={thread.value}
-                onRemove={() => handleRemoveStitchingThread(thread.value)}
-              >
-                {stitchingTagLabel(thread)}
-              </Tag>
-            ))}
-          </InlineStack>
+          {!singleStitchingCollection ? (
+            <InlineStack gap="200" wrap>
+              {sortedStitchingThreadsList(formState.stitchingThreads).map((thread) => (
+                <Tag
+                  key={thread.value}
+                  onRemove={() => handleRemoveStitchingThread(thread.value)}
+                >
+                  {thread.amannNumbers?.[0]?.label && thread.label
+                    ? `${thread.amannNumbers[0].label} - ${thread.label}`
+                    : "Unknown thread"}
+                </Tag>
+              ))}
+            </InlineStack>
+          ) : null}
         </BlockStack>
       </BlockStack>
     </Card>

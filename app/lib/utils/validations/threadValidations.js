@@ -82,20 +82,22 @@ export const validateStitchingThreads = (formState, debug = false) => {
       if (!Array.isArray(nums) || nums.length < 2) {
         if (debug) {
           console.warn(
-            "STITCHING threadType requires a primary and supporting Amann number"
+            "STITCHING threadType requires a primary Amann and at least one supporting Amann"
           );
         }
         return false;
       }
-      const supporting = nums[1];
-      if (
-        !supporting ||
-        typeof supporting.value !== "string" ||
-        supporting.value.length === 0 ||
-        typeof supporting.label !== "string"
-      ) {
-        if (debug) console.warn("Invalid supporting Amann number:", supporting);
-        return false;
+      for (let i = 1; i < nums.length; i++) {
+        const supporting = nums[i];
+        if (
+          !supporting ||
+          typeof supporting.value !== "string" ||
+          supporting.value.length === 0 ||
+          typeof supporting.label !== "string"
+        ) {
+          if (debug) console.warn("Invalid supporting Amann number at index", i, supporting);
+          return false;
+        }
       }
     }
     return true;
