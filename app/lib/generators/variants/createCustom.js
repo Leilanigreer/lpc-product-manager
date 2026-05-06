@@ -13,6 +13,15 @@ import { firstCanonicalEmbroideryThread } from "../../utils/threadUtils.js";
 /** Weight not captured in UI for now; Shopify/Prisma still require a numeric weight. */
 const PLACEHOLDER_WEIGHT = "0";
 
+const stylePhraseColorLabel = (styleLabel, leatherPhrase, colorLabel) => {
+  const phrase = String(leatherPhrase || "").trim();
+  if (!phrase) return `${styleLabel} ${colorLabel}`;
+  if (phrase.startsWith(":")) {
+    return `${styleLabel}${phrase} ${colorLabel}`;
+  }
+  return `${styleLabel} ${phrase} ${colorLabel}`;
+};
+
 const getVariantName = (shapeData, formState) => {
   // Base name prefix and suffix
   const prefix = 'Customized';
@@ -68,22 +77,16 @@ const getVariantName = (shapeData, formState) => {
 
     // Apply naming pattern
     switch (styleSource.namePattern) {
-      case 'STYLE_FIRST':
-        return `${prefix} ${shapeLabel} - ${sanitizedStyleLabel} with ${colorLabel} ${leatherPhrase} ${suffix}`;
+      case 'STYLE_WITH_COLOR_PHRASE':
+        return `${prefix} ${shapeLabel} - ${styleSource.label} with ${colorLabel} ${leatherPhrase} ${suffix}`;
 
-      case 'CUSTOM':
-        if (styleSource.customNamePattern) {
-          const name = styleSource.customNamePattern
-            .replace('{shape.label}', shapeLabel)
-            .replace('{style.label}', sanitizedStyleLabel)
-            .replace('{leather.label}', colorLabel);
-          return `${prefix} ${name} ${suffix}`;
-        }
-      // Fall through to STANDARD if no custom pattern
-
-      case 'STANDARD':
+      case 'STYLE_PHRASE_COLOR':
       default:
-        return `${prefix} ${shapeLabel} - ${colorLabel} ${leatherPhrase} ${sanitizedStyleLabel} ${suffix}`;
+        return `${prefix} ${shapeLabel} - ${stylePhraseColorLabel(
+          styleSource.label,
+          leatherPhrase,
+          colorLabel
+        )} ${suffix}`;
     }
   }
 

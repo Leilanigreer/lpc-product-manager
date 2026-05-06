@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import { Select } from "@shopify/polaris";
+import { InlineStack, Select, Text } from "@shopify/polaris";
 
 /**
  * ColorDesignation leather color selection field
@@ -17,6 +17,7 @@ const ColorDesignation = ({
 }) => {
   const shapeState = formState.allShapes[shape.value];
   const currentValue = shapeState?.colorDesignation?.value || '';
+  const leatherPhrase = String(shapeState?.style?.leatherPhrase || 'leather as').trim();
 
   const leatherOptions = useMemo(() => {
     const options = [];
@@ -53,11 +54,18 @@ const ColorDesignation = ({
   }, [shape.value, handleChange, leatherOptions]);
 
   return (
-    <Select
-      options={leatherOptions}
-      onChange={handleColorChange}
-      value={currentValue}
-    />
+    <InlineStack wrap={false} gap="200" align="center">
+      <Text as="span" variant="bodyMd" tone="subdued">
+        {leatherPhrase}
+      </Text>
+      <div style={{ flex: 1 }}>
+        <Select
+          options={leatherOptions}
+          onChange={handleColorChange}
+          value={currentValue}
+        />
+      </div>
+    </InlineStack>
   );
 };
 

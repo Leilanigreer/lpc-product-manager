@@ -7,9 +7,8 @@ import { isPutter, getShapeGroup, styleCategoryMatchesShapeGroup } from "../shap
  * @enum {string}
  */
 const StyleNamePattern = {
-  STANDARD: 'STANDARD',   // "{leather.label} {style.leatherPhrase} {style.label}"
-  STYLE_FIRST: 'STYLE_FIRST', // "{style.label} with {leather.label} {style.leatherPhrase}"
-  CUSTOM: 'CUSTOM'       // Uses custom pattern
+  STYLE_WITH_COLOR_PHRASE: 'STYLE_WITH_COLOR_PHRASE', // "{style.label} w/ {leather.label} {style.leatherPhrase}"
+  STYLE_PHRASE_COLOR: 'STYLE_PHRASE_COLOR', // "{style.label} {style.leatherPhrase} {leather.label}"
 };
 
 /**

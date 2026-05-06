@@ -133,9 +133,13 @@ function parseBoolField(field) {
 }
 
 function normalizeNamePattern(raw) {
-  const s = (raw || "STANDARD").toString().trim().toUpperCase().replace(/\s+/g, "_");
-  if (s === "STYLE_FIRST" || s === "CUSTOM" || s === "STANDARD") return s;
-  return "STANDARD";
+  const s = (raw || "STYLE_PHRASE_COLOR")
+    .toString()
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  if (s === "STYLE_WITH_COLOR_PHRASE" || s === "STYLE_PHRASE_COLOR") return s;
+  return "STYLE_PHRASE_COLOR";
 }
 
 function fallbackAbbreviation(label) {
