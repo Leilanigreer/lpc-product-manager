@@ -56,25 +56,32 @@ const expandSelectionsBySizingGuideGroup = (allShapes) => {
     };
   }
 
-  // Same sizing_guide_group shares one style choice from the form (representative row).
-  // Auto-expanded siblings must inherit it so variant titles and custom SKUs keep the style segment.
-  const styleByGroup = new Map();
+  // Same sizing_guide_group shares one style/color designation choice from the form
+  // (representative row). Auto-expanded siblings must inherit these values so custom
+  // variant titles and SKU logic remain consistent across the whole group.
+  const groupSelectionByGroup = new Map();
   for (const row of Object.values(expanded)) {
     const g = normalizeSizingGuideGroup(row?.sizingGuideGroup);
     if (!g || !row?.isSelected || !row.style?.value) continue;
-    if (!styleByGroup.has(g)) {
-      styleByGroup.set(g, row.style);
+    if (!groupSelectionByGroup.has(g)) {
+      groupSelectionByGroup.set(g, {
+        style: row.style,
+        colorDesignation: row.colorDesignation ?? null,
+        needsColorDesignation: Boolean(row.needsColorDesignation),
+      });
     }
   }
 
   for (const [shapeValue, row] of Object.entries(expanded)) {
     const g = normalizeSizingGuideGroup(row?.sizingGuideGroup);
     if (!g || !row?.isSelected || row.style?.value) continue;
-    const inherited = styleByGroup.get(g);
+    const inherited = groupSelectionByGroup.get(g);
     if (inherited) {
       expanded[shapeValue] = {
         ...row,
-        style: inherited,
+        style: inherited.style,
+        colorDesignation: inherited.colorDesignation,
+        needsColorDesignation: inherited.needsColorDesignation,
       };
     }
   }
