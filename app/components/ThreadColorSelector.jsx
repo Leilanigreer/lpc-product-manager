@@ -100,11 +100,11 @@ const ThreadColorSelector = ({
   const supportingAmannOptions = useMemo(() => {
     if (!singleStitchingCollection) return [];
     const row = stitchingPrimaryRow;
-    if (!row?.value || !row.amannNumbers?.[0]?.value) return [];
+    if (!row?.amannNumbers?.[0]?.value) return [];
     const primaryAmannId = row.amannNumbers[0].value;
-    return amannOptions.filter(
-      (o) => o._fullData.threadValue === row.value && o.value !== primaryAmannId
-    );
+    // Show every other Amann (not only same stitching_thread). Shopify often has one Amann per thread,
+    // so same-thread filtering leaves an empty list; supporting colors are a separate pick for one metafield list.
+    return amannOptions.filter((o) => o.value !== primaryAmannId);
   }, [amannOptions, singleStitchingCollection, stitchingPrimaryRow]);
 
   const handleIsacordSelectSingle = useCallback(
@@ -387,7 +387,7 @@ const ThreadColorSelector = ({
                     <Combobox.TextField
                       prefix={<Icon source={SearchIcon} />}
                       onChange={setAmannInputValue}
-                      label="Primary Amann — title & SKU"
+                      label="Primary Amann — Used in Title & SKU"
                       value={amannInputValue}
                       placeholder="Search by number or color name"
                       autoComplete="off"
@@ -414,7 +414,7 @@ const ThreadColorSelector = ({
                       value={supportingAmannInputValue}
                       placeholder={
                         stitchingPrimaryRow?.amannNumbers?.[0]
-                          ? "Same thread color, second Amann"
+                          ? "Search supporting Amann (any linked thread)"
                           : "Select primary Amann first"
                       }
                       autoComplete="off"
