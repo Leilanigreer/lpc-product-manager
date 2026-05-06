@@ -80,9 +80,7 @@ const ShapeGrid = ({
     return columns;
   }, [visibilityFlags]);
 
-  const headerText = formState.collection?.label?.toLowerCase().includes('quilted')
-    ? 'Quilted Leather'
-    : 'Named Leather';
+  const headerText = 'Named Leather';
 
   if (!sortedShapes.length) {
     return null;

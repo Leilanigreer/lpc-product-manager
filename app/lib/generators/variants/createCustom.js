@@ -78,12 +78,12 @@ const getVariantName = (shapeData, formState) => {
     // Apply naming pattern
     switch (styleSource.namePattern) {
       case 'STYLE_WITH_COLOR_PHRASE':
-        return `${prefix} ${shapeLabel} - ${styleSource.label} with ${colorLabel} ${leatherPhrase} ${suffix}`;
+        return `${prefix} ${shapeLabel} - ${sanitizedStyleLabel} with ${colorLabel} ${leatherPhrase} ${suffix}`;
 
       case 'STYLE_PHRASE_COLOR':
       default:
         return `${prefix} ${shapeLabel} - ${stylePhraseColorLabel(
-          styleSource.label,
+          sanitizedStyleLabel,
           leatherPhrase,
           colorLabel
         )} ${suffix}`;
