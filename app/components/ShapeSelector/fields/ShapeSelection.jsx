@@ -6,7 +6,8 @@ const ShapeSelection = ({
   formState, 
   handleChange, 
   shape,
-  shapes 
+  shapes,
+  isLocked = false,
 }) => {
   const shapeState = formState.allShapes[shape.value];
   const isSelected = shapeState?.isSelected;
@@ -46,6 +47,7 @@ const ShapeSelection = ({
           label={displayLabel}
           checked={isSelected}
           onChange={handleSelect}
+          disabled={isLocked}
         />
       </Box>
       {/*

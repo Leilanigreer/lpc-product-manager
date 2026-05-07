@@ -20,7 +20,8 @@ import { isPutter } from '../../lib/utils/shapeUtils';
 const ShapeSelector = ({
   shapes,
   formState,
-  handleChange
+  handleChange,
+  lockedShapeValues
 }) => {
   const visibleShapes = useMemo(
     () => shapes.filter((shape) => shape.isActive !== false),
@@ -40,8 +41,9 @@ const ShapeSelector = ({
 
   const gridProps = useMemo(() => ({
     formState,
-    handleChange
-  }), [formState, handleChange]);
+    handleChange,
+    lockedShapeValues,
+  }), [formState, handleChange, lockedShapeValues]);
 
   return (
     <ErrorBoundary errorMessage="Error in shape configuration">

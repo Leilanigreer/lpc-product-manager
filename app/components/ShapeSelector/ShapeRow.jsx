@@ -13,14 +13,16 @@ const ShapeRow = ({
   formState,
   handleChange,
   showStyleFields,
-  showColorDesignation
+  showColorDesignation,
+  lockedShapeValues
 }) => {
   const fieldProps = useMemo(() => ({
     shape,
     shapes,
     formState,
-    handleChange
-  }), [shape, shapes, formState, handleChange]);
+    handleChange,
+    isLocked: Boolean(lockedShapeValues?.has(shape.value)),
+  }), [shape, shapes, formState, handleChange, lockedShapeValues]);
 
   return (
     <ErrorBoundary errorMessage={`Error in shape row: ${shape.label}`}>

@@ -84,13 +84,53 @@ function hydrateFormFromProduct({
   }, {});
 
   const stylesById = new Map((collection?.styles ?? []).map((s) => [s.value, s]));
+  const selectedShapeValues = new Set();
+  const shapeRows = Object.values(allShapes);
+  const shapeByValue = new Map(shapeRows.map((row) => [row.value, row]));
+
+  const resolveShapeValueFromVariant = (variant) => {
+    if (variant?.singleShape && shapeByValue.has(variant.singleShape)) {
+      return variant.singleShape;
+    }
+
+    const selectedShapeOption = (variant?.selectedOptions || []).find(
+      (opt) => String(opt?.name || "").toLowerCase() === "shape"
+    );
+    const optionValue = String(selectedShapeOption?.value || "").trim();
+    if (optionValue) {
+      const byOption = shapeRows.find((row) => {
+        const label = String(row.label || "").trim();
+        const cardDisplay = String(row.cardDisplayName || "").trim();
+        return (
+          optionValue === label ||
+          optionValue === cardDisplay ||
+          optionValue.startsWith(`${label} -`) ||
+          optionValue.startsWith(`${cardDisplay} -`)
+        );
+      });
+      if (byOption) return byOption.value;
+    }
+
+    const sku = String(variant?.sku || "").trim();
+    if (sku) {
+      const bySku = shapeRows.find((row) => {
+        const abbr = String(row.abbreviation || "").trim();
+        if (!abbr) return false;
+        return sku.endsWith(`-${abbr}`) || sku.includes(`-${abbr}-`);
+      });
+      if (bySku) return bySku.value;
+    }
+    return null;
+  };
+
   for (const variant of product.variants ?? []) {
-    const shapeId = variant.singleShape;
-    if (!shapeId || !allShapes[shapeId]) continue;
-    allShapes[shapeId] = {
-      ...allShapes[shapeId],
+    const shapeValue = resolveShapeValueFromVariant(variant);
+    if (!shapeValue || !allShapes[shapeValue]) continue;
+    selectedShapeValues.add(shapeValue);
+    allShapes[shapeValue] = {
+      ...allShapes[shapeValue],
       isSelected: true,
-      style: variant.singleStyle ? stylesById.get(variant.singleStyle) || null : null,
+      style: variant.singleStyle ? stylesById.get(variant.singleStyle) || null : allShapes[shapeValue].style,
     };
   }
 
@@ -132,18 +172,21 @@ function hydrateFormFromProduct({
   }, {});
 
   return {
-    ...initialFormState,
-    shapes,
-    allShapes,
-    collection,
-    selectedFont: product.fontRef || "",
-    leatherColors: {
-      primary: primaryLeather || initialFormState.leatherColors.primary,
-      secondary: secondaryLeather,
+    hydratedFormState: {
+      ...initialFormState,
+      shapes,
+      allShapes,
+      collection,
+      selectedFont: product.fontRef || "",
+      leatherColors: {
+        primary: primaryLeather || initialFormState.leatherColors.primary,
+        secondary: secondaryLeather,
+      },
+      stitchingThreads,
+      embroideryThreads,
+      existingProducts: collection?.versioningSkus?.existingProducts ?? [],
     },
-    stitchingThreads,
-    embroideryThreads,
-    existingProducts: collection?.versioningSkus?.existingProducts ?? [],
+    lockedShapeValues: Array.from(selectedShapeValues),
   };
 }
 
@@ -232,6 +275,7 @@ export default function UpdateProducts() {
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [lockedShapeValues, setLockedShapeValues] = useState(new Set());
 
   const listFetcher = useFetcher();
   const loadFetcher = useFetcher();
@@ -244,6 +288,7 @@ export default function UpdateProducts() {
       setSelectedProduct(null);
       setProductData(null);
       setDescriptionPlain("");
+      setLockedShapeValues(new Set());
     }
   }, [listFetcher.data]);
 
@@ -263,7 +308,8 @@ export default function UpdateProducts() {
         stitchingThreadColors,
         embroideryThreadColors,
       });
-      handleChange("hydrateForm", hydrated);
+      handleChange("hydrateForm", hydrated.hydratedFormState);
+      setLockedShapeValues(new Set(hydrated.lockedShapeValues || []));
     }
   }, [
     loadFetcher.data,
@@ -297,6 +343,7 @@ export default function UpdateProducts() {
         setSelectedProduct(null);
         setProductData(null);
         setDescriptionPlain("");
+        setLockedShapeValues(new Set());
         setGenerationError(null);
         if (collectionId) {
           const fd = new FormData();
@@ -327,6 +374,7 @@ export default function UpdateProducts() {
       setSelectedProductId(id);
       setSelectedProduct(null);
       setProductData(null);
+      setLockedShapeValues(new Set());
       setGenerationError(null);
       if (!id) return;
       const fd = new FormData();
@@ -507,6 +555,7 @@ export default function UpdateProducts() {
                   shapes={shapes}
                   formState={formState}
                   handleChange={onCollectionChange}
+                  lockedShapeValues={lockedShapeValues}
                 />
                 <Button
                   primary

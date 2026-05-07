@@ -21,7 +21,8 @@ const sortShapes = (shapes) => {
 const ShapeGrid = ({
   shapes,
   formState,
-  handleChange
+  handleChange,
+  lockedShapeValues
 }) => {
   const sortedShapes = useMemo(() =>
     sortShapes(shapes),
@@ -101,6 +102,7 @@ const ShapeGrid = ({
               shapes={shapes}
               formState={formState}
               handleChange={handleChange}
+              lockedShapeValues={lockedShapeValues}
               gridColumns={gridColumns}
               {...visibilityFlags[shape.value]}
             />
