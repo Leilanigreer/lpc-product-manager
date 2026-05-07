@@ -33,7 +33,6 @@ import {
   fetchActiveProductsForCollection,
   fetchProductForUpdate,
   updateShopifyProduct,
-  buildSkuInfoFromProductBaseSku,
 } from "../lib/server/productUpdateShopify.server";
 import { computeShapeNeedsColorDesignation } from "../lib/utils/shapeUtils";
 
@@ -49,6 +48,26 @@ const todayDateStamp = () => {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+};
+
+const buildSkuInfoFromProductBaseSku = (baseSku) => {
+  const normalized = String(baseSku || "").trim();
+  if (!normalized) return null;
+  const match = normalized.match(/^(.*)-V(\d+)$/i);
+  if (!match) {
+    return {
+      raw: normalized,
+      parts: normalized.split("-").filter(Boolean),
+      version: null,
+    };
+  }
+  return {
+    raw: normalized,
+    parts: String(match[1] || "")
+      .split("-")
+      .filter(Boolean),
+    version: Number(match[2]),
+  };
 };
 
 function hydrateFormFromProduct({
