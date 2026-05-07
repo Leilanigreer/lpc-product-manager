@@ -34,6 +34,7 @@ const AdditionalViews = ({
             collection: productData.productType,
             folderName: productData.productPictureFolder,
             sku: baseSKU,
+            originalsFolderName: productData.originalsFolderName,
             label: label.toLowerCase().replace(/\s+/g, '-')
           });
         }

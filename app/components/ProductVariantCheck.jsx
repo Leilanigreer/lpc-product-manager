@@ -33,6 +33,7 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
             collection: productData.productType,
             folderName: productData.productPictureFolder,
             sku: variant.sku,
+            originalsFolderName: productData.originalsFolderName,
             // For putters, include the label in the filename
             label: isPutterVariant ? label : undefined
           });

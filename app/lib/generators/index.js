@@ -39,7 +39,7 @@ function collectLeatherMetaobjectGids(formState) {
  * @param {object} formState
  * @param {object[]} variants - Output of `generateVariants`; product-level shape/style lists only when length === 1.
  */
-function buildShopifyProductMetafields(formState, variants) {
+export function buildShopifyProductMetafields(formState, variants) {
   const amannRows = mapStitchingThreads(formState.stitchingThreads, formState);
   const embroideryRows = mapEmbroideryThreads(formState);
 

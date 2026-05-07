@@ -49,6 +49,7 @@ export async function action({ request }) {
     const folderName = formData.get('folderName');
     const sku = formData.get('sku');
     const label = formData.get('label');
+    const originalsFolderName = formData.get('originalsFolderName');
     const fileId = formData.get('fileId');
 
     // If fileId is provided, this is an update operation
@@ -59,7 +60,7 @@ export async function action({ request }) {
     }
 
     // Otherwise, proceed with new upload
-    console.log("Upload parameters:", { collection, folderName, sku, label });
+    console.log("Upload parameters:", { collection, folderName, sku, label, originalsFolderName });
     console.log("File received:", file ? { 
       name: file.name, 
       type: file.type, 
@@ -89,7 +90,13 @@ export async function action({ request }) {
     }
 
     console.log("Starting Google Drive upload...");
-    const result = await uploadToGoogleDrive(file, { collection, folderName, sku, label });
+    const result = await uploadToGoogleDrive(file, {
+      collection,
+      folderName,
+      sku,
+      label,
+      originalsFolderName,
+    });
     console.log("Google Drive upload successful:", result);
     return json(result);
   } catch (error) {

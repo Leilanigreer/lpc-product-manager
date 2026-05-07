@@ -10,6 +10,7 @@ const ACTION_TYPES = {
   UPDATE_SHAPE: 'UPDATE_SHAPE',
   UPDATE_SHAPE_FIELD: 'UPDATE_SHAPE_FIELD',
   UPDATE_SIMPLE: 'UPDATE_SIMPLE',
+  HYDRATE_FORM: 'HYDRATE_FORM',
   RESET_FORM: 'RESET_FORM',
   RESET_PREVIEW: 'RESET_PREVIEW'
 };
@@ -215,6 +216,19 @@ const formReducer = (state, action) => {
       });
     }
 
+    case ACTION_TYPES.HYDRATE_FORM: {
+      const hydrated = payload;
+      if (!hydrated || typeof hydrated !== 'object') return state;
+      const nextState = {
+        ...state,
+        ...hydrated,
+      };
+      return resetPreviewIfExists({
+        ...nextState,
+        finalRequirements: calculateFinalRequirements(nextState),
+      });
+    }
+
     case ACTION_TYPES.RESET_FORM: {
       const resetState = {
         ...initialState,
@@ -274,6 +288,10 @@ export const useFormState = (initialState, onFormChange) => {
       shapeField: () => ({
         type: ACTION_TYPES.UPDATE_SHAPE_FIELD,
         payload: value // { shapeValue, field, value }
+      }),
+      hydrateForm: () => ({
+        type: ACTION_TYPES.HYDRATE_FORM,
+        payload: value
       })
     };
 

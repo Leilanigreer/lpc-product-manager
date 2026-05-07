@@ -104,7 +104,10 @@ async function findOrCreateFolder(parentId, folderName, isCollection = false) {
   }
 }
 
-export async function uploadToGoogleDrive(file, { collection, folderName, sku, label }) {
+export async function uploadToGoogleDrive(
+  file,
+  { collection, folderName, sku, label, originalsFolderName }
+) {
   try {
     const ROOT_FOLDER_ID = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
     if (!ROOT_FOLDER_ID) {
@@ -137,7 +140,10 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     }
 
     // Find or create the Originals subfolder
-    const originalsFolder = await findOrCreateFolder(productFolder.id, "Originals");
+    const originalsFolder = await findOrCreateFolder(
+      productFolder.id,
+      String(originalsFolderName || "Originals")
+    );
     if (!originalsFolder) {
       throw new Error(`Failed to find or create Originals folder for: ${folderName}`);
     }

@@ -1,5 +1,8 @@
 // app/lib/utils/googleDrive.js
-export async function uploadToGoogleDrive(file, { collection, folderName, sku, label }) {
+export async function uploadToGoogleDrive(
+  file,
+  { collection, folderName, sku, label, originalsFolderName }
+) {
   try {
     const formData = new FormData();
     formData.append('file', file);
@@ -8,6 +11,9 @@ export async function uploadToGoogleDrive(file, { collection, folderName, sku, l
     formData.append('sku', sku);
     if (label) {
       formData.append('label', label);
+    }
+    if (originalsFolderName) {
+      formData.append('originalsFolderName', originalsFolderName);
     }
 
     const response = await fetch('/api/upload/googledrive', {
