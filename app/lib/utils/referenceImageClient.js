@@ -58,8 +58,10 @@ function uint8StartsWithPng(bytes) {
 }
 
 /**
+ * Converts HEIC in-browser when needed; returns JPEG/PNG bytes and a File for uploads.
+ *
  * @param {File} file
- * @returns {Promise<{ base64: string, mediaType: 'image/jpeg'|'image/png', previewBlob: Blob }>}
+ * @returns {Promise<{ base64: string; mediaType: 'image/jpeg'|'image/png'; previewBlob: Blob; normalizedFile: File }>}
  */
 export async function convertDroppedFileToReferenceImage(file) {
   if (!(file instanceof File)) {
@@ -140,5 +142,13 @@ export async function convertDroppedFileToReferenceImage(file) {
   }
   const base64 = btoa(binary);
 
-  return { base64, mediaType, previewBlob: blob };
+  const ext = mediaType === "image/png" ? ".png" : ".jpg";
+  const baseStem = file.name.replace(/\.[^.]+$/i, "").trim() || "reference";
+  const normalizedName = `${baseStem}${ext}`;
+  const normalizedFile = new File([blob], normalizedName, {
+    type: mediaType,
+    lastModified: file.lastModified,
+  });
+
+  return { base64, mediaType, previewBlob: blob, normalizedFile };
 }

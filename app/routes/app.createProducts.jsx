@@ -257,9 +257,10 @@ export default function CreateProduct() {
       return;
     }
     try {
-      const { base64, mediaType, previewBlob } =
+      const { base64, mediaType, previewBlob, normalizedFile } =
         await convertDroppedFileToReferenceImage(file);
-      setReferenceImageFile(file);
+      /** JPEG/PNG only — HEIC is converted in the browser so Drive/Sharp never see raw HEIC */
+      setReferenceImageFile(normalizedFile);
       setReferencePreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(previewBlob);
