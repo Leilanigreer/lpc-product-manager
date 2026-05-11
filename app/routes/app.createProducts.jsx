@@ -153,10 +153,18 @@ export default function CreateProduct() {
 
   const shopifyResourceLoadErrors = React.useMemo(() => {
     const parts = [];
-    if (leatherColorsLoadError) parts.push(`Leather colors: ${leatherColorsLoadError}`);
-    if (fontsLoadError) parts.push(`Fonts: ${fontsLoadError}`);
-    if (stitchingThreadColorsLoadError) parts.push(`Stitching threads: ${stitchingThreadColorsLoadError}`);
-    if (embroideryThreadColorsLoadError) parts.push(`Embroidery threads: ${embroideryThreadColorsLoadError}`);
+    if (leatherColorsLoadError) {
+      parts.push(`Leather colors: ${formatUnknownApiError(leatherColorsLoadError)}`);
+    }
+    if (fontsLoadError) {
+      parts.push(`Fonts: ${formatUnknownApiError(fontsLoadError)}`);
+    }
+    if (stitchingThreadColorsLoadError) {
+      parts.push(`Stitching threads: ${formatUnknownApiError(stitchingThreadColorsLoadError)}`);
+    }
+    if (embroideryThreadColorsLoadError) {
+      parts.push(`Embroidery threads: ${formatUnknownApiError(embroideryThreadColorsLoadError)}`);
+    }
     return parts;
   }, [
     leatherColorsLoadError,
@@ -258,7 +266,7 @@ export default function CreateProduct() {
       });
       setReferenceImage({ base64, mediaType });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = formatUnknownApiError(err) || "Could not read reference image.";
       setGenerationError(msg);
     }
   }, []);
@@ -450,7 +458,7 @@ export default function CreateProduct() {
       }
       if (vs.loadError) {
         throw new Error(
-          `Could not load existing base SKUs for this collection: ${vs.loadError}`
+          `Could not load existing base SKUs for this collection: ${formatUnknownApiError(vs.loadError) || "unknown error"}`
         );
       }
 
@@ -541,21 +549,20 @@ export default function CreateProduct() {
 
       setTimeout(scrollToPreview, 100);
     } catch (error) {
+      const detail = formatUnknownApiError(error);
       console.error("[Product Creation] Data Generation Failed:", {
-        error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        error: detail || error?.message,
+        stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
         formState: {
           collection: formState.collection,
-          shapes: Object.keys(formState.allShapes || {})
-        }
+          shapes: Object.keys(formState.allShapes || {}),
+        },
       });
       const msg =
-        error instanceof Error
-          ? error.message
-          : typeof error === "string"
-            ? error
-            : "An unexpected error occurred";
-      setGenerationError(msg && String(msg).trim() ? msg : "An unexpected error occurred");
+        detail ||
+        (typeof error === "string" ? error : "") ||
+        "An unexpected error occurred";
+      setGenerationError(msg.trim() ? msg.trim() : "An unexpected error occurred");
       setProductData(null);
     } finally {
       setIsGenerating(false);
@@ -601,7 +608,9 @@ export default function CreateProduct() {
   };
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return (
+      <div>Error: {formatUnknownApiError(error) || "Failed to load page data."}</div>
+    );
   }
 
   return (

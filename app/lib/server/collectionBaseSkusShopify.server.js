@@ -27,6 +27,10 @@
  */
 
 import _ from "lodash";
+import {
+  formatShopifyGraphqlErrors,
+  formatUnknownApiError,
+} from "../utils/formatApiError.js";
 
 const COLLECTION_PRODUCTS_BASE_SKU_QUERY = `#graphql
   query CollectionProductsBaseSku($id: ID!, $cursor: String) {
@@ -106,7 +110,9 @@ export async function fetchCollectionBaseSkusForVersioning(graphql, collectionGi
     }
 
     if (json.errors?.length) {
-      throw new Error(json.errors.map((e) => e.message).join("; "));
+      const gqlMsg =
+        formatShopifyGraphqlErrors(json.errors) || "Shopify GraphQL returned errors";
+      throw new Error(gqlMsg);
     }
 
     const collection = json.data?.collection;
@@ -175,7 +181,8 @@ export async function attachVersioningSkusToShopifyCollections(admin, collection
           versioningSkus: {
             existingProducts: [],
             shopifyGraphqlPages: [],
-            loadError: err?.message ?? String(err),
+            loadError:
+              formatUnknownApiError(err) || "Collection base SKU scan failed",
           },
         };
       }
