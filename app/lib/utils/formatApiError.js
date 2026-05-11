@@ -31,10 +31,24 @@ export function formatUnknownApiError(value) {
         .join("; ");
       if (joined) return joined;
     }
+    const name = typeof value.name === "string" ? value.name.trim() : "";
+    const code = value.code;
+    const codePart =
+      code !== undefined && code !== null && code !== ""
+        ? String(code)
+        : "";
+    if (name || codePart) {
+      const msg =
+        typeof value.message === "string" && value.message.trim()
+          ? value.message.trim()
+          : formatUnknownApiError(value.message);
+      const bits = [name, codePart, msg].filter(Boolean);
+      if (bits.length) return bits.join(": ");
+    }
     try {
       return JSON.stringify(value);
     } catch {
-      return "";
+      return Object.prototype.toString.call(value);
     }
   }
   return String(value).trim();

@@ -6,6 +6,8 @@
  * before calling Anthropic — avoids double compression here and keeps the browser path simple.
  */
 
+import { formatUnknownApiError } from "./formatApiError.js";
+
 const MAX_FILE_BYTES = 40 * 1024 * 1024;
 
 /** ISO BMFF `ftyp` brands used by Apple HEIC / HEIF (avoid relying on filename — Sharp on Linux often has no libheif). */
@@ -88,9 +90,14 @@ export async function convertDroppedFileToReferenceImage(file) {
       });
       blob = Array.isArray(converted) ? converted[0] : converted;
     } catch (e) {
-      const inner = e instanceof Error ? e.message : String(e);
+      const inner =
+        formatUnknownApiError(e) ||
+        (typeof DOMException !== "undefined" && e instanceof DOMException
+          ? `${e.name}: ${e.message}`
+          : "");
+      const detail = inner.trim() || "conversion failed (no details from heic2any)";
       throw new Error(
-        `Could not convert HEIC/HEIF in the browser (${inner}). Export as JPEG or PNG from Photos (or another editor) and upload again.`
+        `Could not convert HEIC/HEIF in the browser (${detail}). Export as JPEG or PNG from Photos (or another editor) and upload again.`
       );
     }
   }
