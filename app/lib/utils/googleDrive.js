@@ -1,4 +1,38 @@
 // app/lib/utils/googleDrive.js
+
+/**
+ * Cloud/API payloads sometimes put structured errors in `error`.
+ * `new Error(object)` becomes the useless message "[object Object]".
+ */
+export function formatGoogleDriveUploadErrorMessage(value) {
+  if (value == null || value === "") return "";
+  if (typeof value === "string") {
+    const s = value.trim();
+    return s;
+  }
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (value instanceof Error) {
+    return formatGoogleDriveUploadErrorMessage(value.message) || value.name || "";
+  }
+  if (typeof value === "object") {
+    if (typeof value.message === "string" && value.message.trim()) return value.message.trim();
+    if (typeof value.error === "string" && value.error.trim()) return value.error.trim();
+    if (Array.isArray(value.errors) && value.errors.length > 0) {
+      const joined = value.errors
+        .map((e) => formatGoogleDriveUploadErrorMessage(e))
+        .filter(Boolean)
+        .join("; ");
+      if (joined) return joined;
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "";
+    }
+  }
+  return String(value).trim();
+}
+
 export async function uploadToGoogleDrive(
   file,
   { collection, folderName, sku, label, originalsFolderName }
@@ -25,7 +59,11 @@ export async function uploadToGoogleDrive(
     
     if (!response.ok) {
       console.error('Google Drive upload failed:', result);
-      throw new Error(result.error || 'Upload failed');
+      const msg =
+        formatGoogleDriveUploadErrorMessage(result?.error) ||
+        formatGoogleDriveUploadErrorMessage(result) ||
+        'Upload failed';
+      throw new Error(msg);
     }
     
     return result;
@@ -50,7 +88,11 @@ export async function updateToGoogleDrive(file, fileId) {
     
     if (!response.ok) {
       console.error('Google Drive update failed:', result);
-      throw new Error(result.error || 'Update failed');
+      const msg =
+        formatGoogleDriveUploadErrorMessage(result?.error) ||
+        formatGoogleDriveUploadErrorMessage(result) ||
+        'Update failed';
+      throw new Error(msg);
     }
     
     return result;

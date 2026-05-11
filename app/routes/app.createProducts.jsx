@@ -18,6 +18,7 @@ import { generateProductCreationNotification } from "../templates/product-creati
 import { getCloudinaryFolderPath } from "../lib/utils/cloudinary";
 import { convertDroppedFileToReferenceImage } from "../lib/utils/referenceImageClient.js";
 import {
+  formatGoogleDriveUploadErrorMessage,
   uploadToGoogleDrive,
   updateToGoogleDrive,
 } from "../lib/utils/googleDrive.js";
@@ -284,8 +285,8 @@ export default function CreateProduct() {
           driveData = await updateToGoogleDrive(file, groupImageDriveFileId);
         } else {
           driveData = await uploadToGoogleDrive(file, {
-            collection: productData.productType,
-            folderName: productData.productPictureFolder,
+            collection: String(data.productType ?? "").trim(),
+            folderName: String(data.productPictureFolder ?? "").trim(),
             sku: baseSku,
             label: "group-image",
           });
@@ -307,7 +308,7 @@ export default function CreateProduct() {
         throw err;
       }
     },
-    [productData, groupImageDriveFileId, resolveGroupImageBaseSku]
+    [groupImageDriveFileId, resolveGroupImageBaseSku]
   );
 
   const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
@@ -579,7 +580,8 @@ export default function CreateProduct() {
       }
     } catch (error) {
       const msg =
-        error instanceof Error ? error.message : "Failed to upload group image to Google Drive.";
+        formatGoogleDriveUploadErrorMessage(error) ||
+        "Failed to upload group image to Google Drive.";
       setSubmissionError(msg);
       return;
     }
