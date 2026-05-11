@@ -9,25 +9,33 @@ export async function action({ request }) {
   try {
     const data = await request.json();
     const { publicId, collection, productPictureFolder } = data;
-    
+
     if (!publicId) {
       return json({ error: "Missing publicId parameter" }, { status: 400 });
     }
-    
+
+    let fullPublicId = String(publicId).trim();
+    if (!fullPublicId.startsWith("products/")) {
+      fullPublicId = `products/${fullPublicId}`;
+    }
+
     // Create timestamp
     const timestamp = Math.floor(Date.now() / 1000).toString();
-    
-    // Build parameters object in the exact order Cloudinary expects
+
+    const UPLOAD_PRESET = "product-images";
+
     const params = {
-      asset_folder: collection && productPictureFolder 
-        ? `products/${collection}/${productPictureFolder}`
-        : collection 
-          ? `products/${collection}`
-          : undefined,
+      asset_folder:
+        collection && productPictureFolder
+          ? `products/${collection}/${productPictureFolder}`
+          : collection
+            ? `products/${collection}`
+            : undefined,
       invalidate: "true",
       overwrite: "true",
-      public_id: publicId,
-      timestamp: timestamp
+      public_id: fullPublicId,
+      timestamp,
+      upload_preset: UPLOAD_PRESET,
     };
 
     // Remove undefined values

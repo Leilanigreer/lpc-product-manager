@@ -1,6 +1,7 @@
 /**
  * Browser-only: convert uploaded file (HEIC/JPEG/PNG) to base64 + media type for Claude API.
- * Uses dynamic import of `heic2any` so the module is not loaded on the server.
+ * Uses `heic2any` when it works; many iPhone HEIC variants fail its WASM libheif — then we upload
+ * the original HEIC to Cloudinary and fetch a JPEG delivery URL (Cloudinary decodes HEIC server-side).
  *
  * Large images are normalized on the server with Sharp (see anthropicProductDescription.server.js)
  * before calling Anthropic — avoids double compression here and keeps the browser path simple.
@@ -57,6 +58,50 @@ function uint8StartsWithPng(bytes) {
   );
 }
 
+/** Insert JPEG format transformation after `/upload/` (Cloudinary delivery URL). */
+function toCloudinaryJpegDeliveryUrl(secureUrl) {
+  if (typeof secureUrl !== "string" || !secureUrl.includes("://")) return secureUrl;
+  const marker = "/upload/";
+  const i = secureUrl.indexOf(marker);
+  if (i === -1) return secureUrl;
+  const prefix = secureUrl.slice(0, i + marker.length);
+  const suffix = secureUrl.slice(i + marker.length);
+  if (suffix.startsWith("f_jpg")) return secureUrl;
+  return `${prefix}f_jpg,q_90/${suffix}`;
+}
+
+/**
+ * Upload HEIC to Cloudinary, then download as JPEG bytes (decoding happens on Cloudinary, not in WASM).
+ * @param {File} heicFile
+ * @returns {Promise<Blob>}
+ */
+async function convertHeicViaCloudinaryFallback(heicFile) {
+  const { uploadToCloudinaryWithSignature } = await import("./cloudinary.js");
+  const id =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `ref-${Date.now()}`;
+  const publicIdTail = `_reference-heic-temp/${id}`;
+  const collection = "_reference-heic-temp";
+
+  const upload = await uploadToCloudinaryWithSignature(
+    heicFile,
+    publicIdTail,
+    collection,
+    null
+  );
+  const secure = upload?.secure_url;
+  if (!secure || typeof secure !== "string") {
+    throw new Error("Cloudinary upload returned no secure_url");
+  }
+  const jpegUrl = toCloudinaryJpegDeliveryUrl(secure);
+  const res = await fetch(jpegUrl, { mode: "cors", credentials: "omit" });
+  if (!res.ok) {
+    throw new Error(`Cloudinary JPEG fetch failed (${res.status})`);
+  }
+  return res.blob();
+}
+
 /**
  * Converts HEIC in-browser when needed; returns JPEG/PNG bytes and a File for uploads.
  *
@@ -91,16 +136,18 @@ export async function convertDroppedFileToReferenceImage(file) {
         quality: 0.92,
       });
       blob = Array.isArray(converted) ? converted[0] : converted;
-    } catch (e) {
-      const inner =
-        formatUnknownApiError(e) ||
-        (typeof DOMException !== "undefined" && e instanceof DOMException
-          ? `${e.name}: ${e.message}`
-          : "");
-      const detail = inner.trim() || "conversion failed (no details from heic2any)";
-      throw new Error(
-        `Could not convert HEIC/HEIF in the browser (${detail}). Export as JPEG or PNG from Photos (or another editor) and upload again.`
-      );
+    } catch (heic2anyErr) {
+      try {
+        blob = await convertHeicViaCloudinaryFallback(file);
+      } catch (cloudErr) {
+        const wasm = formatUnknownApiError(heic2anyErr);
+        const cloud = formatUnknownApiError(cloudErr);
+        const wasmPart = wasm.trim() || "heic2any failed";
+        const cloudPart = cloud.trim() ? `; Cloudinary: ${cloud}` : "";
+        throw new Error(
+          `Could not convert HEIC/HEIF (${wasmPart}${cloudPart}). Export as JPEG or PNG from Photos (or another editor) and upload again.`
+        );
+      }
     }
   }
 
