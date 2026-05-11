@@ -1,5 +1,6 @@
 // hooks/useFormNotifications.js
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { formatUnknownApiError } from "../lib/utils/formatApiError.js";
 
 export const useFormNotifications = ({ fetcher, handleChange, onSuccess }) => {
   const [notification, setNotification] = useState(null);
@@ -47,15 +48,16 @@ export const useFormNotifications = ({ fetcher, handleChange, onSuccess }) => {
   }, [handleChange, onSuccess]);
 
   const handleError = useCallback((errors) => {
-    const errorMessage = (Array.isArray(errors) ? errors : [errors])
-      .map((e) =>
-        typeof e === "string" ? e : e?.message ?? JSON.stringify(e)
-      )
-      .join(", ");
+    const errorMessage =
+      (Array.isArray(errors) ? errors : [errors])
+        .map((e) => formatUnknownApiError(e))
+        .filter(Boolean)
+        .join(", ")
+        .trim() || "Product creation failed.";
     setSubmissionError(errorMessage);
     setNotification({
       message: errorMessage,
-      status: "critical"
+      status: "critical",
     });
   }, []);
 

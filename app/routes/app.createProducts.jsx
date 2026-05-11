@@ -5,6 +5,7 @@ import { useLoaderData, useFetcher, useLocation } from "@remix-run/react";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { validateProductForm } from "../lib/utils";
+import { formatUnknownApiError } from "../lib/utils/formatApiError.js";
 import { loader as dataLoader } from "../lib/loaders";
 import { generateProductData, generateTitle } from "../lib/generators";
 import { plainProductDescriptionToHtml } from "../lib/generators/htmlDescription";
@@ -116,8 +117,12 @@ export const action = async ({ request }) => {
     });
     return new Response(
       JSON.stringify({
-        errors: [typeof error === 'string' ? error : error.message || "An unexpected error occurred"]
-      }), 
+        errors: [
+          typeof error === "string"
+            ? error
+            : formatUnknownApiError(error) || "An unexpected error occurred",
+        ],
+      }),
       { 
         status: 500,
         headers: {

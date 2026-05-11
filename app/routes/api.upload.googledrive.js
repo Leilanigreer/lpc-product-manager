@@ -1,6 +1,12 @@
 // app/routes/api.upload.googledrive.js
 import { json, unstable_parseMultipartFormData, unstable_createMemoryUploadHandler } from "@remix-run/node";
-import { uploadToGoogleDrive, testGoogleDriveAuth, updateToGoogleDrive } from "../lib/server/googleDrive";
+import {
+  uploadToGoogleDrive,
+  testGoogleDriveAuth,
+  updateToGoogleDrive,
+  serializeGoogleApiError,
+} from "../lib/server/googleDrive";
+import { formatUnknownApiError } from "../lib/utils/formatApiError.js";
 
 export async function action({ request }) {
   if (request.method !== "POST") {
@@ -30,8 +36,10 @@ export async function action({ request }) {
     console.log("Testing Google Drive authentication...");
     const authTest = await testGoogleDriveAuth();
     if (!authTest.success) {
-      console.error("Google Drive authentication test failed:", authTest.error);
-      return json({ error: `Authentication failed: ${authTest.error}` }, { status: 500 });
+      const authDetail =
+        formatUnknownApiError(authTest.error) || "Unknown authentication error";
+      console.error("Google Drive authentication test failed:", authDetail);
+      return json({ error: `Authentication failed: ${authDetail}` }, { status: 500 });
     }
     console.log("Google Drive authentication successful!");
 
@@ -100,12 +108,16 @@ export async function action({ request }) {
     console.log("Google Drive upload successful:", result);
     return json(result);
   } catch (error) {
-    console.error("Google Drive upload error:", error.message);
-    console.error("Error stack:", error.stack);
-    
-    return json({ 
-      error: error.message || "Upload failed",
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 });
+    const detail = serializeGoogleApiError(error);
+    console.error("Google Drive upload error:", detail);
+    console.error("Error stack:", error?.stack);
+
+    return json(
+      {
+        error: detail,
+        stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
+      { status: 500 }
+    );
   }
 }

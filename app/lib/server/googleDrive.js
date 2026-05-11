@@ -1,6 +1,27 @@
 // app/lib/server/googleDrive.js
 import { google } from 'googleapis/build/src/index.js';
 import { Readable } from 'node:stream';
+import { formatUnknownApiError } from '../utils/formatApiError.js';
+
+/**
+ * Gaxios / Drive API errors often attach JSON under response.data; avoid `${err}` → "[object Object]".
+ */
+export function serializeGoogleApiError(err) {
+  if (err == null) return 'Unknown error';
+  const top =
+    typeof err.message === 'string' && err.message.trim()
+      ? err.message.trim()
+      : '';
+  const data = err.response?.data;
+  let nested = '';
+  if (data && typeof data === 'object') {
+    nested = formatUnknownApiError(data.error ?? data);
+  }
+  const parts = [top, nested].filter(Boolean);
+  const deduped = [...new Set(parts)];
+  const joined = deduped.join(' — ');
+  return joined || formatUnknownApiError(err) || 'Google Drive API error';
+}
 
 // Log authentication details
 console.log('Google Drive Authentication Debug:');
@@ -195,8 +216,9 @@ export async function uploadToGoogleDrive(
       }
     };
   } catch (error) {
-    console.error('Google Drive upload failed:', error.message);
-    throw new Error(`Google Drive upload failed: ${error.message}`);
+    const text = serializeGoogleApiError(error);
+    console.error('Google Drive upload failed:', text);
+    throw new Error(`Google Drive upload failed: ${text}`);
   }
 }
 
@@ -231,8 +253,9 @@ export async function updateToGoogleDrive(file, fileId) {
       webViewLink: updatedFile.data.webViewLink
     };
   } catch (error) {
-    console.error('Google Drive update failed:', error.message);
-    throw new Error(`Google Drive update failed: ${error.message}`);
+    const text = serializeGoogleApiError(error);
+    console.error('Google Drive update failed:', text);
+    throw new Error(`Google Drive update failed: ${text}`);
   }
 }
 
@@ -284,28 +307,29 @@ export async function testGoogleDriveAuth() {
       quota: about.data.storageQuota
     };
   } catch (error) {
-    console.error('Authentication test failed:', error);
+    const detail = serializeGoogleApiError(error);
+    console.error('Authentication test failed:', detail);
     console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : 'Stack trace hidden in production'
+      message: detail,
+      code: error?.code,
+      stack: process.env.NODE_ENV === 'development' ? error?.stack : 'Stack trace hidden in production'
     });
-    
+
     // Check if the error is related to the private key
-    if (error.message.includes('DECODER routines') || error.message.includes('private key')) {
+    if (detail.includes('DECODER routines') || detail.includes('private key')) {
       console.error('Private key format issue detected. Please check the format of your GOOGLE_PRIVATE_KEY environment variable.');
     }
-    
+
     // Check if the error is related to the service account
-    if (error.message.includes('account not found') || error.message.includes('invalid_grant')) {
+    if (detail.includes('account not found') || detail.includes('invalid_grant')) {
       console.error('Service account issue detected. Please check that the service account exists and has the necessary permissions.');
       console.error('Service account email:', process.env.GOOGLE_CLIENT_EMAIL);
       console.error('Project ID:', process.env.GOOGLE_PROJECT_ID);
     }
-    
+
     return {
       success: false,
-      error: error.message
+      error: detail,
     };
   }
 }
