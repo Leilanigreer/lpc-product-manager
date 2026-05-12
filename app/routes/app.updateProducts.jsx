@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect } from "react";
+import { json } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import {
@@ -8,6 +9,7 @@ import {
   BlockStack,
   Banner,
   Button,
+  Link,
   Select,
   Text,
   Box,
@@ -60,6 +62,14 @@ const variantIsCustomFromLoaded = (v) => {
     .toLowerCase()
     .includes("-custom");
 };
+
+/** Shopify Admin product editor URL (numeric id from Product GID). */
+function adminProductEditorUrl(storeHandle, productGid) {
+  const h = String(storeHandle || "").trim();
+  const m = String(productGid || "").match(/Product\/(\d+)/);
+  if (!h || !m) return null;
+  return `https://admin.shopify.com/store/${h}/products/${m[1]}`;
+}
 
 const buildSkuInfoFromProductBaseSku = (baseSku) => {
   const normalized = String(baseSku || "").trim();
@@ -199,8 +209,11 @@ function preflightUpdateSkus(selectedProduct, variants) {
 }
 
 export const loader = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
-  return dataLoader({ admin, includeCommonDescription: false });
+  const { session, admin } = await authenticate.admin(request);
+  const shop = session.shop ?? "";
+  const storeHandle = shop.replace(/\.myshopify\.com$/i, "");
+  const base = await dataLoader({ admin, includeCommonDescription: false });
+  return json({ ...base, shop, storeHandle });
 };
 
 export const action = async ({ request }) => {
@@ -282,6 +295,7 @@ export default function UpdateProducts() {
     shapes,
     shopifyCollections,
     error,
+    storeHandle = "",
   } = useLoaderData();
 
   const leatherColors = useMemo(
@@ -528,6 +542,22 @@ export default function UpdateProducts() {
     }
   }, [selectedProduct, formState, descriptionPlain]);
 
+  const baseVariantsWithSingleShapeCount = useMemo(() => {
+    if (!selectedProduct?.variants?.length) return 0;
+    return selectedProduct.variants.filter((v) => {
+      const isBase =
+        v?.isBaseVariant === true ||
+        v?.customizable === true ||
+        v?.customizable === "true";
+      return isBase && String(v?.singleShape || "").trim();
+    }).length;
+  }, [selectedProduct]);
+
+  const adminProductUrl = useMemo(
+    () => adminProductEditorUrl(storeHandle, selectedProduct?.id),
+    [storeHandle, selectedProduct?.id]
+  );
+
   const diffSummary = useMemo(() => {
     if (!productData || !selectedProduct) return null;
     let creates = 0;
@@ -634,6 +664,27 @@ export default function UpdateProducts() {
                 {selectedProduct && !selectedProduct.baseSku ? (
                   <Banner status="warning">
                     This product does not have `custom.base_sku`. Update submission is blocked.
+                  </Banner>
+                ) : null}
+                {selectedProduct && baseVariantsWithSingleShapeCount === 0 ? (
+                  <Banner status="warning" title="No shape metafields on base variants yet">
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodyMd">
+                        None of this product&apos;s base (non-custom) variants have{" "}
+                        <code>custom.single_shape</code> set, so this app cannot pre-select or lock
+                        shapes. Update the listing in Shopify first (variant metafields), then reload
+                        the product here.
+                      </Text>
+                      {adminProductUrl ? (
+                        <Link url={adminProductUrl} target="_top">
+                          Open product in Shopify admin
+                        </Link>
+                      ) : (
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          Open this product in your Shopify admin to edit variant metafields.
+                        </Text>
+                      )}
+                    </BlockStack>
                   </Banner>
                 ) : null}
               </BlockStack>
