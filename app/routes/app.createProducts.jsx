@@ -230,16 +230,10 @@ export default function CreateProduct() {
   useEffect(() => {
     const id = formState.collection?.value;
     if (prevCollectionIdRef.current !== undefined && prevCollectionIdRef.current !== id) {
+      /** Reference/group image is intentionally preserved across collection changes */
       setAiDescription("");
-      setReferenceImage(null);
-      setReferenceImageFile(null);
-      setReferencePreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
       setProductData(null);
       setGenerationError(null);
-      setGroupImageDriveFileId(null);
     }
     prevCollectionIdRef.current = id;
   }, [formState.collection?.value]);
