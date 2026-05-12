@@ -45,7 +45,21 @@ export const filterProductsByCollection = (existingProducts, collectionValue) =>
 };
 
 /**
- * Formats SKU based on base parts, version, and shape data
+ * Formats SKU based on base parts, version, and shape data.
+ *
+ * Suffix layout (regular and custom share the same shape):
+ *   `{versionedBaseSKU}-{shape}[-{colorDesignation}][-{style}][-Custom]`
+ *
+ * Notes:
+ * - `colorDesignation` is only included when `needsColorDesignation` is true and a value is set.
+ * - `style` is only included when the shape has a `style.abbreviation` AND the style's
+ *   `includeAbbreviationInSku` flag is not explicitly false. Set the style metaobject's
+ *   `include_abbreviation_in_sku` field to false to suppress the segment for a specific style
+ *   (e.g. the lone "Quilted" style on the Quilted collection) while keeping its abbreviation
+ *   populated for uniqueness/standardization.
+ * - The wood→`Fairway` substitution remains custom-only; regular wood variants keep their
+ *   specific shape label (`3W`, `5W`, etc.) so individual wood variants stay distinguishable.
+ *
  * @param {Array<string>} baseParts - Array of SKU parts
  * @param {number} version - Version number
  * @param {string} shapeValue - ID of the shape from allShapes
@@ -80,32 +94,36 @@ export const formatSKU = (baseParts, version, shapeValue, formState, options = {
   const filteredParts = baseParts.filter(Boolean);
   const baseSKU = filteredParts.join('-');
   const versionedBaseSKU = version ? `${baseSKU}-V${version}` : baseSKU;
-  
-  // Handle custom variants and styles
+
   let fullSKU = versionedBaseSKU;
-  
+
   if (shapeData.abbreviation) {
-    if (options.isCustom) {
-      const shapeAbbrev = shapeData.shapeType === 'WOOD' ? 'Fairway' : shapeData.abbreviation;
-      
-      const styleAbbrev = shapeData.style?.abbreviation;
-      if (styleAbbrev) {
-        // Handle style-specific custom SKUs
-        if (shapeData.needsColorDesignation && shapeData.colorDesignation?.abbreviation) {
-          // With color designation (e.g., QClassic)
-          fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${shapeData.colorDesignation.abbreviation}-${styleAbbrev}-Custom`;
-        } else {
-          // Regular style custom
-          fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-${styleAbbrev}-Custom`;
-        }
-      } else {
-        // Regular custom
-        fullSKU = `${versionedBaseSKU}-${shapeAbbrev}-Custom`;
-      }
-    } else {
-      // Regular variant
-      fullSKU = `${versionedBaseSKU}-${shapeData.abbreviation}`;
-    }
+    const shapeAbbrev =
+      options.isCustom && shapeData.shapeType === 'WOOD'
+        ? 'Fairway'
+        : shapeData.abbreviation;
+
+    const colorDesignationAbbrev =
+      shapeData.needsColorDesignation && shapeData.colorDesignation?.abbreviation
+        ? shapeData.colorDesignation.abbreviation
+        : null;
+
+    // `style.includeAbbreviationInSku === false` opts a style out of the SKU suffix even when an
+    // abbreviation is set (e.g. the lone "Quilted" style whose name matches the collection).
+    // The flag is fetched from the style metaobject's `include_abbreviation_in_sku` field and
+    // defaults to true for any style missing the field — see styleShopify.server.js.
+    const styleSkuEnabled = shapeData.style?.includeAbbreviationInSku !== false;
+    const styleAbbrev =
+      styleSkuEnabled && shapeData.style?.abbreviation
+        ? shapeData.style.abbreviation
+        : null;
+
+    const segments = [versionedBaseSKU, shapeAbbrev];
+    if (colorDesignationAbbrev) segments.push(colorDesignationAbbrev);
+    if (styleAbbrev) segments.push(styleAbbrev);
+    if (options.isCustom) segments.push('Custom');
+
+    fullSKU = segments.join('-');
   }
 
   return {

@@ -3,161 +3,142 @@
 ## Core Structure
 
 ### 1. Base SKU Components
-- Base Pattern: Defined by formState.finalRequirements.skuPattern
-- Color Components:
-  - Primary Leather (Always included)
-  - Secondary Leather (When required by collection)
+- Base Pattern: Defined by `formState.finalRequirements.skuPattern` (from the collection's `custom.sku_pattern` metafield).
+- Color / thread components:
+  - Primary Leather (always included)
+  - Secondary Leather (when required by collection)
   - Thread Color:
-    - Embroidery Thread (When threadType is EMBROIDERY)
-    - Stitching Thread (When threadType is STITCHING)
-- Version: Added if SKU base exists (-V2, -V3, etc.)
+    - Embroidery Thread (when `threadType` is `EMBROIDERY`)
+    - Stitching Thread (when `threadType` is `STITCHING`)
+- Version: Added when a product with the same base already exists in Shopify (`-V2`, `-V3`, …).
 
-### 2. Shape & Custom Suffixes
+### 2. Shape, Color Designation, Style, and Custom Suffixes
 
-#### Regular Variants
-- Base + Shape Abbreviation
-  - Example: `quilted-BLK-WHT-DR` (Quilted, Black, White, Driver)
+Regular and custom variants now share the same suffix layout:
 
-#### Custom Variants
+```
+{versionedBaseSKU}-{shape}[-{colorDesignation}][-{style}][-Custom]
+```
 
-Special handling for different shape types and features:
+Slots are dropped automatically when their underlying field is null/empty/falsy, so collections that don't use a given slot just leave the corresponding field blank (e.g. Quilted leaves `style.abbreviation` blank).
 
-1. Wood Type Handling:
-   ```javascript
-   // For shapes where shapeType === "WOOD" and is Custom
-   // Always use "Fairway" abbreviation regardless of actual shape
-   `${versionedBaseSKU}-Fairway-Custom`
-   ```
+Behaviour per slot:
 
-2. Color Designation Handling:
-   ```javascript
-   // When needsColorDesignation is true
-   `${versionedBaseSKU}-${shape.abbreviation}-${allShapes.[shape-value].colorDesignation.abbreviation}-${allShapes.[shape-value].style.abbreviation}-Custom`
-   ```
+| Slot | Source | Included when… | Notes |
+|---|---|---|---|
+| `{shape}` | `formState.allShapes[shape].abbreviation` | Always (when a shape is selected) | Custom-only swap: `shapeType === 'WOOD'` becomes `Fairway` for custom variants. Regular wood variants keep their specific label (`3W`, `5W`, …). |
+| `{colorDesignation}` | `formState.allShapes[shape].colorDesignation.abbreviation` | `needsColorDesignation === true` AND a value is set | The chosen leather color's abbreviation (always one of `primary` / `secondary` because the dropdown in `ColorDesignation.jsx` only offers those). |
+| `{style}` | `formState.allShapes[shape].style.abbreviation` | A style is assigned to the shape AND its `abbreviation` is non-empty AND the style's `include_abbreviation_in_sku` flag is not explicitly `false` | Putters now also carry styles. To suppress the segment for a specific style (e.g. the lone "Quilted" style on the Quilted collection) while keeping its abbreviation populated for uniqueness/standardization, set `include_abbreviation_in_sku = false` on the style metaobject. Missing/blank field defaults to `true`. |
+| `Custom` | n/a | `options.isCustom === true` | Always the final segment for custom variants. |
 
-3. Standard Custom:
-   ```javascript
-   // Basic custom variant
-   `${versionedBaseSKU}-${shape.abbreviation}-Custom`
-   ```
+#### Examples
 
-4. Styled Custom:
-   ```javascript
-   // When style is present but no color designation
-   `${versionedBaseSKU}-${shape.abbreviation}-${allShapes.[shape-value].style.abbreviation}-Custom`
-   ```
+Regular Driver, no color designation, no style:
+
+```text
+classic-BLK-DR
+```
+
+Regular Driver with style (Classic with style "Triple Stripe", abbreviation `TS`):
+
+```text
+classic-BLK-DR-TS
+```
+
+Regular Driver with color designation + style (QClassic with "50/50" / Black designated):
+
+```text
+QClassic-BLK-WHT-DR-BLK-50
+```
+
+Custom Driver (same QClassic example): just appends `-Custom`:
+
+```text
+QClassic-BLK-WHT-DR-BLK-50-Custom
+```
+
+Custom 3-Wood (WOOD shape): regular keeps `3W`, custom swaps to `Fairway`:
+
+```text
+QClassic-BLK-WHT-3W-WHT-FM         (regular)
+QClassic-BLK-WHT-Fairway-WHT-FM-Custom  (custom)
+```
+
+Quilted (no style):
+
+```text
+Quilted-BLK-IS-DR             (regular)
+Quilted-BLK-IS-DR-Custom      (custom)
+```
 
 ## Template Variables
 
-Available in skuPattern and final SKU construction:
-- `{finalRequirements.skuPattern}` - Base pattern defined at collection level
-- `{leatherColors.primary.abbreviation}` - Primary leather color code
-- `{leatherColors.secondary.abbreviation}` - Secondary leather color code (when applicable)
-- `{formState.stitchingThreads?.['thread-value'].abbreviation}` - Stitching thread code
-- `{formState.globalEmbroideryThread.abbreviation}` - Embroidery thread code
-- `{allShapes.[shape-value].abbreviation}` - Shape code
-- `{allShapes.[shape-value].style.abbreviation}` - Style code (when applicable)
-- `{version}` - Version number if SKU exists
-- `{custom}` - "Custom" suffix for custom variants
+Available in `skuPattern` (evaluated once per product by `evaluatePattern` in `app/lib/utils/versionUtils.js`):
+- `{leatherColors.primary.abbreviation}` – Primary leather color code
+- `{leatherColors.secondary.abbreviation}` – Secondary leather color code (when applicable)
+- `{stitchingThreads[0].abbreviation}` – Stitching thread code (Argyle uses this)
+- `{globalEmbroideryThread.abbreviation}` – Embroidery thread code (Quilted uses this)
+
+Used at variant generation time by `formatSKU` (`app/lib/utils/skuUtils.js`), not in `skuPattern`:
+- `{allShapes[shape-value].abbreviation}` – Shape code (replaced with `Fairway` for wood customs)
+- `{allShapes[shape-value].colorDesignation.abbreviation}` – Color designation code (when `needsColorDesignation`)
+- `{allShapes[shape-value].style.abbreviation}` – Style code (when present)
 
 ## Shape-Specific Features
 
 ### Wood Type Handling
-- Controlled by `shapeType` enum in shape definition
-- When `shapeType === "WOOD"`:
-  - All wood-type shapes use "Fairway" abbreviation in SKU
-  - Applies to custom variants
-  - Ensures consistent SKU format across wood-type products
+- Controlled by `shapeType` enum in the shape definition.
+- When `shapeType === 'WOOD'`:
+  - Regular wood variants keep their specific shape abbreviation (`3W`, `5W`, …) so each wood is its own variant.
+  - Custom wood variants collapse to `Fairway` to allow customer freedom in wood selection. See `shouldCollapseWoodVariants` in `app/lib/generators/variants/createCustom.js`.
 
 ### Color Designation
-- Controlled by `needsColorDesignation` boolean in `allShapes.[shape-value]`
-- Can be applied to any shape in collections that require styles
-- Independent of collection type
-- Affects SKU generation when true
-- For custom variants, includes both color designation and style abbreviation
+- Controlled by `needsColorDesignation` boolean on each row in `formState.allShapes`.
+- The value (`colorDesignation`) is one of the product's primary / secondary leathers, selected via the dropdown in `app/components/ShapeSelector/fields/ColorDesignation.jsx`.
+- The slot appears in **both regular and custom** SKUs whenever it is set. If `needsColorDesignation` is true but the dropdown is left empty, the segment is omitted.
 
-## Examples
-
-### Basic Collection Pattern
-```json
-{
-  "skuPattern": "classic-{leatherColors.primary.abbreviation}",
-  "regularExample": "classic-BLK",
-  "customExample": "classic-BLK-Custom"
-}
-```
-
-### Pattern with Secondary Leather
-```json
-{
-  "skuPattern": "qclassic-{leatherColors.primary.abbreviation}-{leatherColors.secondary.abbreviation}",
-  "regularExample": "qclassic-BLK-WHT",
-  "customExample": "qclassic-BLK-WHT-Custom",
-}
-```
-
-### Wood Type Examples
-```json
-{
-  "skuPattern": "classic-{leatherColors.primary.abbreviation}",
-  "shapeType": "WOOD",
-  "regularExample": "classic-BLK-3Wood",
-  "customExample": "classic-BLK-Fairway-Custom"
-}
-```
-
-### Color Designation Examples
-```json
-{
-  "skuPattern": "qclassic-{leatherColors.primary.abbreviation}",
-  "needsColorDesignation": true,
-  "regularExample": "qclassic-BLK-DR",
-  "customExample": "qclassic-BLK-DR-BLU-50-Custom"
-}
-```
-
-### Thread Color Pattern
-```json
-{
-  "threadType": "EMBROIDERY",
-  "skuPattern": "quilted-{leatherColors.primary.abbreviation}-{formState.globalEmbroideryThread.abbreviation}",
-  "regularExample": "quilted-BLK-IS",
-  "customExample": "quilted-BLK-IS-Custom"
-}
-```
+### Style
+- Controlled by the row's `style` selection.
+- The slot appears in **both regular and custom** SKUs whenever `style.abbreviation` is truthy AND `style.includeAbbreviationInSku !== false`.
+- To suppress the SKU suffix for a particular style (e.g. the "Quilted" style on the Quilted collection), set `include_abbreviation_in_sku = false` on its metaobject. The abbreviation itself can stay populated so the style still satisfies Prisma's unique constraint and any standardization rules.
+- The flag is read by `mapStyleMetaobjectNodeToFormStyle` in `app/lib/server/styleShopify.server.js`; missing/blank values default to `true`, so existing styles continue to behave as before.
 
 ## SKU Generation Order
 
-1. Start with base pattern from finalRequirements.skuPattern
-2. Add version number if needed (-V2, -V3, etc.)
-3. For regular variants:
-   - Add shape abbreviation 
-4. For custom variants:
-   - Check shapeType for wood handling (use "Fairway" for wood types)
-   - Check needsColorDesignation for additional components
-   - Add appropriate suffixes based on conditions
-   - Always end with "Custom" suffix
+1. Start with the base pattern from `finalRequirements.skuPattern` and evaluate placeholders in `generateBaseParts`.
+2. Add version number if needed (`-V2`, `-V3`, …) — versioning matches against the base only, not the variant suffix.
+3. Append per-variant segments in order:
+   1. Shape abbreviation (or `Fairway` for wood customs).
+   2. Color designation abbreviation, if `needsColorDesignation` and a value is set.
+   3. Style abbreviation, if present.
+   4. `Custom`, if the variant is custom.
+
+## Base SKU Derivation (Sync)
+
+`app/lib/server/skuSyncShopify.server.js` infers the versioned base from the first variant's SKU when reconciling `custom.base_sku`:
+
+- **Versioned products**: locate the `-V<n>` segment (case-insensitive). The base is everything up to and including that segment. This is robust regardless of suffix length.
+  - `Classic-BRG-V2-Driver-TS` → `Classic-BRG-V2`
+  - `QClassic-BLK-WHT-V3-DR-BLK-50` → `QClassic-BLK-WHT-V3`
+- **V1 products (no version segment)**: fall back to stripping the last `-` segment. Reliable for legacy `{base}-{shape}` SKUs and single-token suffixes. V1 SKUs with multi-token suffixes can't be inferred precisely; the correctly-written `custom.base_sku` metafield set at creation remains the source of truth.
 
 ## Implementation Notes
 
-1. Version Handling:
-   - Query existing products before SKU generation
-   - Insert version number if base SKU exists
-   - Version appears before shape and style suffixes
+1. **Version Handling**
+   - Existing products are queried (via `custom.base_sku` metafields scanned by `attachVersioningSkusToShopifyCollections`) before SKU generation.
+   - Version number is inserted between the base and the variant suffix.
 
-2. Thread Type Processing:
-   - Check threadType enum (EMBROIDERY, STITCHING, NONE)
-   - Use appropriate thread abbreviation based on type
-   - Include in SKU only if threadType is not NONE
+2. **Thread Type Processing**
+   - Check the `threadType` enum (`EMBROIDERY`, `STITCHING`, `NONE`).
+   - Use the appropriate thread abbreviation in `skuPattern`.
 
-3. Shape-Specific Features:
-   - Check shapeType for wood handling
-   - Check needsColorDesignation per shape
-   - Include designated leather and style if true
-   - Apply regardless of collection type
+3. **Shape-Specific Features**
+   - Check `shapeType` for wood handling (custom-only `Fairway` swap).
+   - Check `needsColorDesignation` per shape; include both regular and custom when set.
+   - Include style abbreviation whenever present.
 
-4. Validation Requirements:
-   - All required variables must be present in formState
-   - Generated SKUs must be unique
-   - Pattern must handle all variant types
-   - Shape-specific features must be properly reflected
+4. **Validation Requirements**
+   - All required variables must be present in `formState`.
+   - Generated SKUs must be unique.
+   - Pattern must handle all variant types.
+   - Shape-specific features must be properly reflected.

@@ -3,14 +3,11 @@
 ## Core Cases
 
 ### 1. Putter Shapes
-Simplest case - no style variations
-- Base Pattern: `{shape.label}`
-- Custom Pattern: `Customize {shape.label} +$15`
-- Note: Currently no style variations
+Putters follow the same style/colorDesignation rules as any other shape; the choice of pattern below depends on the collection and the row's style/colorDesignation flags. (Historically putters had no style variations — that constraint has been removed.)
 
 ### 2. Non-Styled Collections
 Applies when:
-- Collection doesn't need style (Quilted/Argyle) OR
+- Collection doesn't need style (Quilted is the only collection in this group today; set the style metaobject's `include_abbreviation_in_sku = false` to suppress the SKU segment while keeping the abbreviation populated) OR
 - Collection needs style BUT using global style mode AND not colorDesignation
 
 Patterns:

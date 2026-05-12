@@ -4,7 +4,10 @@
  * Field keys (Content → Metaobject definition) must match Shopify:
  *   style, abbreviation, collection_category, shape_group,
  *   use_opposite_leather, leather_phrase, name_pattern, custom_name_pattern, needs_color_designation,
- *   use_in_variant_title (boolean, default true when omitted)
+ *   use_in_variant_title (boolean, default true when omitted),
+ *   include_abbreviation_in_sku (boolean, default true when omitted) — when false, the style's
+ *     abbreviation is suppressed from generated SKUs (used by styles whose name duplicates the
+ *     collection, e.g. the lone "Quilted" style on the Quilted collection).
  *
  * Collection-level flags (e.g. needs_secondary_leather, stitching/thread rules) live on collection
  * metafields — not on style.
@@ -43,6 +46,7 @@ const LIST_STYLES = `#graphql
         customNamePatternField: field(key: "custom_name_pattern") { value }
         needsColorDesignationField: field(key: "needs_color_designation") { value }
         useInVariantTitleField: field(key: "use_in_variant_title") { value }
+        includeAbbreviationInSkuField: field(key: "include_abbreviation_in_sku") { value }
       }
     }
   }
@@ -166,6 +170,17 @@ export function mapStyleMetaobjectNodeToFormStyle(node) {
       ? true
       : parseBoolField(useInVariantTitleRaw);
 
+  // Boolean defaults to true when the metafield is missing/blank, preserving prior behaviour
+  // for every existing style. Set to false on a per-style basis when the abbreviation should be
+  // suppressed from SKUs (e.g. a style whose name matches its collection).
+  const includeAbbreviationInSkuRaw = node.includeAbbreviationInSkuField;
+  const includeAbbreviationInSku =
+    includeAbbreviationInSkuRaw == null ||
+    includeAbbreviationInSkuRaw.value === null ||
+    includeAbbreviationInSkuRaw.value === ""
+      ? true
+      : parseBoolField(includeAbbreviationInSkuRaw);
+
   return {
     source: "shopify",
     value: node.id,
@@ -182,6 +197,7 @@ export function mapStyleMetaobjectNodeToFormStyle(node) {
     customNamePattern: stringField(node.customNamePatternField) ?? null,
     needsColorDesignation: parseBoolField(node.needsColorDesignationField),
     useInVariantTitle,
+    includeAbbreviationInSku,
   };
 }
 
