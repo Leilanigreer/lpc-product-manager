@@ -16,6 +16,8 @@
  *   metaobject.collection_category === collection.category (same choice-list value as custom.category).
  */
 
+import { generateStyleAbbreviation } from "../utils/styleAbbreviationUtils.js";
+
 const TYPE_STYLE = "style";
 const PAGE_SIZE = 250;
 
@@ -716,6 +718,203 @@ export async function backfillStyleIncludeAbbreviationInSku(admin) {
     } catch (error) {
       result.errors.push({
         id: node.id,
+        message: error?.message || String(error),
+      });
+    }
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Abbreviation rule migration: re-run `generateStyleAbbreviation` against
+// every existing style and either preview (no writes) or apply the resulting
+// diff. Applies are split so collisions can be surfaced to the user without
+// being silently dropped.
+// ---------------------------------------------------------------------------
+
+/**
+ * @typedef StyleAbbreviationRow
+ * @property {string} id
+ * @property {string} label
+ * @property {string} handle
+ * @property {string|null} collectionCategory
+ * @property {string|null} shapeGroup
+ * @property {boolean} includeAbbreviationInSku
+ * @property {string} current     - Stored abbreviation today (after fallback).
+ * @property {string} proposed    - What `generateStyleAbbreviation` produces now.
+ * @property {boolean} changes    - true iff `proposed !== current`.
+ * @property {boolean} proposedEmpty - true iff `proposed === ""` (generator
+ *   couldn't build anything; usually means collection_category or shape_group
+ *   is blank).
+ * @property {boolean} wouldCollide  - true iff applying this row would land
+ *   the same `proposed` value on another style in the same scope (same
+ *   collection_category + shape_group, both `includeAbbreviationInSku !==
+ *   false`).
+ * @property {Array<{ id: string, label: string }>} collidesWith
+ */
+
+function normalizeScopeKey(value) {
+  return value == null ? "" : String(value).trim().toLowerCase();
+}
+
+/** Build the per-row report. Pure function over fetched nodes — no writes. */
+function buildAbbreviationDiffRows(nodes) {
+  const rows = (nodes || []).map((node) => {
+    const mapped = mapStyleMetaobjectNodeToFormStyle(node);
+    const styleNameInput = mapped.styleChoice || mapped.label;
+    const proposed = generateStyleAbbreviation({
+      styleName: styleNameInput,
+      collectionCategory: mapped.collectionCategory,
+      shapeGroup: mapped.shapeGroup,
+    });
+    return {
+      id: mapped.id,
+      label: mapped.label,
+      handle: node?.handle || null,
+      collectionCategory: mapped.collectionCategory,
+      shapeGroup: mapped.shapeGroup,
+      includeAbbreviationInSku: mapped.includeAbbreviationInSku,
+      current: mapped.abbreviation || "",
+      proposed,
+      changes: (mapped.abbreviation || "") !== proposed,
+      proposedEmpty: !proposed,
+      wouldCollide: false,
+      collidesWith: [],
+    };
+  });
+
+  // After-apply collision detection: imagine every `changes` row applied. For
+  // each (collection_category, shape_group) scope, group the rows by their
+  // post-apply abbreviation and any group of size > 1 (skipping rows opted
+  // out via includeAbbreviationInSku=false) is a collision.
+  const buckets = new Map();
+  for (const row of rows) {
+    if (row.includeAbbreviationInSku === false) continue;
+    if (row.proposedEmpty) continue;
+    const scopeKey = [
+      normalizeScopeKey(row.collectionCategory),
+      normalizeScopeKey(row.shapeGroup),
+      row.proposed.toLowerCase(),
+    ].join("|");
+    if (!buckets.has(scopeKey)) buckets.set(scopeKey, []);
+    buckets.get(scopeKey).push(row);
+  }
+  for (const group of buckets.values()) {
+    if (group.length < 2) continue;
+    for (const row of group) {
+      row.wouldCollide = true;
+      row.collidesWith = group
+        .filter((other) => other.id !== row.id)
+        .map((other) => ({ id: other.id, label: other.label }));
+    }
+  }
+
+  return rows;
+}
+
+function summarizeAbbreviationRows(rows) {
+  const changed = rows.filter((r) => r.changes);
+  const collisions = rows.filter((r) => r.wouldCollide);
+  return {
+    total: rows.length,
+    changed: changed.length,
+    unchanged: rows.length - changed.length,
+    collisions: collisions.length,
+  };
+}
+
+/**
+ * Preview-only: returns the full per-row diff plus summary counts. No writes.
+ *
+ * @param {Object} admin
+ * @returns {Promise<{ rows: StyleAbbreviationRow[], summary: { total: number, changed: number, unchanged: number, collisions: number } }>}
+ */
+export async function previewStyleAbbreviationUpdates(admin) {
+  if (!admin?.graphql) {
+    throw new Error("Shopify admin client is required.");
+  }
+  const nodes = await fetchAllStylePages(admin);
+  const rows = buildAbbreviationDiffRows(nodes);
+  return { rows, summary: summarizeAbbreviationRows(rows) };
+}
+
+/**
+ * Apply the rule-generated abbreviation to every style whose proposed value
+ * differs from current AND would not introduce a SKU collision after apply.
+ * Rows with `proposedEmpty` or `wouldCollide` are intentionally skipped so the
+ * caller can surface them for manual cleanup.
+ *
+ * @param {Object} admin
+ * @returns {Promise<{
+ *   summary: { total: number, changed: number, unchanged: number, collisions: number },
+ *   updated: Array<{ id: string, label: string, from: string, to: string }>,
+ *   skippedCollisions: Array<{ id: string, label: string, current: string, proposed: string, collidesWith: Array<{ id: string, label: string }> }>,
+ *   skippedEmpty: Array<{ id: string, label: string, current: string }>,
+ *   errors: Array<{ id: string, label: string, message: string }>,
+ * }>}
+ */
+export async function applyStyleAbbreviationUpdates(admin) {
+  if (!admin?.graphql) {
+    throw new Error("Shopify admin client is required.");
+  }
+  const nodes = await fetchAllStylePages(admin);
+  const rows = buildAbbreviationDiffRows(nodes);
+
+  const result = {
+    summary: summarizeAbbreviationRows(rows),
+    updated: [],
+    skippedCollisions: [],
+    skippedEmpty: [],
+    errors: [],
+  };
+
+  for (const row of rows) {
+    if (!row.changes) continue;
+    if (row.proposedEmpty) {
+      result.skippedEmpty.push({ id: row.id, label: row.label, current: row.current });
+      continue;
+    }
+    if (row.wouldCollide) {
+      result.skippedCollisions.push({
+        id: row.id,
+        label: row.label,
+        current: row.current,
+        proposed: row.proposed,
+        collidesWith: row.collidesWith,
+      });
+      continue;
+    }
+
+    try {
+      const resp = await admin.graphql(STYLE_METAOBJECT_UPDATE, {
+        variables: {
+          id: row.id,
+          metaobject: {
+            fields: [{ key: "abbreviation", value: row.proposed }],
+          },
+        },
+      });
+      const json = await resp.json();
+      const userErrors = json?.data?.metaobjectUpdate?.userErrors ?? [];
+      if (userErrors.length) {
+        result.errors.push({
+          id: row.id,
+          label: row.label,
+          message: userErrors.map((e) => e.message).join(", "),
+        });
+      } else {
+        result.updated.push({
+          id: row.id,
+          label: row.label,
+          from: row.current,
+          to: row.proposed,
+        });
+      }
+    } catch (error) {
+      result.errors.push({
+        id: row.id,
+        label: row.label,
         message: error?.message || String(error),
       });
     }

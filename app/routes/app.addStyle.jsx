@@ -16,6 +16,9 @@ import {
   Button,
   Text,
   InlineStack,
+  Divider,
+  Badge,
+  DataTable,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
@@ -28,6 +31,8 @@ import {
   fetchStyleMetaobjectNodes,
   mapStyleMetaobjectNodeToFormStyle,
   backfillStyleIncludeAbbreviationInSku,
+  previewStyleAbbreviationUpdates,
+  applyStyleAbbreviationUpdates,
 } from "../lib/server/styleShopify.server.js";
 import { uploadShopifyImageFile } from "../lib/server/shopifyFilesShopify.server.js";
 import { findStyleAbbreviationConflict } from "../lib/utils/styleAbbreviationUtils.js";
@@ -77,6 +82,30 @@ export const action = async ({ request }) => {
           actionType,
           backfill: result,
         });
+      } catch (err) {
+        return json(
+          { success: false, actionType, error: err.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (actionType === "preview_style_abbreviations") {
+      try {
+        const result = await previewStyleAbbreviationUpdates(admin);
+        return json({ success: true, actionType, preview: result });
+      } catch (err) {
+        return json(
+          { success: false, actionType, error: err.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (actionType === "apply_style_abbreviations") {
+      try {
+        const result = await applyStyleAbbreviationUpdates(admin);
+        return json({ success: true, actionType, apply: result });
       } catch (err) {
         return json(
           { success: false, actionType, error: err.message },
@@ -240,8 +269,11 @@ export default function AddStyle() {
   const { choiceOptions, existingStyles } = useLoaderData();
   const fetcher = useFetcher();
   const backfillFetcher = useFetcher();
+  const previewFetcher = useFetcher();
+  const applyFetcher = useFetcher();
   const [showSuccessBanner, setShowSuccessBanner] = React.useState(false);
   const [showBackfillBanner, setShowBackfillBanner] = React.useState(false);
+  const [showApplyBanner, setShowApplyBanner] = React.useState(false);
 
   React.useEffect(() => {
     if (fetcher.data?.actionType === "create") setShowSuccessBanner(true);
@@ -251,6 +283,10 @@ export default function AddStyle() {
     if (backfillFetcher.data) setShowBackfillBanner(true);
   }, [backfillFetcher.data]);
 
+  React.useEffect(() => {
+    if (applyFetcher.data) setShowApplyBanner(true);
+  }, [applyFetcher.data]);
+
   const runBackfill = React.useCallback(() => {
     setShowBackfillBanner(false);
     const fd = new FormData();
@@ -258,8 +294,37 @@ export default function AddStyle() {
     backfillFetcher.submit(fd, { method: "post" });
   }, [backfillFetcher]);
 
+  const runPreview = React.useCallback(() => {
+    setShowApplyBanner(false);
+    const fd = new FormData();
+    fd.append("actionType", "preview_style_abbreviations");
+    previewFetcher.submit(fd, { method: "post" });
+  }, [previewFetcher]);
+
+  const runApply = React.useCallback(() => {
+    setShowApplyBanner(false);
+    const fd = new FormData();
+    fd.append("actionType", "apply_style_abbreviations");
+    applyFetcher.submit(fd, { method: "post" });
+  }, [applyFetcher]);
+
   const backfillData = backfillFetcher.data;
   const backfillRunning = backfillFetcher.state === "submitting";
+  const previewData = previewFetcher.data;
+  const previewRunning = previewFetcher.state === "submitting";
+  const applyData = applyFetcher.data;
+  const applyRunning = applyFetcher.state === "submitting";
+
+  // After Apply finishes, the in-memory preview reflects pre-apply state and
+  // is no longer useful — the user should re-preview to see the new state.
+  const previewStale =
+    !!applyData?.success && applyData?.actionType === "apply_style_abbreviations";
+
+  const previewRows = previewData?.preview?.rows ?? [];
+  const previewSummary = previewData?.preview?.summary;
+  const changedRows = previewRows.filter((r) => r.changes);
+  const applicableRows = changedRows.filter((r) => !r.wouldCollide && !r.proposedEmpty);
+  const applyDisabled = applyRunning || previewStale || applicableRows.length === 0;
 
   return (
     <Page>
@@ -351,6 +416,135 @@ export default function AddStyle() {
                 disabled={backfillRunning}
               >
                 Backfill include_abbreviation_in_sku → true
+              </Button>
+            </InlineStack>
+          </BlockStack>
+        </Card>
+
+        <Card>
+          <BlockStack gap="300">
+            <Text variant="headingMd">Abbreviation rule migration</Text>
+            <Text tone="subdued" variant="bodySm">
+              Re-runs <code>generateStyleAbbreviation</code> on every existing style and
+              shows which abbreviations would change under the current rule. Preview first to
+              review the diff and any collisions, then apply. Styles with{" "}
+              <code>include_abbreviation_in_sku = false</code> are still re-abbreviated for
+              consistency but never enter the SKU. Styles whose proposed value would collide
+              with another style in the same{" "}
+              <code>collection_category</code> + <code>shape_group</code> are
+              <b> skipped</b> on apply and must be resolved by hand.
+            </Text>
+
+            {previewData?.success === false && (
+              <Banner status="critical">
+                Preview failed: {previewData.error}
+              </Banner>
+            )}
+
+            {showApplyBanner && applyData?.success && (
+              <Banner status="success" onDismiss={() => setShowApplyBanner(false)}>
+                Updated <b>{applyData.apply?.updated?.length ?? 0}</b> abbreviations
+                ({applyData.apply?.skippedCollisions?.length ?? 0} skipped: would collide,{" "}
+                {applyData.apply?.skippedEmpty?.length ?? 0} skipped: empty,{" "}
+                {applyData.apply?.errors?.length ?? 0} errors). Re-run preview to see the
+                new state.
+              </Banner>
+            )}
+
+            {showApplyBanner && applyData?.success === false && (
+              <Banner status="critical" onDismiss={() => setShowApplyBanner(false)}>
+                Apply failed: {applyData.error}
+              </Banner>
+            )}
+
+            {previewSummary && !previewStale && (
+              <Box paddingBlockStart="100">
+                <Text variant="bodyMd">
+                  <b>{previewSummary.changed}</b> of <b>{previewSummary.total}</b> styles
+                  would change ({previewSummary.unchanged} unchanged,{" "}
+                  {previewSummary.collisions} would collide).
+                </Text>
+              </Box>
+            )}
+
+            {changedRows.length > 0 && !previewStale && (
+              <Box>
+                <DataTable
+                  columnContentTypes={["text", "text", "text", "text", "text"]}
+                  headings={["Style", "Current", "Proposed", "Scope", "Status"]}
+                  rows={changedRows.map((row) => [
+                    row.label || row.handle || row.id,
+                    row.current || "—",
+                    row.proposed || "—",
+                    `${row.collectionCategory ?? "?"} / ${row.shapeGroup ?? "?"}`,
+                    row.wouldCollide ? (
+                      <Badge tone="critical" key={`badge-${row.id}`}>
+                        {`Collides with ${row.collidesWith.map((c) => c.label).join(", ")}`}
+                      </Badge>
+                    ) : row.proposedEmpty ? (
+                      <Badge tone="warning" key={`badge-${row.id}`}>Empty</Badge>
+                    ) : row.includeAbbreviationInSku === false ? (
+                      <Badge tone="info" key={`badge-${row.id}`}>Not in SKU</Badge>
+                    ) : (
+                      <Badge tone="success" key={`badge-${row.id}`}>Will apply</Badge>
+                    ),
+                  ])}
+                />
+              </Box>
+            )}
+
+            {applyData?.apply?.skippedCollisions?.length > 0 && (
+              <Box paddingBlockStart="100">
+                <Text variant="bodySm" tone="critical">
+                  Skipped collisions (resolve manually):
+                </Text>
+                <BlockStack gap="050">
+                  {applyData.apply.skippedCollisions.map((row) => (
+                    <Text key={row.id} variant="bodySm" tone="critical">
+                      {row.label}: {row.current} → {row.proposed} collides with{" "}
+                      {row.collidesWith.map((c) => c.label).join(", ")}
+                    </Text>
+                  ))}
+                </BlockStack>
+              </Box>
+            )}
+
+            {applyData?.apply?.errors?.length > 0 && (
+              <Box paddingBlockStart="100">
+                <Text variant="bodySm" tone="critical">
+                  Errors:
+                </Text>
+                <BlockStack gap="050">
+                  {applyData.apply.errors.map((e) => (
+                    <Text key={e.id} variant="bodySm" tone="critical">
+                      {e.label || e.id}: {e.message}
+                    </Text>
+                  ))}
+                </BlockStack>
+              </Box>
+            )}
+
+            <Divider />
+
+            <InlineStack gap="200">
+              <Button
+                onClick={runPreview}
+                loading={previewRunning}
+                disabled={previewRunning || applyRunning}
+              >
+                Preview abbreviation changes
+              </Button>
+              <Button
+                variant="primary"
+                onClick={runApply}
+                loading={applyRunning}
+                disabled={applyDisabled}
+              >
+                Apply{" "}
+                {applicableRows.length > 0 && !previewStale
+                  ? `${applicableRows.length} `
+                  : ""}
+                update{applicableRows.length === 1 ? "" : "s"}
               </Button>
             </InlineStack>
           </BlockStack>
