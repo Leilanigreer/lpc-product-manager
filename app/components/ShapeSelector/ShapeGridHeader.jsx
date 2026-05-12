@@ -1,7 +1,6 @@
 // app/components/ShapeSelector/ShapeGridHeader.jsx
 import React from 'react';
 import { InlineStack, Box, Text } from "@shopify/polaris";
-import FieldTooltip from '../FieldTooltip';
 
 const ShapeGridHeader = ({ gridColumns, headerText }) => (
   <InlineStack wrap={false} gap="400" align="start">
@@ -26,15 +25,14 @@ const ShapeGridHeader = ({ gridColumns, headerText }) => (
             </Box>
           );
         case 'colorDesignation':
+          /**
+           * Tooltip removed: the inline leather phrase shown next to the dropdown
+           * (e.g. ": Diamonds are", ": Fat Middle is") already explains the field, so the
+           * `?` icon was redundant.
+           */
           return (
             <Box key={column.id} width={column.width}>
-              <InlineStack wrap={false} gap="100" align="center" blockAlign="center">
-                <Text variant="bodyMd" fontWeight="bold">{headerText}</Text>
-                <FieldTooltip content={headerText.includes('Quilted')
-                      ? "The quilted leather pattern used for this shape"
-                      : "The leather of the stripes or the color that is variable"
-                    } />
-              </InlineStack>
+              <Text variant="bodyMd" fontWeight="bold" alignment="center">{headerText}</Text>
             </Box>
           );
         default:

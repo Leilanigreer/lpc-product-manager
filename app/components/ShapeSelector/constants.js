@@ -5,5 +5,11 @@ export const COLUMN_WIDTHS = {
   /** Wide enough for up to three 80px dropzones + view labels + gaps (putter shapes). */
   imagesColumn: "320px",
   styleColumn: "300px",
-  colorDesignationColumn: "300px",
+  /**
+   * Fixed-width slot for the contextual leather phrase (e.g. ": Diamonds are", ": Fat Middle is").
+   * Splitting this out of the colorDesignation column keeps the Named Leather dropdown anchored
+   * under its header even when the phrase text varies per row.
+   */
+  leatherPhraseColumn: "150px",
+  colorDesignationColumn: "220px",
 };
