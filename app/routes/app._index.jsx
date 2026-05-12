@@ -1,6 +1,6 @@
 import { Page, Layout, Card, BlockStack, Text, Button, Grid } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
-import { PlusIcon, CashDollarIcon } from '@shopify/polaris-icons';
+import { PlusIcon, CashDollarIcon, EditIcon } from '@shopify/polaris-icons';
 import { useNavigate } from "@remix-run/react";
 import React from 'react';
 
@@ -28,6 +28,18 @@ export default function Index() {
                         </Text>
                         <Button icon={PlusIcon} onClick={() => navigate("/app/createProducts")}>
                           Add Product
+                        </Button>
+                      </BlockStack>
+                    </Card>
+                  </Grid.Cell>
+                  <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
+                    <Card title="Update current products">
+                      <BlockStack gap="400">
+                        <Text variant="bodyMd">
+                          Change details, variants, or media on products already in your store
+                        </Text>
+                        <Button icon={EditIcon} onClick={() => navigate("/app/updateProducts")}>
+                          Update current products
                         </Button>
                       </BlockStack>
                     </Card>
