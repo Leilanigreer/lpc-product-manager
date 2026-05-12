@@ -14,11 +14,12 @@ import { COLUMN_WIDTHS } from './constants';
 import ErrorBoundary from '../ErrorBoundary';
 
 /**
- * A putter-only grid switches Style / Phrase / Named Leather into a vertical stack inside each
- * row (see `ShapeRow.useStackedDetailsLayout`). The header here drops those column labels so it
- * doesn't advertise columns the rows aren't using.
+ * When rows render Style / Phrase / Named Leather as a vertical stack inside each row (see
+ * `ShapeRow.useStackedDetailsLayout`), the header drops those individual labels and instead shows
+ * a single "Style Details" label above the stack. Only Shape and Images survive as their own
+ * column headers.
  */
-const HEADER_COLUMN_IDS_FOR_PUTTER_GRID = new Set(['shape', 'images']);
+const STACKED_HEADER_COLUMN_IDS = new Set(['shape', 'images']);
 
 const sortShapes = (shapes) => {
   if (!shapes?.length) return [];
@@ -41,11 +42,6 @@ const ShapeGrid = ({
   const sortedShapes = useMemo(() =>
     sortShapes(shapes),
     [shapes]
-  );
-
-  const isPutterGrid = useMemo(
-    () => sortedShapes.length > 0 && sortedShapes.every(isPutter),
-    [sortedShapes]
   );
 
   const visibilityFlags = useMemo(() => {
@@ -77,7 +73,6 @@ const ShapeGrid = ({
         showStyleFields: isSelected && needsStyleForThisShape,
         showColorDesignation: isSelected && shapeState?.needsColorDesignation,
         showImages: isSelected && hasViewLabels,
-        isPutterShape,
       };
       return acc;
     }, {});
@@ -110,23 +105,19 @@ const ShapeGrid = ({
   }, [visibilityFlags]);
 
   const headerColumns = useMemo(() => {
-    if (!isPutterGrid) return gridColumns;
-    /** Replace style / leatherPhrase / colorDesignation column headers with a single
-     *  "Style Details" label that sits above the stacked content rendered inside each row. */
-    const base = gridColumns.filter((c) =>
-      HEADER_COLUMN_IDS_FOR_PUTTER_GRID.has(c.id)
-    );
-    const hasStyleDetails = gridColumns.some(
+    const hasStackedFields = gridColumns.some(
       (c) =>
         c.id === 'style' ||
         c.id === 'leatherPhrase' ||
         c.id === 'colorDesignation'
     );
-    if (hasStyleDetails) {
-      base.push({ id: 'styleDetails', width: COLUMN_WIDTHS.styleColumn });
-    }
+    if (!hasStackedFields) return gridColumns;
+    /** Replace style / leatherPhrase / colorDesignation column headers with a single
+     *  "Style Details" label that sits above the stacked content rendered inside each row. */
+    const base = gridColumns.filter((c) => STACKED_HEADER_COLUMN_IDS.has(c.id));
+    base.push({ id: 'styleDetails', width: COLUMN_WIDTHS.styleColumn });
     return base;
-  }, [gridColumns, isPutterGrid]);
+  }, [gridColumns]);
 
   const headerText = 'Named Leather';
 
@@ -151,7 +142,6 @@ const ShapeGrid = ({
               handleChange={handleChange}
               lockedShapeValues={lockedShapeValues}
               gridColumns={gridColumns}
-              isPutterGrid={isPutterGrid}
               pendingVariantImages={pendingVariantImages}
               onSetPendingImage={onSetPendingImage}
               {...visibilityFlags[shape.value]}

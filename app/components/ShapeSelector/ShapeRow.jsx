@@ -18,8 +18,6 @@ const ShapeRow = ({
   showStyleFields,
   showColorDesignation,
   showImages,
-  isPutterShape,
-  isPutterGrid,
   lockedShapeValues,
   pendingVariantImages,
   onSetPendingImage,
@@ -87,17 +85,16 @@ const ShapeRow = ({
   };
 
   /**
-   * Putter rows are extra wide because they carry three image dropzones. To make better use of
-   * the vertical space the image dropzones occupy, putter rows render Style / Phrase /
-   * Named Leather as a vertical stack to the right of the Images column instead of as
-   * additional horizontal columns. Drivers/Woods/Hybrids keep the single-row column layout
-   * since they only have two image dropzones and comfortably fit Style + Named Leather alongside.
+   * Every shape with images + style/leather renders Style / Phrase / Named Leather as a vertical
+   * stack to the right of the Images column instead of as additional horizontal columns. Putter
+   * rows benefit because three image dropzones make the row tall; DWH rows benefit because the
+   * stack fits in less horizontal space than the equivalent four-column horizontal row.
+   *
+   * `paddingBlockEnd` is applied at the row wrapper so both the Images column and the stacked
+   * Named Leather dropdown stay clear of the per-row `<Divider />` rendered by `ShapeGrid`.
    */
   const useStackedDetailsLayout =
-    Boolean(isPutterGrid) &&
-    Boolean(isPutterShape) &&
-    showImages &&
-    (showStyleFields || showColorDesignation);
+    showImages && (showStyleFields || showColorDesignation);
 
   if (useStackedDetailsLayout) {
     const shapeColumn = gridColumns.find((c) => c.id === 'shape');
@@ -105,29 +102,31 @@ const ShapeRow = ({
 
     return (
       <ErrorBoundary errorMessage={`Error in shape row: ${shape.label}`}>
-        <InlineStack wrap={false} gap="400" align="start">
-          {shapeColumn && renderColumn(shapeColumn)}
-          {imagesColumn && renderColumn(imagesColumn)}
-          <Box width={COLUMN_WIDTHS.styleColumn}>
-            <BlockStack gap="200">
-              {showStyleFields && (
-                <ErrorBoundary errorMessage={`Failed to load style options for ${shape.label}`}>
-                  <StyleField {...fieldProps} />
-                </ErrorBoundary>
-              )}
-              {showColorDesignation && (
-                <ErrorBoundary errorMessage={`Failed to load leather phrase for ${shape.label}`}>
-                  <LeatherPhrase {...fieldProps} />
-                </ErrorBoundary>
-              )}
-              {showColorDesignation && (
-                <ErrorBoundary errorMessage={`Failed to load leather options for ${shape.label}`}>
-                  <ColorDesignation {...fieldProps} />
-                </ErrorBoundary>
-              )}
-            </BlockStack>
-          </Box>
-        </InlineStack>
+        <Box paddingBlockEnd="200">
+          <InlineStack wrap={false} gap="400" align="start">
+            {shapeColumn && renderColumn(shapeColumn)}
+            {imagesColumn && renderColumn(imagesColumn)}
+            <Box width={COLUMN_WIDTHS.styleColumn}>
+              <BlockStack gap="200">
+                {showStyleFields && (
+                  <ErrorBoundary errorMessage={`Failed to load style options for ${shape.label}`}>
+                    <StyleField {...fieldProps} />
+                  </ErrorBoundary>
+                )}
+                {showColorDesignation && (
+                  <ErrorBoundary errorMessage={`Failed to load leather phrase for ${shape.label}`}>
+                    <LeatherPhrase {...fieldProps} />
+                  </ErrorBoundary>
+                )}
+                {showColorDesignation && (
+                  <ErrorBoundary errorMessage={`Failed to load leather options for ${shape.label}`}>
+                    <ColorDesignation {...fieldProps} />
+                  </ErrorBoundary>
+                )}
+              </BlockStack>
+            </Box>
+          </InlineStack>
+        </Box>
       </ErrorBoundary>
     );
   }
