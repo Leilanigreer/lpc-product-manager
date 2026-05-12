@@ -4,6 +4,7 @@ import { createRegularVariants } from "./createRegular";
 import { createCustomVariants } from "./createCustom";
 import { buildWoodBaseToRepresentativeShapeValueMap } from "./woodCustomizePairing";
 import { sortShapeRowsForVariantOrder } from "../../utils";
+import { formatVariantSuffix } from "../../utils/skuUtils.js";
 
 /**
  * Assigns positions to variants based on shape display order
@@ -119,6 +120,9 @@ export const generateVariants = async (formState, skuInfo) => {
     const allShapesForGeneration = expandSelectionsBySizingGuideGroup(
       formState.allShapes
     );
+    // sizing_guide_group: selecting one shape auto-selects siblings (e.g. mallet trios). Update flow
+    // never deletes variants — missing siblings appear as new rows at apply time (add-only).
+
     const effectiveFormState = {
       ...formState,
       allShapes: allShapesForGeneration,
@@ -151,13 +155,32 @@ export const generateVariants = async (formState, skuInfo) => {
       effectiveFormState
     );
 
-    return sorted.map((v) => {
+    let withWood = sorted.map((v) => {
       if (v.isCustom || v.shapeType !== "WOOD") return v;
       const rep = woodRepMap.get(v.shapeValue);
       if (rep == null) return v;
       return { ...v, customizeRepresentativeShapeValue: rep };
     });
- 
+
+    const verbatimBaseSku =
+      typeof skuInfo?.verbatimBaseSku === "string"
+        ? skuInfo.verbatimBaseSku.trim()
+        : "";
+    if (verbatimBaseSku) {
+      withWood = withWood.map((v) => {
+        const suffix = formatVariantSuffix(v.shapeValue, effectiveFormState, {
+          isCustom: Boolean(v.isCustom),
+        });
+        if (!suffix) return v;
+        return {
+          ...v,
+          baseSKU: verbatimBaseSku,
+          sku: `${verbatimBaseSku}${suffix}`,
+        };
+      });
+    }
+
+    return withWood;
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.error('Error generating variants:', error);

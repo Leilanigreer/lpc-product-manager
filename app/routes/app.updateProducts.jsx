@@ -33,6 +33,7 @@ import {
   fetchActiveProductsForCollection,
   fetchProductForUpdate,
   updateShopifyProduct,
+  ProductUpdateUserError,
 } from "../lib/server/productUpdateShopify.server";
 import { computeShapeNeedsColorDesignation } from "../lib/utils/shapeUtils";
 
@@ -48,6 +49,16 @@ const todayDateStamp = () => {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+};
+
+/** Loaded Shopify variant: customizable true = base, false = custom */
+const variantIsCustomFromLoaded = (v) => {
+  const c = v?.customizable;
+  if (c === false || c === "false") return true;
+  if (c === true || c === "true") return false;
+  return String(v?.sku || "")
+    .toLowerCase()
+    .includes("-custom");
 };
 
 const buildSkuInfoFromProductBaseSku = (baseSku) => {
@@ -88,49 +99,21 @@ function hydrateFormFromProduct({
   const shapeRows = Object.values(allShapes);
   const shapeByValue = new Map(shapeRows.map((row) => [row.value, row]));
 
-  const resolveShapeValueFromVariant = (variant) => {
-    if (variant?.singleShape && shapeByValue.has(variant.singleShape)) {
-      return variant.singleShape;
-    }
-
-    const selectedShapeOption = (variant?.selectedOptions || []).find(
-      (opt) => String(opt?.name || "").toLowerCase() === "shape"
-    );
-    const optionValue = String(selectedShapeOption?.value || "").trim();
-    if (optionValue) {
-      const byOption = shapeRows.find((row) => {
-        const label = String(row.label || "").trim();
-        const cardDisplay = String(row.cardDisplayName || "").trim();
-        return (
-          optionValue === label ||
-          optionValue === cardDisplay ||
-          optionValue.startsWith(`${label} -`) ||
-          optionValue.startsWith(`${cardDisplay} -`)
-        );
-      });
-      if (byOption) return byOption.value;
-    }
-
-    const sku = String(variant?.sku || "").trim();
-    if (sku) {
-      const bySku = shapeRows.find((row) => {
-        const abbr = String(row.abbreviation || "").trim();
-        if (!abbr) return false;
-        return sku.endsWith(`-${abbr}`) || sku.includes(`-${abbr}-`);
-      });
-      if (bySku) return bySku.value;
-    }
-    return null;
-  };
-
   for (const variant of product.variants ?? []) {
-    const shapeValue = resolveShapeValueFromVariant(variant);
-    if (!shapeValue || !allShapes[shapeValue]) continue;
+    const isBase =
+      variant?.isBaseVariant === true ||
+      variant?.customizable === true ||
+      variant?.customizable === "true";
+    if (!isBase) continue;
+    const shapeValue = variant.singleShape;
+    if (!shapeValue || !shapeByValue.has(shapeValue) || !allShapes[shapeValue]) continue;
     selectedShapeValues.add(shapeValue);
     allShapes[shapeValue] = {
       ...allShapes[shapeValue],
       isSelected: true,
-      style: variant.singleStyle ? stylesById.get(variant.singleStyle) || null : allShapes[shapeValue].style,
+      style: variant.singleStyle
+        ? stylesById.get(variant.singleStyle) || null
+        : allShapes[shapeValue].style,
     };
   }
 
@@ -190,6 +173,31 @@ function hydrateFormFromProduct({
   };
 }
 
+function preflightUpdateSkus(selectedProduct, variants) {
+  const rows = Array.isArray(variants) ? variants : [];
+  const seen = new Set();
+  for (const row of rows) {
+    const sku = String(row?.sku || "").trim();
+    if (!sku) continue;
+    if (seen.has(sku)) {
+      return `Duplicate SKU in generated update payload: ${sku}`;
+    }
+    seen.add(sku);
+  }
+  const existingList = selectedProduct?.variants || [];
+  for (const row of rows) {
+    const sku = String(row?.sku || "").trim();
+    const mine = row.existingVariantId;
+    for (const ev of existingList) {
+      if (mine && ev.id === mine) continue;
+      if (String(ev.sku || "").trim() === sku) {
+        return `SKU ${sku} is already used by another variant on this product.`;
+      }
+    }
+  }
+  return null;
+}
+
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
   return dataLoader({ admin, includeCommonDescription: false });
@@ -209,6 +217,17 @@ export const action = async ({ request }) => {
   if (intent === "loadProduct") {
     const productId = String(formData.get("productId") || "").trim();
     const product = await fetchProductForUpdate(admin, productId);
+    if (!product) {
+      return { success: false, error: "Could not load product." };
+    }
+    const loadedBase = String(product.baseSku || "").trim();
+    if (loadedBase.startsWith("Art")) {
+      return {
+        success: false,
+        error:
+          "Art-line products are not available in this update flow yet. Choose another product.",
+      };
+    }
     return { success: true, product };
   }
 
@@ -220,6 +239,14 @@ export const action = async ({ request }) => {
       if (!existing) {
         return { success: false, error: "Could not load selected product for update." };
       }
+      const existingBase = String(existing.baseSku || "").trim();
+      if (existingBase.startsWith("Art")) {
+        return {
+          success: false,
+          error:
+            "Art-line products are not supported in Update existing product yet.",
+        };
+      }
       const result = await updateShopifyProduct(admin, {
         productId,
         existingProduct: existing,
@@ -229,6 +256,16 @@ export const action = async ({ request }) => {
       });
       return { success: true, result };
     } catch (error) {
+      if (
+        error instanceof ProductUpdateUserError ||
+        error?.name === "ProductUpdateUserError"
+      ) {
+        return {
+          success: false,
+          error: error.message,
+          details: error.details || [],
+        };
+      }
       return { success: false, error: error.message || String(error) };
     }
   }
@@ -273,6 +310,7 @@ export default function UpdateProducts() {
   const [descriptionPlain, setDescriptionPlain] = useState("");
   const [generationError, setGenerationError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
+  const [submitErrorDetails, setSubmitErrorDetails] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [lockedShapeValues, setLockedShapeValues] = useState(new Set());
@@ -289,11 +327,25 @@ export default function UpdateProducts() {
       setProductData(null);
       setDescriptionPlain("");
       setLockedShapeValues(new Set());
+      setSubmitErrorDetails(null);
+      setSubmitError(null);
+      setSubmitSuccess(null);
     }
   }, [listFetcher.data]);
 
   useEffect(() => {
-    if (loadFetcher.data?.success && loadFetcher.data.product) {
+    if (loadFetcher.data == null) return;
+    if (loadFetcher.data.success === false) {
+      setGenerationError(loadFetcher.data.error || "Could not load product.");
+      setSelectedProduct(null);
+      setSelectedProductId("");
+      setProductData(null);
+      setDescriptionPlain("");
+      setLockedShapeValues(new Set());
+      return;
+    }
+    if (loadFetcher.data.success && loadFetcher.data.product) {
+      setGenerationError(null);
       const loaded = loadFetcher.data.product;
       setSelectedProduct(loaded);
       setDescriptionPlain(toPlainText(loaded.descriptionHtml));
@@ -327,9 +379,13 @@ export default function UpdateProducts() {
     if (submitFetcher.data.success) {
       setSubmitSuccess(submitFetcher.data.result || { success: true });
       setSubmitError(null);
+      setSubmitErrorDetails(null);
     } else {
       setSubmitSuccess(null);
       setSubmitError(submitFetcher.data.error || "Update failed.");
+      setSubmitErrorDetails(
+        Array.isArray(submitFetcher.data.details) ? submitFetcher.data.details : null
+      );
     }
   }, [submitFetcher.data]);
 
@@ -345,6 +401,9 @@ export default function UpdateProducts() {
         setDescriptionPlain("");
         setLockedShapeValues(new Set());
         setGenerationError(null);
+        setSubmitError(null);
+        setSubmitErrorDetails(null);
+        setSubmitSuccess(null);
         if (collectionId) {
           const fd = new FormData();
           fd.append("intent", "listProducts");
@@ -376,6 +435,9 @@ export default function UpdateProducts() {
       setProductData(null);
       setLockedShapeValues(new Set());
       setGenerationError(null);
+      setSubmitError(null);
+      setSubmitErrorDetails(null);
+      setSubmitSuccess(null);
       if (!id) return;
       const fd = new FormData();
       fd.append("intent", "loadProduct");
@@ -389,6 +451,7 @@ export default function UpdateProducts() {
     setIsGenerating(true);
     setGenerationError(null);
     setSubmitError(null);
+    setSubmitErrorDetails(null);
     setSubmitSuccess(null);
     try {
       if (!selectedProduct) {
@@ -400,6 +463,11 @@ export default function UpdateProducts() {
           "Selected product is missing custom.base_sku, so update mode cannot create/reconcile variants safely."
         );
       }
+      if (baseSku.startsWith("Art")) {
+        throw new Error(
+          "Art-line products are not available in this update flow yet."
+        );
+      }
       const validation = validateProductForm(formState);
       if (!validation.isValid) {
         throw new Error((validation.errors || []).join("\n"));
@@ -408,10 +476,25 @@ export default function UpdateProducts() {
       if (!skuInfo?.parts?.length) {
         throw new Error("Unable to parse base SKU for update generation.");
       }
-      const variants = await generateVariants(formState, {
-        parts: skuInfo.parts,
-        version: skuInfo.version,
+      let variants = await generateVariants(formState, {
+        ...skuInfo,
+        verbatimBaseSku: baseSku,
       });
+
+      const keyToExistingId = new Map();
+      for (const ev of selectedProduct.variants || []) {
+        if (!ev.singleShape) continue;
+        const k = `${ev.singleShape}|${variantIsCustomFromLoaded(ev) ? "1" : "0"}`;
+        keyToExistingId.set(k, ev.id);
+      }
+
+      variants = variants.map((v) => ({
+        ...v,
+        variantName: String(v.variantName || "").replace(/^Customize\b/, "Customized"),
+        existingVariantId: keyToExistingId.get(
+          `${v.shapeValue}|${v.isCustom ? "1" : "0"}`
+        ),
+      }));
       if (!variants.length) {
         throw new Error("No variants generated from current form.");
       }
@@ -447,27 +530,22 @@ export default function UpdateProducts() {
 
   const diffSummary = useMemo(() => {
     if (!productData || !selectedProduct) return null;
-    const existingBySku = new Map(
-      (selectedProduct.variants || [])
-        .filter((v) => v?.sku)
-        .map((v) => [String(v.sku).trim(), v])
-    );
     let creates = 0;
     let updates = 0;
     let skippedManualPrice = 0;
     for (const row of productData.variants || []) {
-      const sku = String(row?.sku || "").trim();
-      if (!sku) continue;
-      const existing = existingBySku.get(sku);
-      if (!existing) {
+      const ex = (selectedProduct.variants || []).find(
+        (v) => v.id === row.existingVariantId
+      );
+      if (!ex) {
         creates += 1;
         continue;
       }
+      updates += 1;
       if (
-        Number.parseFloat(existing.price) === Number.parseFloat(existing.compareAtPrice)
+        Number.parseFloat(String(ex.price)) !==
+        Number.parseFloat(String(ex.compareAtPrice))
       ) {
-        updates += 1;
-      } else {
         skippedManualPrice += 1;
       }
     }
@@ -475,13 +553,22 @@ export default function UpdateProducts() {
   }, [productData, selectedProduct]);
 
   const handleSubmit = useCallback(() => {
-    if (!productData || !selectedProductId) return;
+    if (!productData || !selectedProductId || !selectedProduct) return;
+    const skuErr = preflightUpdateSkus(selectedProduct, productData.variants);
+    if (skuErr) {
+      setSubmitError(skuErr);
+      setSubmitErrorDetails(null);
+      setSubmitSuccess(null);
+      return;
+    }
     const fd = new FormData();
     fd.append("intent", "updateProduct");
     fd.append("productId", selectedProductId);
     fd.append("productData", JSON.stringify(productData));
+    setSubmitError(null);
+    setSubmitErrorDetails(null);
     submitFetcher.submit(fd, { method: "post" });
-  }, [productData, selectedProductId, submitFetcher]);
+  }, [productData, selectedProductId, selectedProduct, submitFetcher]);
 
   if (error) return <div>Error: {error}</div>;
 
@@ -500,7 +587,18 @@ export default function UpdateProducts() {
         )}
         {(generationError || submitError) && (
           <Layout.Section>
-            <Banner status="critical">{generationError || submitError}</Banner>
+            <Banner status="critical" title={generationError || submitError}>
+              {Array.isArray(submitErrorDetails) && submitErrorDetails.length > 0 ? (
+                <BlockStack gap="100">
+                  {submitErrorDetails.map((e, i) => (
+                    <Text key={i} as="p" variant="bodySm" tone="subdued">
+                      {(Array.isArray(e?.field) ? e.field.join(".") : e?.field) || "shopify"}:{" "}
+                      {e?.message || ""}
+                    </Text>
+                  ))}
+                </BlockStack>
+              ) : null}
+            </Banner>
           </Layout.Section>
         )}
         <Layout.Section>
@@ -519,6 +617,15 @@ export default function UpdateProducts() {
                   onChange={handleSelectProduct}
                   disabled={!formState.collection?.value}
                 />
+                {formState.collection?.value &&
+                listFetcher.state === "idle" &&
+                listFetcher.data?.success &&
+                productsForCollection.length === 0 ? (
+                  <Text as="p" variant="bodyMd" tone="subdued">
+                    No eligible active products in this collection. Products whose base SKU starts
+                    with &quot;Art&quot; are hidden until a dedicated update flow exists.
+                  </Text>
+                ) : null}
                 {selectedProduct?.baseSku ? (
                   <Text as="p" variant="bodyMd" tone="subdued">
                     Base SKU anchor: {selectedProduct.baseSku}

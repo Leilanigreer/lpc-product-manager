@@ -68,6 +68,47 @@ export const filterProductsByCollection = (existingProducts, collectionValue) =>
  * @param {boolean} options.isCustom - Whether this is a custom variant
  * @returns {Object} Object containing baseSKU and fullSKU
  */
+
+/**
+ * Per-variant SKU suffix only (no base / version): `-{shape}[-{colorDesignation}][-{style}][-Custom]`.
+ * Used by the update flow with product `custom.base_sku` verbatim as the prefix.
+ *
+ * @param {string} shapeValue - Shape metaobject GID from `formState.allShapes`
+ * @param {Object} formState - Form state with `allShapes[shapeValue]` populated (incl. expanded sizing-group rows)
+ * @param {{ isCustom?: boolean }} options
+ * @returns {string} Suffix starting with `-`, or `''` when shape data is missing
+ */
+export const formatVariantSuffix = (shapeValue, formState, options = {}) => {
+  const { isCustom = false } = options;
+  if (!shapeValue || !formState?.allShapes) return "";
+
+  const shapeData = formState.allShapes[shapeValue];
+  if (!shapeData?.abbreviation) return "";
+
+  const shapeAbbrev =
+    isCustom && shapeData.shapeType === "WOOD"
+      ? "Fairway"
+      : shapeData.abbreviation;
+
+  const colorDesignationAbbrev =
+    shapeData.needsColorDesignation && shapeData.colorDesignation?.abbreviation
+      ? shapeData.colorDesignation.abbreviation
+      : null;
+
+  const styleSkuEnabled = shapeData.style?.includeAbbreviationInSku !== false;
+  const styleAbbrev =
+    styleSkuEnabled && shapeData.style?.abbreviation
+      ? shapeData.style.abbreviation
+      : null;
+
+  const segments = [shapeAbbrev];
+  if (colorDesignationAbbrev) segments.push(colorDesignationAbbrev);
+  if (styleAbbrev) segments.push(styleAbbrev);
+  if (isCustom) segments.push("Custom");
+
+  return `-${segments.join("-")}`;
+};
+
 export const formatSKU = (baseParts, version, shapeValue, formState, options = {}) => {
   // Validate inputs
   if (!Array.isArray(baseParts) || !shapeValue || !formState?.allShapes) {
@@ -98,32 +139,10 @@ export const formatSKU = (baseParts, version, shapeValue, formState, options = {
   let fullSKU = versionedBaseSKU;
 
   if (shapeData.abbreviation) {
-    const shapeAbbrev =
-      options.isCustom && shapeData.shapeType === 'WOOD'
-        ? 'Fairway'
-        : shapeData.abbreviation;
-
-    const colorDesignationAbbrev =
-      shapeData.needsColorDesignation && shapeData.colorDesignation?.abbreviation
-        ? shapeData.colorDesignation.abbreviation
-        : null;
-
-    // `style.includeAbbreviationInSku === false` opts a style out of the SKU suffix even when an
-    // abbreviation is set (e.g. the lone "Quilted" style whose name matches the collection).
-    // The flag is fetched from the style metaobject's `include_abbreviation_in_sku` field and
-    // defaults to true for any style missing the field — see styleShopify.server.js.
-    const styleSkuEnabled = shapeData.style?.includeAbbreviationInSku !== false;
-    const styleAbbrev =
-      styleSkuEnabled && shapeData.style?.abbreviation
-        ? shapeData.style.abbreviation
-        : null;
-
-    const segments = [versionedBaseSKU, shapeAbbrev];
-    if (colorDesignationAbbrev) segments.push(colorDesignationAbbrev);
-    if (styleAbbrev) segments.push(styleAbbrev);
-    if (options.isCustom) segments.push('Custom');
-
-    fullSKU = segments.join('-');
+    const suffix = formatVariantSuffix(shapeValue, formState, {
+      isCustom: Boolean(options.isCustom),
+    });
+    fullSKU = suffix ? `${versionedBaseSKU}${suffix}` : versionedBaseSKU;
   }
 
   return {

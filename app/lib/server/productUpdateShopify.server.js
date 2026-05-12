@@ -3,6 +3,15 @@ import {
   isShopifyProductVariantGid,
 } from "../utils/shopifyGid.js";
 
+/** Thrown when Shopify returns userErrors from bulk variant or metafield mutations (includes `details` for UI). */
+export class ProductUpdateUserError extends Error {
+  constructor(message, details = []) {
+    super(message);
+    this.name = "ProductUpdateUserError";
+    this.details = Array.isArray(details) ? details : [];
+  }
+}
+
 const COLLECTION_ACTIVE_PRODUCTS_QUERY = `#graphql
   query ActiveProductsByCollection($id: ID!, $cursor: String) {
     collection(id: $id) {
@@ -57,6 +66,7 @@ const PRODUCT_FOR_UPDATE_QUERY = `#graphql
           }
           singleShape: metafield(namespace: "custom", key: "single_shape") { value }
           singleStyle: metafield(namespace: "custom", key: "single_style") { value }
+          customizable: metafield(namespace: "custom", key: "customizable") { value }
         }
       }
     }
@@ -159,6 +169,31 @@ function priceValuesMatch(price, compareAtPrice) {
   const b = Number.parseFloat(String(compareAtPrice ?? "").trim());
   if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
   return a === b;
+}
+
+function parseMetafieldBoolean(raw) {
+  if (raw === true || raw === "true" || raw === 1 || raw === "1") return true;
+  if (raw === false || raw === "false" || raw === 0 || raw === "0") return false;
+  return null;
+}
+
+/** `customizable` true = base variant; false = custom (+$15) variant */
+function variantIsCustomShopify(v) {
+  const b = parseMetafieldBoolean(v?.customizable);
+  if (b === false) return true;
+  if (b === true) return false;
+  return String(v?.sku || "")
+    .toLowerCase()
+    .includes("-custom");
+}
+
+function reconcileVariantKey(shapeValue, isCustom) {
+  return `${String(shapeValue || "").trim()}|${isCustom ? "1" : "0"}`;
+}
+
+function normalizeVariantDisplayName(name) {
+  const s = String(name || "").trim();
+  return s.replace(/^Customize\b/, "Customized");
 }
 
 function chunkMetafieldsForSet(metafields) {
@@ -384,7 +419,10 @@ async function setProductAndVariantMetafields(
     }
     const userErrors = json?.data?.metafieldsSet?.userErrors ?? [];
     if (userErrors.length) {
-      throw new Error(userErrors.map((e) => e.message).filter(Boolean).join("; "));
+      throw new ProductUpdateUserError(
+        userErrors.map((e) => e.message).filter(Boolean).join("; "),
+        userErrors
+      );
     }
   }
 }
@@ -406,12 +444,15 @@ export async function fetchActiveProductsForCollection(admin, collectionId) {
     const nodes = conn?.nodes ?? [];
     for (const node of nodes) {
       if (node?.status !== "ACTIVE") continue;
+      const baseSku = String(node?.metafield?.value || "").trim() || null;
+      // Art-line products: deferred dedicated update flow (see plan future-art-collection).
+      if (baseSku && baseSku.startsWith("Art")) continue;
       out.push({
         id: node.id,
         title: node.title,
         handle: node.handle,
         status: node.status,
-        baseSku: String(node?.metafield?.value || "").trim() || null,
+        baseSku,
       });
     }
     hasNextPage = Boolean(conn?.pageInfo?.hasNextPage);
@@ -455,17 +496,23 @@ export async function fetchProductForUpdate(admin, productId) {
     amannThreadsUsed: parseJsonListMetafieldValue(product?.amannThreadsUsed?.value),
     isacordThreadsUsed: parseJsonListMetafieldValue(product?.isacordThreadsUsed?.value),
     fontRef: String(product?.fontRef?.value || "").trim() || null,
-    variants: allVariants.map((v) => ({
-      id: v.id,
-      title: v.title,
-      sku: v.sku,
-      price: v.price,
-      compareAtPrice: v.compareAtPrice,
-      inventoryQuantity: v.inventoryQuantity,
-      selectedOptions: v.selectedOptions ?? [],
-      singleShape: v.singleShape?.value ?? null,
-      singleStyle: v.singleStyle?.value ?? null,
-    })),
+    variants: allVariants.map((v) => {
+      const customizableRaw = v.customizable?.value ?? null;
+      return {
+        id: v.id,
+        title: v.title,
+        sku: v.sku,
+        price: v.price,
+        compareAtPrice: v.compareAtPrice,
+        inventoryQuantity: v.inventoryQuantity,
+        selectedOptions: v.selectedOptions ?? [],
+        singleShape: v.singleShape?.value ?? null,
+        singleStyle: v.singleStyle?.value ?? null,
+        customizable: customizableRaw,
+        /** True only when `customizable` metafield is explicitly true (base / non-custom row). */
+        isBaseVariant: parseMetafieldBoolean(customizableRaw) === true,
+      };
+    }),
   };
 }
 
@@ -483,6 +530,64 @@ export async function updateShopifyProduct(admin, payload) {
   } = payload || {};
   if (!productId || !existingProduct || !productData) {
     throw new Error("Missing required payload for product update.");
+  }
+
+  const masterSku = String(existingProduct.baseSku || "").trim();
+  if (!masterSku) {
+    throw new Error(
+      "Product is missing custom.base_sku; cannot reconcile variants safely."
+    );
+  }
+  if (masterSku.startsWith("Art")) {
+    throw new Error(
+      "Art-line products are not supported in Update existing product yet."
+    );
+  }
+
+  // Mallet / sizing_guide_group: update never deletes variants. Preview generation expands
+  // sibling shapes in the same sizing_guide_group; reconcile only bulk-creates missing SKUs.
+
+  const existingVariants = Array.isArray(existingProduct.variants)
+    ? existingProduct.variants
+    : [];
+  const existingById = new Map(
+    existingVariants.map((v) => [v.id, v]).filter(([id]) => Boolean(id))
+  );
+
+  const existingByKey = new Map();
+  for (const ev of existingVariants) {
+    const shape = ev.singleShape ? String(ev.singleShape).trim() : "";
+    if (!shape) continue;
+    existingByKey.set(
+      reconcileVariantKey(shape, variantIsCustomShopify(ev)),
+      ev
+    );
+  }
+
+  const generated = Array.isArray(productData.variants) ? productData.variants : [];
+
+  const resolveExistingForRow = (row) => {
+    const gid = row?.existingVariantId;
+    if (gid && existingById.has(gid)) {
+      return existingById.get(gid);
+    }
+    const shape = row?.shapeValue ? String(row.shapeValue).trim() : "";
+    if (!shape) return null;
+    return (
+      existingByKey.get(reconcileVariantKey(shape, Boolean(row.isCustom))) ?? null
+    );
+  };
+
+  const claimedExistingIds = new Set();
+  for (const row of generated) {
+    const ex = resolveExistingForRow(row);
+    if (!ex) continue;
+    if (claimedExistingIds.has(ex.id)) {
+      throw new Error(
+        "Variant reconciliation conflict: multiple generated rows map to the same Shopify variant."
+      );
+    }
+    claimedExistingIds.add(ex.id);
   }
 
   const updateDescriptionResponse = await admin.graphql(
@@ -506,42 +611,48 @@ export async function updateShopifyProduct(admin, payload) {
     throw new Error(updateDescriptionErrors.map((e) => e.message).join("; "));
   }
 
-  const existingBySku = new Map(
-    (existingProduct.variants ?? [])
-      .filter((v) => typeof v?.sku === "string" && v.sku.trim())
-      .map((v) => [v.sku.trim(), v])
-  );
-  const generated = Array.isArray(productData.variants) ? productData.variants : [];
-
   const variantsToCreate = [];
   const variantsToUpdate = [];
-  const resolvedVariantsByOrder = [];
   const createdSkuToId = new Map();
 
   for (const row of generated) {
     const sku = String(row?.sku || "").trim();
-    if (!sku) continue;
-    const existing = existingBySku.get(sku);
+    const variantName = normalizeVariantDisplayName(row?.variantName ?? "");
+    if (!sku || !variantName) continue;
+
+    const existing = resolveExistingForRow(row);
     if (!existing) {
-      variantsToCreate.push(row);
+      variantsToCreate.push({ ...row, variantName });
       continue;
     }
-    resolvedVariantsByOrder.push({ sku, id: existing.id });
-    const shouldUpdatePrice = priceValuesMatch(existing.price, existing.compareAtPrice);
-    if (shouldUpdatePrice) {
-      variantsToUpdate.push({
-        id: existing.id,
-        price: String(row.price),
-        compareAtPrice: String(row.price),
-      });
+
+    const updateInput = {
+      id: existing.id,
+      optionValues: [
+        {
+          name: variantName,
+          optionName: "Shape",
+        },
+      ],
+      inventoryItem: {
+        sku,
+      },
+    };
+
+    if (priceValuesMatch(existing.price, existing.compareAtPrice)) {
+      updateInput.price = String(row.price);
+      updateInput.compareAtPrice = String(row.price);
     }
+
     if (!preserveExistingInventory) {
-      variantsToUpdate[variantsToUpdate.length - 1].inventoryQuantities = [
+      updateInput.inventoryQuantities = [
         {
           availableQuantity: Number(defaultNewVariantQuantity) || 5,
         },
       ];
     }
+
+    variantsToUpdate.push(updateInput);
   }
 
   if (variantsToCreate.length > 0) {
@@ -586,7 +697,11 @@ export async function updateShopifyProduct(admin, payload) {
     const createErrors =
       createJson?.data?.productVariantsBulkCreate?.userErrors ?? [];
     if (createErrors.length) {
-      throw new Error(createErrors.map((e) => e.message).join("; "));
+      throw new ProductUpdateUserError(
+        createErrors.map((e) => e.message).filter(Boolean).join("; ") ||
+          "Variant create failed.",
+        createErrors
+      );
     }
     const created = createJson?.data?.productVariantsBulkCreate?.productVariants ?? [];
     for (const row of created) {
@@ -609,26 +724,22 @@ export async function updateShopifyProduct(admin, payload) {
     const updateErrors =
       updateJson?.data?.productVariantsBulkUpdate?.userErrors ?? [];
     if (updateErrors.length) {
-      throw new Error(updateErrors.map((e) => e.message).join("; "));
+      throw new ProductUpdateUserError(
+        updateErrors.map((e) => e.message).filter(Boolean).join("; ") ||
+          "Variant update failed.",
+        updateErrors
+      );
     }
   }
 
-  for (const row of generated) {
+  const orderedResolved = generated.map((row) => {
     const sku = String(row?.sku || "").trim();
-    if (!sku) continue;
-    const existing = existingBySku.get(sku);
-    const id = existing?.id || createdSkuToId.get(sku) || null;
-    if (!id) continue;
-    if (!resolvedVariantsByOrder.some((x) => x.sku === sku)) {
-      resolvedVariantsByOrder.push({ sku, id });
-    }
-  }
-
-  const bySkuResolved = new Map(resolvedVariantsByOrder.map((x) => [x.sku, x.id]));
-  const orderedResolved = generated.map((v) => ({
-    sku: v.sku,
-    id: bySkuResolved.get(v.sku) || null,
-  }));
+    const variantName = normalizeVariantDisplayName(row?.variantName ?? "");
+    if (!sku || !variantName) return { sku: sku || null, id: null };
+    const ex = resolveExistingForRow(row);
+    if (ex?.id) return { sku, id: ex.id };
+    return { sku, id: createdSkuToId.get(sku) || null };
+  });
 
   await setProductAndVariantMetafields(
     admin,
@@ -643,9 +754,9 @@ export async function updateShopifyProduct(admin, payload) {
     createdVariantCount: variantsToCreate.length,
     updatedVariantCount: variantsToUpdate.length,
     skippedManualPriceCount: generated.filter((row) => {
-      const existing = existingBySku.get(String(row?.sku || "").trim());
-      if (!existing) return false;
-      return !priceValuesMatch(existing.price, existing.compareAtPrice);
+      const ex = resolveExistingForRow(row);
+      if (!ex) return false;
+      return !priceValuesMatch(ex.price, ex.compareAtPrice);
     }).length,
   };
 }

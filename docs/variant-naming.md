@@ -13,10 +13,10 @@ Applies when:
 Patterns:
 - Regular Shapes:
   - Base: `{shape.label}`
-  - Custom: `Customize {shape.label} +$15`
+  - Custom: `Customized {shape.label} +$15`
 - Wood Shapes:
   - Base: `{shape.label}` (retains original labels: 3-Wood, 5-Wood, etc.)
-  - Custom: Single variant `Customize Fairway +$15`
+  - Custom: Single variant `Customized Fairway +$15`
   - Note: For customs, all wood types consolidate to one 'Fairway' variant to avoid redundancy
 
 
@@ -29,10 +29,10 @@ Applies when:
 Patterns:
 - Regular Shapes:
   - Base Pattern: `{shape.label} - {selectedStyle.label}`
-  - Custom Pattern: `Customize {shape.label} - {selectedStyle.label} +$15`
+  - Custom Pattern: `Customized {shape.label} - {selectedStyle.label} +$15`
 - Wood Shapes:
   - Base Pattern: `{shape.label} - {selectedStyle.label}` (retains original labels)
-  - Custom Pattern: `Customize Fairway - {selectedStyle.label} +$15`
+  - Custom Pattern: `Customized Fairway - {selectedStyle.label} +$15`
   - Note: For customs, all wood types use 'Fairway' to allow customer freedom in wood selection
 
 
@@ -42,7 +42,7 @@ Patterns:
 ColorDesignation collections use a database-driven naming system with these patterns:
 ```prisma
 enum StyleNamePattern {
-  STANDARD        // "{leather.label} {style.leatherPhrase} {style.label}"
+  STANDARD        // Custom names use style + leather phrase + designated color (see createCustom.js)
   STYLE_FIRST     // "{style.label} with {leather.label} {style.leatherPhrase}"
   CUSTOM          // Uses customNamePattern field
 }
@@ -50,7 +50,7 @@ enum StyleNamePattern {
 
 Available template variables:
 - `{style.label}` - Style name
-- `{style.leatherPhrase}` - Style's leather phrase (e.g., "leather as", "leather on left")
+- `{style.leatherPhrase}` - Style's leather phrase (e.g. "leather as", "is", "leather on left")
 - `{leather.label}` - Leather color name
 - `{shape.label}` - Shape name (replaced with "Fairway" for wood customs)
 
@@ -63,8 +63,8 @@ Applies when:
 Regular Shapes:
 - Base Pattern: `{shape.label}`
 - Custom Pattern:
-  - STANDARD: `Customize {shape.label} - {leather.label} {style.leatherPhrase} {style.label} +$15`
-  - STYLE_FIRST: `Customize {shape.label} - {style.label} with {leather.label} {style.leatherPhrase} +$15`
+  - STANDARD: `Customized {shape.label} - {style.label} {style.leatherPhrase} {designated leather label} +$15` (e.g. `Customized Driver - Fat Middle is Black +$15`)
+  - STYLE_FIRST: `Customized {shape.label} - {style.label} with {leather.label} {style.leatherPhrase} +$15`
   - CUSTOM: Customized version of customNamePattern
 
 Wood Shapes:
@@ -81,11 +81,8 @@ Uses identical patterns to Global Style Mode, following the same StyleNamePatter
 
 ## Special Cases
 
-### Create Own Set Variant
-Always appears as: `Create my own set`
-
 ### Custom Variant Rules
-1. Always prefixed with "Customize"
+1. Always prefixed with "Customized" (legacy Shopify rows may still show "Customize"; the update flow normalizes to "Customized".)
 2. Always suffixed with "+$15"
 3. Wood shapes always use "Fairway" in custom variants
 4. Maintains consistent pattern structure with base variants
@@ -97,9 +94,9 @@ Always appears as: `Create my own set`
 {
   name: "Fat Middle",
   namePattern: "STANDARD",
-  leatherPhrase: "leather as",
+  leatherPhrase: "is",
   // Base: "Driver"
-  // Custom: "Customize Driver - Black leather as Fat Middle +$15"
+  // Custom: "Customized Driver - Fat Middle is Black +$15"
 }
 ```
 
@@ -110,7 +107,7 @@ Always appears as: `Create my own set`
   namePattern: "STYLE_FIRST",
   leatherPhrase: "leather on left",
   // Base: "Driver"
-  // Custom: "Customize Driver - 50/50 with Black leather on left +$15"
+  // Custom: "Customized Driver - 50/50 with Black leather on left +$15"
 }
 ```
 
@@ -121,6 +118,6 @@ Always appears as: `Create my own set`
   namePattern: "CUSTOM",
   customNamePattern: "{shape.label} in {style.label} with {leather.label}",
   // Base: "Driver in Special with Black"
-  // Custom: "Customize Driver in Special with Black +$15"
+  // Custom: "Customized Driver in Special with Black +$15"
 }
 ```
