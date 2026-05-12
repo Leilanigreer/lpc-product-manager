@@ -16,7 +16,9 @@ import { createShopifyProduct } from "../lib/server/shopifyOperations.server.js"
 // import { saveProductToDatabase } from "../lib/server/productOperations.server.js";
 import { sendInternalEmail } from "../services/email.server";
 import { generateProductCreationNotification } from "../templates/product-creation-notification";
+/* Cloudinary folder lookup disabled — re-enable in app/lib/utils/cloudinary.js:
 import { getCloudinaryFolderPath } from "../lib/utils/cloudinary";
+*/
 import { convertDroppedFileToReferenceImage } from "../lib/utils/referenceImageClient.js";
 import {
   formatGoogleDriveUploadErrorMessage,
@@ -63,7 +65,7 @@ export const action = async ({ request }) => {
   try {
     const shopifyResponse = await createShopifyProduct(admin, productData);
 
-    // Only get Cloudinary folder ID if there are images
+    /* Cloudinary folder ID for notification email — disabled (see cloudinary.js)
     let cloudinaryFolderId = null;
     const hasVariantOrViewImages =
       (productData.additionalViews?.length ?? 0) > 0 ||
@@ -73,6 +75,8 @@ export const action = async ({ request }) => {
         `products/${productData.productType}/${productData.mainHandle}`
       );
     }
+    */
+    const cloudinaryFolderId = null;
 
     // Postgres persistence paused — restore when ProductSet sync is needed again.
     // const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse, cloudinaryFolderId);
@@ -259,7 +263,6 @@ export default function CreateProduct() {
     try {
       const { base64, mediaType, previewBlob, normalizedFile } =
         await convertDroppedFileToReferenceImage(file);
-      /** JPEG/PNG only — HEIC is converted in the browser so Drive/Sharp never see raw HEIC */
       setReferenceImageFile(normalizedFile);
       setReferencePreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
@@ -681,6 +684,9 @@ export default function CreateProduct() {
                     <Text as="h2" variant="headingMd">
                       Reference image
                     </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      JPEG or PNG only (HEIC is not supported).
+                    </Text>
                     <Box maxWidth="260px" minWidth={0}>
                       <ImageDropZone
                         size="small"
@@ -689,7 +695,7 @@ export default function CreateProduct() {
                         customHeight="132px"
                         uploadedImageUrl={referencePreviewUrl}
                         onDrop={handleReferenceFiles}
-                        accept="image/heic,image/heif,.heic,.heif,image/jpeg,image/jpg,image/png"
+                        accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png"
                       />
                     </Box>
                   </BlockStack>

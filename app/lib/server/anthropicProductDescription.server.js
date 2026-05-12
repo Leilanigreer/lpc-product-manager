@@ -114,11 +114,7 @@ export async function generateProductDescriptionViaClaude({
     if (e instanceof Error && e.message.includes("Anthropic's 5MB")) {
       throw e;
     }
-    let hint = e instanceof Error ? e.message : String(e);
-    if (/libheif|heif|HEIC|ERR_LIBHEIF/i.test(hint)) {
-      hint =
-        "HEIC/HEIF reached the server without browser conversion (Linux hosts usually cannot decode HEIC). Upload again so it converts in the admin, or export JPEG/PNG from Photos before uploading.";
-    }
+    const hint = e instanceof Error ? e.message : String(e);
     throw new Error(`Could not prepare image for Claude (${hint}).`);
   }
 

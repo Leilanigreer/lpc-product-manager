@@ -5,7 +5,9 @@ import { Text, BlockStack, Box, InlineStack, Card, TextField } from '@shopify/po
 import { isDevelopment } from '../lib/config/environment';
 import ImageDropZone from './ImageDropZone';
 import AdditionalViews from './AdditionalViews';
-import { uploadToCloudinaryWithSignature } from '../lib/utils/cloudinary';  
+/* Cloudinary disabled — re-enable with `CLOUDINARY_DISABLED = false` in app/lib/utils/cloudinary.js:
+import { uploadToCloudinaryWithSignature } from '../lib/utils/cloudinary';
+*/
 import { isPutter } from '../lib/utils/shapeUtils';
 import { uploadToGoogleDrive, updateToGoogleDrive } from '../lib/utils/googleDrive';
 import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
@@ -45,38 +47,30 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
         throw driveError;
       }
 
-      // Upload to Cloudinary
+      /* Cloudinary (optional second host) — disabled; see app/lib/utils/cloudinary.js
       let cloudinaryData = null;
       try {
         const publicId = `${productData.productType}/${productData.productPictureFolder}/${variant.sku}${isPutterVariant ? `-${label.toLowerCase().replace(/\s+/g, '-')}` : ''}`;
-                
         cloudinaryData = await uploadToCloudinaryWithSignature(
           file,
-          publicId, 
+          publicId,
           productData.productType,
           productData.productPictureFolder
         );
-        
-        if (isDevelopment) {
-          console.log('Cloudinary data in ProductVariantCheck:', {
-            cloudinaryData: cloudinaryData
-          });
-        }
       } catch (cloudinaryError) {
-        if (isDevelopment) {
-          console.error('Cloudinary upload failed:', cloudinaryError);
-        }
+        if (isDevelopment) console.error('Cloudinary upload failed:', cloudinaryError);
       }
-      
-      // Update the product data with both URLs if available
+      */
+      const cloudinaryData = null;
+
       if (onImageUpload) {
         onImageUpload(
           variant.sku,
           label,
-          cloudinaryData?.secure_url || getGoogleDriveUrl(driveData.fileId),
+          getGoogleDriveUrl(driveData.fileId),
           {
             driveData,
-            cloudinaryData
+            cloudinaryData,
           }
         );
       }

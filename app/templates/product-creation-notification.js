@@ -4,7 +4,7 @@
  * @param {Object} data.product - The Shopify product data
  * @param {Object} data.databaseSave - The database save result
  * @param {Object} data.shop - The shop data
- * @param {string} data.cloudinaryFolderId - The Cloudinary folder ID
+ * @param {string|null} data.cloudinaryFolderId - Optional; Cloudinary folder ID when that integration is enabled
  * @param {boolean} data.hasImages - Whether the product has any images
  * @returns {string} The HTML content for the email
  */
@@ -13,7 +13,11 @@ export function generateProductCreationNotification({ product, databaseSave, sho
   const productId = product.id.split('/').pop(); // Extract ID from gid://shopify/Product/123456789
   const adminUrl = `https://admin.shopify.com/store/${shopDomain}/products/${productId}`;
   const googleDriveUrl = databaseSave.mainProduct.googleDriveFolderUrl;
-  const cloudinaryUrl = hasImages ? `https://console.cloudinary.com/console/c-978fe81eba4503099559efedf96dd2/media_library/folders/${cloudinaryFolderId}?view_mode=mosaic` : null;
+  /** Cloudinary block omitted when `cloudinaryFolderId` is null (integration disabled). */
+  const cloudinaryUrl =
+    hasImages && cloudinaryFolderId
+      ? `https://console.cloudinary.com/console/c-978fe81eba4503099559efedf96dd2/media_library/folders/${cloudinaryFolderId}?view_mode=mosaic`
+      : null;
 
   return `
     <!DOCTYPE html>
@@ -59,7 +63,7 @@ export function generateProductCreationNotification({ product, databaseSave, sho
           ${hasImages ? `
             <p>Please work your magic on these product photos</p>
             <p>Google Drive Folder: <a href="${googleDriveUrl}" class="link">${googleDriveUrl}</a></p>
-            <p>Cloudinary URL: <a href="${cloudinaryUrl}" class="link">${cloudinaryUrl}</a></p>
+            ${cloudinaryUrl ? `<p>Cloudinary URL: <a href="${cloudinaryUrl}" class="link">${cloudinaryUrl}</a></p>` : ""}
           ` : `
             <p class="warning">No images have been uploaded for this product yet.</p>
             <p>Ask Karl to upload images to the Google Drive folder.</p>

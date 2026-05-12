@@ -1,9 +1,14 @@
 import { json } from "@remix-run/node";
-import crypto from 'crypto';
+import crypto from "crypto";
+import { CLOUDINARY_DISABLED } from "../lib/utils/cloudinary.js";
 
 export async function action({ request }) {
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
+  }
+
+  if (CLOUDINARY_DISABLED) {
+    return json({ error: "Cloudinary is disabled." }, { status: 503 });
   }
 
   try {

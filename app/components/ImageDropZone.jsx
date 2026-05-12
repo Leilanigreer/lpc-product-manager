@@ -27,7 +27,7 @@ const ImageDropZone = ({
   customWidth,
   customHeight,
   uploadedImageUrl,
-  /** Passed to DropZone and file input (e.g. HEIC). Defaults to any image. */
+  /** Passed to DropZone and file input. Defaults to any image (`image/*`). */
   accept = "image/*",
 }) => {
   const [isUploading, setIsUploading] = useState(false);

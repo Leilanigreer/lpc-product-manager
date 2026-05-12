@@ -1,7 +1,9 @@
 import React, { useCallback } from 'react';
 import { InlineStack, Text } from "@shopify/polaris";
 import ImageDropZone from './ImageDropZone';
+/* Cloudinary disabled — re-enable in app/lib/utils/cloudinary.js:
 import { uploadToCloudinaryWithSignature } from '../lib/utils/cloudinary';
+*/
 import { uploadToGoogleDrive, updateToGoogleDrive } from '../lib/utils/googleDrive';
 import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 import { isDevelopment } from '../lib/config/environment';
@@ -45,26 +47,24 @@ const AdditionalViews = ({
         throw driveError;
       }
 
-      // Upload to Cloudinary
+      /* Cloudinary — disabled; see app/lib/utils/cloudinary.js
       let cloudinaryData = null;
       try {
         const publicId = `${productData.productType}/${productData.productPictureFolder}/${baseSKU}-${label.toLowerCase().replace(/\s+/g, '-')}`;
-        
-          cloudinaryData = await uploadToCloudinaryWithSignature(
-            file, 
-            publicId, 
-            productData.productType, 
-            productData.productPictureFolder
-          );
+        cloudinaryData = await uploadToCloudinaryWithSignature(
+          file,
+          publicId,
+          productData.productType,
+          productData.productPictureFolder
+        );
       } catch (cloudinaryError) {
-        if (isDevelopment) {
-          console.error('Cloudinary upload failed:', cloudinaryError);
-        }
+        if (isDevelopment) console.error('Cloudinary upload failed:', cloudinaryError);
       }
+      */
+      const cloudinaryData = null;
 
-      // Update the form state with both URLs if available
       if (onImageUpload) {
-        const displayUrl = cloudinaryData?.secure_url || getGoogleDriveUrl(driveData.fileId);
+        const displayUrl = getGoogleDriveUrl(driveData.fileId);
         
         onImageUpload(
           baseSKU,
