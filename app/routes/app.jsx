@@ -42,6 +42,7 @@ export default function App() {
         <Link to="/app/addLeatherColor">Manage Leather Color</Link>
         <Link to="/app/addThreadColors">Manage Thread Colors</Link>
         <Link to="/app/addColorTags">Manage Color Tags</Link>
+        <Link to="/app/addStyle">Manage Styles</Link>
         <Link to="/app/updatePricing">Update Pricing</Link>
       </NavMenu>
       <Outlet />

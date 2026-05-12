@@ -275,3 +275,352 @@ export function attachStylesToShopifyCollections(collections, formStyles) {
     };
   });
 }
+
+// ---------------------------------------------------------------------------
+// Write-side: create a new style, ensure new choice values exist, fetch dropdown
+// options off the style metaobject definition.
+// ---------------------------------------------------------------------------
+
+const STYLE_DEFINITION_QUERY = `#graphql
+  query GetStyleDefinition {
+    metaobjectDefinitionByType(type: "style") {
+      id
+      fieldDefinitions {
+        key
+        name
+        type {
+          name
+        }
+        validations {
+          name
+          value
+        }
+      }
+    }
+  }
+`;
+
+const METAOBJECT_DEFINITION_UPDATE = `#graphql
+  mutation UpdateStyleDefinition($id: ID!, $definition: MetaobjectDefinitionUpdateInput!) {
+    metaobjectDefinitionUpdate(id: $id, definition: $definition) {
+      metaobjectDefinition {
+        id
+        fieldDefinitions {
+          key
+          validations {
+            name
+            value
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+        code
+      }
+    }
+  }
+`;
+
+const STYLE_METAOBJECT_CREATE = `#graphql
+  mutation CreateStyle($metaobject: MetaobjectCreateInput!) {
+    metaobjectCreate(metaobject: $metaobject) {
+      metaobject {
+        id
+        handle
+        displayName
+        type
+      }
+      userErrors {
+        field
+        message
+        code
+      }
+    }
+  }
+`;
+
+/** Choice-list value normalizer: trim and collapse whitespace, but keep case. */
+function normalizeChoiceValue(value) {
+  if (value == null) return "";
+  return String(value).trim();
+}
+
+function slugifyStyleHandle(value) {
+  return (
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "style"
+  );
+}
+
+/**
+ * Reads the style metaobject definition and returns choice-list options for
+ * dropdown fields plus the definition's GID (needed to extend the `style`
+ * choice list when Karl types a brand-new name).
+ *
+ * @param {Object} admin - Shopify Admin GraphQL client.
+ * @returns {Promise<{
+ *   definitionId: string|null,
+ *   style: Array<{label:string,value:string}>,
+ *   category: Array<{label:string,value:string}>,
+ *   collectionCategory: Array<{label:string,value:string}>,
+ *   shapeGroup: Array<{label:string,value:string}>,
+ *   namePattern: Array<{label:string,value:string}>,
+ * }>}
+ */
+export async function getStyleMetaobjectChoiceOptions(admin) {
+  const empty = {
+    definitionId: null,
+    style: [],
+    category: [],
+    collectionCategory: [],
+    shapeGroup: [],
+    namePattern: [],
+  };
+  if (!admin?.graphql) return empty;
+
+  try {
+    const resp = await admin.graphql(STYLE_DEFINITION_QUERY);
+    const json = await resp.json();
+    const def = json?.data?.metaobjectDefinitionByType;
+    if (!def) return empty;
+
+    const fieldChoices = (fieldKey) => {
+      const field = (def.fieldDefinitions ?? []).find((f) => f.key === fieldKey);
+      if (!field) return [];
+      const choicesValidation = (field.validations ?? []).find((v) => v.name === "choices");
+      if (!choicesValidation?.value) return [];
+      let parsed;
+      try {
+        parsed = JSON.parse(choicesValidation.value);
+      } catch {
+        return [];
+      }
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((v) => normalizeChoiceValue(v))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b))
+        .map((label) => ({ label, value: label }));
+    };
+
+    return {
+      definitionId: def.id,
+      style: fieldChoices("style"),
+      category: fieldChoices("category"),
+      collectionCategory: fieldChoices("collection_category"),
+      shapeGroup: fieldChoices("shape_group"),
+      namePattern: fieldChoices("name_pattern"),
+    };
+  } catch (error) {
+    console.error("getStyleMetaobjectChoiceOptions failed:", error);
+    return empty;
+  }
+}
+
+/**
+ * Ensures `newValue` exists in the choices validation of the style metaobject's
+ * `fieldKey` field. If absent, merges it in via `metaobjectDefinitionUpdate`.
+ *
+ * Used to auto-extend the `style` choice list when Karl types a brand-new
+ * style name. Returns `{ added: boolean }` so the route can surface whether
+ * it actually mutated the definition.
+ *
+ * @param {Object} admin
+ * @param {string} fieldKey - e.g. "style"
+ * @param {string} newValue
+ * @returns {Promise<{ added: boolean }>}
+ */
+export async function ensureStyleChoiceListValue(admin, fieldKey, newValue) {
+  if (!admin?.graphql) {
+    throw new Error("Shopify admin client is required.");
+  }
+  const trimmed = normalizeChoiceValue(newValue);
+  if (!trimmed) return { added: false };
+
+  const resp = await admin.graphql(STYLE_DEFINITION_QUERY);
+  const json = await resp.json();
+  const def = json?.data?.metaobjectDefinitionByType;
+  if (!def?.id) {
+    throw new Error(`Could not find metaobject definition for type "style".`);
+  }
+  const field = (def.fieldDefinitions ?? []).find((f) => f.key === fieldKey);
+  if (!field) {
+    throw new Error(`Style metaobject definition has no field "${fieldKey}".`);
+  }
+
+  const existingValidations = Array.isArray(field.validations) ? field.validations : [];
+  const choicesValidation = existingValidations.find((v) => v.name === "choices");
+  let currentChoices = [];
+  if (choicesValidation?.value) {
+    try {
+      const parsed = JSON.parse(choicesValidation.value);
+      if (Array.isArray(parsed)) {
+        currentChoices = parsed.map((v) => normalizeChoiceValue(v)).filter(Boolean);
+      }
+    } catch {
+      currentChoices = [];
+    }
+  }
+
+  if (currentChoices.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+    return { added: false };
+  }
+
+  const nextChoices = [...currentChoices, trimmed];
+
+  /**
+   * Preserve every other validation untouched (e.g. min/max len) and only swap
+   * the `choices` entry. Shopify replaces the entire `validations` array, so
+   * omitting any preserved validation drops it.
+   */
+  const nextValidations = [
+    ...existingValidations.filter((v) => v?.name !== "choices"),
+    { name: "choices", value: JSON.stringify(nextChoices) },
+  ].map(({ name, value }) => ({ name, value }));
+
+  const updateResp = await admin.graphql(METAOBJECT_DEFINITION_UPDATE, {
+    variables: {
+      id: def.id,
+      definition: {
+        fieldDefinitions: [
+          {
+            update: {
+              key: fieldKey,
+              validations: nextValidations,
+            },
+          },
+        ],
+      },
+    },
+  });
+  const updateJson = await updateResp.json();
+  const result = updateJson?.data?.metaobjectDefinitionUpdate;
+  if (result?.userErrors?.length) {
+    const message = result.userErrors.map((e) => e.message).join(", ");
+    throw new Error(`Failed to extend choice list "${fieldKey}": ${message}`);
+  }
+  return { added: true };
+}
+
+/**
+ * Create a new `style` metaobject.
+ *
+ * - Booleans serialized as `"true"` / `"false"` strings.
+ * - Choice-list values written as plain strings (Shopify accepts the raw choice).
+ * - `preview_image` is a `file_reference` field — value is the MediaImage GID
+ *   returned by `uploadShopifyImageFile`.
+ * - `sort_number` is a numeric_integer field — sent as a string.
+ *
+ * All conditional fields (needsColorDesignation, namePattern, leatherPhrase,
+ * useOppositeLeather) are only attached when `useInVariantTitle === true` so the
+ * metaobject doesn't carry stale variant-naming flags for styles that don't
+ * participate in variant titles.
+ *
+ * @returns {Promise<{ id: string, label: string, abbreviation: string }>}
+ */
+export async function createShopifyStyle(admin, params) {
+  if (!admin?.graphql) {
+    throw new Error("Shopify admin client is required to create style metaobjects.");
+  }
+
+  const {
+    style,
+    category,
+    description,
+    previewImageId,
+    sortNumber,
+    collectionCategory,
+    shapeGroup,
+    abbreviation,
+    useInVariantTitle,
+    needsColorDesignation,
+    namePattern,
+    leatherPhrase,
+    useOppositeLeather,
+  } = params || {};
+
+  const styleName = normalizeChoiceValue(style);
+  if (!styleName) throw new Error("Style name is required.");
+  const categoryValue = normalizeChoiceValue(category);
+  if (!categoryValue) throw new Error("Category is required.");
+  const collectionCategoryValue = normalizeChoiceValue(collectionCategory);
+  if (!collectionCategoryValue) throw new Error("Collection category is required.");
+  const shapeGroupValue = normalizeChoiceValue(shapeGroup);
+  if (!shapeGroupValue) throw new Error("Shape group is required.");
+  const abbreviationValue = normalizeChoiceValue(abbreviation) || fallbackAbbreviation(styleName);
+  const useInVariantTitleBool = useInVariantTitle === true || useInVariantTitle === "true";
+
+  const fields = [
+    { key: "style", value: styleName },
+    { key: "category", value: JSON.stringify([categoryValue]) },
+    { key: "collection_category", value: JSON.stringify([collectionCategoryValue]) },
+    { key: "shape_group", value: JSON.stringify([shapeGroupValue]) },
+    { key: "abbreviation", value: abbreviationValue },
+    { key: "use_in_variant_title", value: useInVariantTitleBool ? "true" : "false" },
+  ];
+
+  const descriptionTrimmed = description != null ? String(description).trim() : "";
+  if (descriptionTrimmed) {
+    fields.push({ key: "description", value: descriptionTrimmed });
+  }
+  if (previewImageId) {
+    fields.push({ key: "preview_image", value: String(previewImageId) });
+  }
+  if (sortNumber != null && String(sortNumber).trim() !== "") {
+    const parsed = Number.parseInt(String(sortNumber), 10);
+    if (Number.isFinite(parsed)) {
+      fields.push({ key: "sort_number", value: String(parsed) });
+    }
+  }
+
+  if (useInVariantTitleBool) {
+    const namePatternValue = normalizeChoiceValue(namePattern);
+    if (!namePatternValue) throw new Error("Name pattern is required when used in variant title.");
+    const leatherPhraseValue = normalizeChoiceValue(leatherPhrase);
+    if (!leatherPhraseValue) throw new Error("Leather phrase is required when used in variant title.");
+    if (needsColorDesignation !== true && needsColorDesignation !== false) {
+      throw new Error("Needs color designation must be answered when used in variant title.");
+    }
+    if (useOppositeLeather !== true && useOppositeLeather !== false) {
+      throw new Error("Use opposite leather must be answered when used in variant title.");
+    }
+    fields.push({ key: "name_pattern", value: JSON.stringify([namePatternValue]) });
+    fields.push({ key: "leather_phrase", value: leatherPhraseValue });
+    fields.push({ key: "needs_color_designation", value: needsColorDesignation ? "true" : "false" });
+    fields.push({ key: "use_opposite_leather", value: useOppositeLeather ? "true" : "false" });
+  }
+
+  const handle = slugifyStyleHandle(styleName);
+
+  const response = await admin.graphql(STYLE_METAOBJECT_CREATE, {
+    variables: {
+      metaobject: {
+        type: TYPE_STYLE,
+        handle,
+        fields,
+        capabilities: {
+          publishable: { status: "ACTIVE" },
+        },
+      },
+    },
+  });
+  const json = await response.json();
+  const result = json?.data?.metaobjectCreate;
+  if (result?.userErrors?.length) {
+    const message = result.userErrors.map((e) => e.message).join(", ");
+    throw new Error(`Failed to create style metaobject: ${message}`);
+  }
+  const meta = result?.metaobject;
+  if (!meta?.id) {
+    throw new Error("Shopify did not return an ID for the created style metaobject.");
+  }
+  return {
+    id: meta.id,
+    label: meta.displayName || styleName,
+    abbreviation: abbreviationValue,
+  };
+}

@@ -72,6 +72,16 @@ export default function Index() {
                       </BlockStack>
                     </Card>
                   </Grid.Cell >
+                  <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
+                    <Card title="Manage Styles">
+                      <BlockStack gap="400">
+                        <Text variant="bodyMd">
+                          Add a new style for product creation
+                        </Text>
+                        <Button icon={PlusIcon} onClick={() => navigate("/app/addStyle")}>Manage Styles</Button>
+                      </BlockStack>
+                    </Card>
+                  </Grid.Cell >
                 {/* Add more feature descriptions as needed */}
                 </Grid>
                 <Card>
@@ -82,9 +92,6 @@ export default function Index() {
                     <BlockStack gap="300">
                       <Text variant="bodyMd">
                         • Discontinue Leather Color: Change collection to Last Chance, update Price and modify Postgres Database
-                      </Text>
-                      <Text variant="bodyMd">
-                        • Add new Styles: Add new styles to the database
                       </Text>
                       <Text variant="bodyMd">
                         • Manage Quantities across selling channels: Etsy, Ebay, Amazon, Walmart and more
