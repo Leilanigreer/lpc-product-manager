@@ -20,24 +20,12 @@ import {
 import { SearchIcon } from "@shopify/polaris-icons";
 import ImageDropZone from "./ImageDropZone";
 import { compressImageForGoogleDrive } from "../lib/utils/imageCompression";
+import {
+  findStyleAbbreviationConflict,
+  generateStyleAbbreviation,
+} from "../lib/utils/styleAbbreviationUtils";
 
 const SELECT_PLACEHOLDER = { label: "Select…", value: "" };
-
-/**
- * Placeholder abbreviation generator: first 3 alphanumeric characters of the
- * trimmed style name, uppercased. This is intentionally a stand-in until the
- * real rule set is defined — Karl can overwrite the auto-filled value in the
- * Abbreviation field on every submission.
- *
- * TODO(style-abbreviation): replace with the real generator once Karl shares
- * examples. The "Show existing abbreviations" collapsible below lists the
- * current dataset so we can sanity-check any future rule against it.
- */
-function placeholderAbbreviation(styleName) {
-  if (!styleName) return "";
-  const cleaned = String(styleName).replace(/[^a-zA-Z0-9]+/g, "");
-  return cleaned.slice(0, 3).toUpperCase();
-}
 
 export default function AddStyleForm({ choiceOptions, existingStyles = [], fetcher }) {
   const styleChoices = useMemo(() => choiceOptions?.style ?? [], [choiceOptions?.style]);
@@ -65,6 +53,10 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
   const [shapeGroup, setShapeGroup] = useState("");
   const [abbreviation, setAbbreviation] = useState("");
   const [abbreviationDirty, setAbbreviationDirty] = useState(false);
+  // Defaults to true: the vast majority of styles include their abbreviation in
+  // Custom SKUs. Flip to false for styles whose name duplicates their collection
+  // (e.g. the lone "Quilted" style on the Quilted collection).
+  const [includeAbbreviationInSku, setIncludeAbbreviationInSku] = useState(true);
   const [useInVariantTitle, setUseInVariantTitle] = useState(true);
   const [description, setDescription] = useState("");
   const [sortNumber, setSortNumber] = useState("");
@@ -84,9 +76,15 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
 
   React.useEffect(() => {
     if (!abbreviationDirty) {
-      setAbbreviation(placeholderAbbreviation(styleName));
+      setAbbreviation(
+        generateStyleAbbreviation({
+          styleName,
+          collectionCategory,
+          shapeGroup,
+        })
+      );
     }
-  }, [styleName, abbreviationDirty]);
+  }, [styleName, collectionCategory, shapeGroup, abbreviationDirty]);
 
   React.useEffect(() => {
     return () => {
@@ -103,6 +101,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
       setShapeGroup("");
       setAbbreviation("");
       setAbbreviationDirty(false);
+      setIncludeAbbreviationInSku(true);
       setUseInVariantTitle(true);
       setDescription("");
       setSortNumber("");
@@ -198,12 +197,34 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
     }
   }, []);
 
+  // Detect an existing style that would produce a colliding SKU. Style
+  // abbreviation now appears in every variant SKU, so two styles that share
+  // the same shape_group + collection_category MUST have distinct
+  // abbreviations (unless either has includeAbbreviationInSku=false). See
+  // findStyleAbbreviationConflict for the exact comparison rules.
+  const abbreviationConflict = useMemo(() => {
+    return findStyleAbbreviationConflict({
+      abbreviation,
+      collectionCategory,
+      shapeGroup,
+      includeAbbreviationInSku,
+      existingStyles,
+    });
+  }, [
+    abbreviation,
+    collectionCategory,
+    shapeGroup,
+    includeAbbreviationInSku,
+    existingStyles,
+  ]);
+
   const canSubmit = useMemo(() => {
     if (!styleName.trim()) return false;
     if (!category) return false;
     if (!collectionCategory) return false;
     if (!shapeGroup) return false;
     if (!abbreviation.trim()) return false;
+    if (abbreviationConflict) return false;
     if (useInVariantTitle) {
       if (!namePattern) return false;
       if (!leatherPhrase.trim()) return false;
@@ -217,6 +238,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
     collectionCategory,
     shapeGroup,
     abbreviation,
+    abbreviationConflict,
     useInVariantTitle,
     namePattern,
     leatherPhrase,
@@ -237,6 +259,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
     formData.append("collection_category", collectionCategory);
     formData.append("shape_group", shapeGroup);
     formData.append("abbreviation", abbreviation.trim());
+    formData.append("include_abbreviation_in_sku", includeAbbreviationInSku ? "true" : "false");
     formData.append("use_in_variant_title", useInVariantTitle ? "true" : "false");
     if (description.trim()) formData.append("description", description.trim());
     if (sortNumber.trim()) formData.append("sort_number", sortNumber.trim());
@@ -260,6 +283,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
     collectionCategory,
     shapeGroup,
     abbreviation,
+    includeAbbreviationInSku,
     useInVariantTitle,
     description,
     sortNumber,
@@ -362,7 +386,12 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
                 setClientError("");
               }}
               autoComplete="off"
-              helpText="Auto-filled from style name. Editable. Final rules TBD."
+              error={
+                abbreviationConflict
+                  ? `Already used by "${abbreviationConflict.label}" in the same collection category and shape group. Pick a different abbreviation.`
+                  : undefined
+              }
+              helpText="Auto-generated from collection category + style + shape group. Editable if you need to override. Must be unique within the same collection category + shape group because it appears in every variant SKU."
               requiredIndicator
             />
             <Box paddingBlockStart="100">
@@ -398,6 +427,33 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
             </Box>
           </Box>
         </InlineStack>
+
+        <BlockStack gap="100">
+          <Text variant="bodyMd" as="label" fontWeight="medium">
+            Include abbreviation in SKU?
+          </Text>
+          <InlineStack gap="400" wrap={false}>
+            <RadioButton
+              label="Yes"
+              checked={includeAbbreviationInSku === true}
+              id="includeAbbreviationInSku-yes"
+              name="includeAbbreviationInSku"
+              onChange={() => { setIncludeAbbreviationInSku(true); setClientError(""); }}
+            />
+            <RadioButton
+              label="No"
+              checked={includeAbbreviationInSku === false}
+              id="includeAbbreviationInSku-no"
+              name="includeAbbreviationInSku"
+              onChange={() => { setIncludeAbbreviationInSku(false); setClientError(""); }}
+            />
+          </InlineStack>
+          <Text tone="subdued" variant="bodySm">
+            Defaults to Yes. Set to No only when the style&apos;s name duplicates its collection
+            (e.g. the lone &ldquo;Quilted&rdquo; style on the Quilted collection) and you want
+            the abbreviation kept off Custom SKUs.
+          </Text>
+        </BlockStack>
 
         <Box>
           <Checkbox

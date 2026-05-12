@@ -269,7 +269,7 @@ export default function SyncSkus() {
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                custom.base_sku vs derived base (variant SKU minus shape)
+                custom.base_sku vs derived base (from variant SKU)
               </Text>
               <Text as="p" variant="bodyMd">
                 Only products in collections whose metafield{" "}
@@ -277,20 +277,24 @@ export default function SyncSkus() {
                   custom.show_in_creation_dropdown
                 </Text>{" "}
                 is true (same set as the create-product collection dropdown) are scanned. The
-                target base is the first variant’s SKU
-                (by position) with the last{" "}
+                target base is derived from the first variant’s SKU (by position): when a{" "}
                 <Text as="span" fontWeight="semibold">
-                  -
+                  -V&lt;n&gt;
                 </Text>{" "}
-                segment removed (shape suffix), e.g.{" "}
+                version segment is present, the base is everything up to and including it
+                (e.g.{" "}
                 <Text as="span" fontWeight="semibold">
-                  Classic-BRG-HP-V2-Driver
+                  Classic-BRG-HP-V2-Driver-50
                 </Text>{" "}
                 →{" "}
                 <Text as="span" fontWeight="semibold">
                   Classic-BRG-HP-V2
                 </Text>
-                . Rows list a missing{" "}
+                ). For V1 SKUs without a version segment, the last{" "}
+                <Text as="span" fontWeight="semibold">
+                  -
+                </Text>{" "}
+                segment is stripped as a fallback. Rows list a missing{" "}
                 <Text as="span" fontWeight="semibold">
                   custom.base_sku
                 </Text>

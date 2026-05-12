@@ -6,7 +6,17 @@ import {
   unstable_parseMultipartFormData,
   unstable_createMemoryUploadHandler,
 } from "@remix-run/node";
-import { Page, Layout, Box, Banner, Card, BlockStack } from "@shopify/polaris";
+import {
+  Page,
+  Layout,
+  Box,
+  Banner,
+  Card,
+  BlockStack,
+  Button,
+  Text,
+  InlineStack,
+} from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
 import AddStyleForm from "../components/AddStyleForm";
@@ -17,8 +27,10 @@ import {
   getStyleMetaobjectChoiceOptions,
   fetchStyleMetaobjectNodes,
   mapStyleMetaobjectNodeToFormStyle,
+  backfillStyleIncludeAbbreviationInSku,
 } from "../lib/server/styleShopify.server.js";
 import { uploadShopifyImageFile } from "../lib/server/shopifyFilesShopify.server.js";
+import { findStyleAbbreviationConflict } from "../lib/utils/styleAbbreviationUtils.js";
 
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
@@ -48,6 +60,37 @@ function readTriBool(formData, key) {
 export const action = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
 
+  const contentType = request.headers.get("content-type") || "";
+
+  // The backfill button posts a normal `application/x-www-form-urlencoded` body
+  // so we branch on content type first to avoid running the multipart parser
+  // (which would 400 on a non-multipart body).
+  if (!contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const actionType = (formData.get("actionType") || "").toString();
+
+    if (actionType === "backfill_include_abbreviation_in_sku") {
+      try {
+        const result = await backfillStyleIncludeAbbreviationInSku(admin);
+        return json({
+          success: true,
+          actionType,
+          backfill: result,
+        });
+      } catch (err) {
+        return json(
+          { success: false, actionType, error: err.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    return json(
+      { success: false, error: `Unknown actionType "${actionType}".` },
+      { status: 400 }
+    );
+  }
+
   const uploadHandler = unstable_createMemoryUploadHandler({
     maxPartSize: 10_000_000,
   });
@@ -66,6 +109,7 @@ export const action = async ({ request }) => {
   const abbreviation = (formData.get("abbreviation") || "").toString().trim();
   const useInVariantTitleRaw = formData.get("use_in_variant_title");
   const useInVariantTitle = useInVariantTitleRaw === "true";
+  const includeAbbreviationInSku = readTriBool(formData, "include_abbreviation_in_sku");
 
   if (!style) return json({ success: false, error: "Style name is required." }, { status: 400 });
   if (!category) return json({ success: false, error: "Category is required." }, { status: 400 });
@@ -74,6 +118,9 @@ export const action = async ({ request }) => {
   if (!abbreviation) return json({ success: false, error: "Abbreviation is required." }, { status: 400 });
   if (useInVariantTitleRaw !== "true" && useInVariantTitleRaw !== "false") {
     return json({ success: false, error: "Use in Variant Title must be answered." }, { status: 400 });
+  }
+  if (includeAbbreviationInSku === null) {
+    return json({ success: false, error: "Include abbreviation in SKU must be answered." }, { status: 400 });
   }
 
   let namePattern = null;
@@ -117,6 +164,38 @@ export const action = async ({ request }) => {
     }
   }
 
+  // Server-side uniqueness gate: style.abbreviation lands in every variant SKU
+  // (regular and custom), so two styles that can apply to the same shape on
+  // the same product must have distinct abbreviations. We compare against the
+  // current Shopify state right before create, so a stale client can't sneak
+  // a duplicate through. Styles with includeAbbreviationInSku=false are
+  // exempt because their abbreviation never reaches a SKU.
+  try {
+    const existingNodes = await fetchStyleMetaobjectNodes(admin);
+    const existingStyles = existingNodes.map(mapStyleMetaobjectNodeToFormStyle);
+    const conflict = findStyleAbbreviationConflict({
+      abbreviation,
+      collectionCategory,
+      shapeGroup,
+      includeAbbreviationInSku,
+      existingStyles,
+    });
+    if (conflict) {
+      return json(
+        {
+          success: false,
+          error: `Abbreviation "${abbreviation}" already used by "${conflict.label}" in the same collection category and shape group. Pick a different abbreviation.`,
+        },
+        { status: 409 }
+      );
+    }
+  } catch (err) {
+    return json(
+      { success: false, error: `Could not verify abbreviation uniqueness: ${err.message}` },
+      { status: 500 }
+    );
+  }
+
   let choiceAdded = false;
   try {
     const ensured = await ensureStyleChoiceListValue(admin, "style", style);
@@ -133,6 +212,7 @@ export const action = async ({ request }) => {
       shapeGroup,
       abbreviation,
       useInVariantTitle,
+      includeAbbreviationInSku,
       description,
       previewImageId,
       sortNumber: sortNumberRaw || null,
@@ -159,11 +239,27 @@ export const action = async ({ request }) => {
 export default function AddStyle() {
   const { choiceOptions, existingStyles } = useLoaderData();
   const fetcher = useFetcher();
+  const backfillFetcher = useFetcher();
   const [showSuccessBanner, setShowSuccessBanner] = React.useState(false);
+  const [showBackfillBanner, setShowBackfillBanner] = React.useState(false);
 
   React.useEffect(() => {
-    if (fetcher.data) setShowSuccessBanner(true);
+    if (fetcher.data?.actionType === "create") setShowSuccessBanner(true);
   }, [fetcher.data]);
+
+  React.useEffect(() => {
+    if (backfillFetcher.data) setShowBackfillBanner(true);
+  }, [backfillFetcher.data]);
+
+  const runBackfill = React.useCallback(() => {
+    setShowBackfillBanner(false);
+    const fd = new FormData();
+    fd.append("actionType", "backfill_include_abbreviation_in_sku");
+    backfillFetcher.submit(fd, { method: "post" });
+  }, [backfillFetcher]);
+
+  const backfillData = backfillFetcher.data;
+  const backfillRunning = backfillFetcher.state === "submitting";
 
   return (
     <Page>
@@ -186,7 +282,7 @@ export default function AddStyle() {
                 : "Style created!"
             }
           />
-          {fetcher.data && fetcher.data.error && (
+          {fetcher.data && fetcher.data.error && fetcher.data.actionType !== "backfill_include_abbreviation_in_sku" && (
             <Box paddingBlock="400">
               <Banner status="critical">{fetcher.data.error}</Banner>
             </Box>
@@ -200,6 +296,64 @@ export default function AddStyle() {
               />
             </Layout.Section>
           </Layout>
+        </Card>
+
+        <Card>
+          <BlockStack gap="300">
+            <Text variant="headingMd">One-time data migrations</Text>
+            <Text tone="subdued" variant="bodySm">
+              Backfills the new <code>include_abbreviation_in_sku</code> field on every style
+              metaobject that doesn&apos;t already have a value, setting it to <b>true</b>.
+              Safe to re-run: styles with an explicit true or false are left alone.
+            </Text>
+
+            {showBackfillBanner && backfillData?.success && (
+              <Banner
+                status="success"
+                onDismiss={() => setShowBackfillBanner(false)}
+              >
+                Backfilled <b>{backfillData.backfill?.updated ?? 0}</b> of{" "}
+                <b>{backfillData.backfill?.total ?? 0}</b> styles to{" "}
+                <code>include_abbreviation_in_sku = true</code>
+                {" "}({backfillData.backfill?.skipped ?? 0} already set,
+                {" "}{backfillData.backfill?.errors?.length ?? 0} errors).
+              </Banner>
+            )}
+
+            {showBackfillBanner && backfillData?.success === false && (
+              <Banner
+                status="critical"
+                onDismiss={() => setShowBackfillBanner(false)}
+              >
+                Backfill failed: {backfillData.error}
+              </Banner>
+            )}
+
+            {!!backfillData?.backfill?.errors?.length && (
+              <Box paddingBlockStart="100">
+                <Text variant="bodySm" tone="critical">
+                  Errors on individual styles:
+                </Text>
+                <BlockStack gap="050">
+                  {backfillData.backfill.errors.map((e) => (
+                    <Text key={e.id} variant="bodySm" tone="critical">
+                      {e.id}: {e.message}
+                    </Text>
+                  ))}
+                </BlockStack>
+              </Box>
+            )}
+
+            <InlineStack gap="200">
+              <Button
+                onClick={runBackfill}
+                loading={backfillRunning}
+                disabled={backfillRunning}
+              >
+                Backfill include_abbreviation_in_sku → true
+              </Button>
+            </InlineStack>
+          </BlockStack>
         </Card>
       </BlockStack>
     </Page>

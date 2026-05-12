@@ -1,12 +1,22 @@
 /**
  * Scan and repair product `custom.base_sku` against a **derived** versioned base from the first
- * variant SKU (by position): drop the last `-` segment (shape / style suffix from `formatSKU`).
+ * variant SKU (by position).
  *
- * Example: `Classic-BRG-HP-V2-Driver` → `Classic-BRG-HP-V2`
+ * Derivation strategy (see {@link variantSkuToBaseSku}):
+ *  1. If the variant SKU contains an explicit `-V<n>` version segment, the base is everything
+ *     up to and including that segment. This is the canonical case for versioned products and
+ *     is robust regardless of how many trailing variant tokens (shape / colorDesignation /
+ *     style / `Custom`) follow.
+ *     Example: `Classic-BRG-HP-V2-Driver-50` → `Classic-BRG-HP-V2`
+ *  2. If there is no `-V<n>` segment (V1 product), fall back to stripping the last `-` segment.
+ *     This is reliable for legacy `{base}-{shape}` SKUs and for any V1 SKU whose suffix is a
+ *     single token. V1 products created with the multi-token suffix format (style /
+ *     colorDesignation included) cannot be derived precisely from the SKU alone; for those the
+ *     correctly-set `custom.base_sku` metafield written at creation time remains the source of
+ *     truth and the sync tool may produce a false drift signal.
  *
  * Scan scope: products belonging to any collection whose `custom.show_in_creation_dropdown`
- * metafield is true (same rule as create-product). Assumes the variant SKU includes a trailing
- * segment after the base; unusual SKUs with no hyphen may be skipped.
+ * metafield is true (same rule as create-product).
  */
 
 /** Shopify boolean metafields often store "true" / "false" strings. */
@@ -109,13 +119,27 @@ const METAFIELDS_SET_MUTATION = `#graphql
 `;
 
 /**
- * Versioned base SKU: full variant SKU minus the last `-{shape}` (or trailing) segment.
+ * Versioned base SKU derived from a variant SKU.
+ *
+ * Primary strategy: locate a `-V<n>` segment (case-insensitive) and treat everything up to and
+ * including that segment as the base. Works for any number of trailing variant tokens
+ * (`{shape}[-{colorDesignation}][-{style}][-Custom]`).
+ *
+ * Fallback (no version segment): strip the last `-` segment, matching the historical
+ * `{base}-{shape}` shape. See file header for the V1 multi-token caveat.
+ *
  * @param {string} variantSku
  * @returns {string} Empty if the SKU has no `-` and cannot be stripped.
  */
 export function variantSkuToBaseSku(variantSku) {
   const s = (variantSku ?? "").trim();
   if (!s) return "";
+
+  const versionMatch = s.match(/^(.*?-V\d+)(?:-|$)/i);
+  if (versionMatch) {
+    return versionMatch[1];
+  }
+
   const i = s.lastIndexOf("-");
   if (i <= 0) return "";
   return s.slice(0, i);
@@ -300,8 +324,9 @@ function chunk(arr, size) {
 }
 
 /**
- * Sets `custom.base_sku` (single line text) to the derived versioned base (variant SKU minus
- * last `-` segment) for each product id.
+ * Sets `custom.base_sku` (single line text) to the derived versioned base for each product id.
+ * Derivation prefers the `-V<n>` anchor and falls back to stripping the last `-` segment — see
+ * {@link variantSkuToBaseSku}.
  * @param {(query: string, options?: { variables?: object }) => Promise<Response>} graphql
  * @param {string[]} productGids
  */

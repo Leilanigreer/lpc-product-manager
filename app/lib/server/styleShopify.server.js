@@ -5,9 +5,9 @@
  *   style, abbreviation, collection_category, shape_group,
  *   use_opposite_leather, leather_phrase, name_pattern, custom_name_pattern, needs_color_designation,
  *   use_in_variant_title (boolean, default true when omitted),
- *   include_abbreviation_in_sku (boolean, default true when omitted) — when false, the style's
- *     abbreviation is suppressed from generated SKUs (used by styles whose name duplicates the
- *     collection, e.g. the lone "Quilted" style on the Quilted collection).
+ *   include_abbreviation_in_sku (boolean, default true when omitted) — when false, this style's
+ *     abbreviation is omitted from Custom variant SKUs in `formatSKU` (used by styles whose name
+ *     duplicates the collection, e.g. the lone "Quilted" style on the Quilted collection).
  *
  * Collection-level flags (e.g. needs_secondary_leather, stitching/thread rules) live on collection
  * metafields — not on style.
@@ -557,6 +557,7 @@ export async function createShopifyStyle(admin, params) {
     namePattern,
     leatherPhrase,
     useOppositeLeather,
+    includeAbbreviationInSku,
   } = params || {};
 
   const styleName = normalizeChoiceValue(style);
@@ -569,6 +570,10 @@ export async function createShopifyStyle(admin, params) {
   if (!shapeGroupValue) throw new Error("Shape group is required.");
   const abbreviationValue = normalizeChoiceValue(abbreviation) || fallbackAbbreviation(styleName);
   const useInVariantTitleBool = useInVariantTitle === true || useInVariantTitle === "true";
+  // Required answer — explicit true/false, no defaulting on the write path.
+  if (includeAbbreviationInSku !== true && includeAbbreviationInSku !== false) {
+    throw new Error("Include abbreviation in SKU must be answered.");
+  }
 
   const fields = [
     { key: "style", value: styleName },
@@ -577,6 +582,7 @@ export async function createShopifyStyle(admin, params) {
     { key: "shape_group", value: JSON.stringify([shapeGroupValue]) },
     { key: "abbreviation", value: abbreviationValue },
     { key: "use_in_variant_title", value: useInVariantTitleBool ? "true" : "false" },
+    { key: "include_abbreviation_in_sku", value: includeAbbreviationInSku ? "true" : "false" },
   ];
 
   const descriptionTrimmed = description != null ? String(description).trim() : "";
@@ -639,4 +645,81 @@ export async function createShopifyStyle(admin, params) {
     label: meta.displayName || styleName,
     abbreviation: abbreviationValue,
   };
+}
+
+// ---------------------------------------------------------------------------
+// One-shot backfill: set include_abbreviation_in_sku=true on every existing
+// style metaobject that doesn't already have an explicit value.
+// ---------------------------------------------------------------------------
+
+const STYLE_METAOBJECT_UPDATE = `#graphql
+  mutation UpdateStyleMetaobject($id: ID!, $metaobject: MetaobjectUpdateInput!) {
+    metaobjectUpdate(id: $id, metaobject: $metaobject) {
+      metaobject {
+        id
+        handle
+      }
+      userErrors {
+        field
+        message
+        code
+      }
+    }
+  }
+`;
+
+/**
+ * Sets `include_abbreviation_in_sku = "true"` on every style metaobject whose
+ * value is currently null/blank. Existing explicit values (true *or* false)
+ * are left alone so re-running the backfill is safe.
+ *
+ * @param {Object} admin - Shopify admin GraphQL client.
+ * @returns {Promise<{ total: number, updated: number, skipped: number, errors: Array<{ id: string, message: string }> }>}
+ */
+export async function backfillStyleIncludeAbbreviationInSku(admin) {
+  if (!admin?.graphql) {
+    throw new Error("Shopify admin client is required.");
+  }
+
+  const nodes = await fetchAllStylePages(admin);
+  const result = { total: nodes.length, updated: 0, skipped: 0, errors: [] };
+
+  for (const node of nodes) {
+    const field = node?.includeAbbreviationInSkuField;
+    const raw = field?.value;
+    const hasExplicitValue =
+      raw !== null && raw !== undefined && String(raw).trim() !== "";
+    if (hasExplicitValue) {
+      result.skipped += 1;
+      continue;
+    }
+
+    try {
+      const resp = await admin.graphql(STYLE_METAOBJECT_UPDATE, {
+        variables: {
+          id: node.id,
+          metaobject: {
+            fields: [{ key: "include_abbreviation_in_sku", value: "true" }],
+          },
+        },
+      });
+      const json = await resp.json();
+      const userErrors = json?.data?.metaobjectUpdate?.userErrors ?? [];
+      if (userErrors.length) {
+        result.errors.push({
+          id: node.id,
+          message: userErrors.map((e) => e.message).join(", "),
+        });
+      } else {
+        result.updated += 1;
+      }
+    } catch (error) {
+      result.errors.push({
+        id: node.id,
+        message: error?.message || String(error),
+      });
+    }
+  }
+
+  return result;
 }
