@@ -4,7 +4,12 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useLoaderData, useFetcher, useLocation } from "@remix-run/react";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import { validateProductForm } from "../lib/utils";
+import {
+  validateProductForm,
+  includeStyleInVariantTitle,
+  sortedStitchingThreadsList,
+  sortedEmbroideryThreadsList,
+} from "../lib/utils";
 import { formatUnknownApiError } from "../lib/utils/formatApiError.js";
 import { loader as dataLoader } from "../lib/loaders";
 import { generateProductData, generateTitle } from "../lib/generators";
@@ -219,6 +224,21 @@ export default function CreateProduct() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState(null);
+
+  /**
+   * Local lock for the Create Product flow. `isSubmitting` (derived from `fetcher.state` below)
+   * only flips true *after* `fetcher.submit` is called, but `handleSubmit` does a non-trivial
+   * amount of async work first (reference image upload, per-variant Drive uploads). Without a
+   * separate lock the button stays clickable during that window — Karl could fire the whole
+   * pipeline five times in a row before the fetcher even started.
+   *
+   * `isProcessing` drives the button's spinner/disabled state; `submitInFlightRef` is a
+   * synchronous re-entrancy guard for rapid clicks that fire before React can re-render.
+   * Both are released either explicitly (early-error paths in `handleSubmit`) or by the
+   * fetcher-state effect below when the network round-trip finishes.
+   */
+  const [isProcessing, setIsProcessing] = useState(false);
+  const submitInFlightRef = useRef(false);
 
   const [aiDescription, setAiDescription] = useState("");
   const [referenceImage, setReferenceImage] = useState(null);
@@ -460,6 +480,25 @@ export default function CreateProduct() {
 
   const isSubmitting = ["loading", "submitting"].includes(fetcher.state) && fetcher.formMethod === "POST";
 
+  /**
+   * Release the local submit lock when the fetcher transitions from in-flight back to idle.
+   * Tracking the previous state via a ref avoids a false release on the *first* render (when
+   * `fetcher.state` is already 'idle' but the form was never submitted) and on subsequent renders
+   * caused by unrelated state changes — we only unlock on a real non-idle → idle transition.
+   */
+  const prevFetcherStateRef = useRef(fetcher.state);
+  useEffect(() => {
+    const prev = prevFetcherStateRef.current;
+    prevFetcherStateRef.current = fetcher.state;
+    if (
+      (prev === "submitting" || prev === "loading") &&
+      fetcher.state === "idle"
+    ) {
+      submitInFlightRef.current = false;
+      setIsProcessing(false);
+    }
+  }, [fetcher.state]);
+
   const resetDescriptionAssets = useCallback(() => {
     setAiDescription("");
     setReferenceImage(null);
@@ -569,6 +608,36 @@ export default function CreateProduct() {
           throw new Error("Upload a reference product image before preview.");
         }
         const title = await generateTitle(formState);
+
+        const selectedShapeRows = Object.values(formState.allShapes || {}).filter(
+          (s) => s?.isSelected
+        );
+        const shapesForPrompt = selectedShapeRows
+          .map((s) => {
+            const label = typeof s?.label === "string" ? s.label.trim() : "";
+            if (!label) return "";
+            const styleLabel =
+              includeStyleInVariantTitle(formState, s) &&
+              typeof s?.style?.label === "string"
+                ? s.style.label.trim()
+                : "";
+            return styleLabel ? `${label} (${styleLabel})` : label;
+          })
+          .filter(Boolean);
+
+        const stitchingThreadColors = sortedStitchingThreadsList(
+          formState.stitchingThreads,
+          formState
+        )
+          .map((t) => (typeof t?.label === "string" ? t.label.trim() : ""))
+          .filter(Boolean);
+
+        const embroideryThreadColors = sortedEmbroideryThreadsList(
+          formState.embroideryThreads
+        )
+          .map((t) => (typeof t?.label === "string" ? t.label.trim() : ""))
+          .filter(Boolean);
+
         // Embedded auth: Bearer JWT; keep Shopify session query params (e.g. id_token) on the URL.
         const idToken = await shopify.idToken();
         const qs = location.search.startsWith("?")
@@ -590,6 +659,9 @@ export default function CreateProduct() {
             examples,
             imageBase64: referenceImage.base64,
             mediaType: referenceImage.mediaType,
+            shapes: shapesForPrompt,
+            stitchingThreadColors,
+            embroideryThreadColors,
           }),
         });
         const raw = await res.text();
@@ -662,6 +734,11 @@ export default function CreateProduct() {
   };
 
   const handleSubmit = async () => {
+    /** Synchronous re-entrancy guard: drop any extra clicks that land before React re-renders
+     *  the disabled button. Validation errors below run *before* taking the lock so a missing
+     *  description doesn't trap the user in a locked state. */
+    if (submitInFlightRef.current) return;
+
     if (!productData) {
       setSubmissionError("Please generate product data first");
       return;
@@ -671,6 +748,9 @@ export default function CreateProduct() {
       setSubmissionError("Please write a description before creating the product.");
       return;
     }
+
+    submitInFlightRef.current = true;
+    setIsProcessing(true);
 
     setSubmissionError(null);
     pendingUploadFailuresRef.current = null;
@@ -688,6 +768,8 @@ export default function CreateProduct() {
         formatGoogleDriveUploadErrorMessage(error) ||
         "Failed to upload group image to Google Drive.";
       setSubmissionError(msg);
+      submitInFlightRef.current = false;
+      setIsProcessing(false);
       return;
     }
 
@@ -933,11 +1015,13 @@ export default function CreateProduct() {
 
                 <Button
                   primary
-                  loading={isSubmitting}
-                  disabled={isSubmitting}
+                  loading={isSubmitting || isProcessing}
+                  disabled={isSubmitting || isProcessing}
                   onClick={handleSubmit}
                 >
-                  Create Product
+                  {isSubmitting || isProcessing
+                    ? "Creating product…"
+                    : "Create Product"}
                 </Button>
               </BlockStack>
             </Card>

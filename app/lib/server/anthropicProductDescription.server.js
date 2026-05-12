@@ -48,12 +48,32 @@ function messageFromAnthropicErrorBody(json, resStatus, rawText) {
   return `Anthropic request failed (${resStatus}).`;
 }
 
+/** Normalize an array of strings — trim, drop blanks, de-duplicate (case-insensitive, first wins). */
+function normalizeStringList(values) {
+  if (!Array.isArray(values)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const v of values) {
+    if (typeof v !== "string") continue;
+    const trimmed = v.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+  return out;
+}
+
 /**
  * @param {object} params
  * @param {string} params.title
  * @param {unknown} params.examples — non-null JSON value from Shopify (object or array)
  * @param {string} params.imageBase64 — raw base64, no data: prefix
  * @param {"image/jpeg"|"image/png"} params.mediaType
+ * @param {string[]} [params.shapes] — selected shape labels (style appended in parens when relevant)
+ * @param {string[]} [params.stitchingThreadColors] — stitching thread color names only (no Amann numbers)
+ * @param {string[]} [params.embroideryThreadColors] — embroidery thread color names only (no Isacord numbers)
  * @returns {Promise<string>} Plain description text
  */
 export async function generateProductDescriptionViaClaude({
@@ -61,6 +81,9 @@ export async function generateProductDescriptionViaClaude({
   examples,
   imageBase64,
   mediaType,
+  shapes,
+  stitchingThreadColors,
+  embroideryThreadColors,
 }) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey?.trim()) {
@@ -127,7 +150,27 @@ export async function generateProductDescriptionViaClaude({
       : "claude-sonnet-4-6";
 
   const maxTokens = 8192;
-  const userPromptText = `Product title: ${titleStr}\n\nExample descriptions for this collection:\n${JSON.stringify(examples)}\n\nWrite a product description in the same style. The headcovers are photographed in a workshop setting — focus on the leather materials, colors, textures, and quilted pattern visible on the covers, not the background.`;
+
+  const shapeLines = normalizeStringList(shapes);
+  const stitchingColors = normalizeStringList(stitchingThreadColors);
+  const embroideryColors = normalizeStringList(embroideryThreadColors);
+
+  const contextSections = [];
+  if (shapeLines.length > 0) {
+    contextSections.push(
+      `Headcovers in this set:\n${shapeLines.map((s) => `- ${s}`).join("\n")}`
+    );
+  }
+  if (stitchingColors.length > 0) {
+    contextSections.push(`Stitching thread colors: ${stitchingColors.join(", ")}`);
+  }
+  if (embroideryColors.length > 0) {
+    contextSections.push(`Embroidery thread colors: ${embroideryColors.join(", ")}`);
+  }
+
+  const contextBlock = contextSections.length > 0 ? `\n\n${contextSections.join("\n\n")}` : "";
+
+  const userPromptText = `Product title: ${titleStr}${contextBlock}\n\nExample descriptions for this collection:\n${JSON.stringify(examples)}\n\nWrite a product description in the same style. The headcovers are photographed in a workshop setting — focus on the leather materials, colors, textures, and quilted pattern visible on the covers, not the background.`;
 
   const messages = [
     {

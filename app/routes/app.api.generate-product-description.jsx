@@ -21,7 +21,15 @@ export async function action({ request }) {
     return json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { title, examples, imageBase64, mediaType } = body ?? {};
+  const {
+    title,
+    examples,
+    imageBase64,
+    mediaType,
+    shapes,
+    stitchingThreadColors,
+    embroideryThreadColors,
+  } = body ?? {};
 
   if (examples == null) {
     return json(
@@ -44,6 +52,13 @@ export async function action({ request }) {
       examples,
       imageBase64,
       mediaType,
+      shapes: Array.isArray(shapes) ? shapes : undefined,
+      stitchingThreadColors: Array.isArray(stitchingThreadColors)
+        ? stitchingThreadColors
+        : undefined,
+      embroideryThreadColors: Array.isArray(embroideryThreadColors)
+        ? embroideryThreadColors
+        : undefined,
     });
     return json({ description });
   } catch (err) {

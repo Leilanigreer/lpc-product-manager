@@ -434,7 +434,10 @@ export const createShopifyProduct = async (admin, productData) => {
             vendor: 'Little Prince Customs',
             descriptionHtml: productData.descriptionHTML,
             tags: productData.tags,
-            status: "ACTIVE",
+            /** Created as DRAFT so the team can review variants/images/metafields in Shopify
+             *  admin before flipping the product to Active. Publications are still attached below
+             *  so going Active doesn't require re-selecting sales channels. */
+            status: "DRAFT",
             category: "gid://shopify/TaxonomyCategory/sg-4-7-7-2",
             seo: {
               title: productData.seoTitle,
