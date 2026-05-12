@@ -81,9 +81,6 @@ export default function Index() {
                   </Text>
                     <BlockStack gap="300">
                       <Text variant="bodyMd">
-                        • Discontinue Leather Color: Change collection to Last Chance, update Price and modify Postgres Database
-                      </Text>
-                      <Text variant="bodyMd">
                         • Manage Quantities across selling channels: Etsy, Ebay, Amazon, Walmart and more
                       </Text>
                     </BlockStack>
