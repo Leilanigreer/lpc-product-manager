@@ -1,97 +1,20 @@
 // app/components/ProductVariantCheck.jsx
 
-import React, { memo, useCallback } from 'react';
-import { Text, BlockStack, Box, InlineStack, Card, TextField } from '@shopify/polaris';
+import React, { memo } from 'react';
+import { Text, BlockStack, Box, Card, TextField } from '@shopify/polaris';
 import { isDevelopment } from '../lib/config/environment';
-import ImageDropZone from './ImageDropZone';
 import AdditionalViews from './AdditionalViews';
-/* Cloudinary disabled — re-enable with `CLOUDINARY_DISABLED = false` in app/lib/utils/cloudinary.js:
-import { uploadToCloudinaryWithSignature } from '../lib/utils/cloudinary';
-*/
-import { isPutter } from '../lib/utils/shapeUtils';
-import { uploadToGoogleDrive, updateToGoogleDrive } from '../lib/utils/googleDrive';
-import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 
-const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
-  const handleDrop = useCallback(async (files, label) => {
-    if (!files || files.length === 0) return;
-
-    try {
-      const file = files[0];
-      const isPutterVariant = isPutter({ shapeType: variant.shapeType });
-      
-      // Upload to Google Drive with appropriate file naming based on variant type
-      let driveData = null;
-      try {
-        // Check if an image with this label already exists
-        const existingImage = variant.images?.find(img => img.label === label);
-        
-        if (existingImage?.driveData?.fileId) {
-          // Update existing file
-          driveData = await updateToGoogleDrive(file, existingImage.driveData.fileId);
-        } else {
-          // Upload new file
-          driveData = await uploadToGoogleDrive(file, {
-            collection: productData.productType,
-            folderName: productData.productPictureFolder,
-            sku: variant.sku,
-            originalsFolderName: productData.originalsFolderName,
-            // For putters, include the label in the filename
-            label: isPutterVariant ? label : undefined
-          });
-        }
-      } catch (driveError) {
-        if (isDevelopment) {
-          console.error('Google Drive upload failed:', driveError);
-        }
-        throw driveError;
-      }
-
-      /* Cloudinary (optional second host) — disabled; see app/lib/utils/cloudinary.js
-      let cloudinaryData = null;
-      try {
-        const publicId = `${productData.productType}/${productData.productPictureFolder}/${variant.sku}${isPutterVariant ? `-${label.toLowerCase().replace(/\s+/g, '-')}` : ''}`;
-        cloudinaryData = await uploadToCloudinaryWithSignature(
-          file,
-          publicId,
-          productData.productType,
-          productData.productPictureFolder
-        );
-      } catch (cloudinaryError) {
-        if (isDevelopment) console.error('Cloudinary upload failed:', cloudinaryError);
-      }
-      */
-      const cloudinaryData = null;
-
-      if (onImageUpload) {
-        onImageUpload(
-          variant.sku,
-          label,
-          getGoogleDriveUrl(driveData.fileId),
-          {
-            driveData,
-            cloudinaryData,
-          }
-        );
-      }
-    } catch (error) {
-      if (isDevelopment) {
-        console.error('Error uploading image:', error);
-      }
-    }
-  }, [variant, productData, onImageUpload]);
-
-  // Get the uploaded image URL for a specific label
-  const getUploadedImageUrl = useCallback((label) => {
-    if (!variant.images) return null;
-    const image = variant.images.find(img => img.label === label);
-    return image?.displayUrl || null;
-  }, [variant.images]);
-
-  // Skip image upload for custom variants
+/**
+ * Per-variant image dropzones moved into the input section (see `ShapeImageCapture` inside
+ * `ShapeSelector`). Capture happens before Preview, and the staged files are uploaded to Google
+ * Drive at submit time keyed by the generated `variant.sku`. This panel is now a read-only preview
+ * of the variant list with the in-page description editor.
+ */
+const VariantRow = memo(({ variant, index }) => {
   if (variant.isCustom) {
     return (
-      <div style={{ 
+      <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'start',
@@ -100,57 +23,23 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
       }}>
         <BlockStack gap="100">
           <Text variant="bodyMd">{variant.variantName}</Text>
-          {/* variant.weight — display disabled while weight not captured in UI
-          {variant.weight && (
-            <Text variant="bodySm" color="subdued">
-              Weight: {variant.weight}oz
-            </Text>
-          )}
-          */}
         </BlockStack>
-        
-        {/* Empty middle section to maintain alignment */}
         <Box />
-        
-        {/* Price */}
         <Text variant="bodyMd">${variant.price}</Text>
       </div>
     );
   }
 
-  // Determine if it's a putter based on shape type
-  const isPutterVariant = isPutter({ shapeType: variant.shapeType });
-  
-  const getViewLabels = () => {
-    if (isPutterVariant) {
-      // For putters, use the variant's shape to determine the views
-      if (variant.shape === 'Blade') {
-        return ['Top', 'Side Front', 'Side Back'];
-      } else if (variant.shape === 'Mallet') {
-        return ['Front', 'Back', 'Open Back'];
-      }
-      // Default putter views if shape doesn't match
-      return ['Front', 'Back', 'Open Back'];
-    }
-    // For non-putters, just show front view
-    return ['Front'];
-  };
-
-  const viewLabels = getViewLabels();
-
   return (
-    <div style={{ 
-      display: 'flex', 
+    <div style={{
+      display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'start',
       padding: '16px',
       backgroundColor: index % 2 === 0 ? '#f6f6f7' : 'white'
     }}>
-      {/* Variant Info */}
       <BlockStack gap="100">
-        <Text variant="bodyMd">
-          {variant.variantName} 
-        </Text>
+        <Text variant="bodyMd">{variant.variantName}</Text>
         {isDevelopment() && (
           <>
             <Text variant="bodySm" color="subdued"> (Position: {variant.position})</Text>
@@ -158,43 +47,9 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
             <Text variant='bodySm' color='subdued'>BaseSKU: {variant.baseSKU}</Text>
           </>
         )}
-        {/* variant.weight — display disabled while weight not captured in UI
-        {variant.weight && (
-          <Text variant="bodySm" color="subdued">
-            Weight: {variant.weight}oz
-          </Text>
-        )}
-        */}
         <Text variant="bodySm" color="subdued">SKU: {variant.sku}</Text>
       </BlockStack>
 
-      {/* Image Upload Section */}
-      <Box minWidth="400px">
-        <InlineStack gap="600" align="start" wrap={false}>
-          {viewLabels.map((label) => (
-            <Box 
-              key={label} 
-              minWidth="100px" 
-              style={{ 
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center'
-              }}
-            >
-              <ImageDropZone
-                size="small"
-                label={label}
-                onDrop={(files) => handleDrop(files, label)}
-                uploadedImageUrl={getUploadedImageUrl(label)}
-              />
-              <Text variant="bodySm" style={{ marginTop: '4px' }}>{label}</Text>
-            </Box>
-          ))}
-        </InlineStack>
-      </Box>
-
-      {/* Price */}
       <Text variant="bodyMd" style={{ minWidth: '80px', textAlign: 'right' }}>${variant.price}</Text>
     </div>
   );
@@ -202,21 +57,19 @@ const VariantRow = memo(({ variant, index, productData, onImageUpload }) => {
 
 VariantRow.displayName = 'VariantRow';
 
-const VariantGroup = memo(({ variantGroup, title, productData, onImageUpload }) => (
+const VariantGroup = memo(({ variantGroup, title }) => (
   <BlockStack gap="200">
     <Text variant="headingMd" as="h3">{title}</Text>
-    <div style={{ 
+    <div style={{
       borderRadius: '8px',
       overflow: 'hidden',
       border: '1px solid #dde0e4'
     }}>
       {variantGroup.map((variant, index) => (
-        <VariantRow 
+        <VariantRow
           key={variant.sku}
-          variant={variant} 
+          variant={variant}
           index={index}
-          productData={productData}
-          onImageUpload={onImageUpload}
         />
       ))}
     </div>
@@ -331,22 +184,25 @@ const ProductVariantCheck = ({
         )}
 
         {baseVariants.length > 0 && (
-          <VariantGroup 
-            variantGroup={baseVariants} 
+          <VariantGroup
+            variantGroup={baseVariants}
             title="Base Variants"
-            productData={productData}
-            onImageUpload={onImageUpload}
           />
         )}
 
-        {/* Additional Views section */}
+        {/*
+         * Additional Views (product-level Back View / Inside View) — uses `baseSKU` instead of a
+         * variant SKU, so it's intentionally separate from the per-variant images captured in the
+         * shape rows above. Drive compression is wired in `googleDrive.js`, so the same 10MB cap
+         * fix applies here automatically.
+         */}
         <BlockStack gap="200">
           <Text variant="headingMd" as="h3">Additional Views</Text>
           <Card>
             <Box padding="100">
-              <AdditionalViews 
-                formState={formState} 
-                handleChange={() => {}} 
+              <AdditionalViews
+                formState={formState}
+                handleChange={() => {}}
                 onImageUpload={handleAdditionalViewUpload}
                 productData={productData}
               />
@@ -355,11 +211,9 @@ const ProductVariantCheck = ({
         </BlockStack>
 
         {customVariants.length > 0 && (
-          <VariantGroup 
-            variantGroup={customVariants} 
+          <VariantGroup
+            variantGroup={customVariants}
             title="Custom Variants"
-            productData={productData}
-            onImageUpload={onImageUpload}
           />
         )}
       </BlockStack>

@@ -21,7 +21,10 @@ const ShapeSelector = ({
   shapes,
   formState,
   handleChange,
-  lockedShapeValues
+  lockedShapeValues,
+  /** Staged variant image files; Drive upload is deferred until submit. */
+  pendingVariantImages,
+  onSetPendingImage,
 }) => {
   const visibleShapes = useMemo(
     () => shapes.filter((shape) => shape.isActive !== false),
@@ -43,7 +46,15 @@ const ShapeSelector = ({
     formState,
     handleChange,
     lockedShapeValues,
-  }), [formState, handleChange, lockedShapeValues]);
+    pendingVariantImages,
+    onSetPendingImage,
+  }), [
+    formState,
+    handleChange,
+    lockedShapeValues,
+    pendingVariantImages,
+    onSetPendingImage,
+  ]);
 
   return (
     <ErrorBoundary errorMessage="Error in shape configuration">

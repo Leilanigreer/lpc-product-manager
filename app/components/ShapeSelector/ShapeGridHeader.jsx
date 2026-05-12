@@ -22,6 +22,12 @@ const ShapeGridHeader = ({ gridColumns, headerText }) => (
               </InlineStack>
             </Box>
           );
+        case 'images':
+          return (
+            <Box key={column.id} width={column.width}>
+              <Text variant="bodyMd" fontWeight="bold">Images</Text>
+            </Box>
+          );
         case 'style':
           return (
             <Box key={column.id} width={column.width}>

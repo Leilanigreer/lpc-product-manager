@@ -4,6 +4,7 @@ import { InlineStack, Box } from "@shopify/polaris";
 import ShapeSelection from './fields/ShapeSelection';
 import StyleField from './fields/StyleField';
 import ColorDesignation from './fields/ColorDesignation';
+import ShapeImageCapture from './fields/ShapeImageCapture';
 import ErrorBoundary from '../ErrorBoundary';
 
 const ShapeRow = ({
@@ -14,7 +15,10 @@ const ShapeRow = ({
   handleChange,
   showStyleFields,
   showColorDesignation,
-  lockedShapeValues
+  showImages,
+  lockedShapeValues,
+  pendingVariantImages,
+  onSetPendingImage,
 }) => {
   const fieldProps = useMemo(() => ({
     shape,
@@ -39,6 +43,19 @@ const ShapeRow = ({
                   </ErrorBoundary>
                 </Box>
               );
+            case 'images':
+              return showImages ? (
+                <Box key={key} width={column.width}>
+                  <ErrorBoundary errorMessage={`Failed to load image capture for ${shape.label}`}>
+                    <ShapeImageCapture
+                      shape={shape}
+                      formState={formState}
+                      pendingVariantImages={pendingVariantImages}
+                      onSetPendingImage={onSetPendingImage}
+                    />
+                  </ErrorBoundary>
+                </Box>
+              ) : <Box key={key} width={column.width} />;
             case 'style':
               return showStyleFields ? (
                 <Box key={key} width={column.width}>

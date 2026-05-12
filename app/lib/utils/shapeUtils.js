@@ -160,6 +160,51 @@ export const getShapeCategory = (shape) => {
 };
 
 /**
+ * Per-variant image view labels for the create-product flow.
+ *
+ * Used by the input-section image dropzones (in `ShapeImageCapture`) and by any code that needs
+ * to know which Drive filename suffixes to expect for a given shape.
+ *
+ * Returned labels become Drive filename suffixes — e.g. `{variantSku}-Front.jpg`,
+ * `{variantSku}-Top.jpg`. The route's `originalsFolderName` / collection / folderName layout is
+ * unchanged; only the per-file label suffix is driven by this.
+ *
+ * Source of truth for grouping:
+ *   1. `shape_group` choice list (`drivers_woods_hybrids` / `blades` / `mallets`) — preferred,
+ *      Shopify-driven.
+ *   2. Legacy `shapeType` fallback for Postgres-sourced shapes that lack `shape_group`.
+ *
+ * @param {Object} shape - Shape row with at least `shapeGroup` / `shapeType` / `label`.
+ * @returns {string[]} Ordered view labels. Empty array for unknown/unsupported shape rows.
+ */
+export function getVariantViewLabels(shape) {
+  if (!isValidShape(shape)) return [];
+
+  const group = getShapeGroup(shape);
+  if (group) {
+    const normalized = String(group).trim().toLowerCase().replace(/\s+/g, "_");
+    if (normalized === "drivers_woods_hybrids") return ["Front", "Back"];
+    if (normalized === "blades") return ["Top", "Side Front", "Side Back"];
+    if (normalized === "mallets") return ["Front", "Back", "Open Back"];
+  }
+
+  switch (shape.shapeType) {
+    case "DRIVER":
+    case "WOOD":
+    case "HYBRID":
+      return ["Front", "Back"];
+    case "PUTTER":
+      return /blade/i.test(String(shape.label ?? ""))
+        ? ["Top", "Side Front", "Side Back"]
+        : ["Front", "Back", "Open Back"];
+    case "ZERO_MALLET":
+      return ["Front", "Back", "Open Back"];
+    default:
+      return [];
+  }
+}
+
+/**
  * Whether the shape row should show the color-designation control.
  * Color designation is now purely style-driven per row:
  * show when the selected style has `needsColorDesignation === true`.

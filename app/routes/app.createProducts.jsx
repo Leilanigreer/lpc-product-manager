@@ -225,7 +225,73 @@ export default function CreateProduct() {
   const [referenceImageFile, setReferenceImageFile] = useState(null);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState(null);
   const [groupImageDriveFileId, setGroupImageDriveFileId] = useState(null);
+
+  /**
+   * Per-shape staged image files, captured inline in the shape rows. Shape:
+   *   { [shapeValue]: { [viewLabel]: { file: File, previewUrl: string } } }
+   *
+   * Drive upload is deferred until `handleSubmit` — at that point `generateProductData` has
+   * already run, so `variant.sku` exists. This mirrors how `referenceImageFile` is staged for the
+   * group/reference image until submit.
+   */
+  const [pendingVariantImages, setPendingVariantImages] = useState({});
+
+  /**
+   * Captures per-variant Drive upload failures + the resolved folder URL during `handleSubmit`
+   * so we can splice them into `successDetails` once the Shopify product is created. The product
+   * itself is created regardless — image upload failures are surfaced as a warning with a Drive
+   * folder link so Karl can drop the missing files in manually.
+   */
+  const pendingUploadFailuresRef = useRef(null);
+
   const prevCollectionIdRef = useRef(undefined);
+
+  /** Revokes every previewUrl in a `pendingVariantImages` shape. */
+  const revokePendingVariantImageUrls = useCallback((map) => {
+    if (!map) return;
+    for (const byLabel of Object.values(map)) {
+      if (!byLabel) continue;
+      for (const entry of Object.values(byLabel)) {
+        if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+      }
+    }
+  }, []);
+
+  const clearPendingVariantImages = useCallback(() => {
+    setPendingVariantImages((prev) => {
+      revokePendingVariantImageUrls(prev);
+      return {};
+    });
+  }, [revokePendingVariantImageUrls]);
+
+  const handleSetPendingImage = useCallback((shapeValue, label, file) => {
+    if (!shapeValue || !label) return;
+    setPendingVariantImages((prev) => {
+      const prevEntry = prev?.[shapeValue]?.[label];
+      if (prevEntry?.previewUrl) URL.revokeObjectURL(prevEntry.previewUrl);
+
+      if (!file) {
+        const nextForShape = { ...(prev?.[shapeValue] ?? {}) };
+        delete nextForShape[label];
+        const next = { ...(prev ?? {}) };
+        if (Object.keys(nextForShape).length === 0) {
+          delete next[shapeValue];
+        } else {
+          next[shapeValue] = nextForShape;
+        }
+        return next;
+      }
+
+      const previewUrl = URL.createObjectURL(file);
+      return {
+        ...(prev ?? {}),
+        [shapeValue]: {
+          ...(prev?.[shapeValue] ?? {}),
+          [label]: { file, previewUrl },
+        },
+      };
+    });
+  }, []);
 
   useEffect(() => {
     const id = formState.collection?.value;
@@ -234,9 +300,12 @@ export default function CreateProduct() {
       setAiDescription("");
       setProductData(null);
       setGenerationError(null);
+      /** Staged variant images are SKU-bound; collection switch invalidates the base parts, so
+       *  drop the captured files to avoid uploading to a Drive folder that no longer matches. */
+      clearPendingVariantImages();
     }
     prevCollectionIdRef.current = id;
-  }, [formState.collection?.value]);
+  }, [formState.collection?.value, clearPendingVariantImages]);
 
   useEffect(() => {
     setProductData((prev) => {
@@ -400,7 +469,8 @@ export default function CreateProduct() {
       return null;
     });
     setGroupImageDriveFileId(null);
-  }, []);
+    clearPendingVariantImages();
+  }, [clearPendingVariantImages]);
 
   const {
     notification,
@@ -413,9 +483,28 @@ export default function CreateProduct() {
     fetcher,
     handleChange,
     onSuccess: () => {
+      const captured = pendingUploadFailuresRef.current;
+      pendingUploadFailuresRef.current = null;
+
       setProductData(null);
       setGenerationError(null);
       resetDescriptionAssets();
+
+      /** Merge any per-variant Drive failures collected during submit into the success banner so
+       *  Karl sees what needs to be added by hand. `handleSuccess` in `useFormNotifications` set
+       *  `successDetails` synchronously just before this callback fires, so functional update is
+       *  safe here. */
+      if (captured && (captured.failures?.length || captured.googleDriveFolderUrl)) {
+        setSuccessDetails((prev) =>
+          prev
+            ? {
+                ...prev,
+                failedImages: captured.failures ?? [],
+                googleDriveFolderUrl: captured.googleDriveFolderUrl ?? null,
+              }
+            : prev
+        );
+      }
     }
   });  
 
@@ -429,6 +518,11 @@ export default function CreateProduct() {
       setReferencePreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return null;
+      });
+      /** Revoke any object URLs still pinned to staged variant images. */
+      setPendingVariantImages((prev) => {
+        revokePendingVariantImageUrls(prev);
+        return {};
       });
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -579,6 +673,7 @@ export default function CreateProduct() {
     }
 
     setSubmissionError(null);
+    pendingUploadFailuresRef.current = null;
 
     let payload = productData;
     try {
@@ -595,6 +690,77 @@ export default function CreateProduct() {
       setSubmissionError(msg);
       return;
     }
+
+    /**
+     * Per-variant Drive uploads (Front/Back/Top/etc., per representative shape row).
+     *
+     * Variant images are Drive-only — Shopify never sees them — so the product is created
+     * regardless of upload failures. Failures are surfaced post-submit via the success banner
+     * with a link back to the Drive folder.
+     */
+    const failedImages = [];
+    let resolvedFolderUrl =
+      typeof payload.googleDriveFolderUrl === "string" &&
+      payload.googleDriveFolderUrl.trim()
+        ? payload.googleDriveFolderUrl
+        : null;
+
+    const variantsBySelectedShape = Array.isArray(payload.variants)
+      ? payload.variants.filter((v) => v && !v.isCustom)
+      : [];
+
+    for (const [shapeValue, labelMap] of Object.entries(pendingVariantImages ?? {})) {
+      if (!labelMap) continue;
+      const variant = variantsBySelectedShape.find(
+        (v) => v.shapeValue === shapeValue
+      );
+      if (!variant) {
+        for (const label of Object.keys(labelMap)) {
+          failedImages.push({
+            sku: null,
+            label,
+            shapeValue,
+            error:
+              "No matching variant was found for this shape. Click Preview Product Data again and retry.",
+          });
+        }
+        continue;
+      }
+
+      for (const [label, entry] of Object.entries(labelMap)) {
+        if (!entry?.file) continue;
+        try {
+          const driveData = await uploadToGoogleDrive(entry.file, {
+            collection: payload.productType,
+            folderName: payload.productPictureFolder,
+            sku: variant.sku,
+            label,
+            originalsFolderName: payload.originalsFolderName,
+          });
+          const folderUrl = driveData?.folderPath?.productFolderUrl;
+          if (folderUrl && !resolvedFolderUrl) {
+            resolvedFolderUrl = folderUrl;
+          }
+        } catch (err) {
+          failedImages.push({
+            sku: variant.sku,
+            label,
+            error:
+              formatGoogleDriveUploadErrorMessage(err) || "Upload failed.",
+          });
+        }
+      }
+    }
+
+    if (resolvedFolderUrl && !payload.googleDriveFolderUrl) {
+      payload = { ...payload, googleDriveFolderUrl: resolvedFolderUrl };
+      setProductData(payload);
+    }
+
+    pendingUploadFailuresRef.current = {
+      failures: failedImages,
+      googleDriveFolderUrl: resolvedFolderUrl,
+    };
 
     const formData = new FormData();
     formData.append('productData', JSON.stringify(payload));
@@ -721,6 +887,8 @@ export default function CreateProduct() {
                 shapes={shapes}
                 formState={formState}
                 handleChange={handleChange}
+                pendingVariantImages={pendingVariantImages}
+                onSetPendingImage={handleSetPendingImage}
               />
               {generationError && (
                 <Banner status="critical">

@@ -1,16 +1,33 @@
 // app/lib/utils/googleDrive.js
 
 import { formatUnknownApiError } from "./formatApiError.js";
+import { compressImageForGoogleDrive } from "./imageCompression.js";
 
 export const formatGoogleDriveUploadErrorMessage = formatUnknownApiError;
+
+/**
+ * Drive route enforces `maxPartSize: 10_000_000`. All Drive callers funnel through this helper, so
+ * compressing here is the single chokepoint: variant images, additional views, and the
+ * reference/group image all inherit the size guard automatically.
+ *
+ * Compression always re-encodes to JPEG by design (transparency is not preserved — confirmed with
+ * product owner; product/group/variant photography is opaque).
+ */
+async function prepareFileForDriveUpload(file) {
+  if (!(file instanceof File) && !(file instanceof Blob)) {
+    return file;
+  }
+  return compressImageForGoogleDrive(file);
+}
 
 export async function uploadToGoogleDrive(
   file,
   { collection, folderName, sku, label, originalsFolderName }
 ) {
   try {
+    const preparedFile = await prepareFileForDriveUpload(file);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', preparedFile);
     formData.append('collection', collection);
     formData.append('folderName', folderName);
     formData.append('sku', sku);
@@ -46,8 +63,9 @@ export async function uploadToGoogleDrive(
 
 export async function updateToGoogleDrive(file, fileId) {
   try {
+    const preparedFile = await prepareFileForDriveUpload(file);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', preparedFile);
     formData.append('fileId', fileId);
 
     const response = await fetch('/api/upload/googledrive', {

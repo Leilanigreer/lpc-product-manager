@@ -2,7 +2,12 @@
 
 import React, { useMemo } from 'react';
 import { BlockStack, Box, Divider } from "@shopify/polaris";
-import { isPutter, getShapeGroup, styleCategoryMatchesShapeGroup } from '../../lib/utils';
+import {
+  isPutter,
+  getShapeGroup,
+  styleCategoryMatchesShapeGroup,
+  getVariantViewLabels,
+} from '../../lib/utils';
 import ShapeRow from './ShapeRow';
 import ShapeGridHeader from './ShapeGridHeader';
 import { COLUMN_WIDTHS } from './constants';
@@ -22,7 +27,9 @@ const ShapeGrid = ({
   shapes,
   formState,
   handleChange,
-  lockedShapeValues
+  lockedShapeValues,
+  pendingVariantImages,
+  onSetPendingImage,
 }) => {
   const sortedShapes = useMemo(() =>
     sortShapes(shapes),
@@ -51,10 +58,13 @@ const ShapeGrid = ({
           ? Boolean(collection?.needsStyle && !isPutterShape)
           : matchingStyleCount > 1;
 
+      const hasViewLabels = getVariantViewLabels(shape).length > 0;
+
       acc[shape.value] = {
         isSelected,
         showStyleFields: isSelected && needsStyleForThisShape,
         showColorDesignation: isSelected && shapeState?.needsColorDesignation,
+        showImages: isSelected && hasViewLabels,
         isPutterShape,
       };
       return acc;
@@ -63,6 +73,7 @@ const ShapeGrid = ({
 
   const gridColumns = useMemo(() => {
     const anyShapeHas = {
+      images: Object.values(visibilityFlags).some(flags => flags.showImages),
       style: Object.values(visibilityFlags).some(flags => flags.showStyleFields),
       colorDesignation: Object.values(visibilityFlags).some(flags => flags.showColorDesignation)
     };
@@ -71,6 +82,9 @@ const ShapeGrid = ({
       { id: 'shape', width: COLUMN_WIDTHS.shapeColumn }
     ];
 
+    if (anyShapeHas.images) {
+      columns.push({ id: 'images', width: COLUMN_WIDTHS.imagesColumn });
+    }
     if (anyShapeHas.style) {
       columns.push({ id: 'style', width: COLUMN_WIDTHS.styleColumn });
     }
@@ -104,6 +118,8 @@ const ShapeGrid = ({
               handleChange={handleChange}
               lockedShapeValues={lockedShapeValues}
               gridColumns={gridColumns}
+              pendingVariantImages={pendingVariantImages}
+              onSetPendingImage={onSetPendingImage}
               {...visibilityFlags[shape.value]}
             />
             {index < sortedShapes.length - 1 && <Divider />}
