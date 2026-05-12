@@ -172,7 +172,7 @@ export const action = async ({ request }) => {
       const sourceAbbreviation = source.abbreviation || abbreviation;
       const sourceColorIds = source.colorMetaobjectIds || [];
 
-      // 1. Create new color for the new collection, cloning abbreviation and color tags
+      // 1. Create new color for the new collection, cloning abbreviation and linked color metaobjects
       created = await createShopifyLeatherColor(admin, {
         name: normalizedName,
         abbreviation: sourceAbbreviation,

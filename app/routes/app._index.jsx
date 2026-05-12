@@ -33,16 +33,6 @@ export default function Index() {
                     </Card>
                   </Grid.Cell>
                   <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
-                    <Card title="Manage Color Tags">
-                      <BlockStack gap="400">
-                        <Text variant="bodyMd">
-                          Manage your color tags
-                        </Text>
-                        <Button icon={PlusIcon} onClick={() => navigate("/app/addColorTags")}>Manage Color Tags</Button>
-                      </BlockStack>
-                    </Card>
-                  </Grid.Cell >
-                  <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
                     <Card title="Manage Leather Color">
                       <BlockStack gap="400">
                         <Text variant="bodyMd">

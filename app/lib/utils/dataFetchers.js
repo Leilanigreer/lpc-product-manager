@@ -824,61 +824,6 @@ export const getUnlinkedIsacordNumbers = async () => {
   }
 };
 
-export const getColorTags = async () => {
-  try {
-    const colorTags = await prisma.ColorTag.findMany({
-      include: {
-        embroideryColors: {
-          select: {
-            id: true,
-            name: true,
-            abbreviation: true
-          }
-        },
-        stitchingColors: {
-          select: {
-            id: true,
-            name: true,
-            abbreviation: true
-          }
-        },
-        leatherColors: {
-          select: {
-            id: true,
-            name: true,
-            abbreviation: true,
-            url_id: true
-          }
-        }
-      }
-    });
-    return colorTags.map(({ id, name, stitchingColors, embroideryColors, leatherColors }) => ({
-      value: id,
-      label: name,
-      stitchingColors: stitchingColors.map(stitchingThread => ({
-        value: stitchingThread.id,
-        label: stitchingThread.name,
-        abbreviation: stitchingThread.abbreviation
-      })),
-      embroideryColors: embroideryColors.map(embroideryThread => ({
-        value: embroideryThread.id,
-        label: embroideryThread.name,
-        abbreviation: embroideryThread.abbreviation
-      })),
-      leatherColors: leatherColors.map(leather => ({
-        value: leather.id,
-        label: leather.name,
-        abbreviation: leather.abbreviation,
-        url_id: leather.url_id
-      }))
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));;
-  } catch (error) {
-    console.error("Error fetching color tags:", error);
-    throw error;
-  }
-};
-
 // This fetcher is now optional since the data is included in getShopifyCollections
 export const getStyles = async () => {
   try {
