@@ -9,30 +9,38 @@ const ShapeGridHeader = ({ gridColumns, headerText }) => (
         case 'shape':
           return (
             <Box key={column.id} width={column.width}>
-              <Text variant="bodyMd" fontWeight="bold" alignment="center">Shape</Text>
+              <Text variant="bodyMd" fontWeight="bold">Shape</Text>
             </Box>
           );
         case 'images':
           return (
             <Box key={column.id} width={column.width}>
-              <Text variant="bodyMd" fontWeight="bold" alignment="center">Images</Text>
+              <Text variant="bodyMd" fontWeight="bold">Images</Text>
             </Box>
           );
         case 'style':
           return (
             <Box key={column.id} width={column.width}>
-              <Text variant="bodyMd" fontWeight="bold" alignment="center">Style</Text>
+              <Text variant="bodyMd" fontWeight="bold">Style</Text>
             </Box>
           );
-        case 'colorDesignation':
-          /**
-           * Tooltip removed: the inline leather phrase shown next to the dropdown
-           * (e.g. ": Diamonds are", ": Fat Middle is") already explains the field, so the
-           * `?` icon was redundant.
-           */
+        case 'styleDetails':
+          /** Putter-only header that sits above the vertical Style / Phrase / Named Leather stack
+           *  rendered inside each putter row (see `ShapeRow.useStackedDetailsLayout`). */
           return (
             <Box key={column.id} width={column.width}>
-              <Text variant="bodyMd" fontWeight="bold" alignment="center">{headerText}</Text>
+              <Text variant="bodyMd" fontWeight="bold">Style Details</Text>
+            </Box>
+          );
+        case 'leatherPhrase':
+          /** Empty header — the column holds a contextual phrase that visually bridges Style and
+           *  Named Leather; it doesn't carry an independent label of its own. */
+          return <Box key={column.id} width={column.width} />;
+        case 'colorDesignation':
+          /** Tooltip removed: the inline leather phrase column already explains the field. */
+          return (
+            <Box key={column.id} width={column.width}>
+              <Text variant="bodyMd" fontWeight="bold">{headerText}</Text>
             </Box>
           );
         default:
