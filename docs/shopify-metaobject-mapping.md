@@ -20,9 +20,9 @@ This document tracks how we map Shopify collections/metafields/metaobjects into 
 - **Naming and SKU patterns**
   - **`custom.sku_pattern` (single line)** → `ShopifyCollection.skuPattern : String?`
     - Example patterns and placeholders:
-      - `Quilted-{leatherColors.primary.abbreviation}-{globalEmbroideryThread.abbreviation}`
+      - `Quilted-{leatherColors.primary.abbreviation}-{embroideryThreads[0].abbreviation}`
       - `Classic-{leatherColors.primary.abbreviation}-{leatherColors.secondary.abbreviation}`
-      - `Argyle-{leatherColors.primary.abbreviation}-{leatherColors.secondary.abbreviation}-{stitchingThreads.[0].abbreviation}`
+      - `Argyle-{leatherColors.primary.abbreviation}-{leatherColors.secondary.abbreviation}-{stitchingThreads[0].abbreviation}`
       - `Exotic-{leatherColors.primary.abbreviation}-{leatherColors.secondary.abbreviation}`
       - `QClassic-{leatherColors.primary.abbreviation}-{leatherColors.secondary.abbreviation}`
       - `EQuilted-{leatherColors.primary.abbreviation}-{leatherColors.secondary.abbreviation}`

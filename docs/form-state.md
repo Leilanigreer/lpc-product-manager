@@ -165,34 +165,26 @@ export const initialFormState = {
     leatherPhrase: 'leather as'
   }
 
-  // Thread Configuration
-  threadMode: {
-    embroidery: 'global', // 'global' | 'perShape'
+  // Product-level thread selections (see app/lib/forms/formState.js)
+  /** Keyed by Isacord metaobject GID. EMBROIDERY collections allow at most one row. */
+  embroideryThreads: {
+    'isacord-gid': {
+      value: '',       // embroidery thread metaobject GID
+      label: '',
+      abbreviation: '',
+      isacordNumbers: [{ value: '', label: '' }],
+      isThread: true,
+    }
   },
 
-  // Global Embroidery Thread
-  globalEmbroideryThread: {
-    value: '',
-    label: '',
-    abbreviation: '',
-    colorTags: [{ value: "", label: "" }],
-    isacordNumbers: [{
-      value: "",
-      label: ""
-    }]
-  },
-  
-  // Stitching Threads
+  /** Keyed by stitching-thread metaobject GID. STITCHING collections allow at most one row. */
   stitchingThreads: {
-    'thread-value': {
+    'thread-gid': {
       value: '',
       label: '',
       abbreviation: '',
-      colorTags: [{ value: "", label: "" }],
-      amannNumbers: [{
-        value: "",
-        label: ""
-      }]
+      amannNumbers: [{ value: '', label: '' }],
+      isThread: true,
     }
   },
 
@@ -222,17 +214,7 @@ export const initialFormState = {
         customNamePattern: null,
       },
 
-      // Only completed if in collection.needsStyle === true && threadMode.embroidery.perShape === true 
-      embroideryThread: {
-        value: '',
-        label: '',
-        abbreviation: '',
-        colorTags: [{ value: "", label: "" }],
-        isacordNumbers: [{
-          value: "",
-          label: ""
-        }]
-      },
+      // Per-shape embroidery is not used; Isacord lives in embroideryThreads at product level.
 
       // Only completed if 'needsColorDesignation' within the shape data. 
       colorDesignation: {

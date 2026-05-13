@@ -77,7 +77,7 @@ Available in `skuPattern` (evaluated once per product by `evaluatePattern` in `a
 - `{leatherColors.primary.abbreviation}` – Primary leather color code
 - `{leatherColors.secondary.abbreviation}` – Secondary leather color code (when applicable)
 - `{stitchingThreads[0].abbreviation}` – Stitching thread code (Argyle uses this)
-- `{globalEmbroideryThread.abbreviation}` – Embroidery thread code (Quilted uses this)
+- `{embroideryThreads[0].abbreviation}` – Embroidery thread code (Quilted uses this). Equivalent alias: `{embroideryThreadColor.abbreviation}` (first canonical Isacord row from `sortedEmbroideryThreadsList`).
 
 Used at variant generation time by `formatSKU` (`app/lib/utils/skuUtils.js`), not in `skuPattern`:
 - `{allShapes[shape-value].abbreviation}` – Shape code (replaced with `Fairway` for wood customs)
@@ -130,7 +130,8 @@ Used at variant generation time by `formatSKU` (`app/lib/utils/skuUtils.js`), no
 
 2. **Thread Type Processing**
    - Check the `threadType` enum (`EMBROIDERY`, `STITCHING`, `NONE`).
-   - Use the appropriate thread abbreviation in `skuPattern`.
+   - Use the appropriate thread abbreviation in `skuPattern`: `{embroideryThreads[0].abbreviation}` for `EMBROIDERY`, `{stitchingThreads[0].abbreviation}` for `STITCHING`.
+   - Legacy `{globalEmbroideryThread.abbreviation}` is no longer supported; update collection `custom.sku_pattern` metafields to the `embroideryThreads[0]` form.
 
 3. **Shape-Specific Features**
    - Check `shapeType` for wood handling (custom-only `Fairway` swap).
