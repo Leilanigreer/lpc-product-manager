@@ -1,4 +1,8 @@
-import { priceValuesMatch } from "./priceUtils.js";
+import {
+  priceValuesMatch,
+  pricesSemanticallyMatch,
+  formatPreviewPrice,
+} from "./priceUtils.js";
 import { generateBaseParts } from "./versionUtils.js";
 
 /** Split listing `custom.base_sku` into unversioned segments and optional `-Vn` (matches update server). */
@@ -116,7 +120,7 @@ export function previewVariantFieldChanges(generatedRow, existingVariant) {
     }
     const newPrice = String(generatedRow?.price ?? "").trim();
     const currentPrice = String(existingVariant.price ?? "").trim();
-    if (currentPrice !== newPrice) {
+    if (!pricesSemanticallyMatch(currentPrice, newPrice)) {
       skipped.push({
         field: "Price",
         reason: "Price and Compare-at differ on this variant — price is not updated",
@@ -132,11 +136,11 @@ export function previewVariantFieldChanges(generatedRow, existingVariant) {
     }
     const newPrice = String(generatedRow?.price ?? "").trim();
     const currentPrice = String(existingVariant.price ?? "").trim();
-    if (currentPrice !== newPrice) {
+    if (!pricesSemanticallyMatch(currentPrice, newPrice)) {
       changes.push({
         field: "Price",
-        from: currentPrice ? `$${currentPrice}` : "—",
-        to: newPrice ? `$${newPrice}` : "—",
+        from: formatPreviewPrice(currentPrice),
+        to: formatPreviewPrice(newPrice),
       });
     }
   }
@@ -152,7 +156,7 @@ export function previewNewVariantSummary(generatedRow) {
   return {
     displayName: name,
     sku,
-    priceLabel: price ? `$${price}` : "—",
+    priceLabel: price ? formatPreviewPrice(price) : "—",
   };
 }
 

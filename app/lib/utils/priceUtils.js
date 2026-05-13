@@ -51,6 +51,23 @@ export function priceValuesMatch(price, compareAtPrice) {
   return a === b;
 }
 
+/** True when two price strings/numbers represent the same amount (e.g. 130 vs 130.00). */
+export function pricesSemanticallyMatch(priceA, priceB) {
+  const a = Number.parseFloat(String(priceA ?? "").trim());
+  const b = Number.parseFloat(String(priceB ?? "").trim());
+  if (!Number.isFinite(a) || !Number.isFinite(b)) {
+    return String(priceA ?? "").trim() === String(priceB ?? "").trim();
+  }
+  return a === b;
+}
+
+/** Display price for update preview diffs. */
+export function formatPreviewPrice(value) {
+  const n = Number.parseFloat(String(value ?? "").trim());
+  if (!Number.isFinite(n)) return "—";
+  return `$${n.toFixed(2)}`;
+}
+
 /** At least one variant has price ≠ compare-at (sale or inconsistent pricing). */
 export function productHasVariantPriceMismatch(variants) {
   if (!Array.isArray(variants)) return false;
