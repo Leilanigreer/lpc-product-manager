@@ -899,6 +899,12 @@ export default function UpdateProducts() {
                     descriptionPlaceholder="Edit product description"
                     previewScrollRef={previewRef}
                     showVariantReconcileStatus
+                    existingVariants={selectedProduct?.variants}
+                    existingProduct={
+                      selectedProduct
+                        ? { ...selectedProduct, descriptionPlain }
+                        : null
+                    }
                   />
                   <Button
                     primary

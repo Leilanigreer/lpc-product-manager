@@ -1,9 +1,67 @@
 // app/components/ProductVariantCheck.jsx
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Text, BlockStack, Box, Card, TextField, Badge, InlineStack } from '@shopify/polaris';
 import { isDevelopment } from '../lib/config/environment';
 import AdditionalViews from './AdditionalViews';
+import {
+  previewVariantFieldChanges,
+  previewNewVariantSummary,
+  previewProductLevelChanges,
+} from '../lib/utils/updatePreviewUtils';
+
+function ChangeLine({ change }) {
+  return (
+    <Text as="p" variant="bodySm" tone="subdued">
+      <Text as="span" fontWeight="semibold">{change.field}: </Text>
+      {change.from} → {change.to}
+    </Text>
+  );
+}
+
+function SkippedLine({ item }) {
+  return (
+    <Text as="p" variant="bodySm" tone="subdued">
+      <Text as="span" fontWeight="semibold">{item.field}: </Text>
+      {item.reason}
+    </Text>
+  );
+}
+
+const VariantReconcileDetail = memo(({ variant, existingVariant }) => {
+  if (!existingVariant) {
+    const summary = previewNewVariantSummary(variant);
+    return (
+      <Text as="p" variant="bodySm" tone="subdued">
+        Will create with Shape display name &quot;{summary.displayName}&quot;, SKU{' '}
+        {summary.sku}, price {summary.priceLabel}.
+      </Text>
+    );
+  }
+
+  const { changes, skipped } = previewVariantFieldChanges(variant, existingVariant);
+
+  if (changes.length === 0 && skipped.length === 0) {
+    return (
+      <Text as="p" variant="bodySm" tone="subdued">
+        No field changes on apply (already matches preview).
+      </Text>
+    );
+  }
+
+  return (
+    <BlockStack gap="050">
+      {changes.map((c) => (
+        <ChangeLine key={`${c.field}-${c.to}`} change={c} />
+      ))}
+      {skipped.map((s) => (
+        <SkippedLine key={s.field} item={s} />
+      ))}
+    </BlockStack>
+  );
+});
+
+VariantReconcileDetail.displayName = 'VariantReconcileDetail';
 
 /**
  * Per-variant image dropzones moved into the input section (see `ShapeImageCapture` inside
@@ -11,13 +69,17 @@ import AdditionalViews from './AdditionalViews';
  * Drive at submit time keyed by the generated `variant.sku`. This panel is now a read-only preview
  * of the variant list with the in-page description editor.
  */
-const VariantRow = memo(({ variant, index, showVariantReconcileStatus }) => {
+const VariantRow = memo(({ variant, index, showVariantReconcileStatus, existingVariant }) => {
   const reconcileBadge =
     showVariantReconcileStatus && variant.existingVariantId != null ? (
       <Badge tone="info">Updates existing variant</Badge>
     ) : showVariantReconcileStatus ? (
       <Badge tone="attention">New variant (create)</Badge>
     ) : null;
+
+  const reconcileDetail = showVariantReconcileStatus ? (
+    <VariantReconcileDetail variant={variant} existingVariant={existingVariant} />
+  ) : null;
 
   if (variant.isCustom) {
     return (
@@ -33,6 +95,7 @@ const VariantRow = memo(({ variant, index, showVariantReconcileStatus }) => {
             {reconcileBadge}
             <Text variant="bodyMd">{variant.variantName}</Text>
           </InlineStack>
+          {reconcileDetail}
           {showVariantReconcileStatus && variant.sku ? (
             <Text variant="bodySm" color="subdued">SKU: {variant.sku}</Text>
           ) : null}
@@ -56,6 +119,7 @@ const VariantRow = memo(({ variant, index, showVariantReconcileStatus }) => {
           {reconcileBadge}
           <Text variant="bodyMd">{variant.variantName}</Text>
         </InlineStack>
+        {reconcileDetail}
         {isDevelopment() && (
           <>
             <Text variant="bodySm" color="subdued"> (Position: {variant.position})</Text>
@@ -73,7 +137,7 @@ const VariantRow = memo(({ variant, index, showVariantReconcileStatus }) => {
 
 VariantRow.displayName = 'VariantRow';
 
-const VariantGroup = memo(({ variantGroup, title, showVariantReconcileStatus }) => (
+const VariantGroup = memo(({ variantGroup, title, showVariantReconcileStatus, existingVariantsById }) => (
   <BlockStack gap="200">
     <Text variant="headingMd" as="h3">{title}</Text>
     <div style={{
@@ -87,6 +151,11 @@ const VariantGroup = memo(({ variantGroup, title, showVariantReconcileStatus }) 
           variant={variant}
           index={index}
           showVariantReconcileStatus={showVariantReconcileStatus}
+          existingVariant={
+            variant.existingVariantId
+              ? existingVariantsById?.get(variant.existingVariantId)
+              : null
+          }
         />
       ))}
     </div>
@@ -121,7 +190,27 @@ const ProductVariantCheck = ({
   previewScrollRef,
   /** When true, show whether each row maps to an existing Shopify variant (update flow). */
   showVariantReconcileStatus = false,
+  /** Loaded Shopify variants (`fetchProductForUpdate`) for per-field update preview. */
+  existingVariants,
+  /** Loaded product for product-level metafield / description diff (update flow). */
+  existingProduct,
 }) => {
+  const existingVariantsById = useMemo(() => {
+    const map = new Map();
+    for (const v of existingVariants || []) {
+      if (v?.id) map.set(v.id, v);
+    }
+    return map;
+  }, [existingVariants]);
+
+  const productLevelChanges = useMemo(
+    () =>
+      showVariantReconcileStatus
+        ? previewProductLevelChanges(productData, existingProduct, descriptionPlainText)
+        : [],
+    [showVariantReconcileStatus, productData, existingProduct, descriptionPlainText]
+  );
+
   if (!productData?.variants?.length) return null;
 
   const baseVariants = productData.variants.filter(v => v && !v.isCustom);
@@ -202,11 +291,31 @@ const ProductVariantCheck = ({
           </>
         )}
 
+        {showVariantReconcileStatus && productLevelChanges.length > 0 ? (
+          <BlockStack gap="200">
+            <Text variant="headingMd" as="h3">
+              Product-level changes on apply
+            </Text>
+            <Box
+              padding="300"
+              background="bg-surface-secondary"
+              borderRadius="200"
+            >
+              <BlockStack gap="100">
+                {productLevelChanges.map((c) => (
+                  <ChangeLine key={c.field} change={c} />
+                ))}
+              </BlockStack>
+            </Box>
+          </BlockStack>
+        ) : null}
+
         {baseVariants.length > 0 && (
           <VariantGroup
             variantGroup={baseVariants}
             title="Base Variants"
             showVariantReconcileStatus={showVariantReconcileStatus}
+            existingVariantsById={existingVariantsById}
           />
         )}
 
@@ -235,6 +344,7 @@ const ProductVariantCheck = ({
             variantGroup={customVariants}
             title="Custom Variants"
             showVariantReconcileStatus={showVariantReconcileStatus}
+            existingVariantsById={existingVariantsById}
           />
         )}
       </BlockStack>
