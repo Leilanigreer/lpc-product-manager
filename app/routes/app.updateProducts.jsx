@@ -91,6 +91,81 @@ const buildSkuInfoFromProductBaseSku = (baseSku) => {
   };
 };
 
+/**
+ * `custom.amann_threads_used` stores Amann **number** GIDs (see `buildShopifyProductMetafields`).
+ * Map them back to `stitchingThreads` keyed by stitching-thread metaobject GID, with `isThread`
+ * so validators match `ThreadColorSelector` output.
+ */
+function buildStitchingThreadsFromProductAmannIds(amannGids, stitchingThreadColors) {
+  const ids = Array.isArray(amannGids) ? amannGids.filter(Boolean) : [];
+  const threadTemplateByAmannGid = new Map();
+  for (const thread of stitchingThreadColors || []) {
+    for (const n of thread.amannNumbers || []) {
+      if (n?.value) threadTemplateByAmannGid.set(n.value, thread);
+    }
+  }
+  const out = {};
+  for (const amannGid of ids) {
+    const template = threadTemplateByAmannGid.get(amannGid);
+    if (!template?.value) continue;
+    const threadKey = template.value;
+    if (!out[threadKey]) {
+      out[threadKey] = {
+        value: template.value,
+        label: template.label,
+        abbreviation: template.abbreviation || "",
+        amannNumbers: [],
+        isThread: true,
+      };
+    }
+    const match = (template.amannNumbers || []).find((n) => n.value === amannGid);
+    if (!match?.value) continue;
+    if (out[threadKey].amannNumbers.some((x) => x.value === amannGid)) continue;
+    out[threadKey].amannNumbers.push({
+      value: match.value,
+      label: match.label,
+    });
+  }
+  return out;
+}
+
+/**
+ * `custom.isacord_threads_used` stores Isacord **number** GIDs.
+ * Map them to `embroideryThreads` keyed by embroidery-thread metaobject GID.
+ */
+function buildEmbroideryThreadsFromProductIsacordIds(isacordGids, embroideryThreadColors) {
+  const ids = Array.isArray(isacordGids) ? isacordGids.filter(Boolean) : [];
+  const threadTemplateByIsacordGid = new Map();
+  for (const thread of embroideryThreadColors || []) {
+    for (const n of thread.isacordNumbers || []) {
+      if (n?.value) threadTemplateByIsacordGid.set(n.value, thread);
+    }
+  }
+  const out = {};
+  for (const isacordGid of ids) {
+    const template = threadTemplateByIsacordGid.get(isacordGid);
+    if (!template?.value) continue;
+    const threadKey = template.value;
+    if (!out[threadKey]) {
+      out[threadKey] = {
+        value: template.value,
+        label: template.label,
+        abbreviation: template.abbreviation || "",
+        isacordNumbers: [],
+        isThread: true,
+      };
+    }
+    const match = (template.isacordNumbers || []).find((n) => n.value === isacordGid);
+    if (!match?.value) continue;
+    if (out[threadKey].isacordNumbers.some((x) => x.value === isacordGid)) continue;
+    out[threadKey].isacordNumbers.push({
+      value: match.value,
+      label: match.label,
+    });
+  }
+  return out;
+}
+
 function hydrateFormFromProduct({
   product,
   collection,
@@ -150,19 +225,14 @@ function hydrateFormFromProduct({
     ? byLeatherId.get(product.leathersUsed[1]) || null
     : null;
 
-  const stitchingById = new Map((stitchingThreadColors || []).map((x) => [x.value, x]));
-  const embroideryById = new Map((embroideryThreadColors || []).map((x) => [x.value, x]));
-
-  const stitchingThreads = (product.amannThreadsUsed || []).reduce((acc, id) => {
-    const row = stitchingById.get(id);
-    if (row) acc[id] = row;
-    return acc;
-  }, {});
-  const embroideryThreads = (product.isacordThreadsUsed || []).reduce((acc, id) => {
-    const row = embroideryById.get(id);
-    if (row) acc[id] = row;
-    return acc;
-  }, {});
+  const stitchingThreads = buildStitchingThreadsFromProductAmannIds(
+    product.amannThreadsUsed,
+    stitchingThreadColors
+  );
+  const embroideryThreads = buildEmbroideryThreadsFromProductIsacordIds(
+    product.isacordThreadsUsed,
+    embroideryThreadColors
+  );
 
   return {
     hydratedFormState: {
@@ -482,7 +552,7 @@ export default function UpdateProducts() {
           "Art-line products are not available in this update flow yet."
         );
       }
-      const validation = validateProductForm(formState);
+      const validation = validateProductForm(formState, { productUpdate: true });
       if (!validation.isValid) {
         throw new Error((validation.errors || []).join("\n"));
       }

@@ -26,9 +26,10 @@ const isValidResult = (result) => {
  * @param {Object} formState - Current form state
  * @param {Object} options - Validation options
  * @param {boolean} options.debug - Whether to enable debug logging
+ * @param {boolean} options.productUpdate - Update-existing-product flow: no product-type UI, so offering type is not required; when collection `threadType` is `NONE`, thread picks are not validated.
  * @returns {Object} Validation results with details
  */
-export const validateProductForm = (formState, { debug = false } = {}) => {
+export const validateProductForm = (formState, { debug = false, productUpdate = false } = {}) => {
   if (debug) console.group('Product Form Validation');
   
   const errors = [];
@@ -44,7 +45,7 @@ export const validateProductForm = (formState, { debug = false } = {}) => {
     const baseValidation = validateBaseRequirements(formState);
     Object.assign(validations, baseValidation);
     
-    if (!baseValidation.hasOfferingType) {
+    if (!baseValidation.hasOfferingType && !productUpdate) {
       errors.push('Product type must be selected');
     }
     if (!baseValidation.hasFontSelected) {
@@ -91,15 +92,23 @@ export const validateProductForm = (formState, { debug = false } = {}) => {
       validations.hasValidStyles = true;
     }
 
-    // Thread Validations
-    validations.hasValidStitchingThreads = validateStitchingThreads(formState, debug);
-    if (!validations.hasValidStitchingThreads) {
-      errors.push('Invalid stitching thread configuration');
-    }
+    // Thread validations (update flow: NONE collections have no thread UI; metafields may be empty)
+    const skipThreadValidation =
+      productUpdate && formState.collection?.threadType === 'NONE';
 
-    validations.hasValidEmbroidery = validateEmbroiderySelection(formState, debug);
-    if (!validations.hasValidEmbroidery) {
-      errors.push('Invalid embroidery thread configuration');
+    if (skipThreadValidation) {
+      validations.hasValidStitchingThreads = true;
+      validations.hasValidEmbroidery = true;
+    } else {
+      validations.hasValidStitchingThreads = validateStitchingThreads(formState, debug);
+      if (!validations.hasValidStitchingThreads) {
+        errors.push('Invalid stitching thread configuration');
+      }
+
+      validations.hasValidEmbroidery = validateEmbroiderySelection(formState, debug);
+      if (!validations.hasValidEmbroidery) {
+        errors.push('Invalid embroidery thread configuration');
+      }
     }
 
     // Final Requirements
