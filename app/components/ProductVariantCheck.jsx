@@ -1,7 +1,7 @@
 // app/components/ProductVariantCheck.jsx
 
 import React, { memo } from 'react';
-import { Text, BlockStack, Box, Card, TextField } from '@shopify/polaris';
+import { Text, BlockStack, Box, Card, TextField, Badge, InlineStack } from '@shopify/polaris';
 import { isDevelopment } from '../lib/config/environment';
 import AdditionalViews from './AdditionalViews';
 
@@ -11,7 +11,14 @@ import AdditionalViews from './AdditionalViews';
  * Drive at submit time keyed by the generated `variant.sku`. This panel is now a read-only preview
  * of the variant list with the in-page description editor.
  */
-const VariantRow = memo(({ variant, index }) => {
+const VariantRow = memo(({ variant, index, showVariantReconcileStatus }) => {
+  const reconcileBadge =
+    showVariantReconcileStatus && variant.existingVariantId != null ? (
+      <Badge tone="info">Updates existing variant</Badge>
+    ) : showVariantReconcileStatus ? (
+      <Badge tone="attention">New variant (create)</Badge>
+    ) : null;
+
   if (variant.isCustom) {
     return (
       <div style={{
@@ -22,7 +29,13 @@ const VariantRow = memo(({ variant, index }) => {
         backgroundColor: index % 2 === 0 ? '#f6f6f7' : 'white'
       }}>
         <BlockStack gap="100">
-          <Text variant="bodyMd">{variant.variantName}</Text>
+          <InlineStack gap="200" blockAlign="center" wrap>
+            {reconcileBadge}
+            <Text variant="bodyMd">{variant.variantName}</Text>
+          </InlineStack>
+          {showVariantReconcileStatus && variant.sku ? (
+            <Text variant="bodySm" color="subdued">SKU: {variant.sku}</Text>
+          ) : null}
         </BlockStack>
         <Box />
         <Text variant="bodyMd">${variant.price}</Text>
@@ -39,7 +52,10 @@ const VariantRow = memo(({ variant, index }) => {
       backgroundColor: index % 2 === 0 ? '#f6f6f7' : 'white'
     }}>
       <BlockStack gap="100">
-        <Text variant="bodyMd">{variant.variantName}</Text>
+        <InlineStack gap="200" blockAlign="center" wrap>
+          {reconcileBadge}
+          <Text variant="bodyMd">{variant.variantName}</Text>
+        </InlineStack>
         {isDevelopment() && (
           <>
             <Text variant="bodySm" color="subdued"> (Position: {variant.position})</Text>
@@ -57,7 +73,7 @@ const VariantRow = memo(({ variant, index }) => {
 
 VariantRow.displayName = 'VariantRow';
 
-const VariantGroup = memo(({ variantGroup, title }) => (
+const VariantGroup = memo(({ variantGroup, title, showVariantReconcileStatus }) => (
   <BlockStack gap="200">
     <Text variant="headingMd" as="h3">{title}</Text>
     <div style={{
@@ -70,6 +86,7 @@ const VariantGroup = memo(({ variantGroup, title }) => (
           key={variant.sku}
           variant={variant}
           index={index}
+          showVariantReconcileStatus={showVariantReconcileStatus}
         />
       ))}
     </div>
@@ -102,6 +119,8 @@ const ProductVariantCheck = ({
   descriptionPlaceholder = "Please write a description",
   /** Optional ref on a wrapper for scroll-into-view (create flow after Preview). */
   previewScrollRef,
+  /** When true, show whether each row maps to an existing Shopify variant (update flow). */
+  showVariantReconcileStatus = false,
 }) => {
   if (!productData?.variants?.length) return null;
 
@@ -187,6 +206,7 @@ const ProductVariantCheck = ({
           <VariantGroup
             variantGroup={baseVariants}
             title="Base Variants"
+            showVariantReconcileStatus={showVariantReconcileStatus}
           />
         )}
 
@@ -214,6 +234,7 @@ const ProductVariantCheck = ({
           <VariantGroup
             variantGroup={customVariants}
             title="Custom Variants"
+            showVariantReconcileStatus={showVariantReconcileStatus}
           />
         )}
       </BlockStack>

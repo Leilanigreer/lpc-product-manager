@@ -44,7 +44,12 @@ export const validateProductForm = (formState, { debug = false, productUpdate = 
     // Base Requirements
     const baseValidation = validateBaseRequirements(formState);
     Object.assign(validations, baseValidation);
-    
+    if (productUpdate) {
+      // Update UI does not set `selectedOfferingType`; base helper still reports false, which would
+      // fail the aggregate `isValid` check below even when we intentionally skip the error string.
+      validations.hasOfferingType = true;
+    }
+
     if (!baseValidation.hasOfferingType && !productUpdate) {
       errors.push('Product type must be selected');
     }

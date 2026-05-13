@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from "react";
+import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { json } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
@@ -399,6 +399,13 @@ export default function UpdateProducts() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [lockedShapeValues, setLockedShapeValues] = useState(new Set());
 
+  const previewRef = useRef(null);
+  const scrollToPreview = useCallback(() => {
+    const el = previewRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   const listFetcher = useFetcher();
   const loadFetcher = useFetcher();
   const submitFetcher = useFetcher();
@@ -554,7 +561,10 @@ export default function UpdateProducts() {
       }
       const validation = validateProductForm(formState, { productUpdate: true });
       if (!validation.isValid) {
-        throw new Error((validation.errors || []).join("\n"));
+        const detail =
+          (validation.errors || []).filter(Boolean).join("\n").trim() ||
+          "Validation did not pass. Check font, shapes, leather colors, styles, and thread rows.";
+        throw new Error(detail);
       }
       const skuInfo = buildSkuInfoFromProductBaseSku(baseSku);
       if (!skuInfo?.parts?.length) {
@@ -604,13 +614,18 @@ export default function UpdateProducts() {
         shopifyProductMetafields: buildShopifyProductMetafields(formState, variants),
       };
       setProductData(next);
+      setTimeout(scrollToPreview, 100);
     } catch (err) {
       setProductData(null);
-      setGenerationError(err?.message || String(err));
+      const msg =
+        (err && typeof err.message === "string" && err.message.trim()) ||
+        (typeof err === "string" ? err.trim() : "") ||
+        "Preview could not be generated.";
+      setGenerationError(msg);
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedProduct, formState, descriptionPlain]);
+  }, [selectedProduct, formState, descriptionPlain, scrollToPreview]);
 
   const baseVariantsWithSingleShapeCount = useMemo(() => {
     if (!selectedProduct?.variants?.length) return 0;
@@ -802,6 +817,10 @@ export default function UpdateProducts() {
                   <Text as="h2" variant="headingMd">
                     Update preview
                   </Text>
+                  <Text as="p" variant="bodyMd" tone="subdued">
+                    Review variant names, SKUs, and whether Shopify will update an existing variant
+                    or create a new one before you apply the update.
+                  </Text>
                   {diffSummary ? (
                     <Box>
                       <InlineStack gap="300" wrap>
@@ -823,6 +842,8 @@ export default function UpdateProducts() {
                     descriptionPlainText={descriptionPlain}
                     onDescriptionPlainTextChange={setDescriptionPlain}
                     descriptionPlaceholder="Edit product description"
+                    previewScrollRef={previewRef}
+                    showVariantReconcileStatus
                   />
                   <Button
                     primary
