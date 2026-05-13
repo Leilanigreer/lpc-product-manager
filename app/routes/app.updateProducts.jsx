@@ -593,6 +593,20 @@ export default function UpdateProducts() {
     [loadFetcher]
   );
 
+  const handleReloadProduct = useCallback(() => {
+    if (!selectedProductId) return;
+    setProductData(null);
+    setUsePatternDerivedBase(false);
+    setGenerationError(null);
+    setSubmitError(null);
+    setSubmitErrorDetails(null);
+    setSubmitSuccess(null);
+    const fd = new FormData();
+    fd.append("intent", "loadProduct");
+    fd.append("productId", selectedProductId);
+    loadFetcher.submit(fd, { method: "post" });
+  }, [loadFetcher, selectedProductId]);
+
   const handleUsePatternDerivedBaseChange = useCallback((checked) => {
     setUsePatternDerivedBase(checked);
     setProductData((prev) => {
@@ -770,13 +784,24 @@ export default function UpdateProducts() {
                   pricing is normalized.
                 </Text>
                 {adminProductUrl ? (
-                  <Link url={adminProductUrl} target="_top">
-                    Open product in Shopify admin
-                  </Link>
+                  <InlineStack gap="300" wrap blockAlign="center">
+                    <Link url={adminProductUrl} target="_blank">
+                      Open product in Shopify admin
+                    </Link>
+                    <Button
+                      onClick={handleReloadProduct}
+                      loading={loadFetcher.state !== "idle"}
+                    >
+                      Reload variant data from Shopify
+                    </Button>
+                  </InlineStack>
                 ) : (
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    Open this product in Shopify admin to edit variant prices.
-                  </Text>
+                  <Button
+                    onClick={handleReloadProduct}
+                    loading={loadFetcher.state !== "idle"}
+                  >
+                    Reload variant data from Shopify
+                  </Button>
                 )}
               </BlockStack>
             </Banner>
@@ -852,7 +877,7 @@ export default function UpdateProducts() {
                         the product here.
                       </Text>
                       {adminProductUrl ? (
-                        <Link url={adminProductUrl} target="_top">
+                        <Link url={adminProductUrl} target="_blank">
                           Open product in Shopify admin
                         </Link>
                       ) : (
