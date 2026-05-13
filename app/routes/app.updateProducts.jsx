@@ -810,9 +810,18 @@ export default function UpdateProducts() {
         {submitSuccess && (
           <Layout.Section>
             <Banner status="success">
-              Product updated. Created variants: {submitSuccess.createdVariantCount ?? 0}, updated
-              variants: {submitSuccess.updatedVariantCount ?? 0}, manual-price variants left
-              untouched: {submitSuccess.skippedManualPriceCount ?? 0}.
+              <BlockStack gap="300">
+                <Text as="p" variant="bodyMd">
+                  Product updated. Created variants: {submitSuccess.createdVariantCount ?? 0}, updated
+                  variants: {submitSuccess.updatedVariantCount ?? 0}, manual-price variants left
+                  untouched: {submitSuccess.skippedManualPriceCount ?? 0}.
+                </Text>
+                {adminProductUrl ? (
+                  <Link url={adminProductUrl} target="_blank">
+                    Open product in Shopify admin
+                  </Link>
+                ) : null}
+              </BlockStack>
             </Banner>
           </Layout.Section>
         )}
