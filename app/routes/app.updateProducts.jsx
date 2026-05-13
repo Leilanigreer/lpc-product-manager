@@ -27,7 +27,7 @@ import {
   ShapeSelector,
   ProductVariantCheck,
 } from "../components";
-import { validateProductForm } from "../lib/utils";
+import { validateProductForm, productHasVariantPriceMismatch, priceValuesMatch } from "../lib/utils";
 import { plainProductDescriptionToHtml } from "../lib/generators/htmlDescription";
 import { generateVariants } from "../lib/generators/variants/generateVariants";
 import { buildShopifyProductMetafields } from "../lib/generators";
@@ -439,6 +439,7 @@ export default function UpdateProducts() {
       setGenerationError(null);
       const loaded = loadFetcher.data.product;
       setSelectedProduct(loaded);
+      setProductData(null);
       setDescriptionPlain(toPlainText(loaded.descriptionHtml));
       const collection =
         shopifyCollections.find((c) => c.value === formState.collection?.value) || null;
@@ -519,6 +520,48 @@ export default function UpdateProducts() {
     [productsForCollection]
   );
 
+  const baseVariantsWithSingleShapeCount = useMemo(() => {
+    if (!selectedProduct?.variants?.length) return 0;
+    return selectedProduct.variants.filter((v) => {
+      const isBase =
+        v?.isBaseVariant === true ||
+        v?.customizable === true ||
+        v?.customizable === "true";
+      return isBase && String(v?.singleShape || "").trim();
+    }).length;
+  }, [selectedProduct]);
+
+  const adminProductUrl = useMemo(
+    () => adminProductEditorUrl(storeHandle, selectedProduct?.id),
+    [storeHandle, selectedProduct?.id]
+  );
+
+  const hasVariantPriceMismatch = useMemo(() => {
+    if (selectedProduct?.hasVariantPriceMismatch === true) return true;
+    return productHasVariantPriceMismatch(selectedProduct?.variants);
+  }, [selectedProduct]);
+
+  const diffSummary = useMemo(() => {
+    if (!productData || !selectedProduct) return null;
+    let creates = 0;
+    let updates = 0;
+    let skippedManualPrice = 0;
+    for (const row of productData.variants || []) {
+      const ex = (selectedProduct.variants || []).find(
+        (v) => v.id === row.existingVariantId
+      );
+      if (!ex) {
+        creates += 1;
+        continue;
+      }
+      updates += 1;
+      if (!priceValuesMatch(ex.price, ex.compareAtPrice)) {
+        skippedManualPrice += 1;
+      }
+    }
+    return { creates, updates, skippedManualPrice };
+  }, [productData, selectedProduct]);
+
   const handleSelectProduct = useCallback(
     (id) => {
       setSelectedProductId(id);
@@ -557,6 +600,11 @@ export default function UpdateProducts() {
       if (baseSku.startsWith("Art")) {
         throw new Error(
           "Art-line products are not available in this update flow yet."
+        );
+      }
+      if (hasVariantPriceMismatch) {
+        throw new Error(
+          "At least one variant has different Price and Compare-at values (sale or manual pricing). Fix every variant in Shopify before previewing — set both to the same amount or clear Compare-at. Preview, new variants, and SKU changes stay blocked until this is resolved."
         );
       }
       const validation = validateProductForm(formState, { productUpdate: true });
@@ -625,50 +673,18 @@ export default function UpdateProducts() {
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedProduct, formState, descriptionPlain, scrollToPreview]);
-
-  const baseVariantsWithSingleShapeCount = useMemo(() => {
-    if (!selectedProduct?.variants?.length) return 0;
-    return selectedProduct.variants.filter((v) => {
-      const isBase =
-        v?.isBaseVariant === true ||
-        v?.customizable === true ||
-        v?.customizable === "true";
-      return isBase && String(v?.singleShape || "").trim();
-    }).length;
-  }, [selectedProduct]);
-
-  const adminProductUrl = useMemo(
-    () => adminProductEditorUrl(storeHandle, selectedProduct?.id),
-    [storeHandle, selectedProduct?.id]
-  );
-
-  const diffSummary = useMemo(() => {
-    if (!productData || !selectedProduct) return null;
-    let creates = 0;
-    let updates = 0;
-    let skippedManualPrice = 0;
-    for (const row of productData.variants || []) {
-      const ex = (selectedProduct.variants || []).find(
-        (v) => v.id === row.existingVariantId
-      );
-      if (!ex) {
-        creates += 1;
-        continue;
-      }
-      updates += 1;
-      if (
-        Number.parseFloat(String(ex.price)) !==
-        Number.parseFloat(String(ex.compareAtPrice))
-      ) {
-        skippedManualPrice += 1;
-      }
-    }
-    return { creates, updates, skippedManualPrice };
-  }, [productData, selectedProduct]);
+  }, [selectedProduct, formState, descriptionPlain, scrollToPreview, hasVariantPriceMismatch]);
 
   const handleSubmit = useCallback(() => {
     if (!productData || !selectedProductId || !selectedProduct) return;
+    if (hasVariantPriceMismatch) {
+      setSubmitError(
+        "Fix variant pricing in Shopify (Price and Compare-at must match on every variant, or clear Compare-at) before applying an update."
+      );
+      setSubmitErrorDetails(null);
+      setSubmitSuccess(null);
+      return;
+    }
     const skuErr = preflightUpdateSkus(selectedProduct, productData.variants);
     if (skuErr) {
       setSubmitError(skuErr);
@@ -683,7 +699,7 @@ export default function UpdateProducts() {
     setSubmitError(null);
     setSubmitErrorDetails(null);
     submitFetcher.submit(fd, { method: "post" });
-  }, [productData, selectedProductId, selectedProduct, submitFetcher]);
+  }, [productData, selectedProductId, selectedProduct, submitFetcher, hasVariantPriceMismatch]);
 
   if (error) return <div>Error: {error}</div>;
 
@@ -691,6 +707,41 @@ export default function UpdateProducts() {
     <Page>
       <TitleBar title="Update existing product" />
       <Layout>
+        {selectedProduct && hasVariantPriceMismatch && (
+          <Layout.Section>
+            <Banner status="critical" title="Fix variant pricing in Shopify before updating">
+              <BlockStack gap="300">
+                <Text as="p" variant="bodyMd">
+                  At least one variant has a different{" "}
+                  <Text as="span" fontWeight="semibold">
+                    Price
+                  </Text>{" "}
+                  and{" "}
+                  <Text as="span" fontWeight="semibold">
+                    Compare-at price
+                  </Text>{" "}
+                  (sale or manual pricing). This usually means the product is being cleared out with
+                  a compare-at anchor.{" "}
+                  <Text as="span" fontWeight="semibold">
+                    Preview, applying updates, new variants, and SKU changes are disabled
+                  </Text>{" "}
+                  until every variant uses the same numeric value for both fields, or you clear
+                  Compare-at. Shape display names can still be updated for existing variants once
+                  pricing is normalized.
+                </Text>
+                {adminProductUrl ? (
+                  <Link url={adminProductUrl} target="_top">
+                    Open product in Shopify admin
+                  </Link>
+                ) : (
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Open this product in Shopify admin to edit variant prices.
+                  </Text>
+                )}
+              </BlockStack>
+            </Banner>
+          </Layout.Section>
+        )}
         {submitSuccess && (
           <Layout.Section>
             <Banner status="success">
@@ -804,7 +855,11 @@ export default function UpdateProducts() {
                   primary
                   onClick={handleGeneratePreview}
                   loading={isGenerating}
-                  disabled={!selectedProductId || !selectedProduct?.baseSku}
+                  disabled={
+                    !selectedProductId ||
+                    !selectedProduct?.baseSku ||
+                    hasVariantPriceMismatch
+                  }
                 >
                   Preview Update Data
                 </Button>
@@ -849,7 +904,11 @@ export default function UpdateProducts() {
                     primary
                     loading={submitFetcher.state === "submitting"}
                     onClick={handleSubmit}
-                    disabled={submitFetcher.state === "submitting" || !selectedProduct?.baseSku}
+                    disabled={
+                      submitFetcher.state === "submitting" ||
+                      !selectedProduct?.baseSku ||
+                      hasVariantPriceMismatch
+                    }
                   >
                     Apply Product Update
                   </Button>

@@ -2,6 +2,10 @@ import {
   isShopifyMetaobjectGid,
   isShopifyProductVariantGid,
 } from "../utils/shopifyGid.js";
+import {
+  priceValuesMatch,
+  productHasVariantPriceMismatch,
+} from "../utils/priceUtils.js";
 
 /** Thrown when Shopify returns userErrors from bulk variant or metafield mutations (includes `details` for UI). */
 export class ProductUpdateUserError extends Error {
@@ -162,13 +166,6 @@ function parseVersionedBaseSku(baseSku) {
       .filter(Boolean),
     version: Number(match[2]),
   };
-}
-
-function priceValuesMatch(price, compareAtPrice) {
-  const a = Number.parseFloat(String(price ?? "").trim());
-  const b = Number.parseFloat(String(compareAtPrice ?? "").trim());
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
-  return a === b;
 }
 
 function parseMetafieldBoolean(raw) {
@@ -483,6 +480,23 @@ export async function fetchProductForUpdate(admin, productId) {
     hasNextPage = Boolean(conn?.pageInfo?.hasNextPage);
     cursor = conn?.pageInfo?.endCursor ?? null;
   }
+  const variants = allVariants.map((v) => {
+    const customizableRaw = v.customizable?.value ?? null;
+    return {
+      id: v.id,
+      title: v.title,
+      sku: v.sku,
+      price: v.price,
+      compareAtPrice: v.compareAtPrice,
+      inventoryQuantity: v.inventoryQuantity,
+      selectedOptions: v.selectedOptions ?? [],
+      singleShape: v.singleShape?.value ?? null,
+      singleStyle: v.singleStyle?.value ?? null,
+      customizable: customizableRaw,
+      /** True only when `customizable` metafield is explicitly true (base / non-custom row). */
+      isBaseVariant: parseMetafieldBoolean(customizableRaw) === true,
+    };
+  });
   return {
     id: product.id,
     title: product.title,
@@ -496,23 +510,8 @@ export async function fetchProductForUpdate(admin, productId) {
     amannThreadsUsed: parseJsonListMetafieldValue(product?.amannThreadsUsed?.value),
     isacordThreadsUsed: parseJsonListMetafieldValue(product?.isacordThreadsUsed?.value),
     fontRef: String(product?.fontRef?.value || "").trim() || null,
-    variants: allVariants.map((v) => {
-      const customizableRaw = v.customizable?.value ?? null;
-      return {
-        id: v.id,
-        title: v.title,
-        sku: v.sku,
-        price: v.price,
-        compareAtPrice: v.compareAtPrice,
-        inventoryQuantity: v.inventoryQuantity,
-        selectedOptions: v.selectedOptions ?? [],
-        singleShape: v.singleShape?.value ?? null,
-        singleStyle: v.singleStyle?.value ?? null,
-        customizable: customizableRaw,
-        /** True only when `customizable` metafield is explicitly true (base / non-custom row). */
-        isBaseVariant: parseMetafieldBoolean(customizableRaw) === true,
-      };
-    }),
+    variants,
+    hasVariantPriceMismatch: productHasVariantPriceMismatch(variants),
   };
 }
 
@@ -590,6 +589,21 @@ export async function updateShopifyProduct(admin, payload) {
     claimedExistingIds.add(ex.id);
   }
 
+  const hasVariantPriceMismatch = productHasVariantPriceMismatch(existingVariants);
+  if (hasVariantPriceMismatch) {
+    for (const row of generated) {
+      const sku = String(row?.sku || "").trim();
+      const variantName = normalizeVariantDisplayName(row?.variantName ?? "");
+      if (!sku || !variantName) continue;
+      if (!resolveExistingForRow(row)) {
+        throw new ProductUpdateUserError(
+          "This product has variants where Price and Compare-at price differ (sale or manual pricing). Fix every variant in Shopify before adding new variants. Set Price and Compare-at to the same value for each variant, or clear Compare-at.",
+          []
+        );
+      }
+    }
+  }
+
   const updateDescriptionResponse = await admin.graphql(
     PRODUCT_UPDATE_DESCRIPTION_MUTATION,
     {
@@ -626,6 +640,8 @@ export async function updateShopifyProduct(admin, payload) {
       continue;
     }
 
+    const manualPrice = !priceValuesMatch(existing.price, existing.compareAtPrice);
+
     const updateInput = {
       id: existing.id,
       optionValues: [
@@ -634,17 +650,15 @@ export async function updateShopifyProduct(admin, payload) {
           optionName: "Shape",
         },
       ],
-      inventoryItem: {
-        sku,
-      },
     };
 
-    if (priceValuesMatch(existing.price, existing.compareAtPrice)) {
+    if (!manualPrice) {
+      updateInput.inventoryItem = { sku };
       updateInput.price = String(row.price);
       updateInput.compareAtPrice = String(row.price);
     }
 
-    if (!preserveExistingInventory) {
+    if (!preserveExistingInventory && !manualPrice) {
       updateInput.inventoryQuantities = [
         {
           availableQuantity: Number(defaultNewVariantQuantity) || 5,
