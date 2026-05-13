@@ -1,14 +1,13 @@
 /**
- * Backfill variant metafields `custom.single_shape` / `custom.single_style` from product-level
- * `custom.shape` / `custom.style` list metafields (singleton GIDs only).
+ * Backfill variant metafields `custom.single_shape` / `custom.single_style` from the same
+ * variant's `custom.shape` / `custom.style` (metaobject reference or singleton list value).
  *
- * Products where either list has more than one entry are skipped (ambiguous). Empty product lists
- * do not clear existing variant values — only singletons from the product are written.
+ * Empty source fields do not clear existing single_* values.
  */
 
 import { isShopifyMetaobjectGid } from "../utils/shopifyGid.js";
 
-const COLLECTION_PRODUCTS_SHAPE_STYLE_PAGE = `#graphql
+const COLLECTION_PRODUCTS_VARIANTS_PAGE = `#graphql
   query ShapeStyleSyncCollectionProducts($id: ID!, $cursor: String) {
     collection(id: $id) {
       id
@@ -21,14 +20,16 @@ const COLLECTION_PRODUCTS_SHAPE_STYLE_PAGE = `#graphql
           id
           title
           handle
-          shapeList: metafield(namespace: "custom", key: "shape") { value }
-          styleList: metafield(namespace: "custom", key: "style") { value }
-          variants(first: 250) {
+          variants(first: 100) {
             pageInfo {
               hasNextPage
             }
             nodes {
               id
+              title
+              sku
+              shape: metafield(namespace: "custom", key: "shape") { value }
+              style: metafield(namespace: "custom", key: "style") { value }
               singleShape: metafield(namespace: "custom", key: "single_shape") { value }
               singleStyle: metafield(namespace: "custom", key: "single_style") { value }
             }
@@ -43,8 +44,8 @@ const PRODUCT_VARIANTS_PAGE = `#graphql
   query ShapeStyleSyncProductVariants($id: ID!, $cursor: String) {
     product(id: $id) {
       id
-      shapeList: metafield(namespace: "custom", key: "shape") { value }
-      styleList: metafield(namespace: "custom", key: "style") { value }
+      title
+      handle
       variants(first: 100, after: $cursor) {
         pageInfo {
           hasNextPage
@@ -52,9 +53,34 @@ const PRODUCT_VARIANTS_PAGE = `#graphql
         }
         nodes {
           id
+          title
+          sku
+          shape: metafield(namespace: "custom", key: "shape") { value }
+          style: metafield(namespace: "custom", key: "style") { value }
           singleShape: metafield(namespace: "custom", key: "single_shape") { value }
           singleStyle: metafield(namespace: "custom", key: "single_style") { value }
         }
+      }
+    }
+  }
+`;
+
+const VARIANT_NODES_QUERY = `#graphql
+  query ShapeStyleSyncVariantNodes($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      ... on ProductVariant {
+        id
+        title
+        sku
+        product {
+          id
+          title
+          handle
+        }
+        shape: metafield(namespace: "custom", key: "shape") { value }
+        style: metafield(namespace: "custom", key: "style") { value }
+        singleShape: metafield(namespace: "custom", key: "single_shape") { value }
+        singleStyle: metafield(namespace: "custom", key: "single_style") { value }
       }
     }
   }
@@ -74,33 +100,43 @@ const METAFIELDS_SET_MUTATION = `#graphql
 const METAFIELDS_SET_INPUT_LIMIT = 25;
 
 /** @param {unknown} raw */
-function parseJsonListMetafieldValue(raw) {
-  if (typeof raw !== "string" || !raw.trim()) return [];
+function parseMetafieldGidValue(raw) {
+  const trimmed = typeof raw === "string" ? raw.trim() : "";
+  if (!trimmed) return { kind: "empty" };
+  if (isShopifyMetaobjectGid(trimmed)) {
+    return { kind: "ok", gid: trimmed };
+  }
   try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = JSON.parse(trimmed);
+    if (!Array.isArray(parsed)) return { kind: "empty" };
+    if (parsed.length > 1) return { kind: "ambiguous", count: parsed.length };
+    if (parsed.length === 1 && isShopifyMetaobjectGid(parsed[0])) {
+      return { kind: "ok", gid: parsed[0] };
+    }
+    return { kind: "empty" };
   } catch {
-    return [];
+    return { kind: "empty" };
   }
 }
 
 /**
  * @param {string | null | undefined} shapeRaw
  * @param {string | null | undefined} styleRaw
- * @returns {{ kind: 'ambiguous' } | { kind: 'no_source' } | { shapeGid: string | null, styleGid: string | null }}
  */
-function resolveProductShapeStyleSingletons(shapeRaw, styleRaw) {
-  const shapes = parseJsonListMetafieldValue(shapeRaw);
-  const styles = parseJsonListMetafieldValue(styleRaw);
+function resolveVariantShapeStyleSources(shapeRaw, styleRaw) {
+  const shape = parseMetafieldGidValue(shapeRaw);
+  const style = parseMetafieldGidValue(styleRaw);
 
-  if (shapes.length > 1 || styles.length > 1) {
-    return { kind: "ambiguous" };
+  if (shape.kind === "ambiguous" || style.kind === "ambiguous") {
+    return {
+      kind: "ambiguous",
+      shapeCount: shape.kind === "ambiguous" ? shape.count : shape.kind === "ok" ? 1 : 0,
+      styleCount: style.kind === "ambiguous" ? style.count : style.kind === "ok" ? 1 : 0,
+    };
   }
 
-  const shapeGid =
-    shapes.length === 1 && isShopifyMetaobjectGid(shapes[0]) ? shapes[0] : null;
-  const styleGid =
-    styles.length === 1 && isShopifyMetaobjectGid(styles[0]) ? styles[0] : null;
+  const shapeGid = shape.kind === "ok" ? shape.gid : null;
+  const styleGid = style.kind === "ok" ? style.gid : null;
 
   if (!shapeGid && !styleGid) {
     return { kind: "no_source" };
@@ -110,66 +146,120 @@ function resolveProductShapeStyleSingletons(shapeRaw, styleRaw) {
 }
 
 /**
- * @param {Array<{ id: string, singleShape?: string | null, singleStyle?: string | null }>} variants
+ * @param {{ singleShape?: string | null, singleStyle?: string | null }} variant
  * @param {string | null} shapeGid
  * @param {string | null} styleGid
  */
-function countVariantsNeedingShapeStyleWrite(variants, shapeGid, styleGid) {
-  let n = 0;
-  for (const v of variants) {
-    if (!v?.id) continue;
-    if (shapeGid && String(v.singleShape || "").trim() !== shapeGid) n += 1;
-    if (styleGid && String(v.singleStyle || "").trim() !== styleGid) n += 1;
-  }
-  return n;
+function variantNeedsShapeStyleWrite(variant, shapeGid, styleGid) {
+  let writes = 0;
+  if (shapeGid && String(variant.singleShape || "").trim() !== shapeGid) writes += 1;
+  if (styleGid && String(variant.singleStyle || "").trim() !== styleGid) writes += 1;
+  return writes;
+}
+
+/** @param {unknown} node */
+function mapVariantNode(node) {
+  if (!node?.id) return null;
+  return {
+    id: node.id,
+    title: node.title ?? "",
+    sku: node.sku ?? "",
+    shapeRaw: node.shape?.value ?? null,
+    styleRaw: node.style?.value ?? null,
+    singleShape: node.singleShape?.value ?? null,
+    singleStyle: node.singleStyle?.value ?? null,
+  };
 }
 
 /**
  * @param {(query: string, options?: { variables?: object }) => Promise<Response>} graphql
- * @param {string} productGid
- * @returns {Promise<{ shapeListValue: string | null, styleListValue: string | null, variants: Array<{ id: string, singleShape: string | null, singleStyle: string | null }> } | null>}
+ * @param {{ id: string, title?: string, handle?: string }} product
  */
-async function fetchProductWithAllVariantMetafields(graphql, productGid) {
-  const id = (productGid ?? "").trim();
-  if (!id) return null;
-
-  let shapeListValue = null;
-  let styleListValue = null;
+async function fetchAllVariantsForProduct(graphql, product) {
   const variants = [];
   let cursor = null;
   let hasNextPage = true;
 
   while (hasNextPage) {
     const response = await graphql(PRODUCT_VARIANTS_PAGE, {
-      variables: { id, cursor },
+      variables: { id: product.id, cursor },
     });
     const json = await response.json();
     if (json.errors?.length) {
       throw new Error(json.errors.map((e) => e.message).join("; "));
     }
-    const product = json.data?.product;
-    if (!product?.id) return null;
+    const loaded = json.data?.product;
+    if (!loaded?.id) break;
 
-    if (cursor == null) {
-      shapeListValue = product.shapeList?.value ?? null;
-      styleListValue = product.styleList?.value ?? null;
-    }
-
-    const conn = product.variants;
+    const conn = loaded.variants;
     for (const node of conn?.nodes ?? []) {
-      if (!node?.id) continue;
-      variants.push({
-        id: node.id,
-        singleShape: node.singleShape?.value ?? null,
-        singleStyle: node.singleStyle?.value ?? null,
-      });
+      const mapped = mapVariantNode(node);
+      if (mapped) variants.push(mapped);
     }
 
     hasNextPage = conn?.pageInfo?.hasNextPage ?? false;
     cursor = conn?.pageInfo?.endCursor ?? null;
   }
 
-  return { shapeListValue, styleListValue, variants };
+  return variants;
+}
+
+/**
+ * @param {ReturnType<typeof mapVariantNode>} variant
+ * @param {{ id: string, title: string, handle: string }} product
+ */
+function classifyVariantRow(variant, product) {
+  const resolved = resolveVariantShapeStyleSources(variant.shapeRaw, variant.styleRaw);
+
+  const base = {
+    variantId: variant.id,
+    variantTitle: variant.title,
+    variantSku: variant.sku,
+    productId: product.id,
+    productTitle: product.title,
+    productHandle: product.handle,
+    currentSingleShape: variant.singleShape,
+    currentSingleStyle: variant.singleStyle,
+  };
+
+  if (resolved.kind === "ambiguous") {
+    return {
+      ...base,
+      kind: "ambiguous",
+      shapeCount: resolved.shapeCount,
+      styleCount: resolved.styleCount,
+      detail: "Variant shape and/or style has more than one GID — skipped.",
+    };
+  }
+
+  if (resolved.kind === "no_source") {
+    return {
+      ...base,
+      kind: "no_source",
+      detail: "No custom.shape or custom.style on this variant.",
+    };
+  }
+
+  const writes = variantNeedsShapeStyleWrite(
+    variant,
+    resolved.shapeGid,
+    resolved.styleGid
+  );
+  if (writes === 0) return null;
+
+  return {
+    ...base,
+    kind: "needs_sync",
+    shapeGid: resolved.shapeGid,
+    styleGid: resolved.styleGid,
+    metafieldsToWrite: writes,
+    detail: [
+      resolved.shapeGid ? `single_shape ← shape (${resolved.shapeGid})` : null,
+      resolved.styleGid ? `single_style ← style (${resolved.styleGid})` : null,
+    ]
+      .filter(Boolean)
+      .join("; "),
+  };
 }
 
 function chunkMetafields(metafields) {
@@ -181,27 +271,25 @@ function chunkMetafields(metafields) {
 }
 
 /**
- * Walks products in creation collections (same scope as Sync SKUs). Rows: ambiguous, no_source,
- * needs_sync (selectable), or already_ok (omitted from list to reduce noise).
- *
  * @param {(query: string, options?: { variables?: object }) => Promise<Response>} graphql
  * @param {string[]} collectionIds
  */
 export async function scanShapeStyleVariantMetafieldDrift(graphql, collectionIds) {
   const ids = [...new Set((collectionIds ?? []).filter(Boolean))];
   if (ids.length === 0) {
-    return { rows: [], totalProducts: 0 };
+    return { rows: [], totalProducts: 0, totalVariants: 0 };
   }
 
-  /** @type {Array<{ productId: string, title: string, handle: string, kind: string, detail?: string, shapeCount?: number, styleCount?: number, variantsToTouch?: number }>} */
+  /** @type {Array<Record<string, unknown>>} */
   const rows = [];
   const seenProductIds = new Set();
   let totalProducts = 0;
+  let totalVariants = 0;
 
   for (const collectionId of ids) {
     let cursor = null;
     do {
-      const response = await graphql(COLLECTION_PRODUCTS_SHAPE_STYLE_PAGE, {
+      const response = await graphql(COLLECTION_PRODUCTS_VARIANTS_PAGE, {
         variables: { id: collectionId, cursor },
       });
       const json = await response.json();
@@ -218,149 +306,110 @@ export async function scanShapeStyleVariantMetafieldDrift(graphql, collectionIds
         if (seenProductIds.has(node.id)) continue;
         seenProductIds.add(node.id);
 
-        const shapeRaw = node.shapeList?.value;
-        const styleRaw = node.styleList?.value;
-        const shapes = parseJsonListMetafieldValue(shapeRaw);
-        const styles = parseJsonListMetafieldValue(styleRaw);
-
-        if (shapes.length > 1 || styles.length > 1) {
-          rows.push({
-            productId: node.id,
-            title: node.title ?? "",
-            handle: node.handle ?? "",
-            kind: "ambiguous",
-            shapeCount: shapes.length,
-            styleCount: styles.length,
-            detail:
-              "Product has more than one shape and/or style in list metafields — skipped. Fix manually.",
-          });
-          continue;
-        }
-
-        const resolved = resolveProductShapeStyleSingletons(shapeRaw, styleRaw);
-        if (resolved.kind === "no_source") {
-          rows.push({
-            productId: node.id,
-            title: node.title ?? "",
-            handle: node.handle ?? "",
-            kind: "no_source",
-            detail: "No singleton shape or style GID on the product lists.",
-          });
-          continue;
-        }
-
-        let variants = (node.variants?.nodes ?? [])
-          .filter((v) => v?.id)
-          .map((v) => ({
-            id: v.id,
-            singleShape: v.singleShape?.value ?? null,
-            singleStyle: v.singleStyle?.value ?? null,
-          }));
-
-        if (node.variants?.pageInfo?.hasNextPage) {
-          const full = await fetchProductWithAllVariantMetafields(graphql, node.id);
-          if (full) variants = full.variants;
-        }
-
-        const { shapeGid, styleGid } = resolved;
-        const variantsToTouch = countVariantsNeedingShapeStyleWrite(
-          variants,
-          shapeGid,
-          styleGid
-        );
-
-        if (variantsToTouch === 0) {
-          continue;
-        }
-
-        rows.push({
-          productId: node.id,
+        const product = {
+          id: node.id,
           title: node.title ?? "",
           handle: node.handle ?? "",
-          kind: "needs_sync",
-          detail: [
-            shapeGid ? `single_shape → ${shapeGid}` : null,
-            styleGid ? `single_style → ${styleGid}` : null,
-          ]
-            .filter(Boolean)
-            .join("; "),
-          variantsToTouch,
-        });
+        };
+
+        let variants = (node.variants?.nodes ?? [])
+          .map(mapVariantNode)
+          .filter(Boolean);
+
+        if (node.variants?.pageInfo?.hasNextPage) {
+          variants = await fetchAllVariantsForProduct(graphql, product);
+        }
+
+        totalVariants += variants.length;
+
+        for (const variant of variants) {
+          const row = classifyVariantRow(variant, product);
+          if (row) rows.push(row);
+        }
       }
 
       cursor = conn?.pageInfo?.hasNextPage ? conn.pageInfo.endCursor : null;
     } while (cursor);
   }
 
-  return { rows, totalProducts };
+  return { rows, totalProducts, totalVariants };
+}
+
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
+  return out;
 }
 
 /**
  * @param {(query: string, options?: { variables?: object }) => Promise<Response>} graphql
- * @param {string[]} productGids
+ * @param {string[]} variantGids
  */
-export async function syncShapeStyleVariantMetafields(graphql, productGids) {
-  const unique = [...new Set(productGids.filter(Boolean))];
+export async function syncShapeStyleVariantMetafields(graphql, variantGids) {
+  const unique = [...new Set(variantGids.filter(Boolean))];
   const updated = [];
   const skipped = [];
   const errors = [];
 
-  for (const productId of unique) {
-    let payload;
-    try {
-      payload = await fetchProductWithAllVariantMetafields(graphql, productId);
-    } catch (e) {
-      errors.push(`${productId}: ${e?.message ?? String(e)}`);
-      continue;
-    }
-    if (!payload) {
-      skipped.push({ productId, reason: "product_not_found" });
+  for (const idBatch of chunk(unique, 50)) {
+    const response = await graphql(VARIANT_NODES_QUERY, {
+      variables: { ids: idBatch },
+    });
+    const json = await response.json();
+    if (json.errors?.length) {
+      errors.push(json.errors.map((e) => e.message).join("; "));
       continue;
     }
 
-    const resolved = resolveProductShapeStyleSingletons(
-      payload.shapeListValue,
-      payload.styleListValue
-    );
-
-    if (resolved.kind === "ambiguous") {
-      skipped.push({ productId, reason: "ambiguous_lists" });
-      continue;
-    }
-    if (resolved.kind === "no_source") {
-      skipped.push({ productId, reason: "no_source" });
-      continue;
-    }
-
-    const { shapeGid, styleGid } = resolved;
     const metafields = [];
 
-    for (const v of payload.variants) {
-      if (!v?.id) continue;
-      if (shapeGid && String(v.singleShape || "").trim() !== shapeGid) {
+    for (const node of json.data?.nodes ?? []) {
+      if (!node?.id) continue;
+      const variant = mapVariantNode(node);
+      if (!variant) continue;
+
+      const resolved = resolveVariantShapeStyleSources(
+        variant.shapeRaw,
+        variant.styleRaw
+      );
+
+      if (resolved.kind === "ambiguous") {
+        skipped.push({ variantId: node.id, reason: "ambiguous_source" });
+        continue;
+      }
+      if (resolved.kind === "no_source") {
+        skipped.push({ variantId: node.id, reason: "no_source" });
+        continue;
+      }
+
+      const { shapeGid, styleGid } = resolved;
+      if (shapeGid && String(variant.singleShape || "").trim() !== shapeGid) {
         metafields.push({
-          ownerId: v.id,
+          ownerId: node.id,
           namespace: "custom",
           key: "single_shape",
           type: "metaobject_reference",
           value: shapeGid,
         });
       }
-      if (styleGid && String(v.singleStyle || "").trim() !== styleGid) {
+      if (styleGid && String(variant.singleStyle || "").trim() !== styleGid) {
         metafields.push({
-          ownerId: v.id,
+          ownerId: node.id,
           namespace: "custom",
           key: "single_style",
           type: "metaobject_reference",
           value: styleGid,
         });
       }
+
+      if (metafields.filter((m) => m.ownerId === node.id).length === 0) {
+        skipped.push({ variantId: node.id, reason: "already_aligned" });
+      }
     }
 
-    if (metafields.length === 0) {
-      skipped.push({ productId, reason: "already_aligned" });
-      continue;
-    }
+    if (metafields.length === 0) continue;
 
     try {
       for (const batch of chunkMetafields(metafields)) {
@@ -378,12 +427,16 @@ export async function syncShapeStyleVariantMetafields(graphql, productGids) {
           );
         }
       }
-      updated.push({
-        productId,
-        metafieldsWritten: metafields.length,
-      });
+
+      const touched = new Set(metafields.map((m) => m.ownerId));
+      for (const variantId of touched) {
+        updated.push({
+          variantId,
+          metafieldsWritten: metafields.filter((m) => m.ownerId === variantId).length,
+        });
+      }
     } catch (e) {
-      errors.push(`${productId}: ${e?.message ?? String(e)}`);
+      errors.push(e?.message ?? String(e));
     }
   }
 

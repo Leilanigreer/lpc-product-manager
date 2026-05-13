@@ -68,15 +68,14 @@ export const action = async ({ request }) => {
         collectionIds = [scope];
       }
 
-      const { rows, totalProducts } = await scanShapeStyleVariantMetafieldDrift(
-        graphql,
-        collectionIds
-      );
+      const { rows, totalProducts, totalVariants } =
+        await scanShapeStyleVariantMetafieldDrift(graphql, collectionIds);
       return json({
         ok: true,
         phase: "scan",
         rows,
         totalProducts,
+        totalVariants,
       });
     } catch (e) {
       return json(
@@ -87,24 +86,24 @@ export const action = async ({ request }) => {
   }
 
   if (intent === "sync") {
-    const raw = formData.get("productIds");
-    let productIds = [];
+    const raw = formData.get("variantIds");
+    let variantIds = [];
     try {
-      productIds = JSON.parse(typeof raw === "string" ? raw : "[]");
+      variantIds = JSON.parse(typeof raw === "string" ? raw : "[]");
     } catch {
       return json(
-        { ok: false, phase: "sync", error: "Invalid productIds payload." },
+        { ok: false, phase: "sync", error: "Invalid variantIds payload." },
         { status: 400 }
       );
     }
-    if (!Array.isArray(productIds) || productIds.length === 0) {
+    if (!Array.isArray(variantIds) || variantIds.length === 0) {
       return json(
-        { ok: false, phase: "sync", error: "No products selected." },
+        { ok: false, phase: "sync", error: "No variants selected." },
         { status: 400 }
       );
     }
     try {
-      const result = await syncShapeStyleVariantMetafields(graphql, productIds);
+      const result = await syncShapeStyleVariantMetafields(graphql, variantIds);
       return json({ ok: true, phase: "sync", ...result });
     } catch (e) {
       return json(
@@ -129,7 +128,7 @@ function kindLabel(kind) {
     case "ambiguous":
       return "Ambiguous lists";
     case "no_source":
-      return "No product lists";
+      return "No variant shape/style";
     default:
       return kind;
   }
@@ -155,6 +154,7 @@ export default function SyncShapeStyle() {
 
   const [rows, setRows] = useState([]);
   const [totalProducts, setTotalProducts] = useState(null);
+  const [totalVariants, setTotalVariants] = useState(null);
   const [selected, setSelected] = useState(() => new Set());
   const [scopeCollectionId, setScopeCollectionId] = useState("all");
 
@@ -174,9 +174,10 @@ export default function SyncShapeStyle() {
     const list = data.rows ?? [];
     setRows(list);
     setTotalProducts(data.totalProducts ?? null);
+    setTotalVariants(data.totalVariants ?? null);
     const syncable = list
       .filter((r) => r.kind === "needs_sync")
-      .map((r) => r.productId);
+      .map((r) => r.variantId);
     setSelected(new Set(syncable));
   }, [fetcher.data]);
 
@@ -185,6 +186,7 @@ export default function SyncShapeStyle() {
     if (!data || data.phase !== "sync" || !data.ok) return;
     setRows([]);
     setTotalProducts(null);
+    setTotalVariants(null);
     setSelected(new Set());
   }, [fetcher.data]);
 
@@ -198,15 +200,15 @@ export default function SyncShapeStyle() {
   );
 
   const syncableIds = useMemo(
-    () => rows.filter((r) => r.kind === "needs_sync").map((r) => r.productId),
+    () => rows.filter((r) => r.kind === "needs_sync").map((r) => r.variantId),
     [rows]
   );
 
-  const toggleOne = useCallback((productId, checked) => {
+  const toggleOne = useCallback((variantId, checked) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (checked) next.add(productId);
-      else next.delete(productId);
+      if (checked) next.add(variantId);
+      else next.delete(variantId);
       return next;
     });
   }, []);
@@ -231,7 +233,7 @@ export default function SyncShapeStyle() {
     if (ids.length === 0) return;
     const fd = new FormData();
     fd.set("intent", "sync");
-    fd.set("productIds", JSON.stringify(ids));
+    fd.set("variantIds", JSON.stringify(ids));
     fetcher.submit(fd, { method: "post" });
   };
 
@@ -254,10 +256,10 @@ export default function SyncShapeStyle() {
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                Product lists → variant metafields
+                Variant shape/style → single_shape / single_style
               </Text>
               <Text as="p" variant="bodyMd">
-                Reads{" "}
+                Scans each variant’s{" "}
                 <Text as="span" fontWeight="semibold">
                   custom.shape
                 </Text>{" "}
@@ -265,8 +267,7 @@ export default function SyncShapeStyle() {
                 <Text as="span" fontWeight="semibold">
                   custom.style
                 </Text>{" "}
-                (list metaobject references) on each product. When each list has at most one GID,
-                writes matching{" "}
+                metafields and copies them to{" "}
                 <Text as="span" fontWeight="semibold">
                   custom.single_shape
                 </Text>{" "}
@@ -274,8 +275,8 @@ export default function SyncShapeStyle() {
                 <Text as="span" fontWeight="semibold">
                   custom.single_style
                 </Text>{" "}
-                on every variant that differs. Products with more than one entry in either list are
-                skipped. Scope matches{" "}
+                when they differ. Variants with more than one GID in a source field are skipped.
+                Scope matches{" "}
                 <Text as="span" fontWeight="semibold">
                   Sync base SKUs
                 </Text>{" "}
@@ -290,7 +291,7 @@ export default function SyncShapeStyle() {
               />
               <InlineStack gap="300" blockAlign="center">
                 <Button onClick={runScan} loading={busy} disabled={busy}>
-                  Scan products
+                  Scan variants
                 </Button>
                 <Button
                   variant="primary"
@@ -301,8 +302,8 @@ export default function SyncShapeStyle() {
                   Apply sync to selected
                 </Button>
                 <Text as="span" variant="bodySm" tone="subdued">
-                  {totalProducts != null
-                    ? `Last scan: ${totalProducts} unique product(s) in scope.`
+                  {totalVariants != null
+                    ? `Last scan: ${totalVariants} variant(s) across ${totalProducts ?? 0} product(s).`
                     : "Run a scan to load results."}
                 </Text>
               </InlineStack>
@@ -318,7 +319,7 @@ export default function SyncShapeStyle() {
               )}
               {syncOk && (
                 <Banner tone="success" title="Sync completed">
-                  Updated {syncOk.updated?.length ?? 0} product(s).
+                  Updated {syncOk.updated?.length ?? 0} variant(s).
                   {(syncOk.skipped?.length ?? 0) > 0 && (
                     <Text as="p" variant="bodySm">
                       {`Skipped ${syncOk.skipped.length} (ambiguous, no source, or already aligned).`}
@@ -364,6 +365,11 @@ export default function SyncShapeStyle() {
                         </th>
                         <th style={{ textAlign: "left", padding: "8px" }}>
                           <Text as="span" variant="bodySm" fontWeight="semibold">
+                            Variant
+                          </Text>
+                        </th>
+                        <th style={{ textAlign: "left", padding: "8px" }}>
+                          <Text as="span" variant="bodySm" fontWeight="semibold">
                             Product
                           </Text>
                         </th>
@@ -384,17 +390,25 @@ export default function SyncShapeStyle() {
                         const canSync = row.kind === "needs_sync";
                         const href = adminProductUrl(row.productId);
                         return (
-                          <tr key={row.productId}>
+                          <tr key={row.variantId}>
                             <td style={{ padding: "8px", verticalAlign: "top" }}>
                               <Checkbox
                                 label="Sync"
                                 labelHidden
-                                checked={selected.has(row.productId)}
+                                checked={selected.has(row.variantId)}
                                 disabled={!canSync || busy}
                                 onChange={(checked) =>
-                                  toggleOne(row.productId, checked)
+                                  toggleOne(row.variantId, checked)
                                 }
                               />
+                            </td>
+                            <td style={{ padding: "8px", verticalAlign: "top" }}>
+                              <BlockStack gap="100">
+                                <Text as="span">{row.variantTitle || "(Untitled variant)"}</Text>
+                                <Text as="p" variant="bodySm" tone="subdued">
+                                  {row.variantSku || "—"}
+                                </Text>
+                              </BlockStack>
                             </td>
                             <td style={{ padding: "8px", verticalAlign: "top" }}>
                               <BlockStack gap="100">
@@ -404,13 +418,13 @@ export default function SyncShapeStyle() {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                   >
-                                    {row.title || "(Untitled)"}
+                                    {row.productTitle || "(Untitled)"}
                                   </a>
                                 ) : (
-                                  <Text as="span">{row.title || "(Untitled)"}</Text>
+                                  <Text as="span">{row.productTitle || "(Untitled)"}</Text>
                                 )}
                                 <Text as="p" variant="bodySm" tone="subdued">
-                                  {row.handle}
+                                  {row.productHandle}
                                 </Text>
                               </BlockStack>
                             </td>
@@ -420,12 +434,12 @@ export default function SyncShapeStyle() {
                               </Badge>
                               {row.shapeCount != null && (
                                 <Text as="p" variant="bodySm" tone="subdued">
-                                  {`Shape list: ${row.shapeCount} · Style list: ${row.styleCount}`}
+                                  {`Shape: ${row.shapeCount} · Style: ${row.styleCount}`}
                                 </Text>
                               )}
-                              {row.variantsToTouch != null && (
+                              {row.metafieldsToWrite != null && (
                                 <Text as="p" variant="bodySm" tone="subdued">
-                                  {`${row.variantsToTouch} variant metafield write(s)`}
+                                  {`${row.metafieldsToWrite} metafield write(s)`}
                                 </Text>
                               )}
                             </td>
