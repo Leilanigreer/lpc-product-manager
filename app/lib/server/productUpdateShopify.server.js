@@ -47,6 +47,7 @@ const PRODUCT_FOR_UPDATE_QUERY = `#graphql
       productType
       descriptionHtml
       metafield(namespace: "custom", key: "base_sku") { value }
+      oldSkusUsed: metafield(namespace: "custom", key: "old_skus") { value }
       googleDriveFolder: metafield(namespace: "custom", key: "google_drive_images") { value }
       leathersUsed: metafield(namespace: "custom", key: "leathers_used") { value }
       amannThreadsUsed: metafield(namespace: "custom", key: "amann_threads_used") { value }
@@ -350,6 +351,26 @@ async function setProductAndVariantMetafields(
     });
   }
 
+  if (productData.migrateBaseSkuToOldSkus) {
+    const previousMaster = String(productData.previousListingBaseSku || "").trim();
+    const existingOld = String(productData.existingOldSkusRaw || "").trim();
+    if (previousMaster && previousMaster !== baseSkuMeta) {
+      const lines = existingOld
+        ? existingOld.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
+        : [];
+      if (!lines.includes(previousMaster)) {
+        lines.push(previousMaster);
+      }
+      metafields.push({
+        ownerId: productId,
+        namespace: "custom",
+        key: "old_skus",
+        type: "single_line_text_field",
+        value: lines.join("\n"),
+      });
+    }
+  }
+
   for (let i = 0; i < productDataVariants.length; i++) {
     const pv = productDataVariants[i];
     const rv = resolvedVariantsByOrder[i];
@@ -505,6 +526,7 @@ export async function fetchProductForUpdate(admin, productId) {
     productType: product.productType || "",
     descriptionHtml: product.descriptionHtml || "",
     baseSku: String(product?.metafield?.value || "").trim() || null,
+    oldSkusUsed: String(product?.oldSkusUsed?.value || "").trim() || null,
     googleDriveFolderUrl: String(product?.googleDriveFolder?.value || "").trim() || null,
     leathersUsed: parseJsonListMetafieldValue(product?.leathersUsed?.value),
     amannThreadsUsed: parseJsonListMetafieldValue(product?.amannThreadsUsed?.value),

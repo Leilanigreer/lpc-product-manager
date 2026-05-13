@@ -1,4 +1,69 @@
 import { priceValuesMatch } from "./priceUtils.js";
+import { generateBaseParts } from "./versionUtils.js";
+
+/** Split listing `custom.base_sku` into unversioned segments and optional `-Vn` (matches update server). */
+export function parseVersionedBaseSkuString(baseSku) {
+  const normalized = String(baseSku || "").trim();
+  if (!normalized) return null;
+  const match = normalized.match(/^(.*)-V(\d+)$/i);
+  if (!match) {
+    return {
+      raw: normalized,
+      parts: normalized.split("-").filter(Boolean),
+      version: null,
+    };
+  }
+  return {
+    raw: normalized,
+    parts: String(match[1] || "")
+      .split("-")
+      .filter(Boolean),
+    version: Number(match[2]),
+  };
+}
+
+/**
+ * Pattern-derived master SKU from collection `sku_pattern` + current form (leather, threads, etc.).
+ * Re-attaches the same `-Vn` segment as the listing when present.
+ */
+export function derivePatternVersionedBaseSku(formState, listingBaseSku) {
+  const listing = String(listingBaseSku || "").trim();
+  const parts = generateBaseParts(formState);
+  if (!Array.isArray(parts) || parts.length === 0) return null;
+
+  const unversioned = parts.filter(Boolean).join("-");
+  if (!unversioned) return null;
+
+  const parsed = parseVersionedBaseSkuString(listing);
+  const versioned =
+    parsed?.version != null ? `${unversioned}-V${parsed.version}` : unversioned;
+
+  return {
+    listing,
+    unversioned,
+    versioned,
+    matchesListing: versioned === listing,
+  };
+}
+
+/** Rewrite variant `sku` / `baseSKU` when switching listing vs pattern-derived master prefix. */
+export function reanchorVariantsToBaseSku(variants, fromBase, toBase) {
+  const from = String(fromBase || "").trim();
+  const to = String(toBase || "").trim();
+  if (!from || !to || from === to) return variants;
+  const rows = Array.isArray(variants) ? variants : [];
+  return rows.map((v) => {
+    const sku = String(v?.sku || "");
+    if (!sku.startsWith(from)) {
+      return { ...v, baseSKU: to };
+    }
+    return {
+      ...v,
+      baseSKU: to,
+      sku: `${to}${sku.slice(from.length)}`,
+    };
+  });
+}
 
 /** Shape option label from a variant loaded for update (`fetchProductForUpdate`). */
 export function shapeDisplayNameFromLoadedVariant(existing) {
@@ -157,6 +222,13 @@ export function previewProductLevelChanges(productData, existingProduct, descrip
       from: prevBase,
       to: nextBase,
     });
+    if (productData.migrateBaseSkuToOldSkus) {
+      changes.push({
+        field: "custom.old_skus",
+        from: existingProduct.oldSkusUsed?.trim() || "(empty)",
+        to: `append ${prevBase}`,
+      });
+    }
   }
 
   return changes;

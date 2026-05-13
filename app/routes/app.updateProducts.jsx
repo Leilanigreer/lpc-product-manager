@@ -14,6 +14,7 @@ import {
   Text,
   Box,
   InlineStack,
+  Checkbox,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
@@ -28,6 +29,10 @@ import {
   ProductVariantCheck,
 } from "../components";
 import { validateProductForm, productHasVariantPriceMismatch, priceValuesMatch } from "../lib/utils";
+import {
+  derivePatternVersionedBaseSku,
+  reanchorVariantsToBaseSku,
+} from "../lib/utils/updatePreviewUtils";
 import { plainProductDescriptionToHtml } from "../lib/generators/htmlDescription";
 import { generateVariants } from "../lib/generators/variants/generateVariants";
 import { buildShopifyProductMetafields } from "../lib/generators";
@@ -398,6 +403,7 @@ export default function UpdateProducts() {
   const [submitSuccess, setSubmitSuccess] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [lockedShapeValues, setLockedShapeValues] = useState(new Set());
+  const [usePatternDerivedBase, setUsePatternDerivedBase] = useState(false);
 
   const previewRef = useRef(null);
   const scrollToPreview = useCallback(() => {
@@ -418,6 +424,7 @@ export default function UpdateProducts() {
       setProductData(null);
       setDescriptionPlain("");
       setLockedShapeValues(new Set());
+      setUsePatternDerivedBase(false);
       setSubmitErrorDetails(null);
       setSubmitError(null);
       setSubmitSuccess(null);
@@ -433,6 +440,7 @@ export default function UpdateProducts() {
       setProductData(null);
       setDescriptionPlain("");
       setLockedShapeValues(new Set());
+      setUsePatternDerivedBase(false);
       return;
     }
     if (loadFetcher.data.success && loadFetcher.data.product) {
@@ -454,6 +462,7 @@ export default function UpdateProducts() {
       });
       handleChange("hydrateForm", hydrated.hydratedFormState);
       setLockedShapeValues(new Set(hydrated.lockedShapeValues || []));
+      setUsePatternDerivedBase(false);
     }
   }, [
     loadFetcher.data,
@@ -492,6 +501,7 @@ export default function UpdateProducts() {
         setProductData(null);
         setDescriptionPlain("");
         setLockedShapeValues(new Set());
+        setUsePatternDerivedBase(false);
         setGenerationError(null);
         setSubmitError(null);
         setSubmitErrorDetails(null);
@@ -541,6 +551,12 @@ export default function UpdateProducts() {
     return productHasVariantPriceMismatch(selectedProduct?.variants);
   }, [selectedProduct]);
 
+  const livePatternBaseCheck = useMemo(() => {
+    const listing = String(selectedProduct?.baseSku || "").trim();
+    if (!listing || !formState?.finalRequirements?.skuPattern) return null;
+    return derivePatternVersionedBaseSku(formState, listing);
+  }, [selectedProduct?.baseSku, formState]);
+
   const diffSummary = useMemo(() => {
     if (!productData || !selectedProduct) return null;
     let creates = 0;
@@ -568,6 +584,7 @@ export default function UpdateProducts() {
       setSelectedProduct(null);
       setProductData(null);
       setLockedShapeValues(new Set());
+      setUsePatternDerivedBase(false);
       setGenerationError(null);
       setSubmitError(null);
       setSubmitErrorDetails(null);
@@ -580,6 +597,27 @@ export default function UpdateProducts() {
     },
     [loadFetcher]
   );
+
+  const handleUsePatternDerivedBaseChange = useCallback((checked) => {
+    setUsePatternDerivedBase(checked);
+    setProductData((prev) => {
+      if (!prev?.variants?.length) return prev;
+      const listing = String(prev.listingVersionedBaseSku || "").trim();
+      const derived = String(prev.patternDerivedVersionedBaseSku || "").trim();
+      if (!derived || derived === listing) {
+        return { ...prev, usePatternDerivedBase: checked, migrateBaseSkuToOldSkus: false };
+      }
+      const currentBase = String(prev.versionedBaseSku || listing).trim();
+      const newBase = checked ? derived : listing;
+      return {
+        ...prev,
+        usePatternDerivedBase: checked,
+        migrateBaseSkuToOldSkus: checked,
+        versionedBaseSku: newBase,
+        variants: reanchorVariantsToBaseSku(prev.variants, currentBase, newBase),
+      };
+    });
+  }, []);
 
   const handleGeneratePreview = useCallback(async () => {
     setIsGenerating(true);
@@ -618,9 +656,15 @@ export default function UpdateProducts() {
       if (!skuInfo?.parts?.length) {
         throw new Error("Unable to parse base SKU for update generation.");
       }
+      const patternInfo = derivePatternVersionedBaseSku(formState, baseSku);
+      const patternDerived = patternInfo?.versioned ?? null;
+      const baseMismatch = Boolean(patternDerived && !patternInfo?.matchesListing);
+      const effectiveBase =
+        usePatternDerivedBase && patternDerived ? patternDerived : baseSku;
+
       let variants = await generateVariants(formState, {
         ...skuInfo,
-        verbatimBaseSku: baseSku,
+        verbatimBaseSku: effectiveBase,
       });
 
       const keyToExistingId = new Map();
@@ -655,7 +699,13 @@ export default function UpdateProducts() {
         selectedLeatherColor1: formState.leatherColors.primary?.value || "",
         selectedLeatherColor2: formState.leatherColors.secondary?.value || null,
         stitchingThreads: formState.stitchingThreads,
-        versionedBaseSku: baseSku,
+        versionedBaseSku: effectiveBase,
+        listingVersionedBaseSku: baseSku,
+        patternDerivedVersionedBaseSku: patternDerived,
+        usePatternDerivedBase,
+        migrateBaseSkuToOldSkus: Boolean(usePatternDerivedBase && baseMismatch),
+        previousListingBaseSku: baseSku,
+        existingOldSkusRaw: selectedProduct.oldSkusUsed || "",
         googleDriveFolderUrl: selectedProduct.googleDriveFolderUrl || null,
         productPictureFolder: selectedProduct.handle,
         originalsFolderName: updateDateFolder,
@@ -673,7 +723,7 @@ export default function UpdateProducts() {
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedProduct, formState, descriptionPlain, scrollToPreview, hasVariantPriceMismatch]);
+  }, [selectedProduct, formState, descriptionPlain, scrollToPreview, hasVariantPriceMismatch, usePatternDerivedBase]);
 
   const handleSubmit = useCallback(() => {
     if (!productData || !selectedProductId || !selectedProduct) return;
@@ -797,6 +847,29 @@ export default function UpdateProducts() {
                     Base SKU anchor: {selectedProduct.baseSku}
                   </Text>
                 ) : null}
+                {livePatternBaseCheck && !livePatternBaseCheck.matchesListing ? (
+                  <Banner status="warning" title="Pattern-derived base SKU differs from listing">
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodyMd">
+                        Listing <code>custom.base_sku</code>:{" "}
+                        <Text as="span" fontWeight="semibold">
+                          {livePatternBaseCheck.listing}
+                        </Text>
+                      </Text>
+                      <Text as="p" variant="bodyMd">
+                        From current form + collection <code>sku_pattern</code>:{" "}
+                        <Text as="span" fontWeight="semibold">
+                          {livePatternBaseCheck.versioned}
+                        </Text>
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Preview uses the listing base by default. Opt in on the preview step to
+                        rewrite <code>custom.base_sku</code>, variant SKUs, and archive the previous
+                        master in <code>custom.old_skus</code>.
+                      </Text>
+                    </BlockStack>
+                  </Banner>
+                ) : null}
                 {selectedProduct && !selectedProduct.baseSku ? (
                   <Banner status="warning">
                     This product does not have `custom.base_sku`. Update submission is blocked.
@@ -889,6 +962,35 @@ export default function UpdateProducts() {
                           Manual price untouched: {diffSummary.skippedManualPrice}
                         </Text>
                       </InlineStack>
+                    </Box>
+                  ) : null}
+                  {productData?.patternDerivedVersionedBaseSku &&
+                  productData.patternDerivedVersionedBaseSku !==
+                    productData.listingVersionedBaseSku ? (
+                    <Box
+                      padding="300"
+                      background="bg-surface-secondary"
+                      borderRadius="200"
+                    >
+                      <BlockStack gap="300">
+                        <Text as="p" variant="bodyMd">
+                          <Text as="span" fontWeight="semibold">
+                            Listing base:{" "}
+                          </Text>
+                          {productData.listingVersionedBaseSku}
+                        </Text>
+                        <Text as="p" variant="bodyMd">
+                          <Text as="span" fontWeight="semibold">
+                            Pattern-derived base:{" "}
+                          </Text>
+                          {productData.patternDerivedVersionedBaseSku}
+                        </Text>
+                        <Checkbox
+                          label="Use pattern-derived base on apply (rewrites variant SKUs and custom.base_sku; archives previous master in custom.old_skus)"
+                          checked={usePatternDerivedBase}
+                          onChange={handleUsePatternDerivedBaseChange}
+                        />
+                      </BlockStack>
                     </Box>
                   ) : null}
                   <ProductVariantCheck
