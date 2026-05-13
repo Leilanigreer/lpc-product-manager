@@ -6,6 +6,10 @@ import {
   priceValuesMatch,
   productHasVariantPriceMismatch,
 } from "../utils/priceUtils.js";
+import {
+  buildExistingVariantReconcileIndex,
+  resolveExistingVariantForUpdateRow,
+} from "../utils/variantReconcileUtils.js";
 
 /** Thrown when Shopify returns userErrors from bulk variant or metafield mutations (includes `details` for UI). */
 export class ProductUpdateUserError extends Error {
@@ -183,10 +187,6 @@ function variantIsCustomShopify(v) {
   return String(v?.sku || "")
     .toLowerCase()
     .includes("-custom");
-}
-
-function reconcileVariantKey(shapeValue, isCustom) {
-  return `${String(shapeValue || "").trim()}|${isCustom ? "1" : "0"}`;
 }
 
 function normalizeVariantDisplayName(name) {
@@ -571,37 +571,20 @@ export async function updateShopifyProduct(admin, payload) {
   const existingVariants = Array.isArray(existingProduct.variants)
     ? existingProduct.variants
     : [];
-  const existingById = new Map(
-    existingVariants.map((v) => [v.id, v]).filter(([id]) => Boolean(id))
+  const reconcileIndex = buildExistingVariantReconcileIndex(
+    existingVariants,
+    masterSku,
+    variantIsCustomShopify
   );
-
-  const existingByKey = new Map();
-  for (const ev of existingVariants) {
-    const shape = ev.singleShape ? String(ev.singleShape).trim() : "";
-    if (!shape) continue;
-    existingByKey.set(
-      reconcileVariantKey(shape, variantIsCustomShopify(ev)),
-      ev
-    );
-  }
 
   const generated = Array.isArray(productData.variants) ? productData.variants : [];
 
-  const resolveExistingForRow = (row) => {
-    const gid = row?.existingVariantId;
-    if (gid && existingById.has(gid)) {
-      return existingById.get(gid);
-    }
-    const shape = row?.shapeValue ? String(row.shapeValue).trim() : "";
-    if (!shape) return null;
-    return (
-      existingByKey.get(reconcileVariantKey(shape, Boolean(row.isCustom))) ?? null
-    );
-  };
+  const resolveExistingForRow = (row, claimedIds) =>
+    resolveExistingVariantForUpdateRow(row, reconcileIndex, claimedIds);
 
   const claimedExistingIds = new Set();
   for (const row of generated) {
-    const ex = resolveExistingForRow(row);
+    const ex = resolveExistingForRow(row, claimedExistingIds);
     if (!ex) continue;
     if (claimedExistingIds.has(ex.id)) {
       throw new Error(

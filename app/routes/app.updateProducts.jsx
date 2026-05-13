@@ -33,6 +33,7 @@ import {
   derivePatternVersionedBaseSku,
   reanchorVariantsToBaseSku,
 } from "../lib/utils/updatePreviewUtils";
+import { attachExistingVariantIdsToGeneratedRows } from "../lib/utils/variantReconcileUtils";
 import { plainProductDescriptionToHtml } from "../lib/generators/htmlDescription";
 import { generateVariants } from "../lib/generators/variants/generateVariants";
 import { buildShopifyProductMetafields } from "../lib/generators";
@@ -551,12 +552,6 @@ export default function UpdateProducts() {
     return productHasVariantPriceMismatch(selectedProduct?.variants);
   }, [selectedProduct]);
 
-  const livePatternBaseCheck = useMemo(() => {
-    const listing = String(selectedProduct?.baseSku || "").trim();
-    if (!listing || !formState?.finalRequirements?.skuPattern) return null;
-    return derivePatternVersionedBaseSku(formState, listing);
-  }, [selectedProduct?.baseSku, formState]);
-
   const diffSummary = useMemo(() => {
     if (!productData || !selectedProduct) return null;
     let creates = 0;
@@ -667,20 +662,15 @@ export default function UpdateProducts() {
         verbatimBaseSku: effectiveBase,
       });
 
-      const keyToExistingId = new Map();
-      for (const ev of selectedProduct.variants || []) {
-        if (!ev.singleShape) continue;
-        const k = `${ev.singleShape}|${variantIsCustomFromLoaded(ev) ? "1" : "0"}`;
-        keyToExistingId.set(k, ev.id);
-      }
-
-      variants = variants.map((v) => ({
-        ...v,
-        variantName: String(v.variantName || "").replace(/^Customize\b/, "Customized"),
-        existingVariantId: keyToExistingId.get(
-          `${v.shapeValue}|${v.isCustom ? "1" : "0"}`
-        ),
-      }));
+      variants = attachExistingVariantIdsToGeneratedRows(
+        variants.map((v) => ({
+          ...v,
+          variantName: String(v.variantName || "").replace(/^Customize\b/, "Customized"),
+        })),
+        selectedProduct.variants || [],
+        baseSku,
+        variantIsCustomFromLoaded
+      );
       if (!variants.length) {
         throw new Error("No variants generated from current form.");
       }
@@ -847,29 +837,6 @@ export default function UpdateProducts() {
                     Base SKU anchor: {selectedProduct.baseSku}
                   </Text>
                 ) : null}
-                {livePatternBaseCheck && !livePatternBaseCheck.matchesListing ? (
-                  <Banner status="warning" title="Pattern-derived base SKU differs from listing">
-                    <BlockStack gap="200">
-                      <Text as="p" variant="bodyMd">
-                        Listing <code>custom.base_sku</code>:{" "}
-                        <Text as="span" fontWeight="semibold">
-                          {livePatternBaseCheck.listing}
-                        </Text>
-                      </Text>
-                      <Text as="p" variant="bodyMd">
-                        From current form + collection <code>sku_pattern</code>:{" "}
-                        <Text as="span" fontWeight="semibold">
-                          {livePatternBaseCheck.versioned}
-                        </Text>
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        Preview uses the listing base by default. Opt in on the preview step to
-                        rewrite <code>custom.base_sku</code>, variant SKUs, and archive the previous
-                        master in <code>custom.old_skus</code>.
-                      </Text>
-                    </BlockStack>
-                  </Banner>
-                ) : null}
                 {selectedProduct && !selectedProduct.baseSku ? (
                   <Banner status="warning">
                     This product does not have `custom.base_sku`. Update submission is blocked.
@@ -949,6 +916,11 @@ export default function UpdateProducts() {
                     Review variant names, SKUs, and whether Shopify will update an existing variant
                     or create a new one before you apply the update.
                   </Text>
+                  {adminProductUrl ? (
+                    <Link url={adminProductUrl} target="_blank">
+                      Open product in Shopify admin
+                    </Link>
+                  ) : null}
                   {diffSummary ? (
                     <Box>
                       <InlineStack gap="300" wrap>
@@ -967,23 +939,24 @@ export default function UpdateProducts() {
                   {productData?.patternDerivedVersionedBaseSku &&
                   productData.patternDerivedVersionedBaseSku !==
                     productData.listingVersionedBaseSku ? (
-                    <Box
-                      padding="300"
-                      background="bg-surface-secondary"
-                      borderRadius="200"
-                    >
+                    <Banner status="warning" title="Pattern-derived base SKU differs from listing">
                       <BlockStack gap="300">
                         <Text as="p" variant="bodyMd">
+                          Listing <code>custom.base_sku</code>:{" "}
                           <Text as="span" fontWeight="semibold">
-                            Listing base:{" "}
+                            {productData.listingVersionedBaseSku}
                           </Text>
-                          {productData.listingVersionedBaseSku}
                         </Text>
                         <Text as="p" variant="bodyMd">
+                          From current form + collection <code>sku_pattern</code>:{" "}
                           <Text as="span" fontWeight="semibold">
-                            Pattern-derived base:{" "}
+                            {productData.patternDerivedVersionedBaseSku}
                           </Text>
-                          {productData.patternDerivedVersionedBaseSku}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          Preview uses the listing base by default. Opt in below to rewrite{" "}
+                          <code>custom.base_sku</code>, variant SKUs, and archive the previous
+                          master in <code>custom.old_skus</code>.
                         </Text>
                         <Checkbox
                           label="Use pattern-derived base on apply (rewrites variant SKUs and custom.base_sku; archives previous master in custom.old_skus)"
@@ -991,7 +964,7 @@ export default function UpdateProducts() {
                           onChange={handleUsePatternDerivedBaseChange}
                         />
                       </BlockStack>
-                    </Box>
+                    </Banner>
                   ) : null}
                   <ProductVariantCheck
                     productData={productData}
