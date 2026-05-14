@@ -10,6 +10,7 @@ import {
   buildExistingVariantReconcileIndex,
   resolveExistingVariantForUpdateRow,
 } from "../utils/variantReconcileUtils.js";
+import { shapeDisplayNameFromLoadedVariant } from "../utils/updatePreviewUtils.js";
 
 /** Thrown when Shopify returns userErrors from bulk variant or metafield mutations (includes `details` for UI). */
 export class ProductUpdateUserError extends Error {
@@ -57,6 +58,14 @@ const PRODUCT_FOR_UPDATE_QUERY = `#graphql
       amannThreadsUsed: metafield(namespace: "custom", key: "amann_threads_used") { value }
       isacordThreadsUsed: metafield(namespace: "custom", key: "isacord_threads_used") { value }
       fontRef: metafield(namespace: "custom", key: "font") { value }
+      options {
+        id
+        name
+        optionValues {
+          id
+          name
+        }
+      }
       variants(first: 100, after: $variantsCursor) {
         pageInfo {
           hasNextPage
@@ -125,6 +134,31 @@ const VARIANTS_BULK_UPDATE_MUTATION = `#graphql
       userErrors {
         field
         message
+      }
+    }
+  }
+`;
+
+const PRODUCT_OPTION_UPDATE_MUTATION = `#graphql
+  mutation ProductOptionUpdate(
+    $productId: ID!
+    $option: OptionUpdateInput!
+    $optionValuesToAdd: [OptionValueCreateInput!]
+    $optionValuesToUpdate: [OptionValueUpdateInput!]
+  ) {
+    productOptionUpdate(
+      productId: $productId
+      option: $option
+      optionValuesToAdd: $optionValuesToAdd
+      optionValuesToUpdate: $optionValuesToUpdate
+    ) {
+      product {
+        id
+      }
+      userErrors {
+        field
+        message
+        code
       }
     }
   }
@@ -228,6 +262,125 @@ function variantIsCustomShopify(v) {
 function normalizeVariantDisplayName(name) {
   const s = String(name || "").trim();
   return s.replace(/^Customize\b/, "Customized");
+}
+
+function findShapeProductOption(options, variants) {
+  const list = Array.isArray(options) ? options : [];
+  const byShapeName = list.find(
+    (option) => String(option?.name || "").toLowerCase() === "shape"
+  );
+  if (byShapeName?.id) return byShapeName;
+
+  if (list.length === 1 && list[0]?.id) return list[0];
+
+  const optionNameCounts = new Map();
+  for (const variant of variants || []) {
+    for (const selected of variant?.selectedOptions || []) {
+      const name = String(selected?.name || "").trim();
+      if (!name) continue;
+      optionNameCounts.set(name, (optionNameCounts.get(name) || 0) + 1);
+    }
+  }
+  if (!optionNameCounts.size) return null;
+
+  const [topOptionName] = [...optionNameCounts.entries()].sort(
+    (a, b) => b[1] - a[1]
+  )[0];
+  return list.find((option) => option?.name === topOptionName) || null;
+}
+
+function buildShapeOptionValueNameIndex(shapeOption) {
+  const byName = new Map();
+  for (const optionValue of shapeOption?.optionValues || []) {
+    const name = String(optionValue?.name || "").trim();
+    if (name && optionValue?.id) {
+      byName.set(name, optionValue.id);
+    }
+  }
+  return byName;
+}
+
+async function fetchProductShapeOptions(admin, productId) {
+  const response = await admin.graphql(
+    `#graphql
+      query ProductShapeOptionState($id: ID!) {
+        product(id: $id) {
+          id
+          options {
+            id
+            name
+            optionValues {
+              id
+              name
+            }
+          }
+        }
+      }
+    `,
+    { variables: { id: productId } }
+  );
+  const json = await response.json();
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+  return json?.data?.product?.options ?? [];
+}
+
+async function syncShapeOptionValues(admin, productId, shapeOption, payload) {
+  const optionValuesToUpdate = Array.isArray(payload?.optionValuesToUpdate)
+    ? payload.optionValuesToUpdate
+    : [];
+  const optionValuesToAdd = Array.isArray(payload?.optionValuesToAdd)
+    ? payload.optionValuesToAdd
+    : [];
+
+  if (!optionValuesToUpdate.length && !optionValuesToAdd.length) {
+    return;
+  }
+  if (!shapeOption?.id) {
+    throw new Error("Product is missing a Shape option; cannot sync variant display names.");
+  }
+
+  const response = await admin.graphql(PRODUCT_OPTION_UPDATE_MUTATION, {
+    variables: {
+      productId,
+      option: { id: shapeOption.id },
+      optionValuesToUpdate: optionValuesToUpdate.length
+        ? optionValuesToUpdate
+        : undefined,
+      optionValuesToAdd: optionValuesToAdd.length
+        ? optionValuesToAdd.map((name) => ({ name }))
+        : undefined,
+    },
+  });
+  const json = await response.json();
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+  const userErrors = json?.data?.productOptionUpdate?.userErrors ?? [];
+  const blockingErrors = userErrors.filter(
+    (error) => error?.code !== "OPTION_VALUE_ALREADY_EXISTS"
+  );
+  if (blockingErrors.length) {
+    throw new ProductUpdateUserError(
+      blockingErrors.map((e) => e.message).filter(Boolean).join("; ") ||
+        "Shape option update failed.",
+      blockingErrors
+    );
+  }
+}
+
+function buildVariantShapeOptionValueInput(variantName, shapeOption, valueIdByName) {
+  const name = String(variantName || "").trim();
+  const optionId = shapeOption?.id;
+  if (!name || !optionId) {
+    throw new Error("Missing Shape option metadata for variant create.");
+  }
+  const valueId = valueIdByName.get(name);
+  if (valueId) {
+    return { id: valueId, optionId };
+  }
+  return { name, optionId };
 }
 
 function chunkMetafieldsForSet(metafields) {
@@ -561,6 +714,14 @@ export async function fetchProductForUpdate(admin, productId) {
     tags: Array.isArray(product.tags) ? product.tags : [],
     productType: product.productType || "",
     descriptionHtml: product.descriptionHtml || "",
+    options: (product.options || []).map((option) => ({
+      id: option.id,
+      name: option.name,
+      optionValues: (option.optionValues || []).map((value) => ({
+        id: value.id,
+        name: value.name,
+      })),
+    })),
     baseSku: String(product?.metafield?.value || "").trim() || null,
     oldSkusUsed: String(product?.oldSkusUsed?.value || "").trim() || null,
     googleDriveFolderUrl: String(product?.googleDriveFolder?.value || "").trim() || null,
@@ -669,6 +830,37 @@ export async function updateShopifyProduct(admin, payload) {
   const variantsToCreate = [];
   const variantsToUpdate = [];
   const createdSkuToId = new Map();
+  const optionValuesToUpdate = [];
+  const optionValuesToAdd = [];
+
+  let productOptions = await fetchProductShapeOptions(admin, productId);
+  if (!productOptions.length && Array.isArray(existingProduct.options)) {
+    productOptions = existingProduct.options;
+  }
+
+  let shapeOption = findShapeProductOption(productOptions, existingVariants);
+  let optionValueIdByName = buildShapeOptionValueNameIndex(shapeOption);
+
+  const queueShapeOptionValueAdd = (name) => {
+    const normalized = String(name || "").trim();
+    if (!normalized || optionValueIdByName.has(normalized)) return;
+    optionValuesToAdd.push(normalized);
+    optionValueIdByName.set(normalized, null);
+  };
+
+  const queueShapeOptionValueRename = (currentName, newName) => {
+    const from = String(currentName || "").trim();
+    const to = String(newName || "").trim();
+    if (!from || !to || from === to) return;
+    const valueId = optionValueIdByName.get(from);
+    if (!valueId) {
+      queueShapeOptionValueAdd(to);
+      return;
+    }
+    optionValuesToUpdate.push({ id: valueId, name: to });
+    optionValueIdByName.delete(from);
+    optionValueIdByName.set(to, valueId);
+  };
 
   for (const row of generated) {
     const sku = String(row?.sku || "").trim();
@@ -678,22 +870,24 @@ export async function updateShopifyProduct(admin, payload) {
     const existing = resolveExistingForRow(row);
     if (!existing) {
       variantsToCreate.push({ ...row, variantName });
+      queueShapeOptionValueAdd(variantName);
       continue;
+    }
+
+    const currentName = shapeDisplayNameFromLoadedVariant(existing);
+    if (currentName !== variantName) {
+      queueShapeOptionValueRename(currentName, variantName);
     }
 
     const manualPrice = !priceValuesMatch(existing.price, existing.compareAtPrice);
 
     const updateInput = {
       id: existing.id,
-      optionValues: [
-        {
-          name: variantName,
-          optionName: "Shape",
-        },
-      ],
     };
+    let needsBulkUpdate = false;
 
     if (!manualPrice) {
+      needsBulkUpdate = true;
       updateInput.inventoryItem = { sku };
       updateInput.price = String(row.price);
       updateInput.compareAtPrice = String(row.price);
@@ -707,7 +901,21 @@ export async function updateShopifyProduct(admin, payload) {
       ];
     }
 
-    variantsToUpdate.push(updateInput);
+    if (needsBulkUpdate) {
+      variantsToUpdate.push(updateInput);
+    }
+  }
+
+  await syncShapeOptionValues(admin, productId, shapeOption, {
+    optionValuesToUpdate,
+    optionValuesToAdd,
+  });
+
+  productOptions = await fetchProductShapeOptions(admin, productId);
+  shapeOption = findShapeProductOption(productOptions, existingVariants);
+  optionValueIdByName = buildShapeOptionValueNameIndex(shapeOption);
+  if (!shapeOption?.id) {
+    throw new Error("Product is missing a Shape option; cannot update variants.");
   }
 
   const setInventoryOnUpdate = !preserveExistingInventory;
@@ -752,10 +960,11 @@ export async function updateShopifyProduct(admin, payload) {
             },
           },
           optionValues: [
-            {
-              name: variant.variantName,
-              optionName: "Shape",
-            },
+            buildVariantShapeOptionValueInput(
+              variant.variantName,
+              shapeOption,
+              optionValueIdByName
+            ),
           ],
         })),
       },
