@@ -403,7 +403,7 @@ const ThreadColorSelector = ({
         <BlockStack gap="300">
           <Text variant="headingMd">
             Stitching Thread
-            {singleStitchingCollection && " (Primary + supporting Amann)"}
+            {singleStitchingCollection && " (Primary Amann, optional supporting)"}
           </Text>
           {singleStitchingCollection ? (
             <div
@@ -457,7 +457,7 @@ const ThreadColorSelector = ({
                       <Combobox.TextField
                         prefix={<Icon source={SearchIcon} />}
                         onChange={setSupportingAmannInputValue}
-                        label="Supporting Amann — colors"
+                        label="Supporting Amann — colors (optional)"
                         value={supportingAmannInputValue}
                         placeholder={
                           stitchingPrimaryRow?.amannNumbers?.[0]

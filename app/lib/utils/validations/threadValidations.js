@@ -1,6 +1,6 @@
 // app/lib/utils/validations/threadValidations.js
 
-import { isSingleEmbroideryMode, isSingleStitchingMode } from "../threadUtils";
+import { isSingleEmbroideryMode } from "../threadUtils";
 
 /**
  * Generic thread structure validator that works for both stitching and embroidery threads
@@ -73,35 +73,9 @@ export const validateStitchingThreads = (formState, debug = false) => {
     return false;
   }
 
-  const needsSupportingAmann = isSingleStitchingMode(formState);
-
-  return threadEntries.every(([_, thread]) => {
-    if (!validateThreadStructure(thread, "stitching", debug)) return false;
-    if (needsSupportingAmann) {
-      const nums = thread.amannNumbers;
-      if (!Array.isArray(nums) || nums.length < 2) {
-        if (debug) {
-          console.warn(
-            "STITCHING threadType requires a primary Amann and at least one supporting Amann"
-          );
-        }
-        return false;
-      }
-      for (let i = 1; i < nums.length; i++) {
-        const supporting = nums[i];
-        if (
-          !supporting ||
-          typeof supporting.value !== "string" ||
-          supporting.value.length === 0 ||
-          typeof supporting.label !== "string"
-        ) {
-          if (debug) console.warn("Invalid supporting Amann number at index", i, supporting);
-          return false;
-        }
-      }
-    }
-    return true;
-  });
+  return threadEntries.every(([_, thread]) =>
+    validateThreadStructure(thread, "stitching", debug)
+  );
 };
 
 /**

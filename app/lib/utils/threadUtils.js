@@ -4,24 +4,19 @@
 export const isSingleStitchingMode = (formState) =>
   formState?.collection?.threadType === "STITCHING";
 
-const validStitchingThreadEntries = (stitchingThreads, formState) => {
-  const requireSupportingAmann = isSingleStitchingMode(formState);
-
-  return Object.values(stitchingThreads || {}).filter((t) => {
-    if (!t?.isThread || !t?.value || !t?.amannNumbers?.[0]?.value) return false;
-    if (requireSupportingAmann && !t?.amannNumbers?.[1]?.value) return false;
-    return true;
-  });
-};
+const validStitchingThreadEntries = (stitchingThreads) =>
+  Object.values(stitchingThreads || {}).filter(
+    (t) => t?.isThread && t?.value && t?.amannNumbers?.[0]?.value
+  );
 
 /**
  * Sorted list of selected stitching thread rows (Amann picks). Same order used for [0] in title/SKU.
  * @param {Record<string, object>} stitchingThreads
- * @param {object} [formState] When collection.threadType is STITCHING, only rows with primary + at least one supporting Amann are included (SKU/metafields/persistence). Omit for UI lists that should show rows missing supporting yet.
+ * @param {object} [_formState] Reserved for callers; primary Amann alone is sufficient.
  * @returns {object[]}
  */
-export const sortedStitchingThreadsList = (stitchingThreads, formState) =>
-  [...validStitchingThreadEntries(stitchingThreads, formState)].sort((a, b) =>
+export const sortedStitchingThreadsList = (stitchingThreads, _formState) =>
+  [...validStitchingThreadEntries(stitchingThreads)].sort((a, b) =>
     String(a.amannNumbers[0].label || "").localeCompare(
       String(b.amannNumbers[0].label || "")
     )
