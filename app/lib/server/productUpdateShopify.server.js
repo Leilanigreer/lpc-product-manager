@@ -874,17 +874,21 @@ export async function updateShopifyProduct(admin, payload) {
     optionValueIdByName.set(to, valueId);
   };
 
+  /** One Shopify variant per generated row; without this, fuzzy reconcile can reuse the same id. */
+  const resolveClaimedIds = new Set();
+
   for (const row of generated) {
     const sku = String(row?.sku || "").trim();
     const variantName = normalizeVariantDisplayName(row?.variantName ?? "");
     if (!sku || !variantName) continue;
 
-    const existing = resolveExistingForRow(row);
+    const existing = resolveExistingForRow(row, resolveClaimedIds);
     if (!existing) {
       variantsToCreate.push({ ...row, variantName });
       queueShapeOptionValueAdd(variantName);
       continue;
     }
+    resolveClaimedIds.add(existing.id);
 
     const currentName = shapeDisplayNameFromLoadedVariant(existing);
     if (currentName !== variantName) {
@@ -1001,11 +1005,23 @@ export async function updateShopifyProduct(admin, payload) {
     }
   }
 
+  let updatedVariantCount = 0;
   if (variantsToUpdate.length > 0) {
+    const dedupedVariantsToUpdate = [];
+    const updateById = new Map();
+    for (const input of variantsToUpdate) {
+      if (!input?.id) continue;
+      updateById.set(input.id, { ...updateById.get(input.id), ...input });
+    }
+    for (const input of updateById.values()) {
+      dedupedVariantsToUpdate.push(input);
+    }
+    updatedVariantCount = dedupedVariantsToUpdate.length;
+
     const updateResponse = await admin.graphql(VARIANTS_BULK_UPDATE_MUTATION, {
       variables: {
         productId,
-        variants: variantsToUpdate,
+        variants: dedupedVariantsToUpdate,
       },
     });
     const updateJson = await updateResponse.json();
@@ -1023,12 +1039,16 @@ export async function updateShopifyProduct(admin, payload) {
     }
   }
 
+  const orderedResolveClaimedIds = new Set();
   const orderedResolved = generated.map((row) => {
     const sku = String(row?.sku || "").trim();
     const variantName = normalizeVariantDisplayName(row?.variantName ?? "");
     if (!sku || !variantName) return { sku: sku || null, id: null };
-    const ex = resolveExistingForRow(row);
-    if (ex?.id) return { sku, id: ex.id };
+    const ex = resolveExistingForRow(row, orderedResolveClaimedIds);
+    if (ex?.id) {
+      orderedResolveClaimedIds.add(ex.id);
+      return { sku, id: ex.id };
+    }
     return { sku, id: createdSkuToId.get(sku) || null };
   });
 
@@ -1043,7 +1063,7 @@ export async function updateShopifyProduct(admin, payload) {
     success: true,
     productId,
     createdVariantCount: variantsToCreate.length,
-    updatedVariantCount: variantsToUpdate.length,
+    updatedVariantCount: updatedVariantCount,
     skippedManualPriceCount: generated.filter((row) => {
       const ex = resolveExistingForRow(row);
       if (!ex) return false;
