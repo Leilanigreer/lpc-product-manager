@@ -10,7 +10,11 @@ import {
   buildExistingVariantReconcileIndex,
   resolveExistingVariantForUpdateRow,
 } from "../utils/variantReconcileUtils.js";
-import { shapeDisplayNameFromLoadedVariant } from "../utils/updatePreviewUtils.js";
+import {
+  formatOldSkusMetafieldValue,
+  parseOldSkusMetafieldValue,
+  shapeDisplayNameFromLoadedVariant,
+} from "../utils/updatePreviewUtils.js";
 
 /** Thrown when Shopify returns userErrors from bulk variant or metafield mutations (includes `details` for UI). */
 export class ProductUpdateUserError extends Error {
@@ -543,21 +547,21 @@ async function setProductAndVariantMetafields(
 
   if (productData.migrateBaseSkuToOldSkus) {
     const previousMaster = String(productData.previousListingBaseSku || "").trim();
-    const existingOld = String(productData.existingOldSkusRaw || "").trim();
     if (previousMaster && previousMaster !== baseSkuMeta) {
-      const lines = existingOld
-        ? existingOld.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
-        : [];
+      const lines = parseOldSkusMetafieldValue(productData.existingOldSkusRaw);
       if (!lines.includes(previousMaster)) {
         lines.push(previousMaster);
       }
-      metafields.push({
-        ownerId: productId,
-        namespace: "custom",
-        key: "old_skus",
-        type: "single_line_text_field",
-        value: lines.join("\n"),
-      });
+      const oldSkusValue = formatOldSkusMetafieldValue(lines);
+      if (oldSkusValue) {
+        metafields.push({
+          ownerId: productId,
+          namespace: "custom",
+          key: "old_skus",
+          type: "single_line_text_field",
+          value: oldSkusValue,
+        });
+      }
     }
   }
 

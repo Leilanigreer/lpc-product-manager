@@ -5,6 +5,27 @@ import {
 } from "./priceUtils.js";
 import { generateBaseParts } from "./versionUtils.js";
 
+/**
+ * Parse `custom.old_skus` metafield (comma-separated for single_line_text_field;
+ * also accepts legacy newline-separated values).
+ */
+export function parseOldSkusMetafieldValue(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return [];
+  return text
+    .split(/\r?\n|,\s*/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+/** Write `custom.old_skus` as one line (Shopify single_line_text_field). */
+export function formatOldSkusMetafieldValue(skus) {
+  const lines = (Array.isArray(skus) ? skus : [])
+    .map((s) => String(s || "").trim())
+    .filter(Boolean);
+  return [...new Set(lines)].join(", ");
+}
+
 /** Split listing `custom.base_sku` into unversioned segments and optional `-Vn` (matches update server). */
 export function parseVersionedBaseSkuString(baseSku) {
   const normalized = String(baseSku || "").trim();
@@ -227,10 +248,17 @@ export function previewProductLevelChanges(productData, existingProduct, descrip
       to: nextBase,
     });
     if (productData.migrateBaseSkuToOldSkus) {
+      const prevOld = formatOldSkusMetafieldValue(
+        parseOldSkusMetafieldValue(existingProduct.oldSkusUsed)
+      );
+      const nextOld = formatOldSkusMetafieldValue([
+        ...parseOldSkusMetafieldValue(existingProduct.oldSkusUsed),
+        prevBase,
+      ]);
       changes.push({
         field: "custom.old_skus",
-        from: existingProduct.oldSkusUsed?.trim() || "(empty)",
-        to: `append ${prevBase}`,
+        from: prevOld || "(empty)",
+        to: nextOld,
       });
     }
   }
