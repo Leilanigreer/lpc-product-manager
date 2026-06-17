@@ -84,6 +84,7 @@ const PRODUCT_FOR_UPDATE_QUERY = `#graphql
           }
           singleShape: metafield(namespace: "custom", key: "single_shape") { value }
           singleStyle: metafield(namespace: "custom", key: "single_style") { value }
+          namedLeather: metafield(namespace: "custom", key: "named_leather") { value }
           customizable: metafield(namespace: "custom", key: "customizable") { value }
         }
       }
@@ -584,6 +585,16 @@ async function setProductAndVariantMetafields(
       });
     }
 
+    if (isShopifyMetaobjectGid(pv.colorDesignation?.value)) {
+      metafields.push({
+        ownerId: rv.id,
+        namespace: "custom",
+        key: "named_leather",
+        type: "metaobject_reference",
+        value: pv.colorDesignation.value,
+      });
+    }
+
     if (pv.isCustom) {
       metafields.push({
         ownerId: rv.id,
@@ -702,6 +713,7 @@ export async function fetchProductForUpdate(admin, productId) {
       selectedOptions: v.selectedOptions ?? [],
       singleShape: v.singleShape?.value ?? null,
       singleStyle: v.singleStyle?.value ?? null,
+      namedLeather: v.namedLeather?.value ?? null,
       customizable: customizableRaw,
       /** True only when `customizable` metafield is explicitly true (base / non-custom row). */
       isBaseVariant: parseMetafieldBoolean(customizableRaw) === true,

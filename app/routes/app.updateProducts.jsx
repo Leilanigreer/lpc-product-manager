@@ -186,6 +186,7 @@ function hydrateFormFromProduct({
   }, {});
 
   const stylesById = new Map((collection?.styles ?? []).map((s) => [s.value, s]));
+  const byLeatherId = new Map((allLeatherColors || []).map((x) => [x.value, x]));
   const selectedShapeValues = new Set();
   const shapeRows = Object.values(allShapes);
   const shapeByValue = new Map(shapeRows.map((row) => [row.value, row]));
@@ -205,6 +206,9 @@ function hydrateFormFromProduct({
       style: variant.singleStyle
         ? stylesById.get(variant.singleStyle) || null
         : allShapes[shapeValue].style,
+      ...(variant.namedLeather && byLeatherId.has(variant.namedLeather)
+        ? { colorDesignation: byLeatherId.get(variant.namedLeather) }
+        : {}),
     };
   }
 
@@ -223,7 +227,6 @@ function hydrateFormFromProduct({
     };
   }
 
-  const byLeatherId = new Map((allLeatherColors || []).map((x) => [x.value, x]));
   const primaryLeather = product.leathersUsed?.[0]
     ? byLeatherId.get(product.leathersUsed[0]) || null
     : null;

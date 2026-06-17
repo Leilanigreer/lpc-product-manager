@@ -16,7 +16,8 @@
  *   TODO: Re-evaluate with Limited Edition / Artisan collection work — logic may need to change.
  * - Product `custom.google_drive_images` — same folder URL as creation email (`productData.googleDriveFolderUrl`);
  *   type `url` in Admin (omit when no folder URL yet).
- * - Variant `custom.single_shape` / `custom.single_style`: single metaobject_reference per variant.
+ * - Variant `custom.single_shape` / `custom.single_style` / `custom.named_leather`: single
+ *   metaobject_reference per variant (`named_leather` → leather_color GID from `colorDesignation`).
  * - Variant `custom.customizable` (boolean); `custom.customizable_variant_id` (variant_reference) on
  *   base variants. Wood pairing uses `customizeRepresentativeShapeValue` on base woods — see
  *   `buildWoodBaseToRepresentativeShapeValueMap` / `woodCollapseColorDesignationsMatch`.
@@ -259,6 +260,16 @@ async function setProductAndVariantMetafields(
         key: "single_style",
         type: "metaobject_reference",
         value: pv.style.value,
+      });
+    }
+
+    if (isShopifyMetaobjectGid(pv.colorDesignation?.value)) {
+      metafields.push({
+        ownerId: cv.id,
+        namespace: "custom",
+        key: "named_leather",
+        type: "metaobject_reference",
+        value: pv.colorDesignation.value,
       });
     }
 
