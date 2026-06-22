@@ -189,13 +189,13 @@ export const action = async ({ request }) => {
         setActive: false,
         blendedCollectionName: buildLeatherBlendedCollectionName(
           source.collectionName,
-          source.label
+          source.name
         ),
       });
 
       migratedFrom = {
         collectionName: source.collectionName || null,
-        name: source.label,
+        name: source.name,
       };
     } else {
       // Normal creation path when name+collection pair is entirely new

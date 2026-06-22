@@ -253,19 +253,21 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   const leatherColorOptions = useMemo(() => {
     return (leatherColors || []).map((lc) => {
       const collectionName = lc.collectionName || lc.collection || null;
-      const baseLabel = lc.label;
-      const labelWithCollection = collectionName
-        ? `[${collectionName}] ${baseLabel}`
-        : baseLabel;
+      const leatherName = (lc.name || lc.label || "").trim();
+      const label = lc.blendedCollectionName?.trim()
+        ? lc.label.trim()
+        : collectionName
+          ? `[${collectionName}] ${leatherName}`
+          : leatherName;
       return {
-        label: labelWithCollection,
+        label,
         value: lc.value,
         abbreviation: lc.abbreviation,
         isLimitedEditionLeather: lc.isLimitedEditionLeather,
         isActive: lc.isActive,
         colorMetaobjectIds: lc.colorMetaobjectIds || [],
         collectionName,
-        baseLabel,
+        baseLabel: leatherName,
       };
     });
   }, [leatherColors]);
@@ -329,8 +331,8 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     if ((mode !== "update" && mode !== "reactivate") || !selectedLeatherColorId) return;
     const selected = leatherColorOptions.find((opt) => opt.value === selectedLeatherColorId);
     if (selected) {
-      setLeatherColorName(selected.label);
-      setFormattedName(selected.label);
+      setLeatherColorName(selected.baseLabel);
+      setFormattedName(selected.baseLabel);
       setGeneratedAbbr(selected.abbreviation || "");
       setIsLimitedEditionLeather(!!selected.isLimitedEditionLeather);
       setSelectedColorIds(selected.colorMetaobjectIds || []);
