@@ -35,6 +35,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
   const [isLimitedEditionLeather, setIsLimitedEditionLeather] = useState(false);
   const [addModeConflict, setAddModeConflict] = useState(null);
   const [crossCollectionInfo, setCrossCollectionInfo] = useState(null);
+  const [leatherColorSearchInput, setLeatherColorSearchInput] = useState("");
   const prevModeRef = React.useRef(mode);
 
   const filteredColorOptions = useMemo(() => {
@@ -284,6 +285,50 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
     [leatherColorOptions]
   );
 
+  const filterLeatherColorOptionsBySearch = useCallback((options, query) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter(
+      (opt) =>
+        opt.label.toLowerCase().includes(q) ||
+        (opt.baseLabel || "").toLowerCase().includes(q) ||
+        (opt.collectionName || "").toLowerCase().includes(q)
+    );
+  }, []);
+
+  const filteredActiveLeatherColorOptions = useMemo(
+    () => filterLeatherColorOptionsBySearch(activeLeatherColorOptions, leatherColorSearchInput),
+    [activeLeatherColorOptions, leatherColorSearchInput, filterLeatherColorOptionsBySearch]
+  );
+
+  const filteredInactiveLeatherColorOptions = useMemo(
+    () => filterLeatherColorOptionsBySearch(inactiveLeatherColorOptions, leatherColorSearchInput),
+    [inactiveLeatherColorOptions, leatherColorSearchInput, filterLeatherColorOptionsBySearch]
+  );
+
+  const handleLeatherColorSearchChange = useCallback(
+    (value) => {
+      setLeatherColorSearchInput(value);
+      if (!selectedLeatherColorId) return;
+      const selected = leatherColorOptions.find((opt) => opt.value === selectedLeatherColorId);
+      if (selected && selected.label !== value) {
+        setSelectedLeatherColorId("");
+      }
+    },
+    [selectedLeatherColorId, leatherColorOptions]
+  );
+
+  const handleLeatherColorSelect = useCallback(
+    (value) => {
+      setSelectedLeatherColorId(value);
+      const selected = leatherColorOptions.find((opt) => opt.value === value);
+      if (selected) {
+        setLeatherColorSearchInput(selected.label);
+      }
+    },
+    [leatherColorOptions]
+  );
+
   // In update mode, allow toggling Standard vs Limited Edition (with note that product state is unchanged until business logic is sorted)
   const disableLimitedEditionSwitch = mode === "discontinue" || mode === "updateDiscontinued";
 
@@ -326,6 +371,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
       setIsLimitedEditionLeather(false);
       setAddModeConflict(null);
       setCrossCollectionInfo(null);
+      setLeatherColorSearchInput("");
       return;
     }
     if ((mode !== "update" && mode !== "reactivate") || !selectedLeatherColorId) return;
@@ -1005,11 +1051,8 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                 <Combobox.TextField
                   label="Leather color"
                   labelHidden
-                  value={
-                    (mode === "discontinue" ? activeLeatherColorOptions : inactiveLeatherColorOptions)
-                      .find((opt) => opt.value === selectedLeatherColorId)?.label || ""
-                  }
-                  onChange={() => {}}
+                  value={leatherColorSearchInput}
+                  onChange={handleLeatherColorSearchChange}
                   placeholder={
                     mode === "discontinue"
                       ? "Choose an active leather color to discontinue"
@@ -1019,15 +1062,17 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                 />
               }
             >
+              {((mode === "discontinue" ? filteredActiveLeatherColorOptions : filteredInactiveLeatherColorOptions).length > 0) && (
               <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
-                <Listbox onSelect={(value) => setSelectedLeatherColorId(value)}>
-                  {(mode === "discontinue" ? activeLeatherColorOptions : inactiveLeatherColorOptions).map((option) => (
+                <Listbox onSelect={handleLeatherColorSelect}>
+                  {(mode === "discontinue" ? filteredActiveLeatherColorOptions : filteredInactiveLeatherColorOptions).map((option) => (
                     <Listbox.Option key={option.value} value={option.value}>
                       {option.label}
                     </Listbox.Option>
                   ))}
                 </Listbox>
               </div>
+              )}
             </Combobox>
           </>
         ) : (
@@ -1052,22 +1097,24 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                       <Combobox.TextField
                         label="Leather color"
                         labelHidden
-                        value={activeLeatherColorOptions.find((opt) => opt.value === selectedLeatherColorId)?.label || ""}
-                        onChange={() => {}}
+                        value={leatherColorSearchInput}
+                        onChange={handleLeatherColorSearchChange}
                         placeholder="Choose a leather color"
                         autoComplete="off"
                       />
                     }
                   >
+                    {filteredActiveLeatherColorOptions.length > 0 && (
                     <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
-                      <Listbox onSelect={(value) => setSelectedLeatherColorId(value)}>
-                        {activeLeatherColorOptions.map((option) => (
+                      <Listbox onSelect={handleLeatherColorSelect}>
+                        {filteredActiveLeatherColorOptions.map((option) => (
                           <Listbox.Option key={option.value} value={option.value}>
                             {option.label}
                           </Listbox.Option>
                         ))}
                       </Listbox>
                     </div>
+                    )}
                   </Combobox>
                 ) : (
                   <Combobox
@@ -1075,22 +1122,24 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
                       <Combobox.TextField
                         label="Leather color"
                         labelHidden
-                        value={inactiveLeatherColorOptions.find((opt) => opt.value === selectedLeatherColorId)?.label || ""}
-                        onChange={() => {}}
+                        value={leatherColorSearchInput}
+                        onChange={handleLeatherColorSearchChange}
                         placeholder="Choose a leather color to reactivate"
                         autoComplete="off"
                       />
                     }
                   >
+                    {filteredInactiveLeatherColorOptions.length > 0 && (
                     <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
-                      <Listbox onSelect={(value) => setSelectedLeatherColorId(value)}>
-                        {inactiveLeatherColorOptions.map((option) => (
+                      <Listbox onSelect={handleLeatherColorSelect}>
+                        {filteredInactiveLeatherColorOptions.map((option) => (
                           <Listbox.Option key={option.value} value={option.value}>
                             {option.label}
                           </Listbox.Option>
                         ))}
                       </Listbox>
                     </div>
+                    )}
                   </Combobox>
                 )}
               </Box>
