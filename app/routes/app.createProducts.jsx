@@ -14,10 +14,21 @@ import { formatUnknownApiError } from "../lib/utils/formatApiError.js";
 import { loader as dataLoader } from "../lib/loaders";
 import { generateProductData, generateTitle } from "../lib/generators";
 import { plainProductDescriptionToHtml } from "../lib/generators/htmlDescription";
+import {
+  serializeFormStateForDraft,
+  mergeDraftIntoInitialState,
+  collectDraftLoadWarnings,
+} from "../lib/utils/draftFormState.js";
 import { initialFormState, createInitialShapeState } from "../lib/forms/formState";
 import { useFormState } from "../hooks/useFormState";
 import { useFormNotifications } from "../hooks/useFormNotifications.js";
 import { createShopifyProduct } from "../lib/server/shopifyOperations.server.js";
+import {
+  listProductCreationDrafts,
+  loadProductCreationDraft,
+  saveProductCreationDraft,
+  deleteProductCreationDraft,
+} from "../lib/server/productDrafts.server.js";
 // import { saveProductToDatabase } from "../lib/server/productOperations.server.js";
 import { sendInternalEmail } from "../services/email.server";
 import { generateProductCreationNotification } from "../templates/product-creation-notification";
@@ -51,6 +62,7 @@ import {
   Banner,
   Text,
   Box,
+  InlineStack,
 } from "@shopify/polaris";
 
 /** Remix data request — without `_data`, same-origin POST is a document request and returns root HTML. */
@@ -58,14 +70,64 @@ const GENERATE_DESCRIPTION_REMIX_ROUTE_ID =
   "routes/app.api.generate-product-description";
 
 export const loader = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
-  return dataLoader({ admin, includeCommonDescription: false });
+  const { session, admin } = await authenticate.admin(request);
+  const shop = session.shop ?? "";
+  const base = await dataLoader({ admin, includeCommonDescription: false });
+  const drafts = await listProductCreationDrafts(shop);
+  const url = new URL(request.url);
+  const draftIdFromUrl = url.searchParams.get("draftId")?.trim() || null;
+  return { ...base, shop, drafts, draftIdFromUrl };
 };
 
 export const action = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
+  const shop = session.shop ?? "";
   const formData = await request.formData();
-  const productData = JSON.parse(formData.get('productData'));
+  const intent = formData.get("intent");
+
+  if (intent === "saveDraft") {
+    try {
+      const draftPayload = JSON.parse(String(formData.get("draftPayload") || "{}"));
+      const result = await saveProductCreationDraft(shop, draftPayload);
+      return { success: true, intent: "saveDraft", ...result };
+    } catch (error) {
+      return {
+        success: false,
+        intent: "saveDraft",
+        error: error.message || "Could not save draft.",
+      };
+    }
+  }
+
+  if (intent === "loadDraft") {
+    const draftId = String(formData.get("draftId") || "").trim();
+    const draft = await loadProductCreationDraft(shop, draftId);
+    if (!draft) {
+      return { success: false, intent: "loadDraft", error: "Draft not found." };
+    }
+    return {
+      success: true,
+      intent: "loadDraft",
+      draft: {
+        id: draft.id,
+        label: draft.label,
+        formState: draft.formState,
+        aiDescription: draft.aiDescription,
+        googleDriveFolderUrl: draft.googleDriveFolderUrl,
+        groupImageDriveFileId: draft.groupImageDriveFileId,
+        updatedAt: draft.updatedAt.toISOString(),
+      },
+    };
+  }
+
+  if (intent === "deleteDraft") {
+    const draftId = String(formData.get("draftId") || "").trim();
+    await deleteProductCreationDraft(shop, draftId);
+    return { success: true, intent: "deleteDraft", draftId };
+  }
+
+  const productData = JSON.parse(formData.get("productData"));
+  const draftIdToDelete = String(formData.get("draftId") || "").trim() || null;
 
   try {
     const shopifyResponse = await createShopifyProduct(admin, productData);
@@ -112,6 +174,10 @@ export const action = async ({ request }) => {
       htmlContent
     );
 
+    if (draftIdToDelete) {
+      await deleteProductCreationDraft(shop, draftIdToDelete);
+    }
+
     return {
       ...shopifyResponse,
       mainHandle: productData.mainHandle,
@@ -157,6 +223,8 @@ export default function CreateProduct() {
     fontsLoadError,
     shapes, 
     shopifyCollections,
+    drafts: initialDrafts = [],
+    draftIdFromUrl = null,
     error
   } = useLoaderData();
 
@@ -218,6 +286,19 @@ export default function CreateProduct() {
   }, [shapes]);
 
   const fetcher = useFetcher();
+  const draftFetcher = useFetcher();
+
+  const [draftList, setDraftList] = useState(initialDrafts);
+  const [activeDraftId, setActiveDraftId] = useState(null);
+  const [activeDraftLabel, setActiveDraftLabel] = useState("");
+  const [draftWarnings, setDraftWarnings] = useState([]);
+  const [draftNotice, setDraftNotice] = useState(null);
+  const [savedDriveFolderUrl, setSavedDriveFolderUrl] = useState(null);
+  const autoLoadDraftRef = useRef(false);
+
+  useEffect(() => {
+    setDraftList(initialDrafts);
+  }, [initialDrafts]);
 
   const [productData, setProductData] = useState(null);
   const [formState, handleChange] = useFormState(completeInitialState, setProductData);
@@ -508,8 +589,206 @@ export default function CreateProduct() {
       return null;
     });
     setGroupImageDriveFileId(null);
+    setSavedDriveFolderUrl(null);
     clearPendingVariantImages();
   }, [clearPendingVariantImages]);
+
+  const applyLoadedDraft = useCallback(
+    (draft) => {
+      if (!draft?.formState) return;
+
+      const merged = mergeDraftIntoInitialState(draft.formState, {
+        shapes,
+        shopifyCollections,
+      });
+      handleChange("hydrateForm", merged);
+      setAiDescription(draft.aiDescription ?? "");
+      setGroupImageDriveFileId(draft.groupImageDriveFileId ?? null);
+      setSavedDriveFolderUrl(draft.googleDriveFolderUrl ?? null);
+      setReferenceImage(null);
+      setReferenceImageFile(null);
+      setReferencePreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      clearPendingVariantImages();
+      setProductData(null);
+      setGenerationError(null);
+      setActiveDraftId(draft.id);
+      setActiveDraftLabel(draft.label ?? "");
+      setDraftWarnings(
+        collectDraftLoadWarnings(draft.formState, {
+          leatherColors,
+          stitchingThreadColors,
+          embroideryThreadColors,
+          fonts,
+          shopifyCollections,
+        })
+      );
+    },
+    [
+      shapes,
+      shopifyCollections,
+      handleChange,
+      leatherColors,
+      stitchingThreadColors,
+      embroideryThreadColors,
+      fonts,
+      clearPendingVariantImages,
+    ]
+  );
+
+  const submitLoadDraft = useCallback(
+    (draftId) => {
+      if (!draftId) return;
+      const fd = new FormData();
+      fd.append("intent", "loadDraft");
+      fd.append("draftId", draftId);
+      draftFetcher.submit(fd, { method: "POST" });
+    },
+    [draftFetcher]
+  );
+
+  const buildDraftPayload = useCallback(() => {
+    return {
+      draftId: activeDraftId,
+      formState: serializeFormStateForDraft(formState),
+      aiDescription,
+      googleDriveFolderUrl:
+        productData?.googleDriveFolderUrl ?? savedDriveFolderUrl ?? null,
+      groupImageDriveFileId,
+    };
+  }, [
+    activeDraftId,
+    formState,
+    aiDescription,
+    productData,
+    savedDriveFolderUrl,
+    groupImageDriveFileId,
+  ]);
+
+  const handleSaveDraft = useCallback(() => {
+    if (!formState.collection?.value) {
+      setDraftNotice({
+        status: "critical",
+        message: "Select a collection before saving a draft.",
+      });
+      return;
+    }
+
+    setDraftNotice(null);
+    const fd = new FormData();
+    fd.append("intent", "saveDraft");
+    fd.append("draftPayload", JSON.stringify(buildDraftPayload()));
+    draftFetcher.submit(fd, { method: "POST" });
+  }, [formState.collection?.value, buildDraftPayload, draftFetcher]);
+
+  const handleDiscardDraft = useCallback(() => {
+    if (!activeDraftId) return;
+    if (
+      !window.confirm(
+        "Discard this draft? Saved progress will be deleted and the form will reset."
+      )
+    ) {
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("intent", "deleteDraft");
+    fd.append("draftId", activeDraftId);
+    draftFetcher.submit(fd, { method: "POST" });
+    handleChange("resetForm");
+    resetDescriptionAssets();
+    setActiveDraftId(null);
+    setActiveDraftLabel("");
+    setDraftWarnings([]);
+    setDraftList((prev) => prev.filter((d) => d.id !== activeDraftId));
+  }, [activeDraftId, draftFetcher, handleChange, resetDescriptionAssets]);
+
+  const handleDeleteDraftFromList = useCallback(
+    (draftId, label) => {
+      if (
+        !window.confirm(
+          `Delete draft "${label}"? This cannot be undone.`
+        )
+      ) {
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append("intent", "deleteDraft");
+      fd.append("draftId", draftId);
+      draftFetcher.submit(fd, { method: "POST" });
+
+      if (activeDraftId === draftId) {
+        handleChange("resetForm");
+        resetDescriptionAssets();
+        setActiveDraftId(null);
+        setActiveDraftLabel("");
+        setDraftWarnings([]);
+      }
+    },
+    [draftFetcher, activeDraftId, handleChange, resetDescriptionAssets]
+  );
+
+  useEffect(() => {
+    const data = draftFetcher.data;
+    if (!data || draftFetcher.state !== "idle") return;
+
+    if (data.intent === "saveDraft") {
+      if (data.success) {
+        setActiveDraftId(data.draftId);
+        setActiveDraftLabel(data.label ?? "");
+        setDraftNotice({ status: "success", message: `Draft saved: ${data.label}` });
+        setDraftList((prev) => {
+          const next = prev.filter((d) => d.id !== data.draftId);
+          next.unshift({
+            id: data.draftId,
+            label: data.label,
+            updatedAt: data.updatedAt,
+          });
+          return next;
+        });
+      } else {
+        setDraftNotice({
+          status: "critical",
+          message: data.error || "Could not save draft.",
+        });
+      }
+      return;
+    }
+
+    if (data.intent === "loadDraft") {
+      if (data.success && data.draft) {
+        applyLoadedDraft(data.draft);
+        setDraftNotice({
+          status: "info",
+          message: `Loaded draft: ${data.draft.label}`,
+        });
+      } else {
+        setDraftNotice({
+          status: "critical",
+          message: data.error || "Could not load draft.",
+        });
+      }
+      return;
+    }
+
+    if (data.intent === "deleteDraft" && data.success) {
+      setDraftList((prev) => prev.filter((d) => d.id !== data.draftId));
+      setDraftNotice({ status: "info", message: "Draft deleted." });
+    }
+  }, [draftFetcher.data, draftFetcher.state, applyLoadedDraft]);
+
+  useEffect(() => {
+    if (autoLoadDraftRef.current || !draftIdFromUrl) return;
+    autoLoadDraftRef.current = true;
+    submitLoadDraft(draftIdFromUrl);
+  }, [draftIdFromUrl, submitLoadDraft]);
+
+  const isDraftSaving =
+    draftFetcher.state !== "idle" &&
+    draftFetcher.formData?.get("intent") === "saveDraft";
 
   const {
     notification,
@@ -528,6 +807,13 @@ export default function CreateProduct() {
       setProductData(null);
       setGenerationError(null);
       resetDescriptionAssets();
+
+      if (activeDraftId) {
+        setDraftList((prev) => prev.filter((d) => d.id !== activeDraftId));
+        setActiveDraftId(null);
+        setActiveDraftLabel("");
+        setDraftWarnings([]);
+      }
 
       /** Merge any per-variant Drive failures collected during submit into the success banner so
        *  Karl sees what needs to be added by hand. `handleSuccess` in `useFormNotifications` set
@@ -846,6 +1132,9 @@ export default function CreateProduct() {
 
     const formData = new FormData();
     formData.append('productData', JSON.stringify(payload));
+    if (activeDraftId) {
+      formData.append("draftId", activeDraftId);
+    }
     
     fetcher.submit(formData, { 
       method: 'POST', 
@@ -897,8 +1186,118 @@ export default function CreateProduct() {
           </Layout.Section>
         )}
 
+        {draftNotice && (
+          <Layout.Section>
+            <Banner
+              status={draftNotice.status}
+              onDismiss={() => setDraftNotice(null)}
+            >
+              {draftNotice.message}
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {draftWarnings.length > 0 && (
+          <Layout.Section>
+            <Banner status="warning" title="Some saved selections may be outdated">
+              <BlockStack gap="100">
+                {draftWarnings.map((msg, i) => (
+                  <Text key={i} as="p" variant="bodyMd">
+                    {msg}
+                  </Text>
+                ))}
+              </BlockStack>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {activeDraftId && (
+          <Layout.Section>
+            <Banner
+              status="info"
+              title={`Editing draft: ${activeDraftLabel || "Untitled draft"}`}
+            >
+              <InlineStack gap="200">
+                <Button onClick={handleSaveDraft} loading={isDraftSaving}>
+                  Save draft
+                </Button>
+                <Button tone="critical" onClick={handleDiscardDraft}>
+                  Discard draft
+                </Button>
+              </InlineStack>
+            </Banner>
+          </Layout.Section>
+        )}
+
         <Layout.Section>
           <BlockStack gap="400">
+
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  Saved drafts
+                </Text>
+                {!activeDraftId && (
+                  <Button onClick={handleSaveDraft} loading={isDraftSaving}>
+                    Save draft
+                  </Button>
+                )}
+              </InlineStack>
+
+              {draftList.length === 0 ? (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  No saved drafts yet. Select a collection and save your progress to finish later.
+                </Text>
+              ) : (
+                <BlockStack gap="200">
+                  {draftList.map((draft) => (
+                    <InlineStack
+                      key={draft.id}
+                      align="space-between"
+                      blockAlign="center"
+                      gap="200"
+                    >
+                      <BlockStack gap="050">
+                        <Text as="p" variant="bodyMd" fontWeight="semibold">
+                          {draft.label}
+                          {activeDraftId === draft.id ? " (editing)" : ""}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          Updated{" "}
+                          {draft.updatedAt
+                            ? new Date(draft.updatedAt).toLocaleString()
+                            : ""}
+                        </Text>
+                      </BlockStack>
+                      <InlineStack gap="200">
+                        <Button
+                          onClick={() => submitLoadDraft(draft.id)}
+                          disabled={activeDraftId === draft.id}
+                          loading={
+                            draftFetcher.state !== "idle" &&
+                            draftFetcher.formData?.get("draftId") === draft.id &&
+                            draftFetcher.formData?.get("intent") === "loadDraft"
+                          }
+                        >
+                          Continue
+                        </Button>
+                        <Button
+                          tone="critical"
+                          variant="plain"
+                          onClick={() =>
+                            handleDeleteDraftFromList(draft.id, draft.label)
+                          }
+                        >
+                          Delete
+                        </Button>
+                      </InlineStack>
+                    </InlineStack>
+                  ))}
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Card>
 
           <Card>
             <BlockStack gap="400">

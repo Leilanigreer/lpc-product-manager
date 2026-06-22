@@ -399,3 +399,17 @@ model OAuthToken {
 
   @@unique([provider])
 }
+
+model ProductCreationDraft {
+  id                    String   @id @default(cuid())
+  shop                  String
+  label                 String
+  formState             Json
+  aiDescription         String   @default("")
+  googleDriveFolderUrl  String?
+  groupImageDriveFileId String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([shop, updatedAt])
+}
