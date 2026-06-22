@@ -13,8 +13,14 @@ const LINKED_PRODUCT_ACTION_KEYS = [
 
 export default function AddLeatherColorForm({ leatherColors, shopifyColors = [], collectionOptions = [], fetcher }) {
   const linkedProductsFetcher = useFetcher();
+  const variantInventoryFetcher = useFetcher();
   const [linkedProductActions, setLinkedProductActions] = useState({});
   const [actionsValidationModalOpen, setActionsValidationModalOpen] = useState(false);
+  const [inventoryWizardOpen, setInventoryWizardOpen] = useState(false);
+  const [inventoryWizardStep, setInventoryWizardStep] = useState(0);
+  const [inventoryWizardProducts, setInventoryWizardProducts] = useState([]);
+  const [confirmedInventoryByProductId, setConfirmedInventoryByProductId] = useState({});
+  const [inventoryWizardError, setInventoryWizardError] = useState("");
   const [pendingProductActionSubmit, setPendingProductActionSubmit] = useState(null);
   const [mode, setMode] = useState("add");
   const [selectedLeatherColorId, setSelectedLeatherColorId] = useState("");
@@ -407,10 +413,122 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
 
   const hasLinkedActionChanges = productActionDiffs.length > 0;
 
+  const getProductsNeedingCsoosConfirmation = useCallback(() => {
+    return linkedProducts.filter((p) => {
+      const defaults = buildDefaultProductActions(p);
+      const current = linkedProductActions[p.shopifyProductId] || defaults;
+      return defaults.removeContinueSellingWhenOos && !current.removeContinueSellingWhenOos;
+    });
+  }, [linkedProducts, linkedProductActions, buildDefaultProductActions]);
+
+  const variantsByProductId = useMemo(
+    () => variantInventoryFetcher.data?.variantsByProductId ?? {},
+    [variantInventoryFetcher.data]
+  );
+
+  const inventoryWizardSteps = useMemo(() => {
+    return inventoryWizardProducts.filter((p) => {
+      const variants = variantsByProductId[p.shopifyProductId] ?? [];
+      return variants.some((v) => !v.isCustom);
+    });
+  }, [inventoryWizardProducts, variantsByProductId]);
+
+  const inventoryWizardSummaryStep = inventoryWizardSteps.length;
+  const isInventoryWizardSummaryStep =
+    inventoryWizardOpen && inventoryWizardStep === inventoryWizardSummaryStep;
+
+  const variantInventoryLoading =
+    variantInventoryFetcher.state === "loading" || variantInventoryFetcher.state === "submitting";
+  const variantInventoryFetchError = variantInventoryFetcher.data?.error ?? null;
+
+  React.useEffect(() => {
+    if (!inventoryWizardOpen || !inventoryWizardProducts.length) return;
+    if (variantInventoryLoading) return;
+    if (variantInventoryFetchError) return;
+    if (!variantInventoryFetcher.data) return;
+
+    const next = {};
+    inventoryWizardProducts.forEach((p) => {
+      const variants = variantsByProductId[p.shopifyProductId] ?? [];
+      const baseVariants = variants.filter((v) => !v.isCustom);
+      if (!baseVariants.length) return;
+
+      next[p.shopifyProductId] = {};
+      baseVariants.forEach((v) => {
+        next[p.shopifyProductId][v.id] = {
+          variantId: v.id,
+          inventoryItemId: v.inventoryItemId,
+          quantity: String(v.inventoryQuantity ?? 0),
+          currentQuantity: v.inventoryQuantity ?? 0,
+          title: v.title,
+          sku: v.sku,
+        };
+      });
+    });
+    setConfirmedInventoryByProductId(next);
+  }, [
+    inventoryWizardOpen,
+    inventoryWizardProducts,
+    variantsByProductId,
+    variantInventoryLoading,
+    variantInventoryFetchError,
+    variantInventoryFetcher.data,
+  ]);
+
+  const resetInventoryWizard = useCallback(() => {
+    setInventoryWizardOpen(false);
+    setInventoryWizardStep(0);
+    setInventoryWizardProducts([]);
+    setConfirmedInventoryByProductId({});
+    setInventoryWizardError("");
+  }, []);
+
+  const parseNonNegativeInteger = useCallback((value) => {
+    const trimmed = String(value ?? "").trim();
+    if (trimmed === "") return null;
+    const n = Number(trimmed);
+    if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) return null;
+    return n;
+  }, []);
+
+  const validateCurrentInventoryWizardStep = useCallback(() => {
+    if (isInventoryWizardSummaryStep) return true;
+
+    const product = inventoryWizardSteps[inventoryWizardStep];
+    if (!product) return true;
+
+    const rows = Object.values(confirmedInventoryByProductId[product.shopifyProductId] || {});
+    if (!rows.length) return true;
+
+    for (const row of rows) {
+      if (parseNonNegativeInteger(row.quantity) == null) {
+        setInventoryWizardError(
+          `Enter a whole number 0 or greater for every variant on "${product.title}".`
+        );
+        return false;
+      }
+    }
+
+    setInventoryWizardError("");
+    return true;
+  }, [
+    confirmedInventoryByProductId,
+    inventoryWizardStep,
+    inventoryWizardSteps,
+    isInventoryWizardSummaryStep,
+    parseNonNegativeInteger,
+  ]);
+
   const appendLinkedProductActionsPayload = useCallback((formData) => {
     const payload = linkedProducts.map((p) => {
       const defaults = buildDefaultProductActions(p);
       const current = linkedProductActions[p.shopifyProductId] || defaults;
+      const shouldApplyCsoosInventory =
+        defaults.removeContinueSellingWhenOos && !current.removeContinueSellingWhenOos;
+      const inventoryRows = Object.values(
+        confirmedInventoryByProductId[p.shopifyProductId] || {}
+      );
+
       return {
         shopifyProductId: p.shopifyProductId,
         title: p.title,
@@ -422,10 +540,23 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         },
         baseline: defaults,
         tags: p.tags || [],
+        inventoryUpdates: shouldApplyCsoosInventory
+          ? inventoryRows.map((row) => ({
+              variantId: row.variantId,
+              inventoryItemId: row.inventoryItemId,
+              quantity: parseNonNegativeInteger(row.quantity) ?? 0,
+            }))
+          : [],
       };
     });
     formData.append("linkedProductActions", JSON.stringify(payload));
-  }, [linkedProducts, linkedProductActions, buildDefaultProductActions]);
+  }, [
+    linkedProducts,
+    linkedProductActions,
+    buildDefaultProductActions,
+    confirmedInventoryByProductId,
+    parseNonNegativeInteger,
+  ]);
 
   const submitUpdateLeatherColor = useCallback(() => {
     const formData = new FormData();
@@ -483,8 +614,135 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
 
   const openActionsValidationModal = useCallback((submitType) => {
     setPendingProductActionSubmit(submitType);
+
+    if (submitType === "discontinue" || submitType === "updateDiscontinued") {
+      const csoosProducts = getProductsNeedingCsoosConfirmation();
+      if (csoosProducts.length > 0) {
+        setInventoryWizardProducts(csoosProducts);
+        setInventoryWizardStep(0);
+        setInventoryWizardError("");
+        setConfirmedInventoryByProductId({});
+        setInventoryWizardOpen(true);
+
+        const ids = csoosProducts.map((p) => p.shopifyProductId).join(",");
+        variantInventoryFetcher.load(
+          `/app/api/leather-color-product-variants?productIds=${encodeURIComponent(ids)}`
+        );
+        return;
+      }
+    }
+
     setActionsValidationModalOpen(true);
+  }, [getProductsNeedingCsoosConfirmation, variantInventoryFetcher]);
+
+  const handleInventoryWizardPrimaryAction = useCallback(() => {
+    if (variantInventoryLoading) return;
+
+    if (isInventoryWizardSummaryStep) {
+      if (
+        pendingProductActionSubmit === "discontinue" ||
+        pendingProductActionSubmit === "updateDiscontinued"
+      ) {
+        submitDiscontinueLeatherColor();
+      }
+      resetInventoryWizard();
+      setPendingProductActionSubmit(null);
+      return;
+    }
+
+    if (!validateCurrentInventoryWizardStep()) return;
+
+    if (inventoryWizardStep < inventoryWizardSummaryStep) {
+      setInventoryWizardStep((prev) => prev + 1);
+      setInventoryWizardError("");
+    }
+  }, [
+    variantInventoryLoading,
+    isInventoryWizardSummaryStep,
+    pendingProductActionSubmit,
+    submitDiscontinueLeatherColor,
+    resetInventoryWizard,
+    validateCurrentInventoryWizardStep,
+    inventoryWizardStep,
+    inventoryWizardSummaryStep,
+  ]);
+
+  const handleInventoryWizardBack = useCallback(() => {
+    if (inventoryWizardStep <= 0) return;
+    setInventoryWizardStep((prev) => prev - 1);
+    setInventoryWizardError("");
+  }, [inventoryWizardStep]);
+
+  const setConfirmedInventoryQuantity = useCallback((productId, variantId, quantity) => {
+    setConfirmedInventoryByProductId((prev) => ({
+      ...prev,
+      [productId]: {
+        ...(prev[productId] || {}),
+        [variantId]: {
+          ...(prev[productId]?.[variantId] || {}),
+          quantity,
+        },
+      },
+    }));
   }, []);
+
+  const currentInventoryWizardProduct = inventoryWizardSteps[inventoryWizardStep] || null;
+  const currentInventoryWizardRows = currentInventoryWizardProduct
+    ? Object.values(confirmedInventoryByProductId[currentInventoryWizardProduct.shopifyProductId] || {})
+    : [];
+
+  const inventoryWizardPrimaryLabel = (() => {
+    if (variantInventoryLoading) return "Loading…";
+    if (isInventoryWizardSummaryStep) return "Confirm and submit";
+    if (inventoryWizardStep === inventoryWizardSummaryStep - 1) return "Continue to summary";
+    return "Next";
+  })();
+
+  const inventoryWizardTitle = (() => {
+    if (isInventoryWizardSummaryStep) {
+      return pendingProductActionSubmit === "updateDiscontinued"
+        ? "Confirm update discontinued + product action updates"
+        : "Confirm discontinue + product action updates";
+    }
+    if (currentInventoryWizardProduct) {
+      return `Confirm on-hand quantities — ${currentInventoryWizardProduct.title} (${inventoryWizardStep + 1} of ${inventoryWizardSteps.length})`;
+    }
+    return "Confirm on-hand quantities";
+  })();
+
+  const renderProductActionSummary = () => (
+    <BlockStack gap="200">
+      <Text variant="bodyMd">
+        {productActionDiffs.length
+          ? `${productActionDiffs.length} product${productActionDiffs.length === 1 ? "" : "s"} have checkbox changes.`
+          : "No checkbox changes detected. This will only submit the leather color update/discontinue action."}
+      </Text>
+      {productActionDiffs.length > 0 && (
+        <BlockStack gap="100">
+          {productActionDiffs.map(({ product, changedKeys }) => (
+            <Box key={product.shopifyProductId}>
+              <Text variant="bodyMd" fontWeight="semibold" as="p">
+                {product.title}
+              </Text>
+              <Text variant="bodyMd" tone="subdued" as="p">
+                {changedKeys
+                  .map((key) => {
+                    if (key === "removeContinueSellingWhenOos") {
+                      return "Turn off Continue selling when out of stock";
+                    }
+                    if (key === "applyDiscount40") return "Apply 40% discount";
+                    if (key === "applyDiscount60") return "Apply 60% discount";
+                    if (key === "removeCustomizableOptions") return "Remove customizable options";
+                    return key;
+                  })
+                  .join(" | ")}
+              </Text>
+            </Box>
+          ))}
+        </BlockStack>
+      )}
+    </BlockStack>
+  );
 
   const handleConfirmActionsValidation = useCallback(() => {
     if (pendingProductActionSubmit === "update") {
@@ -1245,6 +1503,100 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         </Button>
       )}
       <Modal
+        open={inventoryWizardOpen}
+        onClose={() => {
+          resetInventoryWizard();
+          setPendingProductActionSubmit(null);
+        }}
+        title={inventoryWizardTitle}
+        primaryAction={{
+          content: inventoryWizardPrimaryLabel,
+          onAction: handleInventoryWizardPrimaryAction,
+          disabled: variantInventoryLoading || !!variantInventoryFetchError,
+        }}
+        secondaryActions={[
+          ...(inventoryWizardStep > 0 && !variantInventoryLoading
+            ? [
+                {
+                  content: "Back",
+                  onAction: handleInventoryWizardBack,
+                },
+              ]
+            : []),
+          {
+            content: "Cancel",
+            onAction: () => {
+              resetInventoryWizard();
+              setPendingProductActionSubmit(null);
+            },
+          },
+        ]}
+      >
+        <Modal.Section>
+          {variantInventoryLoading && (
+            <InlineStack gap="200" blockAlign="center">
+              <Spinner size="small" />
+              <Text tone="subdued">Loading variant inventory…</Text>
+            </InlineStack>
+          )}
+          {!variantInventoryLoading && variantInventoryFetchError && (
+            <Text tone="critical">{variantInventoryFetchError}</Text>
+          )}
+          {!variantInventoryLoading &&
+            !variantInventoryFetchError &&
+            !isInventoryWizardSummaryStep &&
+            currentInventoryWizardProduct && (
+              <BlockStack gap="300">
+                <Text variant="bodyMd">
+                  Turn off continue selling when out of stock requires confirming true on-hand
+                  quantities for each non-custom variant.
+                </Text>
+                {currentInventoryWizardRows.map((row) => (
+                  <InlineStack key={row.variantId} gap="400" align="start" wrap={false}>
+                    <Box minWidth="0" width="50%">
+                      <Text variant="bodyMd" fontWeight="semibold" as="p">
+                        {row.title}
+                      </Text>
+                      {row.sku ? (
+                        <Text variant="bodySm" tone="subdued" as="p">
+                          SKU: {row.sku}
+                        </Text>
+                      ) : null}
+                      <Text variant="bodySm" tone="subdued" as="p">
+                        Current Shopify on-hand: {row.currentQuantity}
+                      </Text>
+                    </Box>
+                    <Box width="50%">
+                      <TextField
+                        label="True on-hand quantity"
+                        type="number"
+                        min={0}
+                        step={1}
+                        autoComplete="off"
+                        value={row.quantity}
+                        onChange={(value) =>
+                          setConfirmedInventoryQuantity(
+                            currentInventoryWizardProduct.shopifyProductId,
+                            row.variantId,
+                            value
+                          )
+                        }
+                      />
+                    </Box>
+                  </InlineStack>
+                ))}
+                {inventoryWizardError ? (
+                  <InlineError message={inventoryWizardError} fieldID="inventoryWizardError" />
+                ) : null}
+              </BlockStack>
+            )}
+          {!variantInventoryLoading &&
+            !variantInventoryFetchError &&
+            isInventoryWizardSummaryStep &&
+            renderProductActionSummary()}
+        </Modal.Section>
+      </Modal>
+      <Modal
         open={actionsValidationModalOpen}
         onClose={() => {
           setActionsValidationModalOpen(false);
@@ -1272,35 +1624,7 @@ export default function AddLeatherColorForm({ leatherColors, shopifyColors = [],
         ]}
       >
         <Modal.Section>
-          <BlockStack gap="200">
-            <Text variant="bodyMd">
-              {productActionDiffs.length
-                ? `${productActionDiffs.length} product${productActionDiffs.length === 1 ? "" : "s"} have checkbox changes.`
-                : "No checkbox changes detected. This will only submit the leather color update/discontinue action."}
-            </Text>
-            {productActionDiffs.length > 0 && (
-              <BlockStack gap="100">
-                {productActionDiffs.map(({ product, changedKeys }) => (
-                  <Box key={product.shopifyProductId}>
-                    <Text variant="bodyMd" fontWeight="semibold" as="p">
-                      {product.title}
-                    </Text>
-                    <Text variant="bodyMd" tone="subdued" as="p">
-                      {changedKeys
-                        .map((key) => {
-                          if (key === "removeContinueSellingWhenOos") return "Turn off Continue selling when out of stock";
-                          if (key === "applyDiscount40") return "Apply 40% discount";
-                          if (key === "applyDiscount60") return "Apply 60% discount";
-                          if (key === "removeCustomizableOptions") return "Remove customizable options";
-                          return key;
-                        })
-                        .join(" | ")}
-                    </Text>
-                  </Box>
-                ))}
-              </BlockStack>
-            )}
-          </BlockStack>
+          {renderProductActionSummary()}
         </Modal.Section>
       </Modal>
       <Modal

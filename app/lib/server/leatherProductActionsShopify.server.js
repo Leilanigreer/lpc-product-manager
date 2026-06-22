@@ -1,5 +1,10 @@
 // app/lib/server/leatherProductActionsShopify.server.js
 
+import {
+  fetchProductVariantsForInventory,
+  setInventoryQuantities,
+} from "./inventoryShopify.server.js";
+
 const PRODUCT_VARIANTS_AND_TAGS_QUERY = `#graphql
   query ProductVariantsAndTags($productId: ID!) {
     product(id: $productId) {
@@ -257,11 +262,58 @@ async function removeCustomizableTag(admin, productId, tags) {
   if (messages.length) throw new Error(messages.join("; "));
 }
 
+function parseInventoryQuantity(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
+
+function buildInventoryUpdatesFromPayload(inventoryUpdates, inventoryVariants) {
+  const variantById = new Map(
+    (inventoryVariants || []).map((v) => [v.id, v])
+  );
+  const out = [];
+
+  for (const row of inventoryUpdates || []) {
+    const variantId = row?.variantId;
+    const inventoryItemId = row?.inventoryItemId;
+    const quantity = parseInventoryQuantity(row?.quantity);
+    if (!variantId || !inventoryItemId || quantity == null) continue;
+
+    const variant = variantById.get(variantId);
+    if (!variant || variant.isCustom) continue;
+    if (variant.inventoryItemId !== inventoryItemId) continue;
+
+    out.push({ inventoryItemId, quantity });
+  }
+
+  return out;
+}
+
+async function zeroCustomVariantInventory(admin, inventoryVariants) {
+  const customVariants = (inventoryVariants || []).filter((v) => v.isCustom);
+  if (!customVariants.length) return;
+
+  await setInventoryQuantities(
+    admin,
+    customVariants.map((v) => ({
+      inventoryItemId: v.inventoryItemId,
+      quantity: 0,
+    }))
+  );
+}
+
+async function applyConfirmedBaseInventory(admin, inventoryUpdates, inventoryVariants) {
+  const updates = buildInventoryUpdatesFromPayload(inventoryUpdates, inventoryVariants);
+  if (!updates.length) return;
+  await setInventoryQuantities(admin, updates);
+}
+
 /**
  * Applies per-product action changes from AddLeatherColorForm linkedProductActions payload.
  * Only applies transitions from baseline=true to actions=false:
- * - removeContinueSellingWhenOos: set all variant inventoryPolicy to DENY
- * - removeCustomizableOptions: remove product "Customizable" tag and set all variant custom.customizable=false
+ * - removeContinueSellingWhenOos: apply confirmed base inventory, then set all variant inventoryPolicy to DENY
+ * - removeCustomizableOptions: zero custom variant inventory, remove product "Customizable" tag, set custom.customizable=false
  * Also syncs product custom.color metafield from leather colorMetaobjectIds when provided.
  */
 export async function applyLinkedProductActions(
@@ -314,7 +366,32 @@ export async function applyLinkedProductActions(
     const product = await fetchProductVariantsAndTags(admin, productId);
     if (!product) continue;
 
+    const needsInventoryVariants = shouldSetInventoryDeny || shouldRemoveCustomizable;
+    const inventoryVariants = needsInventoryVariants
+      ? await fetchProductVariantsForInventory(admin, product.id)
+      : [];
+
+    if (shouldRemoveCustomizable) {
+      await zeroCustomVariantInventory(admin, inventoryVariants);
+    }
+
     if (shouldSetInventoryDeny) {
+      const baseVariants = inventoryVariants.filter((v) => !v.isCustom);
+      const inventoryUpdates = item?.inventoryUpdates ?? [];
+
+      if (baseVariants.length > 0) {
+        const applied = buildInventoryUpdatesFromPayload(
+          inventoryUpdates,
+          inventoryVariants
+        );
+        if (!applied.length) {
+          throw new Error(
+            `Confirmed on-hand quantities are required for "${item?.title || product.id}" before turning off continue selling when out of stock.`
+          );
+        }
+        await applyConfirmedBaseInventory(admin, inventoryUpdates, inventoryVariants);
+      }
+
       await setAllVariantInventoryDeny(admin, product.id, product.variantIds);
     }
 

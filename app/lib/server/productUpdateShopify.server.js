@@ -15,6 +15,7 @@ import {
   parseOldSkusMetafieldValue,
   shapeDisplayNameFromLoadedVariant,
 } from "../utils/updatePreviewUtils.js";
+import { getPrimaryStoreLocationId } from "./inventoryShopify.server.js";
 
 /** Thrown when Shopify returns userErrors from bulk variant or metafield mutations (includes `details` for UI). */
 export class ProductUpdateUserError extends Error {
@@ -181,42 +182,6 @@ const METAFIELDS_SET_MUTATION = `#graphql
 `;
 
 const METAFIELDS_SET_INPUT_LIMIT = 25;
-
-const PRIMARY_STORE_LOCATION = {
-  address1: "550 Montgomery Street",
-  city: "San Francisco",
-};
-
-async function getPrimaryStoreLocationId(admin) {
-  const locationResponse = await admin.graphql(`#graphql
-    query PrimaryStoreLocation {
-      locations(first: 10) {
-        edges {
-          node {
-            id
-            address {
-              address1
-              city
-            }
-          }
-        }
-      }
-    }
-  `);
-  const locationJson = await locationResponse.json();
-  if (locationJson.errors?.length) {
-    throw new Error(locationJson.errors.map((e) => e.message).join("; "));
-  }
-  const location = locationJson.data?.locations?.edges?.find(
-    ({ node }) =>
-      node?.address?.address1 === PRIMARY_STORE_LOCATION.address1 &&
-      node?.address?.city === PRIMARY_STORE_LOCATION.city
-  );
-  if (!location?.node?.id) {
-    throw new Error("Store location not found");
-  }
-  return location.node.id;
-}
 
 function parseJsonListMetafieldValue(raw) {
   if (typeof raw !== "string" || !raw.trim()) return [];
