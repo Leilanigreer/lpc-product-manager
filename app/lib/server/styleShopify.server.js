@@ -579,9 +579,9 @@ export async function createShopifyStyle(admin, params) {
 
   const fields = [
     { key: "style", value: styleName },
-    { key: "category", value: JSON.stringify([categoryValue]) },
-    { key: "collection_category", value: JSON.stringify([collectionCategoryValue]) },
-    { key: "shape_group", value: JSON.stringify([shapeGroupValue]) },
+    { key: "category", value: categoryValue },
+    { key: "collection_category", value: collectionCategoryValue },
+    { key: "shape_group", value: shapeGroupValue },
     { key: "abbreviation", value: abbreviationValue },
     { key: "use_in_variant_title", value: useInVariantTitleBool ? "true" : "false" },
     { key: "include_abbreviation_in_sku", value: includeAbbreviationInSku ? "true" : "false" },
@@ -612,7 +612,7 @@ export async function createShopifyStyle(admin, params) {
     if (useOppositeLeather !== true && useOppositeLeather !== false) {
       throw new Error("Use opposite leather must be answered when naming variants with this style.");
     }
-    fields.push({ key: "name_pattern", value: JSON.stringify([namePatternValue]) });
+    fields.push({ key: "name_pattern", value: namePatternValue });
     fields.push({ key: "leather_phrase", value: leatherPhraseValue });
     fields.push({ key: "needs_color_designation", value: needsColorDesignation ? "true" : "false" });
     fields.push({ key: "use_opposite_leather", value: useOppositeLeather ? "true" : "false" });
