@@ -800,9 +800,6 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
               helpText="Storefront display order."
             />
             <BlockStack gap="200">
-              <Text variant="bodyMd" as="label" fontWeight="medium">
-                Preview image
-              </Text>
               <ImageDropZone
                 size="additional"
                 label="Preview image"
