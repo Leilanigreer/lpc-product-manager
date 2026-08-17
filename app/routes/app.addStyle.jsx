@@ -36,6 +36,10 @@ import {
 } from "../lib/server/styleShopify.server.js";
 import { uploadShopifyImageFile } from "../lib/server/shopifyFilesShopify.server.js";
 import { findStyleAbbreviationConflict } from "../lib/utils/styleAbbreviationUtils.js";
+import {
+  canonicalizeStyleName,
+  quiltedStyleNamePrefixError,
+} from "../lib/utils/validations/styleValidations.js";
 
 export const loader = async ({ request }) => {
   const { admin } = await authenticate.admin(request);
@@ -114,6 +118,42 @@ export const action = async ({ request }) => {
       }
     }
 
+    if (actionType === "create_style_choice") {
+      const styleRaw = (formData.get("style") || "").toString();
+      const collectionCategory = (formData.get("collection_category") || "").toString().trim();
+      const style = canonicalizeStyleName(styleRaw, collectionCategory);
+      if (!style) {
+        return json(
+          { success: false, actionType, error: "Style name is required." },
+          { status: 400 }
+        );
+      }
+      if (!collectionCategory) {
+        return json(
+          { success: false, actionType, error: "Collection category is required." },
+          { status: 400 }
+        );
+      }
+      const prefixError = quiltedStyleNamePrefixError(style, collectionCategory);
+      if (prefixError) {
+        return json({ success: false, actionType, error: prefixError }, { status: 400 });
+      }
+      try {
+        const ensured = await ensureStyleChoiceListValue(admin, "style", style);
+        return json({
+          success: true,
+          actionType,
+          added: !!ensured?.added,
+          style,
+        });
+      } catch (err) {
+        return json(
+          { success: false, actionType, error: err.message },
+          { status: 500 }
+        );
+      }
+    }
+
     return json(
       { success: false, error: `Unknown actionType "${actionType}".` },
       { status: 400 }
@@ -145,6 +185,11 @@ export const action = async ({ request }) => {
   if (!collectionCategory) return json({ success: false, error: "Collection category is required." }, { status: 400 });
   if (!shapeGroup) return json({ success: false, error: "Shape group is required." }, { status: 400 });
   if (!abbreviation) return json({ success: false, error: "Abbreviation is required." }, { status: 400 });
+  const canonicalStyle = canonicalizeStyleName(style, collectionCategory);
+  const prefixError = quiltedStyleNamePrefixError(canonicalStyle, collectionCategory);
+  if (prefixError) {
+    return json({ success: false, error: prefixError }, { status: 400 });
+  }
   if (useInVariantTitleRaw !== "true" && useInVariantTitleRaw !== "false") {
     return json({ success: false, error: "Use in Variant Title must be answered." }, { status: 400 });
   }
@@ -185,7 +230,7 @@ export const action = async ({ request }) => {
   if (previewImage && typeof previewImage === "object" && typeof previewImage.arrayBuffer === "function") {
     try {
       const uploaded = await uploadShopifyImageFile(admin, previewImage, {
-        alt: `${style} preview`,
+        alt: `${canonicalStyle} preview`,
       });
       previewImageId = uploaded.id;
     } catch (err) {
@@ -227,7 +272,7 @@ export const action = async ({ request }) => {
 
   let choiceAdded = false;
   try {
-    const ensured = await ensureStyleChoiceListValue(admin, "style", style);
+    const ensured = await ensureStyleChoiceListValue(admin, "style", canonicalStyle);
     choiceAdded = !!ensured?.added;
   } catch (err) {
     return json({ success: false, error: `Could not update style choice list: ${err.message}` }, { status: 500 });
@@ -235,7 +280,7 @@ export const action = async ({ request }) => {
 
   try {
     const created = await createShopifyStyle(admin, {
-      style,
+      style: canonicalStyle,
       category,
       collectionCategory,
       shapeGroup,

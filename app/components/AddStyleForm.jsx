@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
+import { useFetcher, useRevalidator } from "@remix-run/react";
 import {
   BlockStack,
   InlineStack,
@@ -24,6 +25,10 @@ import {
   findStyleAbbreviationConflict,
   generateStyleAbbreviation,
 } from "../lib/utils/styleAbbreviationUtils";
+import {
+  QUILTED_PREFIX_COLLECTION_CATEGORY,
+  canonicalizeStyleName,
+} from "../lib/utils/validations/styleValidations";
 
 const SELECT_PLACEHOLDER = { label: "Select…", value: "" };
 
@@ -73,18 +78,29 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
 
   const [showAbbreviationHelper, setShowAbbreviationHelper] = useState(false);
   const [clientError, setClientError] = useState("");
+  const [showChoiceSuccess, setShowChoiceSuccess] = useState(false);
+
+  const choiceFetcher = useFetcher();
+  const revalidator = useRevalidator();
+  const processedChoiceData = React.useRef(null);
+
+  const canonicalStyleName = useMemo(
+    () => canonicalizeStyleName(styleName, collectionCategory),
+    [styleName, collectionCategory]
+  );
+  const requiresQuiltedPrefix = collectionCategory === QUILTED_PREFIX_COLLECTION_CATEGORY;
 
   React.useEffect(() => {
     if (!abbreviationDirty) {
       setAbbreviation(
         generateStyleAbbreviation({
-          styleName,
+          styleName: canonicalStyleName,
           collectionCategory,
           shapeGroup,
         })
       );
     }
-  }, [styleName, collectionCategory, shapeGroup, abbreviationDirty]);
+  }, [canonicalStyleName, collectionCategory, shapeGroup, abbreviationDirty]);
 
   React.useEffect(() => {
     return () => {
@@ -93,7 +109,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
   }, [previewImageUrl]);
 
   React.useEffect(() => {
-    if (fetcher?.data?.success) {
+    if (fetcher?.data?.success && fetcher.data?.actionType === "create") {
       setStyleName("");
       setStyleInput("");
       setCategory("");
@@ -117,8 +133,26 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
       setUseOppositeLeather(false);
       setUseOppositeLeatherTouched(false);
       setClientError("");
+      setShowChoiceSuccess(false);
+      processedChoiceData.current = null;
     }
-  }, [fetcher?.data?.success]);
+  }, [fetcher?.data?.success, fetcher?.data?.actionType]);
+
+  React.useEffect(() => {
+    const data = choiceFetcher.data;
+    if (choiceFetcher.state !== "idle") return;
+    if (!data?.success || data?.actionType !== "create_style_choice") return;
+    if (processedChoiceData.current === data) return;
+    processedChoiceData.current = data;
+    const createdName = data.style;
+    if (createdName) {
+      setStyleName(createdName);
+      setStyleInput(createdName);
+    }
+    setShowChoiceSuccess(true);
+    setClientError("");
+    revalidator.revalidate();
+  }, [choiceFetcher.data, choiceFetcher.state, revalidator]);
 
   const styleChoiceMatches = useMemo(() => {
     const q = styleInput.toLowerCase();
@@ -127,23 +161,50 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
   }, [styleChoices, styleInput]);
 
   const isNewStyleValue = useMemo(() => {
-    const trimmed = styleName.trim();
+    const trimmed = canonicalStyleName;
     if (!trimmed) return false;
     return !styleChoices.some(
       (opt) => opt.label.toLowerCase() === trimmed.toLowerCase()
     );
-  }, [styleName, styleChoices]);
+  }, [canonicalStyleName, styleChoices]);
 
-  const handleStyleSelect = useCallback((value) => {
-    setStyleName(value);
-    setStyleInput(value);
-    setClientError("");
-  }, []);
+  const applyCanonicalName = useCallback(
+    (value) => {
+      const next = canonicalizeStyleName(value, collectionCategory);
+      setStyleName(next);
+      setStyleInput(next);
+      return next;
+    },
+    [collectionCategory]
+  );
+
+  const handleCollectionCategoryChange = useCallback(
+    (value) => {
+      setCollectionCategory(value);
+      setClientError("");
+      setShowChoiceSuccess(false);
+      if (styleName.trim()) {
+        const next = canonicalizeStyleName(styleName, value);
+        setStyleName(next);
+        setStyleInput(next);
+      }
+    },
+    [styleName]
+  );
+
+  const handleStyleSelect = useCallback(
+    (value) => {
+      applyCanonicalName(value);
+      setClientError("");
+    },
+    [applyCanonicalName]
+  );
 
   const handleStyleInputChange = useCallback((value) => {
     setStyleInput(value);
     setStyleName(value);
     setClientError("");
+    setShowChoiceSuccess(false);
   }, []);
 
   const leatherPhraseSuggestions = useMemo(() => {
@@ -219,7 +280,8 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
   ]);
 
   const canSubmit = useMemo(() => {
-    if (!styleName.trim()) return false;
+    if (!canonicalStyleName) return false;
+    if (isNewStyleValue) return false;
     if (!category) return false;
     if (!collectionCategory) return false;
     if (!shapeGroup) return false;
@@ -233,7 +295,8 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
     }
     return true;
   }, [
-    styleName,
+    canonicalStyleName,
+    isNewStyleValue,
     category,
     collectionCategory,
     shapeGroup,
@@ -246,15 +309,52 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
     useOppositeLeatherTouched,
   ]);
 
+  const choiceSubmitting = choiceFetcher.state === "submitting";
+  const canCreateChoice =
+    Boolean(collectionCategory) &&
+    Boolean(canonicalStyleName) &&
+    isNewStyleValue &&
+    !choiceSubmitting;
+
+  const handleCreateChoice = useCallback(() => {
+    setClientError("");
+    if (!collectionCategory) {
+      setClientError("Select a collection category first.");
+      return;
+    }
+    const name = applyCanonicalName(styleName);
+    if (!name) {
+      setClientError("Enter a style name first.");
+      return;
+    }
+    const alreadyExists = styleChoices.some(
+      (opt) => opt.label.toLowerCase() === name.toLowerCase()
+    );
+    if (alreadyExists) {
+      setClientError("That style name is already in the list. Continue with the rest of the form.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("actionType", "create_style_choice");
+    formData.append("style", name);
+    formData.append("collection_category", collectionCategory);
+    choiceFetcher.submit(formData, { method: "post" });
+  }, [applyCanonicalName, choiceFetcher, collectionCategory, styleChoices, styleName]);
+
   const handleSubmit = useCallback(() => {
     setClientError("");
     if (!canSubmit) {
+      if (isNewStyleValue) {
+        setClientError("This style name is not in the Style list yet. Click Create next to Style name first.");
+        return;
+      }
       setClientError("Please fill in all required fields before submitting.");
       return;
     }
 
     const formData = new FormData();
-    formData.append("style", styleName.trim());
+    formData.append("style", canonicalStyleName);
     formData.append("category", category);
     formData.append("collection_category", collectionCategory);
     formData.append("shape_group", shapeGroup);
@@ -278,7 +378,8 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
     });
   }, [
     canSubmit,
-    styleName,
+    canonicalStyleName,
+    isNewStyleValue,
     category,
     collectionCategory,
     shapeGroup,
@@ -305,45 +406,91 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
         <Banner status="critical">{clientError}</Banner>
       )}
 
+      {choiceFetcher.data?.error && (
+        <Banner status="critical">{choiceFetcher.data.error}</Banner>
+      )}
+      {showChoiceSuccess && choiceFetcher.data?.style && (
+        <Banner status="success" onDismiss={() => setShowChoiceSuccess(false)}>
+          &ldquo;{choiceFetcher.data.style}&rdquo; added to the Style list. Finish the rest of the form and click Create Style.
+        </Banner>
+      )}
+
       <BlockStack gap="300">
-        <Box>
-          <Text variant="bodyMd" as="label" fontWeight="medium">
-            Style name
-          </Text>
-          <Combobox
-            allowMultiple={false}
-            activator={
-              <Combobox.TextField
-                label="Style name"
-                labelHidden
-                value={styleInput}
-                onChange={handleStyleInputChange}
-                placeholder="Type or choose an existing style"
-                autoComplete="off"
-                requiredIndicator
-              />
-            }
-          >
-            {styleChoiceMatches.length > 0 && (
-              <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
-                <Listbox onSelect={handleStyleSelect}>
-                  {styleChoiceMatches.map((opt) => (
-                    <Listbox.Option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </Listbox.Option>
-                  ))}
-                </Listbox>
-              </div>
-            )}
-          </Combobox>
-          {isNewStyleValue && (
-            <Box paddingBlockStart="100">
-              <Text tone="subdued" variant="bodySm">
-                This is a new style. Submitting will add &ldquo;{styleName.trim()}&rdquo; to the Style choice list.
-              </Text>
-            </Box>
-          )}
+        <Box width="48%">
+          <Select
+            label="Collection category"
+            options={[SELECT_PLACEHOLDER, ...collectionCategoryOptions]}
+            value={collectionCategory}
+            onChange={handleCollectionCategoryChange}
+            requiredIndicator
+            helpText="Choose this first. Some categories require a specific Style name prefix."
+          />
         </Box>
+
+        <InlineStack gap="200" blockAlign="start" wrap={false} align="start">
+          <Box width="48%">
+            <Text variant="bodyMd" as="label" fontWeight="medium">
+              Style name
+            </Text>
+            <Combobox
+              allowMultiple={false}
+              activator={
+                <Combobox.TextField
+                  label="Style name"
+                  labelHidden
+                  value={styleInput}
+                  onChange={handleStyleInputChange}
+                  placeholder={
+                    collectionCategory
+                      ? "Type or choose an existing style"
+                      : "Select a collection category first"
+                  }
+                  autoComplete="off"
+                  requiredIndicator
+                  disabled={!collectionCategory}
+                />
+              }
+            >
+              {collectionCategory && styleChoiceMatches.length > 0 && (
+                <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
+                  <Listbox onSelect={handleStyleSelect}>
+                    {styleChoiceMatches.map((opt) => (
+                      <Listbox.Option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </Listbox.Option>
+                    ))}
+                  </Listbox>
+                </div>
+              )}
+            </Combobox>
+            {requiresQuiltedPrefix && (
+              <Box paddingBlockStart="100">
+                <Text tone="subdued" variant="bodySm">
+                  Names for this category must start with Quilted.
+                  {canonicalStyleName
+                    ? ` Will be created as \u201c${canonicalStyleName}\u201d.`
+                    : ""}
+                </Text>
+              </Box>
+            )}
+            {isNewStyleValue && (
+              <Box paddingBlockStart="100">
+                <Text tone="subdued" variant="bodySm">
+                  This name is not in the Style list yet. Click Create to add &ldquo;{canonicalStyleName}&rdquo;, then continue with the rest of the form.
+                </Text>
+              </Box>
+            )}
+          </Box>
+          <Box paddingBlockStart="600">
+            <Button
+              onClick={handleCreateChoice}
+              disabled={!canCreateChoice || revalidator.state !== "idle"}
+              loading={choiceSubmitting}
+            >
+              Create
+            </Button>
+          </Box>
+        </InlineStack>
 
         <InlineStack gap="400" align="start" wrap>
           <Box width="48%">
@@ -352,15 +499,6 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
               options={[SELECT_PLACEHOLDER, ...categoryOptions]}
               value={category}
               onChange={(v) => { setCategory(v); setClientError(""); }}
-              requiredIndicator
-            />
-          </Box>
-          <Box width="48%">
-            <Select
-              label="Collection category"
-              options={[SELECT_PLACEHOLDER, ...collectionCategoryOptions]}
-              value={collectionCategory}
-              onChange={(v) => { setCollectionCategory(v); setClientError(""); }}
               requiredIndicator
             />
           </Box>

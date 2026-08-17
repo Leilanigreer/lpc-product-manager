@@ -133,3 +133,48 @@ export const validateStyles = (formState, debug = false) => {
 
   return validateShapeStyles(formState, debug);
 };
+
+/** Collection category whose Style names must start with "Quilted". */
+export const QUILTED_PREFIX_COLLECTION_CATEGORY = "quilted_classic_exotic";
+
+const QUILTED_WORD = "Quilted";
+
+/**
+ * Canonical Style name for writing to Shopify.
+ *
+ * When collection category is `quilted_classic_exotic`, the first word is
+ * normalized to "Quilted" or prepended when missing.
+ *
+ * @param {string} styleName
+ * @param {string} collectionCategory
+ * @returns {string}
+ */
+export function canonicalizeStyleName(styleName, collectionCategory) {
+  const trimmed = String(styleName ?? "").trim().replace(/\s+/g, " ");
+  if (!trimmed) return "";
+  if (collectionCategory !== QUILTED_PREFIX_COLLECTION_CATEGORY) {
+    return trimmed;
+  }
+  if (/^quilted(\s|$)/i.test(trimmed)) {
+    return trimmed.replace(/^quilted/i, QUILTED_WORD);
+  }
+  return `${QUILTED_WORD} ${trimmed}`;
+}
+
+/**
+ * Server-side Quilted prefix check. Returns an error message, or null when valid.
+ *
+ * @param {string} styleName
+ * @param {string} collectionCategory
+ * @returns {string|null}
+ */
+export function quiltedStyleNamePrefixError(styleName, collectionCategory) {
+  if (collectionCategory !== QUILTED_PREFIX_COLLECTION_CATEGORY) return null;
+  const trimmed = String(styleName ?? "").trim();
+  if (!trimmed) return "Style name is required.";
+  const firstWord = trimmed.split(/\s+/)[0];
+  if (firstWord !== QUILTED_WORD) {
+    return 'Style names for quilted_classic_exotic must start with "Quilted".';
+  }
+  return null;
+}
