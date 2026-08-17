@@ -3,6 +3,7 @@
  */
 
 import sharp from "sharp";
+import { getObjectBuffer } from "./r2.js";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -69,8 +70,9 @@ function normalizeStringList(values) {
  * @param {object} params
  * @param {string} params.title
  * @param {unknown} params.examples — non-null JSON value from Shopify (object or array)
- * @param {string} params.imageBase64 — raw base64, no data: prefix
- * @param {"image/jpeg"|"image/png"} params.mediaType
+ * @param {string} [params.imageBase64] — raw base64, no data: prefix (fallback when r2Key is absent)
+ * @param {"image/jpeg"|"image/png"} [params.mediaType]
+ * @param {string} [params.r2Key] — R2 object key; server fetches and resizes for Claude
  * @param {string[]} [params.shapes] — selected shape labels (style appended in parens when relevant)
  * @param {string[]} [params.stitchingThreadColors] — stitching thread color names only (no Amann numbers)
  * @param {string[]} [params.embroideryThreadColors] — embroidery thread color names only (no Isacord numbers)
@@ -81,6 +83,7 @@ export async function generateProductDescriptionViaClaude({
   examples,
   imageBase64,
   mediaType,
+  r2Key,
   shapes,
   stitchingThreadColors,
   embroideryThreadColors,
@@ -94,27 +97,38 @@ export async function generateProductDescriptionViaClaude({
     throw new Error("examples must be non-null for Claude generation.");
   }
 
-  const allowed = new Set(["image/jpeg", "image/png"]);
-  if (!allowed.has(mediaType)) {
-    throw new Error("mediaType must be image/jpeg or image/png.");
-  }
+  const trimmedKey = typeof r2Key === "string" ? r2Key.trim() : "";
+  let inputBuf;
+  if (trimmedKey) {
+    inputBuf = await getObjectBuffer(trimmedKey);
+    if (inputBuf.length > MAX_INCOMING_DECODED_BYTES) {
+      throw new Error(
+        `Reference image is about ${Math.ceil(inputBuf.length / (1024 * 1024))}MB after decoding; max ${Math.floor(MAX_INCOMING_DECODED_BYTES / (1024 * 1024))}MB before processing.`
+      );
+    }
+  } else {
+    const allowed = new Set(["image/jpeg", "image/png"]);
+    if (!allowed.has(mediaType)) {
+      throw new Error("mediaType must be image/jpeg or image/png.");
+    }
 
-  if (typeof imageBase64 !== "string" || !imageBase64.trim()) {
-    throw new Error("imageBase64 is required.");
-  }
+    if (typeof imageBase64 !== "string" || !imageBase64.trim()) {
+      throw new Error("imageBase64 or r2Key is required.");
+    }
 
-  const trimmedB64 = imageBase64.trim();
-  const approxIncoming = Math.ceil((trimmedB64.length * 3) / 4);
-  if (approxIncoming > MAX_INCOMING_DECODED_BYTES) {
-    throw new Error(
-      `Reference image is about ${Math.ceil(approxIncoming / (1024 * 1024))}MB after decoding; max ${Math.floor(MAX_INCOMING_DECODED_BYTES / (1024 * 1024))}MB before processing.`
-    );
+    const trimmedB64 = imageBase64.trim();
+    const approxIncoming = Math.ceil((trimmedB64.length * 3) / 4);
+    if (approxIncoming > MAX_INCOMING_DECODED_BYTES) {
+      throw new Error(
+        `Reference image is about ${Math.ceil(approxIncoming / (1024 * 1024))}MB after decoding; max ${Math.floor(MAX_INCOMING_DECODED_BYTES / (1024 * 1024))}MB before processing.`
+      );
+    }
+    inputBuf = Buffer.from(trimmedB64, "base64");
   }
 
   let imageBase64ForApi;
   let mediaTypeForApi;
   try {
-    const inputBuf = Buffer.from(trimmedB64, "base64");
     const outBuf = await sharp(inputBuf)
       .rotate()
       .resize({

@@ -4,20 +4,20 @@
  * @param {Object} data.product - The Shopify product data
  * @param {Object} data.databaseSave - The database save result
  * @param {Object} data.shop - The shop data
- * @param {string|null} data.cloudinaryFolderId - Optional; Cloudinary folder ID when that integration is enabled
+ * @param {string|null} [data.r2PrefixUrl] - Public R2 prefix for this product's images
  * @param {boolean} data.hasImages - Whether the product has any images
  * @returns {string} The HTML content for the email
  */
-export function generateProductCreationNotification({ product, databaseSave, shop, cloudinaryFolderId, hasImages }) {
+export function generateProductCreationNotification({ product, databaseSave, shop, r2PrefixUrl, hasImages }) {
   const shopDomain = shop.myshopifyDomain?.replace('.myshopify.com', '');
-  const productId = product.id.split('/').pop(); // Extract ID from gid://shopify/Product/123456789
+  const productId = product.id.split('/').pop();
   const adminUrl = `https://admin.shopify.com/store/${shopDomain}/products/${productId}`;
   const googleDriveUrl = databaseSave.mainProduct.googleDriveFolderUrl;
-  /** Cloudinary block omitted when `cloudinaryFolderId` is null (integration disabled). */
-  const cloudinaryUrl =
-    hasImages && cloudinaryFolderId
-      ? `https://console.cloudinary.com/console/c-978fe81eba4503099559efedf96dd2/media_library/folders/${cloudinaryFolderId}?view_mode=mosaic`
-      : null;
+  const cloudflareUrl =
+    (typeof r2PrefixUrl === "string" && r2PrefixUrl.trim()) ||
+    (typeof databaseSave?.mainProduct?.r2PrefixUrl === "string" &&
+      databaseSave.mainProduct.r2PrefixUrl.trim()) ||
+    "";
 
   return `
     <!DOCTYPE html>
@@ -62,15 +62,14 @@ export function generateProductCreationNotification({ product, databaseSave, sho
           
           ${hasImages ? `
             <p>Please work your magic on these product photos</p>
-            <p>Google Drive Folder: <a href="${googleDriveUrl}" class="link">${googleDriveUrl}</a></p>
-            ${cloudinaryUrl ? `<p>Cloudinary URL: <a href="${cloudinaryUrl}" class="link">${cloudinaryUrl}</a></p>` : ""}
+            ${googleDriveUrl ? `<p>Google Drive Folder: <a href="${googleDriveUrl}" class="link">${googleDriveUrl}</a></p>` : ""}
+            ${cloudflareUrl ? `<p>Cloudflare Images: <a href="${cloudflareUrl}" class="link">${cloudflareUrl}</a></p>` : ""}
           ` : `
             <p class="warning">No images have been uploaded for this product yet.</p>
-            <p>Ask Karl to upload images to the Google Drive folder.</p>
+            <p>Ask Karl to upload images to Google Drive and Cloudflare R2.</p>
           `}
         </div>
       </body>
     </html>
   `;
-} 
-
+}

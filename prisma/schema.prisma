@@ -298,6 +298,8 @@ model ProductImage {
   marketplace        Marketplace
   cloudinaryUrl      String?
   cloudinaryPublicId String?
+  r2Url              String?
+  r2Key              String?
   googleDriveUrl     String?
   googleDriveId      String?
   createdAt          DateTime               @default(now())
@@ -331,6 +333,7 @@ model ProductSetDataLPC {
   createdAt            DateTime                @default(now())
   googleDriveFolderUrl String? // URL to the Google Drive folder containing all product images
   cloudinaryFolderId   String? // ID of the Cloudinary folder containing all product images
+  r2Prefix             String? // R2 object-key prefix, e.g. products/{collection}/{folder}
   updatedAt            DateTime                @updatedAt
 
   @@index([fontId])

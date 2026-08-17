@@ -16,6 +16,7 @@ import {
   shapeDisplayNameFromLoadedVariant,
 } from "../utils/updatePreviewUtils.js";
 import { getPrimaryStoreLocationId } from "./inventoryShopify.server.js";
+import { appendCloudflareUrlMetafields } from "./r2Metafields.server.js";
 
 /** Thrown when Shopify returns userErrors from bulk variant or metafield mutations (includes `details` for UI). */
 export class ProductUpdateUserError extends Error {
@@ -59,6 +60,7 @@ const PRODUCT_FOR_UPDATE_QUERY = `#graphql
       metafield(namespace: "custom", key: "base_sku") { value }
       oldSkusUsed: metafield(namespace: "custom", key: "old_skus") { value }
       googleDriveFolder: metafield(namespace: "custom", key: "google_drive_images") { value }
+      cloudflareUrl: metafield(namespace: "custom", key: "cloudflare_url") { value }
       leathersUsed: metafield(namespace: "custom", key: "leathers_used") { value }
       amannThreadsUsed: metafield(namespace: "custom", key: "amann_threads_used") { value }
       isacordThreadsUsed: metafield(namespace: "custom", key: "isacord_threads_used") { value }
@@ -91,6 +93,7 @@ const PRODUCT_FOR_UPDATE_QUERY = `#graphql
           singleStyle: metafield(namespace: "custom", key: "single_style") { value }
           namedLeather: metafield(namespace: "custom", key: "named_leather") { value }
           customizable: metafield(namespace: "custom", key: "customizable") { value }
+          cloudflareUrlVariant: metafield(namespace: "custom", key: "cloudflare_url_variant") { value }
         }
       }
     }
@@ -594,6 +597,13 @@ async function setProductAndVariantMetafields(
     }
   }
 
+  appendCloudflareUrlMetafields({
+    metafields,
+    productId,
+    productData,
+    variantOwnerIds: resolvedVariantsByOrder,
+  });
+
   if (!metafields.length) return;
 
   for (const batch of chunkMetafieldsForSet(metafields)) {
@@ -684,6 +694,7 @@ export async function fetchProductForUpdate(admin, productId) {
       singleStyle: v.singleStyle?.value ?? null,
       namedLeather: v.namedLeather?.value ?? null,
       customizable: customizableRaw,
+      cloudflareUrl: String(v.cloudflareUrlVariant?.value || "").trim() || null,
       /** True only when `customizable` metafield is explicitly true (base / non-custom row). */
       isBaseVariant: parseMetafieldBoolean(customizableRaw) === true,
     };
@@ -706,6 +717,7 @@ export async function fetchProductForUpdate(admin, productId) {
     baseSku: String(product?.metafield?.value || "").trim() || null,
     oldSkusUsed: String(product?.oldSkusUsed?.value || "").trim() || null,
     googleDriveFolderUrl: String(product?.googleDriveFolder?.value || "").trim() || null,
+    r2PrefixUrl: String(product?.cloudflareUrl?.value || "").trim() || null,
     leathersUsed: parseJsonListMetafieldValue(product?.leathersUsed?.value),
     amannThreadsUsed: parseJsonListMetafieldValue(product?.amannThreadsUsed?.value),
     isacordThreadsUsed: parseJsonListMetafieldValue(product?.isacordThreadsUsed?.value),

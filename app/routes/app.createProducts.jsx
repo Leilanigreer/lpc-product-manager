@@ -23,6 +23,7 @@ import { initialFormState, createInitialShapeState } from "../lib/forms/formStat
 import { useFormState } from "../hooks/useFormState";
 import { useFormNotifications } from "../hooks/useFormNotifications.js";
 import { createShopifyProduct } from "../lib/server/shopifyOperations.server.js";
+import { resolveProductR2PrefixUrl } from "../lib/server/r2Metafields.server.js";
 import {
   listProductCreationDrafts,
   loadProductCreationDraft,
@@ -32,15 +33,17 @@ import {
 // import { saveProductToDatabase } from "../lib/server/productOperations.server.js";
 import { sendInternalEmail } from "../services/email.server";
 import { generateProductCreationNotification } from "../templates/product-creation-notification";
-/* Cloudinary folder lookup disabled — re-enable in app/lib/utils/cloudinary.js:
-import { getCloudinaryFolderPath } from "../lib/utils/cloudinary";
-*/
 import { convertDroppedFileToReferenceImage } from "../lib/utils/referenceImageClient.js";
 import {
   formatGoogleDriveUploadErrorMessage,
   uploadToGoogleDrive,
   updateToGoogleDrive,
 } from "../lib/utils/googleDrive.js";
+import {
+  uploadToR2,
+  uploadClaudePreviewToR2,
+} from "../lib/utils/r2.js";
+import { pickPrimaryVariantImageUrl } from "../lib/utils/r2Paths.js";
 import {
   CollectionSelector,
   FontSelector,
@@ -132,39 +135,27 @@ export const action = async ({ request }) => {
   try {
     const shopifyResponse = await createShopifyProduct(admin, productData);
 
-    /* Cloudinary folder ID for notification email — disabled (see cloudinary.js)
-    let cloudinaryFolderId = null;
-    const hasVariantOrViewImages =
-      (productData.additionalViews?.length ?? 0) > 0 ||
-      Object.values(productData.variants || {}).some((v) => v.images?.length > 0);
-    if (hasVariantOrViewImages) {
-      cloudinaryFolderId = await getCloudinaryFolderPath(
-        `products/${productData.productType}/${productData.mainHandle}`
-      );
-    }
-    */
-    const cloudinaryFolderId = null;
-
     // Postgres persistence paused — restore when ProductSet sync is needed again.
-    // const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse, cloudinaryFolderId);
+    // const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse);
+    const r2PrefixUrl = resolveProductR2PrefixUrl(productData);
     const databaseSaveStub = {
       mainProduct: {
         mainHandle: productData.mainHandle,
         googleDriveFolderUrl: productData.googleDriveFolderUrl ?? "",
+        r2PrefixUrl,
       },
     };
 
     const hasImages = !!(
-      cloudinaryFolderId ||
+      r2PrefixUrl ||
       (productData.googleDriveFolderUrl && String(productData.googleDriveFolderUrl).trim())
     );
 
-    // Send notification email about new product creation
     const htmlContent = generateProductCreationNotification({
       product: shopifyResponse.product,
       databaseSave: databaseSaveStub,
       shop: shopifyResponse.shop,
-      cloudinaryFolderId: cloudinaryFolderId,
+      r2PrefixUrl,
       hasImages,
     });
 
@@ -479,10 +470,31 @@ export default function CreateProduct() {
         let nextData = data;
         if (driveData?.folderPath?.productFolderUrl) {
           nextData = {
-            ...data,
+            ...nextData,
             googleDriveFolderUrl:
-              data.googleDriveFolderUrl || driveData.folderPath.productFolderUrl,
+              nextData.googleDriveFolderUrl || driveData.folderPath.productFolderUrl,
           };
+        }
+
+        try {
+          const r2Data = await uploadToR2(file, {
+            collection: String(data.productType ?? "").trim(),
+            folder: String(data.productPictureFolder ?? "").trim(),
+            sku: baseSku,
+            label: "group-image",
+          });
+          if (r2Data?.url) {
+            const prefix = r2Data.url.replace(/\/[^/]+$/, "");
+            nextData = {
+              ...nextData,
+              r2PrefixUrl: nextData.r2PrefixUrl || prefix,
+              groupImageR2: r2Data,
+            };
+          }
+        } catch (r2Error) {
+          if (process.env.NODE_ENV === "development") {
+            console.error("R2 group image upload failed:", r2Error);
+          }
         }
         return nextData;
       } catch (err) {
@@ -492,7 +504,7 @@ export default function CreateProduct() {
     [groupImageDriveFileId, resolveGroupImageBaseSku]
   );
 
-  const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, cloudinaryData }) => {
+  const handleImageUpload = useCallback((sku, label, displayUrl, { driveData, r2Data, r2PrefixUrl }) => {
     if (!productData) return;
 
     setProductData(prevData => {
@@ -501,47 +513,44 @@ export default function CreateProduct() {
       if (driveData?.folderPath?.productFolderUrl && !newData.googleDriveFolderUrl) {
         newData.googleDriveFolderUrl = driveData.folderPath.productFolderUrl;
       }
+      if (r2PrefixUrl && !newData.r2PrefixUrl) {
+        newData.r2PrefixUrl = r2PrefixUrl;
+      }
       
       const variant = newData.variants.find(v => v.sku === sku);
       if (variant) {
         variant.images = variant.images || [];
         
         const existingImageIndex = variant.images.findIndex(img => img.label === label);
+        const nextImage = { 
+          label, 
+          displayUrl,
+          driveData: driveData || null,
+          r2Data: r2Data || null
+        };
         
         if (existingImageIndex >= 0) {
-          variant.images[existingImageIndex] = { 
-            label, 
-            displayUrl,
-            driveData: driveData || null,
-            cloudinaryData: cloudinaryData || null
-          };
+          variant.images[existingImageIndex] = nextImage;
         } else {
-          variant.images.push({ 
-            label, 
-            displayUrl,
-            driveData: driveData || null,
-            cloudinaryData: cloudinaryData || null
-          });
+          variant.images.push(nextImage);
         }
+        const primary = pickPrimaryVariantImageUrl(variant.images);
+        if (primary) variant.cloudflareUrl = primary;
       } else {
         newData.additionalViews = newData.additionalViews || [];
         
         const existingImageIndex = newData.additionalViews.findIndex(img => img.label === label);
+        const nextImage = { 
+          label, 
+          displayUrl,
+          driveData: driveData || null,
+          r2Data: r2Data || null
+        };
         
         if (existingImageIndex >= 0) {
-          newData.additionalViews[existingImageIndex] = { 
-            label, 
-            displayUrl,
-            driveData: driveData || null,
-            cloudinaryData: cloudinaryData || null
-          };
+          newData.additionalViews[existingImageIndex] = nextImage;
         } else {
-          newData.additionalViews.push({ 
-            label, 
-            displayUrl,
-            driveData: driveData || null,
-            cloudinaryData: cloudinaryData || null
-          });
+          newData.additionalViews.push(nextImage);
         }
       }
       
@@ -924,6 +933,18 @@ export default function CreateProduct() {
           .map((t) => (typeof t?.label === "string" ? t.label.trim() : ""))
           .filter(Boolean);
 
+        let r2Key = "";
+        if (referenceImageFile) {
+          try {
+            const preview = await uploadClaudePreviewToR2(referenceImageFile);
+            r2Key = typeof preview?.key === "string" ? preview.key : "";
+          } catch (r2Err) {
+            if (process.env.NODE_ENV === "development") {
+              console.error("R2 Claude preview upload failed:", r2Err);
+            }
+          }
+        }
+
         // Embedded auth: Bearer JWT; keep Shopify session query params (e.g. id_token) on the URL.
         const idToken = await shopify.idToken();
         const qs = location.search.startsWith("?")
@@ -932,6 +953,19 @@ export default function CreateProduct() {
         const dataParams = new URLSearchParams(qs);
         dataParams.set("_data", GENERATE_DESCRIPTION_REMIX_ROUTE_ID);
         const apiUrl = `/app/api/generate-product-description?${dataParams.toString()}`;
+        const descriptionBody = {
+          title,
+          examples,
+          shapes: shapesForPrompt,
+          stitchingThreadColors,
+          embroideryThreadColors,
+        };
+        if (r2Key) {
+          descriptionBody.r2Key = r2Key;
+        } else {
+          descriptionBody.imageBase64 = referenceImage.base64;
+          descriptionBody.mediaType = referenceImage.mediaType;
+        }
         const res = await fetch(apiUrl, {
           method: "POST",
           headers: {
@@ -940,15 +974,7 @@ export default function CreateProduct() {
             Authorization: `Bearer ${idToken}`,
           },
           credentials: "same-origin",
-          body: JSON.stringify({
-            title,
-            examples,
-            imageBase64: referenceImage.base64,
-            mediaType: referenceImage.mediaType,
-            shapes: shapesForPrompt,
-            stitchingThreadColors,
-            embroideryThreadColors,
-          }),
+          body: JSON.stringify(descriptionBody),
         });
         const raw = await res.text();
         let payload = {};
@@ -1060,11 +1086,10 @@ export default function CreateProduct() {
     }
 
     /**
-     * Per-variant Drive uploads (Front/Back/Top/etc., per representative shape row).
+     * Per-variant Drive + R2 uploads (Front/Back/Top/etc., per representative shape row).
      *
-     * Variant images are Drive-only — Shopify never sees them — so the product is created
-     * regardless of upload failures. Failures are surfaced post-submit via the success banner
-     * with a link back to the Drive folder.
+     * Drive failures do not block product create (success banner). R2 URLs are attached onto
+     * variants so Shopify `custom.cloudflare_url_variant` can be set in the same create call.
      */
     const failedImages = [];
     let resolvedFolderUrl =
@@ -1072,10 +1097,19 @@ export default function CreateProduct() {
       payload.googleDriveFolderUrl.trim()
         ? payload.googleDriveFolderUrl
         : null;
+    let resolvedR2PrefixUrl =
+      typeof payload.r2PrefixUrl === "string" && payload.r2PrefixUrl.trim()
+        ? payload.r2PrefixUrl.trim()
+        : null;
 
-    const variantsBySelectedShape = Array.isArray(payload.variants)
-      ? payload.variants.filter((v) => v && !v.isCustom)
+    const nextVariants = Array.isArray(payload.variants)
+      ? payload.variants.map((v) => ({
+          ...v,
+          images: Array.isArray(v.images) ? [...v.images] : [],
+        }))
       : [];
+
+    const variantsBySelectedShape = nextVariants.filter((v) => v && !v.isCustom);
 
     for (const [shapeValue, labelMap] of Object.entries(pendingVariantImages ?? {})) {
       if (!labelMap) continue;
@@ -1097,8 +1131,10 @@ export default function CreateProduct() {
 
       for (const [label, entry] of Object.entries(labelMap)) {
         if (!entry?.file) continue;
+        let driveData = null;
+        let r2Data = null;
         try {
-          const driveData = await uploadToGoogleDrive(entry.file, {
+          driveData = await uploadToGoogleDrive(entry.file, {
             collection: payload.productType,
             folderName: payload.productPictureFolder,
             sku: variant.sku,
@@ -1117,13 +1153,52 @@ export default function CreateProduct() {
               formatGoogleDriveUploadErrorMessage(err) || "Upload failed.",
           });
         }
+
+        try {
+          r2Data = await uploadToR2(entry.file, {
+            collection: payload.productType,
+            folder: payload.productPictureFolder,
+            sku: variant.sku,
+            label,
+          });
+          if (r2Data?.url && !resolvedR2PrefixUrl) {
+            resolvedR2PrefixUrl = r2Data.url.replace(/\/[^/]+$/, "");
+          }
+        } catch (r2Err) {
+          if (process.env.NODE_ENV === "development") {
+            console.error("R2 variant upload failed:", r2Err);
+          }
+        }
+
+        if (driveData || r2Data) {
+          const variantIdx = nextVariants.findIndex((v) => v.sku === variant.sku);
+          if (variantIdx >= 0) {
+            const images = nextVariants[variantIdx].images || [];
+            images.push({
+              label,
+              displayUrl: r2Data?.url || null,
+              driveData,
+              r2Data,
+            });
+            const primary = pickPrimaryVariantImageUrl(images);
+            nextVariants[variantIdx] = {
+              ...nextVariants[variantIdx],
+              images,
+              ...(primary ? { cloudflareUrl: primary } : {}),
+            };
+          }
+        }
       }
     }
 
     if (resolvedFolderUrl && !payload.googleDriveFolderUrl) {
       payload = { ...payload, googleDriveFolderUrl: resolvedFolderUrl };
-      setProductData(payload);
     }
+    if (resolvedR2PrefixUrl && !payload.r2PrefixUrl) {
+      payload = { ...payload, r2PrefixUrl: resolvedR2PrefixUrl };
+    }
+    payload = { ...payload, variants: nextVariants };
+    setProductData(payload);
 
     pendingUploadFailuresRef.current = {
       failures: failedImages,

@@ -37,7 +37,8 @@
     "node": "^18.20 || ^20.10 || >=21.0.0"
   },
   "dependencies": {
-    "@cloudinary/url-gen": "^1.21.0",
+    "@aws-sdk/client-s3": "^3.1111.0",
+    "@aws-sdk/s3-request-presigner": "^3.1111.0",
     "@prisma/client": "^5.22.0",
     "@remix-run/dev": "^2.15.1",
     "@remix-run/node": "^2.15.1",
@@ -50,7 +51,6 @@
     "@shopify/shopify-app-remix": "^3.3.2",
     "@shopify/shopify-app-session-storage-prisma": "^5.0.2",
     "@shopify/storefront-api-client": "^1.0.2",
-    "cloudinary": "^2.6.0",
     "googleapis": "^146.0.0",
     "isbot": "^5.1.0",
     "lodash": "^4.17.21",

@@ -1,12 +1,16 @@
 import React, { useCallback } from 'react';
 import { InlineStack, Text } from "@shopify/polaris";
 import ImageDropZone from './ImageDropZone';
-/* Cloudinary disabled — re-enable in app/lib/utils/cloudinary.js:
-import { uploadToCloudinaryWithSignature } from '../lib/utils/cloudinary';
-*/
 import { uploadToGoogleDrive, updateToGoogleDrive } from '../lib/utils/googleDrive';
+import { uploadToR2 } from '../lib/utils/r2';
 import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 import { isDevelopment } from '../lib/config/environment';
+
+function prefixFromObjectUrl(url) {
+  const u = String(url || "").replace(/\/+$/, "");
+  const idx = u.lastIndexOf("/");
+  return idx > 0 ? u.slice(0, idx) : "";
+}
 
 const AdditionalViews = ({ 
   formState,
@@ -20,24 +24,21 @@ const AdditionalViews = ({
     try {
       const file = files[0];
       const baseSKU = formState.baseSKU;
+      const slugLabel = label.toLowerCase().replace(/\s+/g, '-');
       
-      // Upload to Google Drive
       let driveData = null;
       try {
-        // Check if an image with this label already exists
         const existingImage = productData.additionalViews?.find(img => img.label === label);
         
         if (existingImage?.driveData?.fileId) {
-          // Update existing file
           driveData = await updateToGoogleDrive(file, existingImage.driveData.fileId);
         } else {
-          // Upload new file
           driveData = await uploadToGoogleDrive(file, {
             collection: productData.productType,
             folderName: productData.productPictureFolder,
             sku: baseSKU,
             originalsFolderName: productData.originalsFolderName,
-            label: label.toLowerCase().replace(/\s+/g, '-')
+            label: slugLabel
           });
         }
       } catch (driveError) {
@@ -47,24 +48,22 @@ const AdditionalViews = ({
         throw driveError;
       }
 
-      /* Cloudinary — disabled; see app/lib/utils/cloudinary.js
-      let cloudinaryData = null;
+      let r2Data = null;
       try {
-        const publicId = `${productData.productType}/${productData.productPictureFolder}/${baseSKU}-${label.toLowerCase().replace(/\s+/g, '-')}`;
-        cloudinaryData = await uploadToCloudinaryWithSignature(
-          file,
-          publicId,
-          productData.productType,
-          productData.productPictureFolder
-        );
-      } catch (cloudinaryError) {
-        if (isDevelopment) console.error('Cloudinary upload failed:', cloudinaryError);
+        const existingKey = productData.additionalViews?.find(img => img.label === label)?.r2Data?.key;
+        r2Data = await uploadToR2(file, {
+          collection: productData.productType,
+          folder: productData.productPictureFolder,
+          sku: baseSKU,
+          label: slugLabel,
+          key: existingKey,
+        });
+      } catch (r2Error) {
+        if (isDevelopment) console.error('R2 upload failed:', r2Error);
       }
-      */
-      const cloudinaryData = null;
 
       if (onImageUpload) {
-        const displayUrl = getGoogleDriveUrl(driveData.fileId);
+        const displayUrl = r2Data?.url || getGoogleDriveUrl(driveData.fileId);
         
         onImageUpload(
           baseSKU,
@@ -72,7 +71,8 @@ const AdditionalViews = ({
           displayUrl,
           {
             driveData,
-            cloudinaryData
+            r2Data,
+            r2PrefixUrl: prefixFromObjectUrl(r2Data?.url),
           }
         );
       }
@@ -81,7 +81,7 @@ const AdditionalViews = ({
         console.error('Error uploading additional view:', error);
       }
     }
-  }, [formState.baseSKU, onImageUpload, productData.productPictureFolder, productData.productType, productData.additionalViews]);
+  }, [formState.baseSKU, onImageUpload, productData.productPictureFolder, productData.productType, productData.additionalViews, productData.originalsFolderName]);
 
   const handleDropAccepted = useCallback((files) => {
     // No need for console logs here
@@ -91,14 +91,12 @@ const AdditionalViews = ({
     // No need for console logs here
   }, []);
 
-  // Get the uploaded image URL for a specific label
   const getUploadedImageUrl = useCallback((label) => {
     if (!productData.additionalViews) return null;
     const image = productData.additionalViews.find(img => img.label === label);
     return image?.displayUrl || null;
   }, [productData.additionalViews]);
 
-  // Check if any non-putter shapes are selected
   const hasSelectedNonPutters = Object.entries(formState.allShapes).some(
     ([_, shapeState]) => shapeState?.isSelected && !shapeState?.isPutter
   );
@@ -133,4 +131,4 @@ const AdditionalViews = ({
   );
 };
 
-export default React.memo(AdditionalViews); 
+export default React.memo(AdditionalViews);

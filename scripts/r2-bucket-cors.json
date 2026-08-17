@@ -1,0 +1,17 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://lpc-product-management-staging.up.railway.app",
+        "https://product-management-lpc-production.up.railway.app",
+        "*"
+      ],
+      "AllowedMethods": ["PUT", "GET", "HEAD"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["ETag", "Location"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}

@@ -16,6 +16,8 @@
  *   TODO: Re-evaluate with Limited Edition / Artisan collection work — logic may need to change.
  * - Product `custom.google_drive_images` — same folder URL as creation email (`productData.googleDriveFolderUrl`);
  *   type `url` in Admin (omit when no folder URL yet).
+ * - Product `custom.cloudflare_url` — R2 public prefix for the product's objects (`productData.r2PrefixUrl`).
+ * - Variant `custom.cloudflare_url_variant` — primary R2 image URL on base variants only (Front, else first uploaded view). Custom variants are omitted.
  * - Variant `custom.single_shape` / `custom.single_style` / `custom.named_leather`: single
  *   metaobject_reference per variant (`named_leather` → leather_color GID from `colorDesignation`).
  * - Variant `custom.customizable` (boolean); `custom.customizable_variant_id` (variant_reference) on
@@ -35,6 +37,7 @@ import {
   isShopifyMetaobjectGid,
   isShopifyProductVariantGid,
 } from "../utils/shopifyGid.js";
+import { appendCloudflareUrlMetafields } from "./r2Metafields.server.js";
 
 const METAFIELDS_SET_MUTATION = `#graphql
   mutation MetafieldsSet($metafields: [MetafieldsSetInput!]!) {
@@ -306,6 +309,13 @@ async function setProductAndVariantMetafields(
       }
     }
   }
+
+  appendCloudflareUrlMetafields({
+    metafields,
+    productId,
+    productData,
+    variantOwnerIds: list,
+  });
 
   if (metafields.length === 0) return;
 

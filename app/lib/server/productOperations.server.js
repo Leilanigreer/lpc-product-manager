@@ -145,7 +145,6 @@ export const saveProductToDatabase = async (productData, shopifyResponse, cloudi
       ...(productData.googleDriveFolderUrl && {
         googleDriveFolderUrl: productData.googleDriveFolderUrl
       }),
-      // Add cloudinaryFolderId if it exists
       ...(cloudinaryFolderId && {
         cloudinaryFolderId: cloudinaryFolderId
       })

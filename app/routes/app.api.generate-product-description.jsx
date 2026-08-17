@@ -26,6 +26,7 @@ export async function action({ request }) {
     examples,
     imageBase64,
     mediaType,
+    r2Key,
     shapes,
     stitchingThreadColors,
     embroideryThreadColors,
@@ -38,12 +39,14 @@ export async function action({ request }) {
     );
   }
 
-  if (typeof imageBase64 !== "string" || !imageBase64.trim()) {
-    return json({ error: "imageBase64 is required." }, { status: 400 });
-  }
-
-  if (mediaType !== "image/jpeg" && mediaType !== "image/png") {
-    return json({ error: "mediaType must be image/jpeg or image/png." }, { status: 400 });
+  const trimmedR2Key = typeof r2Key === "string" ? r2Key.trim() : "";
+  if (!trimmedR2Key) {
+    if (typeof imageBase64 !== "string" || !imageBase64.trim()) {
+      return json({ error: "r2Key or imageBase64 is required." }, { status: 400 });
+    }
+    if (mediaType !== "image/jpeg" && mediaType !== "image/png") {
+      return json({ error: "mediaType must be image/jpeg or image/png." }, { status: 400 });
+    }
   }
 
   try {
@@ -52,6 +55,7 @@ export async function action({ request }) {
       examples,
       imageBase64,
       mediaType,
+      r2Key: trimmedR2Key || undefined,
       shapes: Array.isArray(shapes) ? shapes : undefined,
       stitchingThreadColors: Array.isArray(stitchingThreadColors)
         ? stitchingThreadColors
