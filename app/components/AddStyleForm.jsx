@@ -20,6 +20,7 @@ import {
 } from "@shopify/polaris";
 import { SearchIcon } from "@shopify/polaris-icons";
 import ImageDropZone from "./ImageDropZone";
+import FieldTooltip from "./FieldTooltip";
 import { compressImageForGoogleDrive } from "../lib/utils/imageCompression";
 import {
   findStyleAbbreviationConflict,
@@ -35,6 +36,15 @@ const SELECT_PLACEHOLDER = { label: "Select…", value: "" };
 const TWO_COL_STYLE = {
   display: "grid",
   gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+  columnGap: "32px",
+  rowGap: "20px",
+  width: "100%",
+  alignItems: "start",
+};
+
+const THREE_COL_STYLE = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)",
   columnGap: "32px",
   rowGap: "20px",
   width: "100%",
@@ -518,10 +528,17 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
           </Box>
         </InlineStack>
 
-        <div style={TWO_COL_STYLE}>
+        <div style={THREE_COL_STYLE}>
           <Box>
+            <InlineStack gap="100" blockAlign="center" wrap={false}>
+              <Text variant="bodyMd" as="label" fontWeight="medium">
+                Abbreviation
+              </Text>
+              <FieldTooltip content="Editable if you need to override. Must be unique within the same collection category + shape group because it appears in every variant SKU." />
+            </InlineStack>
             <TextField
               label="Abbreviation"
+              labelHidden
               value={abbreviation}
               onChange={(v) => {
                 setAbbreviation(v);
@@ -534,7 +551,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
                   ? `Already used by "${abbreviationConflict.label}" in the same collection category and shape group. Pick a different abbreviation.`
                   : undefined
               }
-              helpText="Auto-generated from collection category + style + shape group. Editable if you need to override. Must be unique within the same collection category + shape group because it appears in every variant SKU."
+              helpText="Auto-generated from collection category + style + shape group."
               requiredIndicator
             />
             <Box paddingBlockStart="200">
@@ -571,9 +588,12 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
           </Box>
           <Box>
             <BlockStack gap="200">
-              <Text variant="bodyMd" as="label" fontWeight="medium">
-                Include abbreviation in SKU?
-              </Text>
+              <InlineStack gap="100" blockAlign="center" wrap={false}>
+                <Text variant="bodyMd" as="label" fontWeight="medium">
+                  Include abbreviation in SKU?
+                </Text>
+                <FieldTooltip content="Defaults to Yes. Set to No only when the style's name duplicates its collection (e.g. the lone “Quilted” style on the Quilted collection) and you want the abbreviation kept off Custom SKUs." />
+              </InlineStack>
               <InlineStack gap="500" wrap={false}>
                 <RadioButton
                   label="Yes"
@@ -590,30 +610,24 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
                   onChange={() => { setIncludeAbbreviationInSku(false); setClientError(""); }}
                 />
               </InlineStack>
-              <Text tone="subdued" variant="bodySm">
-                Defaults to Yes. Set to No only when the style&apos;s name duplicates its collection
-                (e.g. the lone &ldquo;Quilted&rdquo; style on the Quilted collection) and you want
-                the abbreviation kept off Custom SKUs.
-              </Text>
             </BlockStack>
           </Box>
+          <Box>
+            <Checkbox
+              label="Use in Variant Title"
+              checked={useInVariantTitle}
+              onChange={(checked) => {
+                setUseInVariantTitle(checked);
+                setClientError("");
+              }}
+              helpText={
+                useInVariantTitle
+                  ? "Variant-naming fields will be required below."
+                  : "Variant-naming fields are skipped because this style is not used in variant titles."
+              }
+            />
+          </Box>
         </div>
-
-        <Box>
-          <Checkbox
-            label="Use in Variant Title"
-            checked={useInVariantTitle}
-            onChange={(checked) => {
-              setUseInVariantTitle(checked);
-              setClientError("");
-            }}
-            helpText={
-              useInVariantTitle
-                ? "Variant-naming fields will be required below."
-                : "Variant-naming fields are skipped because this style is not used in variant titles."
-            }
-          />
-        </Box>
 
         <Divider />
 
