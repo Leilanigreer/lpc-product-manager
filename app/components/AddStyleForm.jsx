@@ -91,9 +91,9 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
   const [namePattern, setNamePattern] = useState("");
   const [leatherPhrase, setLeatherPhrase] = useState("");
   const [leatherPhraseInput, setLeatherPhraseInput] = useState("");
-  const [needsColorDesignation, setNeedsColorDesignation] = useState(null);
+  const [needsColorDesignation, setNeedsColorDesignation] = useState(true);
   const [useOppositeLeather, setUseOppositeLeather] = useState(false);
-  const [useOppositeLeatherTouched, setUseOppositeLeatherTouched] = useState(false);
+  const [useOppositeLeatherTouched, setUseOppositeLeatherTouched] = useState(true);
 
   const [showAbbreviationHelper, setShowAbbreviationHelper] = useState(false);
   const [clientError, setClientError] = useState("");
@@ -148,9 +148,9 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
       setNamePattern("");
       setLeatherPhrase("");
       setLeatherPhraseInput("");
-      setNeedsColorDesignation(null);
+      setNeedsColorDesignation(true);
       setUseOppositeLeather(false);
-      setUseOppositeLeatherTouched(false);
+      setUseOppositeLeatherTouched(true);
       setClientError("");
       setShowChoiceSuccess(false);
       processedChoiceData.current = null;
@@ -633,13 +633,84 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
               <Text variant="headingSm">Variant naming fields</Text>
 
               <div style={TWO_COL_STYLE}>
-                <Select
-                  label="Name pattern"
-                  options={[SELECT_PLACEHOLDER, ...namePatternOptions]}
-                  value={namePattern}
-                  onChange={(v) => { setNamePattern(v); setClientError(""); }}
-                  requiredIndicator
-                />
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" as="label" fontWeight="medium">
+                    Needs color designation?
+                  </Text>
+                  <InlineStack gap="500" wrap={false}>
+                    <RadioButton
+                      label="Yes"
+                      checked={needsColorDesignation === true}
+                      id="needsColorDesignation-yes"
+                      name="needsColorDesignation"
+                      onChange={() => { setNeedsColorDesignation(true); setClientError(""); }}
+                    />
+                    <RadioButton
+                      label="No"
+                      checked={needsColorDesignation === false}
+                      id="needsColorDesignation-no"
+                      name="needsColorDesignation"
+                      onChange={() => { setNeedsColorDesignation(false); setClientError(""); }}
+                    />
+                  </InlineStack>
+                </BlockStack>
+
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" as="label" fontWeight="medium">
+                    Use opposite leather?
+                  </Text>
+                  <InlineStack gap="500" wrap={false}>
+                    <RadioButton
+                      label="Yes"
+                      checked={useOppositeLeather === true}
+                      id="useOppositeLeather-yes"
+                      name="useOppositeLeather"
+                      onChange={() => {
+                        setUseOppositeLeather(true);
+                        setUseOppositeLeatherTouched(true);
+                        setClientError("");
+                      }}
+                    />
+                    <RadioButton
+                      label="No"
+                      checked={useOppositeLeather === false}
+                      id="useOppositeLeather-no"
+                      name="useOppositeLeather"
+                      onChange={() => {
+                        setUseOppositeLeather(false);
+                        setUseOppositeLeatherTouched(true);
+                        setClientError("");
+                      }}
+                    />
+                  </InlineStack>
+                </BlockStack>
+              </div>
+
+              <div style={TWO_COL_STYLE}>
+                <Box>
+                  <InlineStack gap="100" blockAlign="center" wrap={false}>
+                    <Text variant="bodyMd" as="label" fontWeight="medium">
+                      Name pattern
+                    </Text>
+                    <FieldTooltip
+                      content={
+                        <span>
+                          Style WITH Color phrase = 50/50 WITH British Tan on left
+                          <br />
+                          Style phrase color = 3 Diagonal Stripes are Matte Navy
+                        </span>
+                      }
+                    />
+                  </InlineStack>
+                  <Select
+                    label="Name pattern"
+                    labelHidden
+                    options={[SELECT_PLACEHOLDER, ...namePatternOptions]}
+                    value={namePattern}
+                    onChange={(v) => { setNamePattern(v); setClientError(""); }}
+                    requiredIndicator
+                  />
+                </Box>
                 <Box>
                   <Text variant="bodyMd" as="label" fontWeight="medium">
                     Leather phrase
@@ -673,58 +744,6 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
                   </Combobox>
                 </Box>
               </div>
-
-              <BlockStack gap="200">
-                <Text variant="bodyMd" as="label" fontWeight="medium">
-                  Needs color designation?
-                </Text>
-                <InlineStack gap="500" wrap={false}>
-                  <RadioButton
-                    label="Yes"
-                    checked={needsColorDesignation === true}
-                    id="needsColorDesignation-yes"
-                    name="needsColorDesignation"
-                    onChange={() => { setNeedsColorDesignation(true); setClientError(""); }}
-                  />
-                  <RadioButton
-                    label="No"
-                    checked={needsColorDesignation === false}
-                    id="needsColorDesignation-no"
-                    name="needsColorDesignation"
-                    onChange={() => { setNeedsColorDesignation(false); setClientError(""); }}
-                  />
-                </InlineStack>
-              </BlockStack>
-
-              <BlockStack gap="200">
-                <Text variant="bodyMd" as="label" fontWeight="medium">
-                  Use opposite leather?
-                </Text>
-                <InlineStack gap="500" wrap={false}>
-                  <RadioButton
-                    label="Yes"
-                    checked={useOppositeLeatherTouched && useOppositeLeather === true}
-                    id="useOppositeLeather-yes"
-                    name="useOppositeLeather"
-                    onChange={() => {
-                      setUseOppositeLeather(true);
-                      setUseOppositeLeatherTouched(true);
-                      setClientError("");
-                    }}
-                  />
-                  <RadioButton
-                    label="No"
-                    checked={useOppositeLeatherTouched && useOppositeLeather === false}
-                    id="useOppositeLeather-no"
-                    name="useOppositeLeather"
-                    onChange={() => {
-                      setUseOppositeLeather(false);
-                      setUseOppositeLeatherTouched(true);
-                      setClientError("");
-                    }}
-                  />
-                </InlineStack>
-              </BlockStack>
             </BlockStack>
           </>
         )}
