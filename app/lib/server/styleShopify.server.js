@@ -603,14 +603,14 @@ export async function createShopifyStyle(admin, params) {
 
   if (useInVariantTitleBool) {
     const namePatternValue = normalizeChoiceValue(namePattern);
-    if (!namePatternValue) throw new Error("Name pattern is required when used in variant title.");
+    if (!namePatternValue) throw new Error("Name pattern is required when naming variants with this style.");
     const leatherPhraseValue = normalizeChoiceValue(leatherPhrase);
-    if (!leatherPhraseValue) throw new Error("Leather phrase is required when used in variant title.");
+    if (!leatherPhraseValue) throw new Error("Leather phrase is required when naming variants with this style.");
     if (needsColorDesignation !== true && needsColorDesignation !== false) {
-      throw new Error("Needs color designation must be answered when used in variant title.");
+      throw new Error("Needs color designation must be answered when naming variants with this style.");
     }
     if (useOppositeLeather !== true && useOppositeLeather !== false) {
-      throw new Error("Use opposite leather must be answered when used in variant title.");
+      throw new Error("Use opposite leather must be answered when naming variants with this style.");
     }
     fields.push({ key: "name_pattern", value: JSON.stringify([namePatternValue]) });
     fields.push({ key: "leather_phrase", value: leatherPhraseValue });

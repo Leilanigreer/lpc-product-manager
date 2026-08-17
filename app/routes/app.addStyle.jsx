@@ -8,7 +8,6 @@ import {
 } from "@remix-run/node";
 import {
   Page,
-  Layout,
   Box,
   Banner,
   Card,
@@ -191,7 +190,7 @@ export const action = async ({ request }) => {
     return json({ success: false, error: prefixError }, { status: 400 });
   }
   if (useInVariantTitleRaw !== "true" && useInVariantTitleRaw !== "false") {
-    return json({ success: false, error: "Use in Variant Title must be answered." }, { status: 400 });
+    return json({ success: false, error: `"Name variants with this style" must be answered.` }, { status: 400 });
   }
   if (includeAbbreviationInSku === null) {
     return json({ success: false, error: "Include abbreviation in SKU must be answered." }, { status: 400 });
@@ -209,16 +208,16 @@ export const action = async ({ request }) => {
     useOppositeLeather = readTriBool(formData, "use_opposite_leather");
 
     if (!namePattern) {
-      return json({ success: false, error: "Name pattern is required when used in variant title." }, { status: 400 });
+      return json({ success: false, error: "Name pattern is required when naming variants with this style." }, { status: 400 });
     }
     if (!leatherPhrase) {
-      return json({ success: false, error: "Leather phrase is required when used in variant title." }, { status: 400 });
+      return json({ success: false, error: "Leather phrase is required when naming variants with this style." }, { status: 400 });
     }
     if (needsColorDesignation === null) {
-      return json({ success: false, error: "Needs Color Designation must be answered when used in variant title." }, { status: 400 });
+      return json({ success: false, error: "Needs Color Designation must be answered when naming variants with this style." }, { status: 400 });
     }
     if (useOppositeLeather === null) {
-      return json({ success: false, error: "Use Opposite Leather must be answered when used in variant title." }, { status: 400 });
+      return json({ success: false, error: "Use Opposite Leather must be answered when naming variants with this style." }, { status: 400 });
     }
   }
 
@@ -373,13 +372,10 @@ export default function AddStyle() {
 
   return (
     <Page>
+      <TitleBar title="Add a New Style" />
       <BlockStack gap="600">
-        <Card>
-          <TitleBar title="Add a New Style" />
           {fetcher.state === "submitting" && (
-            <Box paddingBlock="400">
-              <Banner status="info">Submitting...</Banner>
-            </Box>
+            <Banner status="info">Submitting...</Banner>
           )}
           <SuccessBanner
             show={fetcher.data && fetcher.data.success && showSuccessBanner}
@@ -393,20 +389,13 @@ export default function AddStyle() {
             }
           />
           {fetcher.data && fetcher.data.error && fetcher.data.actionType !== "backfill_include_abbreviation_in_sku" && (
-            <Box paddingBlock="400">
-              <Banner status="critical">{fetcher.data.error}</Banner>
-            </Box>
+            <Banner status="critical">{fetcher.data.error}</Banner>
           )}
-          <Layout>
-            <Layout.Section>
-              <AddStyleForm
-                choiceOptions={choiceOptions || {}}
-                existingStyles={existingStyles || []}
-                fetcher={fetcher}
-              />
-            </Layout.Section>
-          </Layout>
-        </Card>
+          <AddStyleForm
+            choiceOptions={choiceOptions || {}}
+            existingStyles={existingStyles || []}
+            fetcher={fetcher}
+          />
 
         <Card>
           <BlockStack gap="300">

@@ -419,8 +419,8 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
 
   return (
     <BlockStack gap="600">
-      <Text variant="headingMd">Add a New Style</Text>
-
+      <Card>
+      <BlockStack gap="600">
       {clientError && (
         <Banner status="critical">{clientError}</Banner>
       )}
@@ -434,7 +434,6 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
         </Banner>
       )}
 
-      <BlockStack gap="600">
         <Box maxWidth="32rem">
           <Select
             label="Collection category"
@@ -613,70 +612,25 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
             </BlockStack>
           </Box>
           <Box>
-            <Checkbox
-              label="Use in Variant Title"
-              checked={useInVariantTitle}
-              onChange={(checked) => {
-                setUseInVariantTitle(checked);
-                setClientError("");
-              }}
-              helpText={
-                useInVariantTitle
-                  ? "Variant-naming fields will be required below."
-                  : "Variant-naming fields are skipped because this style is not used in variant titles."
-              }
-            />
+            <InlineStack gap="100" blockAlign="center" wrap={false}>
+              <Checkbox
+                label="Name variants with this style"
+                checked={useInVariantTitle}
+                onChange={(checked) => {
+                  setUseInVariantTitle(checked);
+                  setClientError("");
+                }}
+              />
+              <FieldTooltip content="When on, you set the name pattern, leather phrase, and color-designation rules used when variants are created. When off, this style is left out of variant titles." />
+            </InlineStack>
           </Box>
         </div>
-
-        <Divider />
-
-        <BlockStack gap="400">
-          <Text variant="headingSm">Optional fields</Text>
-          <TextField
-            label="Description"
-            multiline={2}
-            value={description}
-            onChange={setDescription}
-            autoComplete="off"
-            placeholder="Short marketing blurb explaining the look and feel of this style."
-            helpText="Storefront only — not used by the product creation flow."
-          />
-          <div style={TWO_COL_STYLE}>
-            <TextField
-              label="Sort number"
-              type="number"
-              value={sortNumber}
-              onChange={setSortNumber}
-              autoComplete="off"
-              placeholder="e.g. 10"
-              helpText="Storefront display order."
-            />
-            <BlockStack gap="200">
-              <Text variant="bodyMd" as="label" fontWeight="medium">
-                Preview image
-              </Text>
-              <ImageDropZone
-                size="additional"
-                label="Preview image"
-                customWidth="160px"
-                customHeight="160px"
-                uploadedImageUrl={previewImageUrl}
-                accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png"
-                onDrop={onPreviewDrop}
-              />
-              {compressing && (
-                <Text tone="subdued" variant="bodySm">Preparing image…</Text>
-              )}
-            </BlockStack>
-          </div>
-        </BlockStack>
 
         {useInVariantTitle && (
           <>
             <Divider />
             <BlockStack gap="400">
-              <Text variant="headingSm">Variant-title fields (required because &ldquo;Use in Variant Title&rdquo; is on)</Text>
+              <Text variant="headingSm">Variant naming fields</Text>
 
               <div style={TWO_COL_STYLE}>
                 <Select
@@ -774,18 +728,62 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
             </BlockStack>
           </>
         )}
-
-        <Box paddingBlockStart="400">
-          <Button
-            primary
-            disabled={!canSubmit || submitting || compressing}
-            loading={submitting}
-            onClick={handleSubmit}
-          >
-            Create Style
-          </Button>
-        </Box>
       </BlockStack>
+      </Card>
+
+      <Card>
+        <BlockStack gap="400">
+          <Text variant="headingMd">Optional fields</Text>
+          <TextField
+            label="Description"
+            multiline={2}
+            value={description}
+            onChange={setDescription}
+            autoComplete="off"
+            placeholder="Short marketing blurb explaining the look and feel of this style."
+            helpText="Storefront only — not used by the product creation flow."
+          />
+          <div style={TWO_COL_STYLE}>
+            <TextField
+              label="Sort number"
+              type="number"
+              value={sortNumber}
+              onChange={setSortNumber}
+              autoComplete="off"
+              placeholder="e.g. 10"
+              helpText="Storefront display order."
+            />
+            <BlockStack gap="200">
+              <Text variant="bodyMd" as="label" fontWeight="medium">
+                Preview image
+              </Text>
+              <ImageDropZone
+                size="additional"
+                label="Preview image"
+                customWidth="160px"
+                customHeight="160px"
+                uploadedImageUrl={previewImageUrl}
+                accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png"
+                onDrop={onPreviewDrop}
+              />
+              {compressing && (
+                <Text tone="subdued" variant="bodySm">Preparing image…</Text>
+              )}
+            </BlockStack>
+          </div>
+        </BlockStack>
+      </Card>
+
+      <Box>
+        <Button
+          primary
+          disabled={!canSubmit || submitting || compressing}
+          loading={submitting}
+          onClick={handleSubmit}
+        >
+          Create Style
+        </Button>
+      </Box>
     </BlockStack>
   );
 }
