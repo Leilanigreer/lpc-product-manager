@@ -38,6 +38,7 @@ import { findStyleAbbreviationConflict } from "../lib/utils/styleAbbreviationUti
 import {
   canonicalizeStyleName,
   quiltedStyleNamePrefixError,
+  styleNameShapeSuffixError,
 } from "../lib/utils/validations/styleValidations.js";
 
 export const loader = async ({ request }) => {
@@ -120,7 +121,8 @@ export const action = async ({ request }) => {
     if (actionType === "create_style_choice") {
       const styleRaw = (formData.get("style") || "").toString();
       const collectionCategory = (formData.get("collection_category") || "").toString().trim();
-      const style = canonicalizeStyleName(styleRaw, collectionCategory);
+      const shapeGroup = (formData.get("shape_group") || "").toString().trim();
+      const style = canonicalizeStyleName(styleRaw, collectionCategory, shapeGroup);
       if (!style) {
         return json(
           { success: false, actionType, error: "Style name is required." },
@@ -133,9 +135,19 @@ export const action = async ({ request }) => {
           { status: 400 }
         );
       }
+      if (!shapeGroup) {
+        return json(
+          { success: false, actionType, error: "Shape group is required." },
+          { status: 400 }
+        );
+      }
       const prefixError = quiltedStyleNamePrefixError(style, collectionCategory);
       if (prefixError) {
         return json({ success: false, actionType, error: prefixError }, { status: 400 });
+      }
+      const suffixError = styleNameShapeSuffixError(style, shapeGroup);
+      if (suffixError) {
+        return json({ success: false, actionType, error: suffixError }, { status: 400 });
       }
       try {
         const ensured = await ensureStyleChoiceListValue(admin, "style", style);
@@ -184,10 +196,14 @@ export const action = async ({ request }) => {
   if (!collectionCategory) return json({ success: false, error: "Collection category is required." }, { status: 400 });
   if (!shapeGroup) return json({ success: false, error: "Shape group is required." }, { status: 400 });
   if (!abbreviation) return json({ success: false, error: "Abbreviation is required." }, { status: 400 });
-  const canonicalStyle = canonicalizeStyleName(style, collectionCategory);
+  const canonicalStyle = canonicalizeStyleName(style, collectionCategory, shapeGroup);
   const prefixError = quiltedStyleNamePrefixError(canonicalStyle, collectionCategory);
   if (prefixError) {
     return json({ success: false, error: prefixError }, { status: 400 });
+  }
+  const suffixError = styleNameShapeSuffixError(canonicalStyle, shapeGroup);
+  if (suffixError) {
+    return json({ success: false, error: suffixError }, { status: 400 });
   }
   if (useInVariantTitleRaw !== "true" && useInVariantTitleRaw !== "false") {
     return json({ success: false, error: `"Name variants with this style" must be answered.` }, { status: 400 });

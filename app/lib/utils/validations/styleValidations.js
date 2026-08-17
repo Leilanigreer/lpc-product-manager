@@ -139,26 +139,56 @@ export const QUILTED_PREFIX_COLLECTION_CATEGORY = "quilted_classic_exotic";
 
 const QUILTED_WORD = "Quilted";
 
+/** Shape group → last word of the Style name. */
+export const SHAPE_GROUP_TITLE_SUFFIX = {
+  mallets: "Mallet",
+  blades: "Blade",
+};
+
+const SHAPE_TITLE_SUFFIX_WORDS = new Set(["mallet", "mallets", "blade", "blades"]);
+
+function stripShapeTitleSuffix(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "";
+  const last = parts[parts.length - 1].toLowerCase();
+  if (SHAPE_TITLE_SUFFIX_WORDS.has(last)) parts.pop();
+  return parts.join(" ");
+}
+
 /**
  * Canonical Style name for writing to Shopify.
  *
- * When collection category is `quilted_classic_exotic`, the first word is
- * normalized to "Quilted" or prepended when missing.
+ * - `quilted_classic_exotic`: first word is "Quilted".
+ * - `mallets` / `blades`: last word is "Mallet" / "Blade".
  *
  * @param {string} styleName
  * @param {string} collectionCategory
+ * @param {string} [shapeGroup]
  * @returns {string}
  */
-export function canonicalizeStyleName(styleName, collectionCategory) {
-  const trimmed = String(styleName ?? "").trim().replace(/\s+/g, " ");
-  if (!trimmed) return "";
-  if (collectionCategory !== QUILTED_PREFIX_COLLECTION_CATEGORY) {
-    return trimmed;
+export function canonicalizeStyleName(styleName, collectionCategory, shapeGroup) {
+  let name = String(styleName ?? "").trim().replace(/\s+/g, " ");
+  if (!name) return "";
+
+  if (collectionCategory === QUILTED_PREFIX_COLLECTION_CATEGORY) {
+    if (/^quilted(\s|$)/i.test(name)) {
+      name = name.replace(/^quilted/i, QUILTED_WORD);
+    } else {
+      name = `${QUILTED_WORD} ${name}`;
+    }
   }
-  if (/^quilted(\s|$)/i.test(trimmed)) {
-    return trimmed.replace(/^quilted/i, QUILTED_WORD);
+
+  const groupKey = String(shapeGroup ?? "").trim().toLowerCase();
+  const suffix = SHAPE_GROUP_TITLE_SUFFIX[groupKey];
+  if (suffix) {
+    const core = stripShapeTitleSuffix(name);
+    name = core ? `${core} ${suffix}` : suffix;
+  } else if (groupKey) {
+    const stripped = stripShapeTitleSuffix(name);
+    if (stripped) name = stripped;
   }
-  return `${QUILTED_WORD} ${trimmed}`;
+
+  return name;
 }
 
 /**
@@ -175,6 +205,26 @@ export function quiltedStyleNamePrefixError(styleName, collectionCategory) {
   const firstWord = trimmed.split(/\s+/)[0];
   if (firstWord !== QUILTED_WORD) {
     return 'Style names for quilted_classic_exotic must start with "Quilted".';
+  }
+  return null;
+}
+
+/**
+ * Server-side Mallet/Blade suffix check. Returns an error message, or null when valid.
+ *
+ * @param {string} styleName
+ * @param {string} shapeGroup
+ * @returns {string|null}
+ */
+export function styleNameShapeSuffixError(styleName, shapeGroup) {
+  const groupKey = String(shapeGroup ?? "").trim().toLowerCase();
+  const suffix = SHAPE_GROUP_TITLE_SUFFIX[groupKey];
+  if (!suffix) return null;
+  const trimmed = String(styleName ?? "").trim();
+  if (!trimmed) return "Style name is required.";
+  const lastWord = trimmed.split(/\s+/).pop();
+  if (lastWord !== suffix) {
+    return `Style names for ${groupKey} must end with "${suffix}".`;
   }
   return null;
 }

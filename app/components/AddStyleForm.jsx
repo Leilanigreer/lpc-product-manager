@@ -28,6 +28,7 @@ import {
 } from "../lib/utils/styleAbbreviationUtils";
 import {
   QUILTED_PREFIX_COLLECTION_CATEGORY,
+  SHAPE_GROUP_TITLE_SUFFIX,
   canonicalizeStyleName,
 } from "../lib/utils/validations/styleValidations";
 
@@ -104,10 +105,12 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
   const processedChoiceData = React.useRef(null);
 
   const canonicalStyleName = useMemo(
-    () => canonicalizeStyleName(styleName, collectionCategory),
-    [styleName, collectionCategory]
+    () => canonicalizeStyleName(styleName, collectionCategory, shapeGroup),
+    [styleName, collectionCategory, shapeGroup]
   );
   const requiresQuiltedPrefix = collectionCategory === QUILTED_PREFIX_COLLECTION_CATEGORY;
+  const shapeTitleSuffix = SHAPE_GROUP_TITLE_SUFFIX[String(shapeGroup || "").toLowerCase()] || "";
+  const styleNameReady = Boolean(collectionCategory) && Boolean(shapeGroup);
 
   React.useEffect(() => {
     if (!abbreviationDirty) {
@@ -189,12 +192,12 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
 
   const applyCanonicalName = useCallback(
     (value) => {
-      const next = canonicalizeStyleName(value, collectionCategory);
+      const next = canonicalizeStyleName(value, collectionCategory, shapeGroup);
       setStyleName(next);
       setStyleInput(next);
       return next;
     },
-    [collectionCategory]
+    [collectionCategory, shapeGroup]
   );
 
   const handleCollectionCategoryChange = useCallback(
@@ -203,12 +206,25 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
       setClientError("");
       setShowChoiceSuccess(false);
       if (styleName.trim()) {
-        const next = canonicalizeStyleName(styleName, value);
+        const next = canonicalizeStyleName(styleName, value, shapeGroup);
         setStyleName(next);
         setStyleInput(next);
       }
     },
-    [styleName]
+    [shapeGroup, styleName]
+  );
+
+  const handleShapeGroupChange = useCallback(
+    (value) => {
+      setShapeGroup(value);
+      setClientError("");
+      if (styleName.trim()) {
+        const next = canonicalizeStyleName(styleName, collectionCategory, value);
+        setStyleName(next);
+        setStyleInput(next);
+      }
+    },
+    [collectionCategory, styleName]
   );
 
   const handleStyleSelect = useCallback(
@@ -331,6 +347,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
   const choiceSubmitting = choiceFetcher.state === "submitting";
   const canCreateChoice =
     Boolean(collectionCategory) &&
+    Boolean(shapeGroup) &&
     Boolean(canonicalStyleName) &&
     isNewStyleValue &&
     !choiceSubmitting;
@@ -339,6 +356,10 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
     setClientError("");
     if (!collectionCategory) {
       setClientError("Select a collection category first.");
+      return;
+    }
+    if (!shapeGroup) {
+      setClientError("Select a shape group first.");
       return;
     }
     const name = applyCanonicalName(styleName);
@@ -358,8 +379,9 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
     formData.append("actionType", "create_style_choice");
     formData.append("style", name);
     formData.append("collection_category", collectionCategory);
+    formData.append("shape_group", shapeGroup);
     choiceFetcher.submit(formData, { method: "post" });
-  }, [applyCanonicalName, choiceFetcher, collectionCategory, styleChoices, styleName]);
+  }, [applyCanonicalName, choiceFetcher, collectionCategory, shapeGroup, styleChoices, styleName]);
 
   const handleSubmit = useCallback(() => {
     setClientError("");
@@ -457,7 +479,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
             label="Shape group"
             options={[SELECT_PLACEHOLDER, ...shapeGroupOptions]}
             value={shapeGroup}
-            onChange={(v) => { setShapeGroup(v); setClientError(""); }}
+            onChange={handleShapeGroupChange}
             requiredIndicator
           />
         </div>
@@ -476,17 +498,17 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
                   value={styleInput}
                   onChange={handleStyleInputChange}
                   placeholder={
-                    collectionCategory
+                    styleNameReady
                       ? "Type or choose an existing style"
-                      : "Select a collection category first"
+                      : "Select a collection category and shape group first"
                   }
                   autoComplete="off"
                   requiredIndicator
-                  disabled={!collectionCategory}
+                  disabled={!styleNameReady}
                 />
               }
             >
-              {collectionCategory && styleChoiceMatches.length > 0 && (
+              {styleNameReady && styleChoiceMatches.length > 0 && (
                 <div className="border-2 border-gray-200 rounded-lg max-h-[300px] overflow-auto shadow-sm">
                   <Listbox onSelect={handleStyleSelect}>
                     {styleChoiceMatches.map((opt) => (
@@ -498,12 +520,17 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
                 </div>
               )}
             </Combobox>
-            {requiresQuiltedPrefix && (
+            {(requiresQuiltedPrefix || shapeTitleSuffix) && (
               <Box paddingBlockStart="200">
                 <Text tone="subdued" variant="bodySm">
-                  Names for this category must start with Quilted.
+                  {requiresQuiltedPrefix
+                    ? "Names for this category must start with Quilted. "
+                    : ""}
+                  {shapeTitleSuffix
+                    ? `Names for this shape group must end with ${shapeTitleSuffix}. `
+                    : ""}
                   {canonicalStyleName
-                    ? ` Will be created as \u201c${canonicalStyleName}\u201d.`
+                    ? `Will be created as \u201c${canonicalStyleName}\u201d.`
                     : ""}
                 </Text>
               </Box>
