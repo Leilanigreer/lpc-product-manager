@@ -373,7 +373,7 @@ export default function AddStyle() {
 
   return (
     <Page>
-      <BlockStack gap="400">
+      <BlockStack gap="600">
         <Card>
           <TitleBar title="Add a New Style" />
           {fetcher.state === "submitting" && (
@@ -398,7 +398,7 @@ export default function AddStyle() {
             </Box>
           )}
           <Layout>
-            <Layout.Section variant="oneHalf">
+            <Layout.Section>
               <AddStyleForm
                 choiceOptions={choiceOptions || {}}
                 existingStyles={existingStyles || []}

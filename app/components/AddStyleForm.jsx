@@ -32,6 +32,15 @@ import {
 
 const SELECT_PLACEHOLDER = { label: "Select…", value: "" };
 
+const TWO_COL_STYLE = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+  columnGap: "32px",
+  rowGap: "20px",
+  width: "100%",
+  alignItems: "start",
+};
+
 export default function AddStyleForm({ choiceOptions, existingStyles = [], fetcher }) {
   const styleChoices = useMemo(() => choiceOptions?.style ?? [], [choiceOptions?.style]);
   const categoryOptions = useMemo(
@@ -399,7 +408,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
   const submitting = fetcher?.state === "submitting";
 
   return (
-    <BlockStack gap="400">
+    <BlockStack gap="600">
       <Text variant="headingMd">Add a New Style</Text>
 
       {clientError && (
@@ -415,8 +424,8 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
         </Banner>
       )}
 
-      <BlockStack gap="300">
-        <Box width="48%">
+      <BlockStack gap="600">
+        <Box maxWidth="32rem">
           <Select
             label="Collection category"
             options={[SELECT_PLACEHOLDER, ...collectionCategoryOptions]}
@@ -427,29 +436,25 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
           />
         </Box>
 
-        <InlineStack gap="400" align="start" wrap>
-          <Box width="48%">
-            <Select
-              label="Category"
-              options={[SELECT_PLACEHOLDER, ...categoryOptions]}
-              value={category}
-              onChange={(v) => { setCategory(v); setClientError(""); }}
-              requiredIndicator
-            />
-          </Box>
-          <Box width="48%">
-            <Select
-              label="Shape group"
-              options={[SELECT_PLACEHOLDER, ...shapeGroupOptions]}
-              value={shapeGroup}
-              onChange={(v) => { setShapeGroup(v); setClientError(""); }}
-              requiredIndicator
-            />
-          </Box>
-        </InlineStack>
+        <div style={TWO_COL_STYLE}>
+          <Select
+            label="Category"
+            options={[SELECT_PLACEHOLDER, ...categoryOptions]}
+            value={category}
+            onChange={(v) => { setCategory(v); setClientError(""); }}
+            requiredIndicator
+          />
+          <Select
+            label="Shape group"
+            options={[SELECT_PLACEHOLDER, ...shapeGroupOptions]}
+            value={shapeGroup}
+            onChange={(v) => { setShapeGroup(v); setClientError(""); }}
+            requiredIndicator
+          />
+        </div>
 
-        <InlineStack gap="200" blockAlign="start" wrap={false} align="start">
-          <Box width="48%">
+        <InlineStack gap="400" blockAlign="start" wrap={false} align="start">
+          <Box maxWidth="32rem" width="100%">
             <Text variant="bodyMd" as="label" fontWeight="medium">
               Style name
             </Text>
@@ -485,7 +490,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
               )}
             </Combobox>
             {requiresQuiltedPrefix && (
-              <Box paddingBlockStart="100">
+              <Box paddingBlockStart="200">
                 <Text tone="subdued" variant="bodySm">
                   Names for this category must start with Quilted.
                   {canonicalStyleName
@@ -495,7 +500,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
               </Box>
             )}
             {isNewStyleValue && (
-              <Box paddingBlockStart="100">
+              <Box paddingBlockStart="200">
                 <Text tone="subdued" variant="bodySm">
                   This name is not in the Style list yet. Click Create to add &ldquo;{canonicalStyleName}&rdquo;, then continue with the rest of the form.
                 </Text>
@@ -513,8 +518,8 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
           </Box>
         </InlineStack>
 
-        <InlineStack gap="400" align="start" wrap>
-          <Box width="48%">
+        <div style={TWO_COL_STYLE}>
+          <Box>
             <TextField
               label="Abbreviation"
               value={abbreviation}
@@ -532,7 +537,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
               helpText="Auto-generated from collection category + style + shape group. Editable if you need to override. Must be unique within the same collection category + shape group because it appears in every variant SKU."
               requiredIndicator
             />
-            <Box paddingBlockStart="100">
+            <Box paddingBlockStart="200">
               <Button
                 size="micro"
                 variant="plain"
@@ -546,9 +551,9 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
                 id="existing-abbreviations"
                 transition={{ duration: "150ms", timingFunction: "ease-in-out" }}
               >
-                <Box paddingBlockStart="200">
+                <Box paddingBlockStart="300">
                   <Card>
-                    <BlockStack gap="100">
+                    <BlockStack gap="200">
                       {existingAbbreviationRows.length === 0 ? (
                         <Text tone="subdued" variant="bodySm">No existing styles found.</Text>
                       ) : (
@@ -564,12 +569,12 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
               </Collapsible>
             </Box>
           </Box>
-          <Box width="48%">
-            <BlockStack gap="100">
+          <Box>
+            <BlockStack gap="200">
               <Text variant="bodyMd" as="label" fontWeight="medium">
                 Include abbreviation in SKU?
               </Text>
-              <InlineStack gap="400" wrap={false}>
+              <InlineStack gap="500" wrap={false}>
                 <RadioButton
                   label="Yes"
                   checked={includeAbbreviationInSku === true}
@@ -592,7 +597,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
               </Text>
             </BlockStack>
           </Box>
-        </InlineStack>
+        </div>
 
         <Box>
           <Checkbox
@@ -612,7 +617,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
 
         <Divider />
 
-        <BlockStack gap="200">
+        <BlockStack gap="400">
           <Text variant="headingSm">Optional fields</Text>
           <TextField
             label="Description"
@@ -623,57 +628,51 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
             placeholder="Short marketing blurb explaining the look and feel of this style."
             helpText="Storefront only — not used by the product creation flow."
           />
-          <InlineStack gap="400" align="start" wrap>
-            <Box width="48%">
-              <TextField
-                label="Sort number"
-                type="number"
-                value={sortNumber}
-                onChange={setSortNumber}
-                autoComplete="off"
-                placeholder="e.g. 10"
-                helpText="Storefront display order."
+          <div style={TWO_COL_STYLE}>
+            <TextField
+              label="Sort number"
+              type="number"
+              value={sortNumber}
+              onChange={setSortNumber}
+              autoComplete="off"
+              placeholder="e.g. 10"
+              helpText="Storefront display order."
+            />
+            <BlockStack gap="200">
+              <Text variant="bodyMd" as="label" fontWeight="medium">
+                Preview image
+              </Text>
+              <ImageDropZone
+                size="additional"
+                label="Preview image"
+                customWidth="160px"
+                customHeight="160px"
+                uploadedImageUrl={previewImageUrl}
+                accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png"
+                onDrop={onPreviewDrop}
               />
-            </Box>
-            <Box width="48%">
-              <BlockStack gap="100">
-                <Text variant="bodyMd" as="label" fontWeight="medium">
-                  Preview image
-                </Text>
-                <ImageDropZone
-                  size="additional"
-                  label="Preview image"
-                  customWidth="160px"
-                  customHeight="160px"
-                  uploadedImageUrl={previewImageUrl}
-                  accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png"
-                  onDrop={onPreviewDrop}
-                />
-                {compressing && (
-                  <Text tone="subdued" variant="bodySm">Preparing image…</Text>
-                )}
-              </BlockStack>
-            </Box>
-          </InlineStack>
+              {compressing && (
+                <Text tone="subdued" variant="bodySm">Preparing image…</Text>
+              )}
+            </BlockStack>
+          </div>
         </BlockStack>
 
         {useInVariantTitle && (
           <>
             <Divider />
-            <BlockStack gap="200">
+            <BlockStack gap="400">
               <Text variant="headingSm">Variant-title fields (required because &ldquo;Use in Variant Title&rdquo; is on)</Text>
 
-              <InlineStack gap="400" align="start" wrap>
-                <Box width="48%">
-                  <Select
-                    label="Name pattern"
-                    options={[SELECT_PLACEHOLDER, ...namePatternOptions]}
-                    value={namePattern}
-                    onChange={(v) => { setNamePattern(v); setClientError(""); }}
-                    requiredIndicator
-                  />
-                </Box>
-                <Box width="48%">
+              <div style={TWO_COL_STYLE}>
+                <Select
+                  label="Name pattern"
+                  options={[SELECT_PLACEHOLDER, ...namePatternOptions]}
+                  value={namePattern}
+                  onChange={(v) => { setNamePattern(v); setClientError(""); }}
+                  requiredIndicator
+                />
+                <Box>
                   <Text variant="bodyMd" as="label" fontWeight="medium">
                     Leather phrase
                   </Text>
@@ -705,13 +704,13 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
                     )}
                   </Combobox>
                 </Box>
-              </InlineStack>
+              </div>
 
-              <BlockStack gap="100">
+              <BlockStack gap="200">
                 <Text variant="bodyMd" as="label" fontWeight="medium">
                   Needs color designation?
                 </Text>
-                <InlineStack gap="400" wrap={false}>
+                <InlineStack gap="500" wrap={false}>
                   <RadioButton
                     label="Yes"
                     checked={needsColorDesignation === true}
@@ -729,11 +728,11 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
                 </InlineStack>
               </BlockStack>
 
-              <BlockStack gap="100">
+              <BlockStack gap="200">
                 <Text variant="bodyMd" as="label" fontWeight="medium">
                   Use opposite leather?
                 </Text>
-                <InlineStack gap="400" wrap={false}>
+                <InlineStack gap="500" wrap={false}>
                   <RadioButton
                     label="Yes"
                     checked={useOppositeLeatherTouched && useOppositeLeather === true}
@@ -762,7 +761,7 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
           </>
         )}
 
-        <Box paddingBlockStart="300">
+        <Box paddingBlockStart="400">
           <Button
             primary
             disabled={!canSubmit || submitting || compressing}
