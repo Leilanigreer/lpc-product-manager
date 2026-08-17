@@ -427,6 +427,27 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
           />
         </Box>
 
+        <InlineStack gap="400" align="start" wrap>
+          <Box width="48%">
+            <Select
+              label="Category"
+              options={[SELECT_PLACEHOLDER, ...categoryOptions]}
+              value={category}
+              onChange={(v) => { setCategory(v); setClientError(""); }}
+              requiredIndicator
+            />
+          </Box>
+          <Box width="48%">
+            <Select
+              label="Shape group"
+              options={[SELECT_PLACEHOLDER, ...shapeGroupOptions]}
+              value={shapeGroup}
+              onChange={(v) => { setShapeGroup(v); setClientError(""); }}
+              requiredIndicator
+            />
+          </Box>
+        </InlineStack>
+
         <InlineStack gap="200" blockAlign="start" wrap={false} align="start">
           <Box width="48%">
             <Text variant="bodyMd" as="label" fontWeight="medium">
@@ -494,27 +515,6 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
 
         <InlineStack gap="400" align="start" wrap>
           <Box width="48%">
-            <Select
-              label="Category"
-              options={[SELECT_PLACEHOLDER, ...categoryOptions]}
-              value={category}
-              onChange={(v) => { setCategory(v); setClientError(""); }}
-              requiredIndicator
-            />
-          </Box>
-        </InlineStack>
-
-        <InlineStack gap="400" align="start" wrap>
-          <Box width="48%">
-            <Select
-              label="Shape group"
-              options={[SELECT_PLACEHOLDER, ...shapeGroupOptions]}
-              value={shapeGroup}
-              onChange={(v) => { setShapeGroup(v); setClientError(""); }}
-              requiredIndicator
-            />
-          </Box>
-          <Box width="48%">
             <TextField
               label="Abbreviation"
               value={abbreviation}
@@ -564,34 +564,35 @@ export default function AddStyleForm({ choiceOptions, existingStyles = [], fetch
               </Collapsible>
             </Box>
           </Box>
+          <Box width="48%">
+            <BlockStack gap="100">
+              <Text variant="bodyMd" as="label" fontWeight="medium">
+                Include abbreviation in SKU?
+              </Text>
+              <InlineStack gap="400" wrap={false}>
+                <RadioButton
+                  label="Yes"
+                  checked={includeAbbreviationInSku === true}
+                  id="includeAbbreviationInSku-yes"
+                  name="includeAbbreviationInSku"
+                  onChange={() => { setIncludeAbbreviationInSku(true); setClientError(""); }}
+                />
+                <RadioButton
+                  label="No"
+                  checked={includeAbbreviationInSku === false}
+                  id="includeAbbreviationInSku-no"
+                  name="includeAbbreviationInSku"
+                  onChange={() => { setIncludeAbbreviationInSku(false); setClientError(""); }}
+                />
+              </InlineStack>
+              <Text tone="subdued" variant="bodySm">
+                Defaults to Yes. Set to No only when the style&apos;s name duplicates its collection
+                (e.g. the lone &ldquo;Quilted&rdquo; style on the Quilted collection) and you want
+                the abbreviation kept off Custom SKUs.
+              </Text>
+            </BlockStack>
+          </Box>
         </InlineStack>
-
-        <BlockStack gap="100">
-          <Text variant="bodyMd" as="label" fontWeight="medium">
-            Include abbreviation in SKU?
-          </Text>
-          <InlineStack gap="400" wrap={false}>
-            <RadioButton
-              label="Yes"
-              checked={includeAbbreviationInSku === true}
-              id="includeAbbreviationInSku-yes"
-              name="includeAbbreviationInSku"
-              onChange={() => { setIncludeAbbreviationInSku(true); setClientError(""); }}
-            />
-            <RadioButton
-              label="No"
-              checked={includeAbbreviationInSku === false}
-              id="includeAbbreviationInSku-no"
-              name="includeAbbreviationInSku"
-              onChange={() => { setIncludeAbbreviationInSku(false); setClientError(""); }}
-            />
-          </InlineStack>
-          <Text tone="subdued" variant="bodySm">
-            Defaults to Yes. Set to No only when the style&apos;s name duplicates its collection
-            (e.g. the lone &ldquo;Quilted&rdquo; style on the Quilted collection) and you want
-            the abbreviation kept off Custom SKUs.
-          </Text>
-        </BlockStack>
 
         <Box>
           <Checkbox
