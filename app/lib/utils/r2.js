@@ -18,7 +18,10 @@ async function shopifyAuthHeaders(extra = {}) {
   return headers;
 }
 
-function resolveKey(file, { collection, folder, sku, label, key: existingKey } = {}) {
+function resolveKey(
+  file,
+  { collection, folder, sku, label, originalsFolderName, key: existingKey } = {}
+) {
   if (typeof existingKey === "string" && existingKey.trim()) {
     return existingKey.trim().replace(/^\/+/, "");
   }
@@ -27,6 +30,7 @@ function resolveKey(file, { collection, folder, sku, label, key: existingKey } =
     folder,
     sku,
     label,
+    originalsFolderName,
     ext: fileExtensionFromName(file.name || "image.jpg", file.type),
   });
 }
@@ -39,6 +43,9 @@ async function uploadViaServer(file, key, meta) {
   if (meta.folder) formData.append("folder", meta.folder);
   if (meta.sku) formData.append("sku", meta.sku);
   if (meta.label) formData.append("label", meta.label);
+  if (meta.originalsFolderName) {
+    formData.append("originalsFolderName", meta.originalsFolderName);
+  }
 
   const response = await fetch("/api/upload/r2", {
     method: "POST",
@@ -71,7 +78,7 @@ async function uploadViaServer(file, key, meta) {
  */
 export async function uploadToR2(
   file,
-  { collection, folder, sku, label, key: existingKey } = {}
+  { collection, folder, sku, label, originalsFolderName, key: existingKey } = {}
 ) {
   if (!(file instanceof File) && !(file instanceof Blob)) {
     throw new Error("A file is required for R2 upload.");
@@ -79,8 +86,15 @@ export async function uploadToR2(
 
   const fileName = file.name || "image.jpg";
   const contentType = file.type || "application/octet-stream";
-  const key = resolveKey(file, { collection, folder, sku, label, key: existingKey });
-  const meta = { collection, folder, sku, label };
+  const key = resolveKey(file, {
+    collection,
+    folder,
+    sku,
+    label,
+    originalsFolderName,
+    key: existingKey,
+  });
+  const meta = { collection, folder, sku, label, originalsFolderName };
 
   try {
     const signatureResponse = await fetch("/api/upload/r2/presign", {
@@ -93,6 +107,7 @@ export async function uploadToR2(
         folder,
         sku,
         label,
+        originalsFolderName,
         fileName,
         contentType,
       }),

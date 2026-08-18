@@ -30,6 +30,7 @@ export async function action({ request }) {
     const folder = formData.get("folder");
     const sku = formData.get("sku");
     const label = formData.get("label");
+    const originalsFolderName = String(formData.get("originalsFolderName") || "").trim();
 
     if (!file) {
       return json({ error: "No file provided" }, { status: 400 });
@@ -44,6 +45,7 @@ export async function action({ request }) {
         folder,
         sku,
         label,
+        originalsFolderName,
         ext: fileExtensionFromName(fileName, contentType),
       });
 

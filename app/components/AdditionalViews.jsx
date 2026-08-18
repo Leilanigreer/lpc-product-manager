@@ -5,12 +5,7 @@ import { uploadToGoogleDrive, updateToGoogleDrive } from '../lib/utils/googleDri
 import { uploadToR2 } from '../lib/utils/r2';
 import { getGoogleDriveUrl } from '../lib/utils/urlUtils';
 import { isDevelopment } from '../lib/config/environment';
-
-function prefixFromObjectUrl(url) {
-  const u = String(url || "").replace(/\/+$/, "");
-  const idx = u.lastIndexOf("/");
-  return idx > 0 ? u.slice(0, idx) : "";
-}
+import { productPrefixFromObjectUrl } from '../lib/utils/r2Paths';
 
 const AdditionalViews = ({ 
   formState,
@@ -56,6 +51,7 @@ const AdditionalViews = ({
           folder: productData.productPictureFolder,
           sku: baseSKU,
           label: slugLabel,
+          originalsFolderName: productData.originalsFolderName,
           key: existingKey,
         });
       } catch (r2Error) {
@@ -72,7 +68,7 @@ const AdditionalViews = ({
           {
             driveData,
             r2Data,
-            r2PrefixUrl: prefixFromObjectUrl(r2Data?.url),
+            r2PrefixUrl: productPrefixFromObjectUrl(r2Data?.url),
           }
         );
       }

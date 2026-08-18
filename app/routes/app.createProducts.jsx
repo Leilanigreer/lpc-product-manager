@@ -46,7 +46,7 @@ import {
   uploadToR2,
   uploadClaudePreviewToR2,
 } from "../lib/utils/r2.js";
-import { pickPrimaryVariantImageUrl } from "../lib/utils/r2Paths.js";
+import { pickPrimaryVariantImageUrl, productPrefixFromObjectUrl } from "../lib/utils/r2Paths.js";
 import {
   CollectionSelector,
   FontSelector,
@@ -488,9 +488,10 @@ export default function CreateProduct() {
             folder: String(data.productPictureFolder ?? "").trim(),
             sku: baseSku,
             label: "group-image",
+            originalsFolderName: data.originalsFolderName,
           });
           if (r2Data?.url) {
-            const prefix = r2Data.url.replace(/\/[^/]+$/, "");
+            const prefix = productPrefixFromObjectUrl(r2Data.url);
             nextData = {
               ...nextData,
               r2PrefixUrl: nextData.r2PrefixUrl || prefix,
@@ -1166,9 +1167,10 @@ export default function CreateProduct() {
             folder: payload.productPictureFolder,
             sku: variant.sku,
             label,
+            originalsFolderName: payload.originalsFolderName,
           });
           if (r2Data?.url && !resolvedR2PrefixUrl) {
-            resolvedR2PrefixUrl = r2Data.url.replace(/\/[^/]+$/, "");
+            resolvedR2PrefixUrl = productPrefixFromObjectUrl(r2Data.url);
           }
         } catch (r2Err) {
           if (process.env.NODE_ENV === "development") {

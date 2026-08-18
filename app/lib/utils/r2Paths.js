@@ -37,18 +37,43 @@ export function fileExtensionFromName(fileName, mimeType = "") {
   return ext || "jpg";
 }
 
+export const DEFAULT_ORIGINALS_FOLDER = "Originals";
+
+export function originalsFolderSegment(originalsFolderName) {
+  const raw = String(originalsFolderName ?? DEFAULT_ORIGINALS_FOLDER).trim();
+  return sanitizeR2Segment(raw || DEFAULT_ORIGINALS_FOLDER);
+}
+
 export function buildR2Prefix({ collection, folder }) {
   const col = sanitizeR2Segment(collection);
   const fold = sanitizeR2Segment(folder);
   return `products/${col}/${fold}`;
 }
 
-export function buildR2ObjectKey({ collection, folder, sku, label, ext }) {
+export function buildR2ObjectKey({
+  collection,
+  folder,
+  sku,
+  label,
+  ext,
+  originalsFolderName,
+}) {
   const prefix = buildR2Prefix({ collection, folder });
+  const originals = originalsFolderSegment(originalsFolderName);
   const skuSeg = sanitizeR2Segment(sku);
   const lab = slugLabel(label);
   const extension = sanitizeR2Segment(ext) || "jpg";
-  return `${prefix}/${skuSeg}-${lab}.${extension}`;
+  return `${prefix}/${originals}/${skuSeg}-${lab}.${extension}`;
+}
+
+/** Product-folder public URL, stripping the filename and Originals (or originals-{date}) segment. */
+export function productPrefixFromObjectUrl(url) {
+  const u = String(url || "")
+    .split("?")[0]
+    .replace(/\/+$/, "");
+  if (!u) return "";
+  const withoutFile = u.replace(/\/[^/]+$/, "");
+  return withoutFile.replace(/\/(?:Originals|originals-[^/]+)$/i, "");
 }
 
 export function joinPublicUrl(base, keyOrPrefix) {

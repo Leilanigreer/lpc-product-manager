@@ -21,7 +21,16 @@ export async function action({ request }) {
     return json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { key, collection, folder, sku, label, fileName, contentType } = body ?? {};
+  const {
+    key,
+    collection,
+    folder,
+    sku,
+    label,
+    originalsFolderName,
+    fileName,
+    contentType,
+  } = body ?? {};
 
   if (!key && !(collection && folder && sku && label)) {
     return json(
@@ -37,6 +46,7 @@ export async function action({ request }) {
       folder,
       sku,
       label,
+      originalsFolderName,
       fileName,
       contentType,
     });

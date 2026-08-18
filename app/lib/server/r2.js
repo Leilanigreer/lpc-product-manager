@@ -108,6 +108,7 @@ export async function presignPutObject({
   folder,
   sku,
   label,
+  originalsFolderName,
   fileName,
 }) {
   const { client, env } = getR2Client();
@@ -119,6 +120,7 @@ export async function presignPutObject({
           folder,
           sku,
           label,
+          originalsFolderName,
           ext: fileExtensionFromName(fileName, contentType),
         });
 
