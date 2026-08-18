@@ -23,7 +23,10 @@ import { initialFormState, createInitialShapeState } from "../lib/forms/formStat
 import { useFormState } from "../hooks/useFormState";
 import { useFormNotifications } from "../hooks/useFormNotifications.js";
 import { createShopifyProduct } from "../lib/server/shopifyOperations.server.js";
-import { resolveProductR2PrefixUrl } from "../lib/server/r2Metafields.server.js";
+import {
+  resolveProductR2DashboardUrl,
+  resolveProductR2PrefixUrl,
+} from "../lib/server/r2Metafields.server.js";
 import {
   listProductCreationDrafts,
   loadProductCreationDraft,
@@ -138,15 +141,18 @@ export const action = async ({ request }) => {
     // Postgres persistence paused — restore when ProductSet sync is needed again.
     // const dbSaveResult = await saveProductToDatabase(productData, shopifyResponse);
     const r2PrefixUrl = resolveProductR2PrefixUrl(productData);
+    const r2DashboardUrl = resolveProductR2DashboardUrl(productData);
     const databaseSaveStub = {
       mainProduct: {
         mainHandle: productData.mainHandle,
         googleDriveFolderUrl: productData.googleDriveFolderUrl ?? "",
         r2PrefixUrl,
+        r2DashboardUrl,
       },
     };
 
     const hasImages = !!(
+      r2DashboardUrl ||
       r2PrefixUrl ||
       (productData.googleDriveFolderUrl && String(productData.googleDriveFolderUrl).trim())
     );
@@ -155,7 +161,7 @@ export const action = async ({ request }) => {
       product: shopifyResponse.product,
       databaseSave: databaseSaveStub,
       shop: shopifyResponse.shop,
-      r2PrefixUrl,
+      r2DashboardUrl,
       hasImages,
     });
 

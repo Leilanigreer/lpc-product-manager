@@ -4,19 +4,19 @@
  * @param {Object} data.product - The Shopify product data
  * @param {Object} data.databaseSave - The database save result
  * @param {Object} data.shop - The shop data
- * @param {string|null} [data.r2PrefixUrl] - Public R2 prefix for this product's images
+ * @param {string|null} [data.r2DashboardUrl] - Cloudflare dashboard URL listing this product's R2 objects
  * @param {boolean} data.hasImages - Whether the product has any images
  * @returns {string} The HTML content for the email
  */
-export function generateProductCreationNotification({ product, databaseSave, shop, r2PrefixUrl, hasImages }) {
+export function generateProductCreationNotification({ product, databaseSave, shop, r2DashboardUrl, hasImages }) {
   const shopDomain = shop.myshopifyDomain?.replace('.myshopify.com', '');
   const productId = product.id.split('/').pop();
   const adminUrl = `https://admin.shopify.com/store/${shopDomain}/products/${productId}`;
   const googleDriveUrl = databaseSave.mainProduct.googleDriveFolderUrl;
   const cloudflareUrl =
-    (typeof r2PrefixUrl === "string" && r2PrefixUrl.trim()) ||
-    (typeof databaseSave?.mainProduct?.r2PrefixUrl === "string" &&
-      databaseSave.mainProduct.r2PrefixUrl.trim()) ||
+    (typeof r2DashboardUrl === "string" && r2DashboardUrl.trim()) ||
+    (typeof databaseSave?.mainProduct?.r2DashboardUrl === "string" &&
+      databaseSave.mainProduct.r2DashboardUrl.trim()) ||
     "";
 
   return `

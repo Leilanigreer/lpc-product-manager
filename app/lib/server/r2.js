@@ -87,6 +87,20 @@ export function publicPrefixUrl({ collection, folder }) {
   return joinPublicUrl(publicBaseUrl, buildR2Prefix({ collection, folder }));
 }
 
+/**
+ * Cloudflare dashboard URL that lists objects under a prefix (browsable folder).
+ * Public r2.dev prefix URLs do not list files.
+ */
+export function buildR2DashboardFolderUrl(prefix) {
+  const env = readR2Env();
+  const objectPrefix = String(prefix || "")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  if (!env.accountId || !env.bucket || !objectPrefix) return "";
+  const query = new URLSearchParams({ prefix: `${objectPrefix}/` });
+  return `https://dash.cloudflare.com/${env.accountId}/r2/default/buckets/${env.bucket}?${query.toString()}`;
+}
+
 export async function presignPutObject({
   key,
   contentType,

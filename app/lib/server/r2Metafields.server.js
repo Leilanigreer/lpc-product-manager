@@ -3,7 +3,7 @@ import {
   joinPublicUrl,
   pickPrimaryVariantImageUrl,
 } from "../utils/r2Paths.js";
-import { isR2Configured, readR2Env } from "./r2.js";
+import { buildR2DashboardFolderUrl, isR2Configured, readR2Env } from "./r2.js";
 
 function trimUrl(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -24,14 +24,33 @@ function productHasR2Assets(productData) {
   );
 }
 
+export function resolveProductR2ObjectPrefix(productData) {
+  const collection = productData?.productType;
+  const folder = productData?.productPictureFolder || productData?.mainHandle;
+  if (collection && folder) return buildR2Prefix({ collection, folder });
+
+  const publicUrl = trimUrl(productData?.r2PrefixUrl);
+  const base = readR2Env().publicBaseUrl.replace(/\/+$/, "");
+  if (publicUrl && base && publicUrl.startsWith(`${base}/`)) {
+    return publicUrl.slice(base.length + 1).replace(/\/+$/, "");
+  }
+  return "";
+}
+
 export function resolveProductR2PrefixUrl(productData) {
   const explicit = trimUrl(productData?.r2PrefixUrl);
   if (explicit) return explicit;
   if (!productHasR2Assets(productData) || !isR2Configured()) return "";
-  const collection = productData?.productType;
-  const folder = productData?.productPictureFolder || productData?.mainHandle;
-  if (!collection || !folder) return "";
-  return joinPublicUrl(readR2Env().publicBaseUrl, buildR2Prefix({ collection, folder }));
+  const objectPrefix = resolveProductR2ObjectPrefix(productData);
+  if (!objectPrefix) return "";
+  return joinPublicUrl(readR2Env().publicBaseUrl, objectPrefix);
+}
+
+export function resolveProductR2DashboardUrl(productData) {
+  if (!productHasR2Assets(productData) && !trimUrl(productData?.r2PrefixUrl)) {
+    return "";
+  }
+  return buildR2DashboardFolderUrl(resolveProductR2ObjectPrefix(productData));
 }
 
 /**
