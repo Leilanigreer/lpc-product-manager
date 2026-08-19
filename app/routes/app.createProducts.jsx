@@ -1213,7 +1213,11 @@ export default function CreateProduct() {
     if (resolvedR2PrefixUrl && !payload.r2PrefixUrl) {
       payload = { ...payload, r2PrefixUrl: resolvedR2PrefixUrl };
     }
-    payload = { ...payload, variants: nextVariants };
+    payload = {
+      ...payload,
+      variants: nextVariants,
+      notes: String(formState.notes ?? "").trim(),
+    };
     setProductData(payload);
 
     pendingUploadFailuresRef.current = {

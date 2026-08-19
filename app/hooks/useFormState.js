@@ -261,6 +261,25 @@ export const useFormState = (initialState, onFormChange) => {
       return;
     }
 
+    /**
+     * Notes are email-only and sit next to Preview. The notes TextField can fire onChange
+     * (blur / delayed change) when Preview is clicked; wiping productData here would
+     * unmount the preview. Patch notes onto existing preview data instead.
+     */
+    if (field === "notes") {
+      dispatch({
+        type: ACTION_TYPES.UPDATE_SIMPLE,
+        payload: { field, value },
+      });
+      const notes = String(value ?? "").trim();
+      onFormChange?.((prev) => {
+        if (!prev) return prev;
+        if (prev.notes === notes) return prev;
+        return { ...prev, notes };
+      });
+      return;
+    }
+
     // Call onFormChange to clear productData whenever form changes
     onFormChange?.(null);
 
