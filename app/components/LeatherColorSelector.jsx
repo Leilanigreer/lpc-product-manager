@@ -1,12 +1,15 @@
-import React, {useMemo} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import { getGoogleDriveUrl, sanitizeSelectOptions } from '../lib/utils';
-import { Card, InlineStack, Box, Select, BlockStack, Text, Image } from "@shopify/polaris";
+import { generateTitle } from '../lib/generators/titleGenerator';
+import { Button, Card, InlineStack, Box, Select, BlockStack, Text, Image } from "@shopify/polaris";
 
 const LeatherColorSelector = ({ 
   leatherColors, 
   formState,
   onChange,
 }) => {
+  const [previewTitle, setPreviewTitle] = useState(null);
+  const hasPreviewedRef = useRef(false);
 
   const displayOptions = useMemo(() => {
     const baseOption = [{ label: "Select a Leather", value: "" }];
@@ -14,6 +17,36 @@ const LeatherColorSelector = ({
   }, [leatherColors]);
   
   const requiresSecondary = formState.finalRequirements.needsSecondaryLeather;
+  const primaryLeather = formState.leatherColors?.primary;
+  const secondaryLeather = formState.leatherColors?.secondary;
+  const collectionValue = formState.collection?.value;
+  const hasCollection = Boolean(collectionValue);
+  const hasPrimary = Boolean(primaryLeather?.value);
+  const hasSecondary = Boolean(secondaryLeather?.value);
+  const canPreview = hasCollection && hasPrimary && hasSecondary;
+  const canFlip = hasPrimary && hasSecondary;
+
+  const refreshPreview = useCallback(async () => {
+    const title = await generateTitle(formState);
+    setPreviewTitle(title);
+  }, [formState]);
+
+  useEffect(() => {
+    if (!hasPreviewedRef.current) return;
+    if (!canPreview) {
+      hasPreviewedRef.current = false;
+      setPreviewTitle(null);
+      return;
+    }
+    let cancelled = false;
+    generateTitle(formState).then((title) => {
+      if (!cancelled) setPreviewTitle(title);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- leather/collection identity, not every formState change
+  }, [canPreview, collectionValue, primaryLeather?.value, secondaryLeather?.value]);
 
   const previewUrlFor = (leather) => {
     if (!leather) return null;
@@ -60,14 +93,48 @@ const LeatherColorSelector = ({
     );
   };
 
+  const handlePreviewTitle = async () => {
+    hasPreviewedRef.current = true;
+    await refreshPreview();
+  };
+
+  const handleFlipColors = () => {
+    onChange('leatherColors', {
+      primary: formState.leatherColors.secondary,
+      secondary: formState.leatherColors.primary,
+    });
+  };
+
   return (
     <Card>
-      <InlineStack gap="500" align="start" wrap={false}>
-        {renderColorSelector("Select Leather Color", "primary")}
+      <BlockStack gap="400">
+        <InlineStack gap="500" align="start" wrap={false}>
+          {renderColorSelector("Select Leather Color", "primary")}
+          {requiresSecondary && (
+            renderColorSelector("Select 2nd Leather Color", "secondary")
+          )}
+        </InlineStack>
         {requiresSecondary && (
-          renderColorSelector("Select 2nd Leather Color", "secondary")
+          <BlockStack gap="200">
+            <InlineStack gap="300" wrap>
+              <Button onClick={handlePreviewTitle} disabled={!canPreview}>
+                Preview Title
+              </Button>
+              <Button onClick={handleFlipColors} disabled={!canFlip}>
+                Flip Colors
+              </Button>
+            </InlineStack>
+            {previewTitle != null && (
+              <Text as="p" variant="bodyMd">
+                <Text as="span" fontWeight="semibold">
+                  Listing title:{" "}
+                </Text>
+                {previewTitle}
+              </Text>
+            )}
+          </BlockStack>
         )}
-      </InlineStack>
+      </BlockStack>
     </Card>
   );
 };
