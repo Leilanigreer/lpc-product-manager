@@ -110,6 +110,7 @@ export function mergeDraftIntoInitialState(savedFormState, { shapes, shopifyColl
     selectedFont: saved.selectedFont ?? "",
     selectedOfferingType: saved.selectedOfferingType ?? "",
     limitedEditionQuantity: saved.limitedEditionQuantity ?? "",
+    notes: saved.notes ?? "",
   };
 }
 

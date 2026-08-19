@@ -69,6 +69,7 @@ import {
   Text,
   Box,
   InlineStack,
+  TextField,
 } from "@shopify/polaris";
 
 /** Remix data request — without `_data`, same-origin POST is a document request and returns root HTML. */
@@ -157,17 +158,24 @@ export const action = async ({ request }) => {
       (productData.googleDriveFolderUrl && String(productData.googleDriveFolderUrl).trim())
     );
 
+    const notes = typeof productData.notes === "string" ? productData.notes.trim() : "";
+
     const htmlContent = generateProductCreationNotification({
       product: shopifyResponse.product,
       databaseSave: databaseSaveStub,
       shop: shopifyResponse.shop,
       r2DashboardUrl,
       hasImages,
+      notes,
     });
+
+    const textBody = notes
+      ? `Karl just created a new set on the website.\n\nNotes:\n${notes}`
+      : `Karl just created a new set on the website.`;
 
     await sendInternalEmail(
       `Karl just created ${shopifyResponse.product.title}`,
-      `Karl just created a new set on the website.`,
+      textBody,
       htmlContent
     );
 
@@ -1454,6 +1462,21 @@ export default function CreateProduct() {
                 pendingVariantImages={pendingVariantImages}
                 onSetPendingImage={handleSetPendingImage}
               />
+              <Card>
+                <BlockStack gap="200">
+                  <Text as="h2" variant="headingLg">
+                    Notes
+                  </Text>
+                  <TextField
+                    label="Notes"
+                    labelHidden
+                    value={formState.notes ?? ""}
+                    onChange={(value) => handleChange("notes", value)}
+                    multiline={4}
+                    autoComplete="off"
+                  />
+                </BlockStack>
+              </Card>
               {generationError && (
                 <Banner status="critical">
                   {generationError}

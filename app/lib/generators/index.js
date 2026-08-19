@@ -150,6 +150,7 @@ export const generateProductData = async (formState, productDescriptionPlain) =>
       selectedLeatherColor1: formState.leatherColors.primary.value,
       selectedLeatherColor2: formState.leatherColors?.secondary?.value || null,
       stitchingThreads: formState.stitchingThreads,
+      notes: String(formState.notes ?? "").trim(),
 
       /** Payload for `metafieldsSet` on Product (and variant metafields use `variants`). */
       shopifyProductMetafields: buildShopifyProductMetafields(formState, variants),

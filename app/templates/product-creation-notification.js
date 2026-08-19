@@ -6,9 +6,18 @@
  * @param {Object} data.shop - The shop data
  * @param {string|null} [data.r2DashboardUrl] - Cloudflare dashboard URL listing this product's R2 objects
  * @param {boolean} data.hasImages - Whether the product has any images
+ * @param {string} [data.notes] - Optional notes from product creation
  * @returns {string} The HTML content for the email
  */
-export function generateProductCreationNotification({ product, databaseSave, shop, r2DashboardUrl, hasImages }) {
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export function generateProductCreationNotification({ product, databaseSave, shop, r2DashboardUrl, hasImages, notes }) {
   const shopDomain = shop.myshopifyDomain?.replace('.myshopify.com', '');
   const productId = product.id.split('/').pop();
   const adminUrl = `https://admin.shopify.com/store/${shopDomain}/products/${productId}`;
@@ -18,6 +27,10 @@ export function generateProductCreationNotification({ product, databaseSave, sho
     (typeof databaseSave?.mainProduct?.r2DashboardUrl === "string" &&
       databaseSave.mainProduct.r2DashboardUrl.trim()) ||
     "";
+  const trimmedNotes = typeof notes === "string" ? notes.trim() : "";
+  const notesHtml = trimmedNotes
+    ? escapeHtml(trimmedNotes).replace(/\r\n|\r|\n/g, "<br>")
+    : "";
 
   return `
     <!DOCTYPE html>
@@ -68,8 +81,13 @@ export function generateProductCreationNotification({ product, databaseSave, sho
             <p class="warning">No images have been uploaded for this product yet.</p>
             <p>Ask Karl to upload images to Google Drive and Cloudflare R2.</p>
           `}
+          ${notesHtml ? `
+            <p><strong>Notes:</strong></p>
+            <p>${notesHtml}</p>
+          ` : ""}
         </div>
       </body>
     </html>
   `;
 }
+

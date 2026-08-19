@@ -102,6 +102,7 @@ const formReducer = (state, action) => {
         // Keep offering type + quantity when switching collection (same UX as font / leather).
         selectedOfferingType: state.selectedOfferingType,
         limitedEditionQuantity: state.limitedEditionQuantity,
+        notes: state.notes ?? "",
         embroideryThreads: {},
         stitchingThreads: {},
         allShapes: shapesWithAutoStyles,

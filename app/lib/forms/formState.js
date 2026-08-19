@@ -40,6 +40,8 @@ export const initialFormState = {
   selectedFont: "",
   selectedOfferingType: "",
   limitedEditionQuantity: "",
+  /** Optional notes included in the post-creation email. */
+  notes: "",
 
   // Primary Leather (Always Required)
   leatherColors: {
