@@ -927,17 +927,37 @@ export default function UpdateProducts() {
         )}
         {(generationError || submitError) && (
           <Layout.Section>
-            <Banner status="critical" title={generationError || submitError}>
-              {Array.isArray(submitErrorDetails) && submitErrorDetails.length > 0 ? (
-                <BlockStack gap="100">
-                  {submitErrorDetails.map((e, i) => (
-                    <Text key={i} as="p" variant="bodySm" tone="subdued">
-                      {(Array.isArray(e?.field) ? e.field.join(".") : e?.field) || "shopify"}:{" "}
-                      {e?.message || ""}
-                    </Text>
-                  ))}
-                </BlockStack>
-              ) : null}
+            <Banner
+              status="critical"
+              title={
+                generationError
+                  ? generationError.includes("\n")
+                    ? generationError.split("\n")[0]
+                    : generationError
+                  : submitError
+              }
+            >
+              <BlockStack gap="100">
+                {generationError &&
+                  generationError.includes("\n") &&
+                  generationError
+                    .split("\n")
+                    .slice(1)
+                    .filter(Boolean)
+                    .map((line, i) => (
+                      <Text key={`gen-${i}`} as="p" variant="bodySm">
+                        {line}
+                      </Text>
+                    ))}
+                {Array.isArray(submitErrorDetails) && submitErrorDetails.length > 0
+                  ? submitErrorDetails.map((e, i) => (
+                      <Text key={i} as="p" variant="bodySm" tone="subdued">
+                        {(Array.isArray(e?.field) ? e.field.join(".") : e?.field) || "shopify"}:{" "}
+                        {e?.message || ""}
+                      </Text>
+                    ))
+                  : null}
+              </BlockStack>
             </Banner>
           </Layout.Section>
         )}

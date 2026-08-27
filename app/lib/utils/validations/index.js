@@ -77,8 +77,12 @@ export const validateProductForm = (formState, { debug = false, productUpdate = 
     }
 
     validations.hasValidColorDesignations = validateShapeColorDesignations(formState, debug);
-    if (!validations.hasValidColorDesignations) {
-      errors.push('Invalid color designations for shapes');
+    if (!isValidResult(validations.hasValidColorDesignations)) {
+      const designationResult = validations.hasValidColorDesignations;
+      errors.push(
+        (typeof designationResult === "object" && designationResult.error) ||
+          "Invalid color designations for shapes"
+      );
     }
 
     // Shape Validations
