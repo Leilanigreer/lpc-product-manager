@@ -1,5 +1,10 @@
 import { useReducer, useCallback } from 'react';
-import { calculateFinalRequirements, getShapeGroup, computeShapeNeedsColorDesignation } from '../lib/utils';
+import {
+  calculateFinalRequirements,
+  getShapeGroup,
+  computeShapeNeedsColorDesignation,
+  syncSizingGuideGroupSharedFields,
+} from '../lib/utils';
 import { createInitialShapeState } from '../lib/forms/formState';
 
 const ACTION_TYPES = {
@@ -139,7 +144,7 @@ const formReducer = (state, action) => {
 
     case ACTION_TYPES.UPDATE_SHAPE: {
       const { shape, checked } = payload;
-      const newAllShapes = { ...state.allShapes };
+      let newAllShapes = { ...state.allShapes };
 
       if (checked) {
         newAllShapes[shape.value] = {
@@ -165,6 +170,8 @@ const formReducer = (state, action) => {
         };
       });
 
+      newAllShapes = syncSizingGuideGroupSharedFields(newAllShapes);
+
       return resetPreviewIfExists({
         ...state,
         allShapes: newAllShapes
@@ -177,7 +184,7 @@ const formReducer = (state, action) => {
       
       if (!shape?.isSelected) return state;
 
-      const newAllShapes = {
+      let newAllShapes = {
         ...state.allShapes,
         [shapeValue]: {
           ...shape,
@@ -201,6 +208,11 @@ const formReducer = (state, action) => {
             ),
           };
         });
+      }
+
+      if (field === 'style' || field === 'colorDesignation') {
+        // Keep hidden sizing-guide siblings in sync with the visible representative row.
+        newAllShapes = syncSizingGuideGroupSharedFields(newAllShapes);
       }
 
       return resetPreviewIfExists({

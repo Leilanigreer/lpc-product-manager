@@ -3,7 +3,11 @@
 import { createRegularVariants } from "./createRegular";
 import { createCustomVariants } from "./createCustom";
 import { buildWoodBaseToRepresentativeShapeValueMap } from "./woodCustomizePairing";
-import { sortShapeRowsForVariantOrder } from "../../utils";
+import {
+  sortShapeRowsForVariantOrder,
+  normalizeSizingGuideGroup,
+  syncSizingGuideGroupSharedFields,
+} from "../../utils";
 import { formatVariantSuffix } from "../../utils/skuUtils.js";
 
 /**
@@ -23,12 +27,6 @@ const assignVariantPositions = (variants, allShapes) => {
     shapeType: allShapes[variant.shapeValue]?.shapeType || 'DEFAULT'
   }));
  };
-
-const normalizeSizingGuideGroup = (value) => {
-  if (value == null) return null;
-  const normalized = String(value).trim();
-  return normalized.length ? normalized : null;
-};
 
 const expandSelectionsBySizingGuideGroup = (allShapes) => {
   const shapeRows = Object.values(allShapes ?? {});
@@ -57,37 +55,9 @@ const expandSelectionsBySizingGuideGroup = (allShapes) => {
     };
   }
 
-  // Same sizing_guide_group shares one style/color designation choice from the form
-  // (representative row). Auto-expanded siblings must inherit these values so custom
-  // variant titles and SKU logic remain consistent across the whole group.
-  const groupSelectionByGroup = new Map();
-  for (const row of Object.values(expanded)) {
-    const g = normalizeSizingGuideGroup(row?.sizingGuideGroup);
-    if (!g || !row?.isSelected || !row.style?.value) continue;
-    if (!groupSelectionByGroup.has(g)) {
-      groupSelectionByGroup.set(g, {
-        style: row.style,
-        colorDesignation: row.colorDesignation ?? null,
-        needsColorDesignation: Boolean(row.needsColorDesignation),
-      });
-    }
-  }
-
-  for (const [shapeValue, row] of Object.entries(expanded)) {
-    const g = normalizeSizingGuideGroup(row?.sizingGuideGroup);
-    if (!g || !row?.isSelected || row.style?.value) continue;
-    const inherited = groupSelectionByGroup.get(g);
-    if (inherited) {
-      expanded[shapeValue] = {
-        ...row,
-        style: inherited.style,
-        colorDesignation: inherited.colorDesignation,
-        needsColorDesignation: inherited.needsColorDesignation,
-      };
-    }
-  }
-
-  return expanded;
+  // Sync Style + Named Leather across the group (including siblings that already have a style
+  // from Shopify hydrate — those used to skip inheritance and fail Named Leather validation).
+  return syncSizingGuideGroupSharedFields(expanded);
 };
 
 /**

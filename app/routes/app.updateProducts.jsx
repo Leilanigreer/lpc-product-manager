@@ -46,6 +46,7 @@ import {
 import {
   computeShapeNeedsColorDesignation,
   getVariantViewLabels,
+  syncSizingGuideGroupSharedFields,
 } from "../lib/utils/shapeUtils";
 
 /**
@@ -272,6 +273,10 @@ function hydrateFormFromProduct({
     };
   }
 
+  // Hidden non-representative mallet siblings are selected from Shopify variants but have no UI
+  // Named Leather control — copy Style/Named Leather from the representative (or best) row.
+  const syncedAllShapes = syncSizingGuideGroupSharedFields(allShapes);
+
   const primaryLeather = product.leathersUsed?.[0]
     ? byLeatherId.get(product.leathersUsed[0]) || null
     : null;
@@ -292,7 +297,7 @@ function hydrateFormFromProduct({
     hydratedFormState: {
       ...initialFormState,
       shapes,
-      allShapes,
+      allShapes: syncedAllShapes,
       collection,
       selectedFont: product.fontRef || "",
       leatherColors: {

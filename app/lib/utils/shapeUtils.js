@@ -127,6 +127,84 @@ function variantSizingGroupSortKey(shapeRow) {
 }
 
 /**
+ * Normalize `sizing_guide_group` for comparisons (trim; empty → null).
+ * @param {unknown} value
+ * @returns {string|null}
+ */
+export function normalizeSizingGuideGroup(value) {
+  if (value == null) return null;
+  const normalized = String(value).trim();
+  return normalized.length ? normalized : null;
+}
+
+/**
+ * Same sizing_guide_group shares one Style + Named Leather choice (representative UI row).
+ * Copies those fields onto other selected siblings — including hidden non-representative
+ * rows (`isActive === false`) that still exist as Shopify variants / form selections.
+ *
+ * Source preference: representative with Named Leather → any with Named Leather →
+ * representative with style → any with style → representative → first selected.
+ *
+ * @param {Record<string, object>} allShapes
+ * @returns {Record<string, object>}
+ */
+export function syncSizingGuideGroupSharedFields(allShapes) {
+  if (!allShapes || typeof allShapes !== "object") return allShapes || {};
+
+  const byGroup = new Map();
+  for (const row of Object.values(allShapes)) {
+    if (!row?.isSelected) continue;
+    const g = normalizeSizingGuideGroup(row.sizingGuideGroup);
+    if (!g) continue;
+    if (!byGroup.has(g)) byGroup.set(g, []);
+    byGroup.get(g).push(row);
+  }
+
+  if (byGroup.size === 0) return allShapes;
+
+  const next = { ...allShapes };
+
+  for (const groupRows of byGroup.values()) {
+    if (groupRows.length < 2) continue;
+
+    const hasDesignation = (r) =>
+      typeof r?.colorDesignation?.value === "string" &&
+      r.colorDesignation.value.length > 0;
+    const hasStyle = (r) =>
+      typeof r?.style?.value === "string" && r.style.value.length > 0;
+    const isRep = (r) => r?.isActive !== false;
+
+    const source =
+      groupRows.find((r) => isRep(r) && hasDesignation(r) && hasStyle(r)) ||
+      groupRows.find((r) => hasDesignation(r) && hasStyle(r)) ||
+      groupRows.find((r) => isRep(r) && hasDesignation(r)) ||
+      groupRows.find((r) => hasDesignation(r)) ||
+      groupRows.find((r) => isRep(r) && hasStyle(r)) ||
+      groupRows.find((r) => hasStyle(r)) ||
+      groupRows.find((r) => isRep(r)) ||
+      groupRows[0];
+
+    if (!source?.value) continue;
+
+    for (const row of groupRows) {
+      if (!row?.value || row.value === source.value) continue;
+      next[row.value] = {
+        ...next[row.value],
+        ...(hasStyle(source) ? { style: source.style } : {}),
+        ...(hasDesignation(source)
+          ? { colorDesignation: source.colorDesignation }
+          : {}),
+        needsColorDesignation: Boolean(
+          source.needsColorDesignation ?? next[row.value]?.needsColorDesignation
+        ),
+      };
+    }
+  }
+
+  return next;
+}
+
+/**
  * Stable sort for selected shape rows so variants list matches UI expectations:
  * DWH shapes first, blades, then mallet families grouped by sizing_guide_group (HS together, LZT together).
  *
