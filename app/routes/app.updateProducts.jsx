@@ -43,7 +43,52 @@ import {
   updateShopifyProduct,
   ProductUpdateUserError,
 } from "../lib/server/productUpdateShopify.server";
-import { computeShapeNeedsColorDesignation } from "../lib/utils/shapeUtils";
+import {
+  computeShapeNeedsColorDesignation,
+  getVariantViewLabels,
+} from "../lib/utils/shapeUtils";
+
+/**
+ * Seed shape dropzones from loaded Shopify variants (media URL, else Cloudflare).
+ * Display-only entries: `{ previewUrl }` with no File.
+ *
+ * @param {object} product - Loaded product from fetchProductForUpdate
+ * @param {object[]} shapesCatalog
+ * @returns {Record<string, Record<string, { previewUrl: string }>>}
+ */
+function buildPendingImagesFromLoadedVariants(product, shapesCatalog) {
+  const shapeByValue = new Map((shapesCatalog || []).map((s) => [s.value, s]));
+  const out = {};
+  for (const variant of product?.variants ?? []) {
+    const isBase =
+      variant?.isBaseVariant === true ||
+      variant?.customizable === true ||
+      variant?.customizable === "true";
+    if (!isBase) continue;
+    const shapeValue = variant.singleShape;
+    const imageUrl = String(variant.imageUrl || "").trim();
+    if (!shapeValue || !imageUrl || !shapeByValue.has(shapeValue)) continue;
+    const labels = getVariantViewLabels(shapeByValue.get(shapeValue));
+    const primaryLabel = labels[0];
+    if (!primaryLabel) continue;
+    if (!out[shapeValue]) out[shapeValue] = {};
+    out[shapeValue][primaryLabel] = { previewUrl: imageUrl };
+  }
+  return out;
+}
+
+function revokeBlobPreviewUrls(map) {
+  if (!map) return;
+  for (const byLabel of Object.values(map)) {
+    if (!byLabel) continue;
+    for (const entry of Object.values(byLabel)) {
+      const url = entry?.previewUrl;
+      if (typeof url === "string" && url.startsWith("blob:")) {
+        URL.revokeObjectURL(url);
+      }
+    }
+  }
+}
 
 const toPlainText = (html) =>
   String(html || "")
@@ -408,6 +453,49 @@ export default function UpdateProducts() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [lockedShapeValues, setLockedShapeValues] = useState(new Set());
   const [usePatternDerivedBase, setUsePatternDerivedBase] = useState(false);
+  /** Seeded from Shopify media (else Cloudflare) on load; optional local File overrides. */
+  const [pendingVariantImages, setPendingVariantImages] = useState({});
+
+  const clearPendingVariantImages = useCallback(() => {
+    setPendingVariantImages((prev) => {
+      revokeBlobPreviewUrls(prev);
+      return {};
+    });
+  }, []);
+
+  const handleSetPendingImage = useCallback((shapeValue, label, file) => {
+    if (!shapeValue || !label) return;
+    setPendingVariantImages((prev) => {
+      const prevEntry = prev?.[shapeValue]?.[label];
+      if (
+        typeof prevEntry?.previewUrl === "string" &&
+        prevEntry.previewUrl.startsWith("blob:")
+      ) {
+        URL.revokeObjectURL(prevEntry.previewUrl);
+      }
+
+      if (!file) {
+        const nextForShape = { ...(prev?.[shapeValue] ?? {}) };
+        delete nextForShape[label];
+        const next = { ...(prev ?? {}) };
+        if (Object.keys(nextForShape).length === 0) {
+          delete next[shapeValue];
+        } else {
+          next[shapeValue] = nextForShape;
+        }
+        return next;
+      }
+
+      const previewUrl = URL.createObjectURL(file);
+      return {
+        ...(prev ?? {}),
+        [shapeValue]: {
+          ...(prev?.[shapeValue] ?? {}),
+          [label]: { file, previewUrl },
+        },
+      };
+    });
+  }, []);
 
   const previewRef = useRef(null);
   const scrollToPreview = useCallback(() => {
@@ -429,11 +517,12 @@ export default function UpdateProducts() {
       setDescriptionPlain("");
       setLockedShapeValues(new Set());
       setUsePatternDerivedBase(false);
+      clearPendingVariantImages();
       setSubmitErrorDetails(null);
       setSubmitError(null);
       setSubmitSuccess(null);
     }
-  }, [listFetcher.data]);
+  }, [listFetcher.data, clearPendingVariantImages]);
 
   useEffect(() => {
     if (loadFetcher.data == null) return;
@@ -445,6 +534,7 @@ export default function UpdateProducts() {
       setDescriptionPlain("");
       setLockedShapeValues(new Set());
       setUsePatternDerivedBase(false);
+      clearPendingVariantImages();
       return;
     }
     if (loadFetcher.data.success && loadFetcher.data.product) {
@@ -467,6 +557,10 @@ export default function UpdateProducts() {
       handleChange("hydrateForm", hydrated.hydratedFormState);
       setLockedShapeValues(new Set(hydrated.lockedShapeValues || []));
       setUsePatternDerivedBase(false);
+      setPendingVariantImages((prev) => {
+        revokeBlobPreviewUrls(prev);
+        return buildPendingImagesFromLoadedVariants(loaded, shapes);
+      });
     }
   }, [
     loadFetcher.data,
@@ -477,6 +571,7 @@ export default function UpdateProducts() {
     stitchingThreadColors,
     embroideryThreadColors,
     handleChange,
+    clearPendingVariantImages,
   ]);
 
   useEffect(() => {
@@ -506,6 +601,7 @@ export default function UpdateProducts() {
         setDescriptionPlain("");
         setLockedShapeValues(new Set());
         setUsePatternDerivedBase(false);
+        clearPendingVariantImages();
         setGenerationError(null);
         setSubmitError(null);
         setSubmitErrorDetails(null);
@@ -520,7 +616,7 @@ export default function UpdateProducts() {
         setProductData(null);
       }
     },
-    [handleChange, listFetcher]
+    [handleChange, listFetcher, clearPendingVariantImages]
   );
 
   const productOptions = useMemo(
@@ -583,6 +679,7 @@ export default function UpdateProducts() {
       setProductData(null);
       setLockedShapeValues(new Set());
       setUsePatternDerivedBase(false);
+      clearPendingVariantImages();
       setGenerationError(null);
       setSubmitError(null);
       setSubmitErrorDetails(null);
@@ -593,7 +690,7 @@ export default function UpdateProducts() {
       fd.append("productId", id);
       loadFetcher.submit(fd, { method: "post" });
     },
-    [loadFetcher]
+    [loadFetcher, clearPendingVariantImages]
   );
 
   const handleReloadProduct = useCallback(() => {
@@ -927,6 +1024,8 @@ export default function UpdateProducts() {
                   formState={formState}
                   handleChange={onCollectionChange}
                   lockedShapeValues={lockedShapeValues}
+                  pendingVariantImages={pendingVariantImages}
+                  onSetPendingImage={handleSetPendingImage}
                 />
                 <Button
                   primary

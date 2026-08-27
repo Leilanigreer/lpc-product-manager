@@ -94,11 +94,34 @@ const PRODUCT_FOR_UPDATE_QUERY = `#graphql
           namedLeather: metafield(namespace: "custom", key: "named_leather") { value }
           customizable: metafield(namespace: "custom", key: "customizable") { value }
           cloudflareUrlVariant: metafield(namespace: "custom", key: "cloudflare_url_variant") { value }
+          media(first: 5) {
+            nodes {
+              id
+              mediaContentType
+              ... on MediaImage {
+                image {
+                  url
+                  altText
+                }
+              }
+            }
+          }
         }
       }
     }
   }
 `;
+
+/** First Shopify MediaImage URL on a variant, or null. */
+function firstVariantMediaImageUrl(mediaConnection) {
+  const nodes = mediaConnection?.nodes;
+  if (!Array.isArray(nodes)) return null;
+  for (const node of nodes) {
+    const url = String(node?.image?.url || "").trim();
+    if (url) return url;
+  }
+  return null;
+}
 
 const PRODUCT_UPDATE_DESCRIPTION_MUTATION = `#graphql
   mutation ProductUpdateDescription($input: ProductInput!) {
@@ -682,6 +705,8 @@ export async function fetchProductForUpdate(admin, productId) {
   }
   const variants = allVariants.map((v) => {
     const customizableRaw = v.customizable?.value ?? null;
+    const cloudflareUrl = String(v.cloudflareUrlVariant?.value || "").trim() || null;
+    const mediaUrl = firstVariantMediaImageUrl(v.media);
     return {
       id: v.id,
       title: v.title,
@@ -694,7 +719,9 @@ export async function fetchProductForUpdate(admin, productId) {
       singleStyle: v.singleStyle?.value ?? null,
       namedLeather: v.namedLeather?.value ?? null,
       customizable: customizableRaw,
-      cloudflareUrl: String(v.cloudflareUrlVariant?.value || "").trim() || null,
+      cloudflareUrl,
+      /** Shopify MediaImage URL, else Cloudflare metafield, else null. */
+      imageUrl: mediaUrl || cloudflareUrl || null,
       /** True only when `customizable` metafield is explicitly true (base / non-custom row). */
       isBaseVariant: parseMetafieldBoolean(customizableRaw) === true,
     };

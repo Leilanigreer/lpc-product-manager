@@ -164,7 +164,11 @@ export function attachExistingVariantIdsToGeneratedRows(
     const existing = resolveExistingVariantForUpdateRow(row, index, claimed);
     const id = existing?.id ?? null;
     if (id) claimed.add(id);
-    out.push({ ...row, existingVariantId: id });
+    out.push({
+      ...row,
+      existingVariantId: id,
+      ...(existing?.imageUrl ? { imageUrl: existing.imageUrl } : {}),
+    });
   }
 
   return out;

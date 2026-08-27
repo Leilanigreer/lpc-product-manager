@@ -1,7 +1,7 @@
 // app/components/ProductVariantCheck.jsx
 
 import React, { memo, useMemo } from 'react';
-import { Text, BlockStack, Box, Card, TextField, Badge, InlineStack } from '@shopify/polaris';
+import { Text, BlockStack, Box, Card, TextField, Badge, InlineStack, Thumbnail } from '@shopify/polaris';
 import { isDevelopment } from '../lib/config/environment';
 import AdditionalViews from './AdditionalViews';
 import {
@@ -81,6 +81,17 @@ const VariantRow = memo(({ variant, index, showVariantReconcileStatus, existingV
     <VariantReconcileDetail variant={variant} existingVariant={existingVariant} />
   ) : null;
 
+  const imageUrl =
+    showVariantReconcileStatus && variant.existingVariantId != null
+      ? String(variant.imageUrl || existingVariant?.imageUrl || "").trim() || null
+      : null;
+
+  const thumbnail = imageUrl ? (
+    <Thumbnail source={imageUrl} alt={variant.variantName || variant.sku || "Variant"} size="small" />
+  ) : showVariantReconcileStatus ? (
+    <Box minWidth="40px" minHeight="40px" />
+  ) : null;
+
   if (variant.isCustom) {
     return (
       <div style={{
@@ -90,17 +101,19 @@ const VariantRow = memo(({ variant, index, showVariantReconcileStatus, existingV
         padding: '16px',
         backgroundColor: index % 2 === 0 ? '#f6f6f7' : 'white'
       }}>
-        <BlockStack gap="100">
-          <InlineStack gap="200" blockAlign="center" wrap>
-            {reconcileBadge}
-            <Text variant="bodyMd">{variant.variantName}</Text>
-          </InlineStack>
-          {reconcileDetail}
-          {showVariantReconcileStatus && variant.sku ? (
-            <Text variant="bodySm" color="subdued">SKU: {variant.sku}</Text>
-          ) : null}
-        </BlockStack>
-        <Box />
+        <InlineStack gap="300" blockAlign="start" wrap={false}>
+          {thumbnail}
+          <BlockStack gap="100">
+            <InlineStack gap="200" blockAlign="center" wrap>
+              {reconcileBadge}
+              <Text variant="bodyMd">{variant.variantName}</Text>
+            </InlineStack>
+            {reconcileDetail}
+            {showVariantReconcileStatus && variant.sku ? (
+              <Text variant="bodySm" color="subdued">SKU: {variant.sku}</Text>
+            ) : null}
+          </BlockStack>
+        </InlineStack>
         <Text variant="bodyMd">${variant.price}</Text>
       </div>
     );
@@ -114,21 +127,24 @@ const VariantRow = memo(({ variant, index, showVariantReconcileStatus, existingV
       padding: '16px',
       backgroundColor: index % 2 === 0 ? '#f6f6f7' : 'white'
     }}>
-      <BlockStack gap="100">
-        <InlineStack gap="200" blockAlign="center" wrap>
-          {reconcileBadge}
-          <Text variant="bodyMd">{variant.variantName}</Text>
-        </InlineStack>
-        {reconcileDetail}
-        {isDevelopment() && (
-          <>
-            <Text variant="bodySm" color="subdued"> (Position: {variant.position})</Text>
-            <Text variant='bodySm' color="subdued"> Shape: {variant.shape}</Text>
-            <Text variant='bodySm' color='subdued'>BaseSKU: {variant.baseSKU}</Text>
-          </>
-        )}
-        <Text variant="bodySm" color="subdued">SKU: {variant.sku}</Text>
-      </BlockStack>
+      <InlineStack gap="300" blockAlign="start" wrap={false}>
+        {thumbnail}
+        <BlockStack gap="100">
+          <InlineStack gap="200" blockAlign="center" wrap>
+            {reconcileBadge}
+            <Text variant="bodyMd">{variant.variantName}</Text>
+          </InlineStack>
+          {reconcileDetail}
+          {isDevelopment() && (
+            <>
+              <Text variant="bodySm" color="subdued"> (Position: {variant.position})</Text>
+              <Text variant='bodySm' color="subdued"> Shape: {variant.shape}</Text>
+              <Text variant='bodySm' color='subdued'>BaseSKU: {variant.baseSKU}</Text>
+            </>
+          )}
+          <Text variant="bodySm" color="subdued">SKU: {variant.sku}</Text>
+        </BlockStack>
+      </InlineStack>
 
       <Text variant="bodyMd" style={{ minWidth: '80px', textAlign: 'right' }}>${variant.price}</Text>
     </div>
