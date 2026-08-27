@@ -142,6 +142,44 @@ export async function uploadToR2(
   return uploadViaServer(file, key, meta);
 }
 
+/**
+ * Check whether `products/{collection}/{folder}/` already has any R2 objects.
+ * Used by update-product before PUT so we can reuse an existing prefix when the
+ * Shopify metafield is still blank.
+ */
+export async function lookupProductR2Prefix({ collection, folder } = {}) {
+  const col = typeof collection === "string" ? collection.trim() : "";
+  const fold = typeof folder === "string" ? folder.trim() : "";
+  if (!col || !fold) {
+    return { exists: false, prefix: "", prefixUrl: "" };
+  }
+
+  try {
+    const response = await fetch("/api/upload/r2/prefix", {
+      method: "POST",
+      headers: await shopifyAuthHeaders({ "Content-Type": "application/json" }),
+      credentials: "same-origin",
+      body: JSON.stringify({ collection: col, folder: fold }),
+    });
+    let payload = {};
+    try {
+      payload = await response.json();
+    } catch {
+      payload = {};
+    }
+    if (!response.ok) {
+      return { exists: false, prefix: "", prefixUrl: "" };
+    }
+    return {
+      exists: Boolean(payload.exists),
+      prefix: typeof payload.prefix === "string" ? payload.prefix : "",
+      prefixUrl: typeof payload.prefixUrl === "string" ? payload.prefixUrl.trim() : "",
+    };
+  } catch {
+    return { exists: false, prefix: "", prefixUrl: "" };
+  }
+}
+
 export async function uploadClaudePreviewToR2(file) {
   const ext = fileExtensionFromName(file?.name, file?.type);
   const key = `products/_claude-preview/${Date.now()}-${Math.random()

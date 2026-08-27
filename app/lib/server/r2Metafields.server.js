@@ -9,19 +9,51 @@ function trimUrl(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** True when `url` is under this app's R2 public base (never Shopify CDN). */
+export function isR2PublicUrl(url) {
+  const trimmed = trimUrl(url);
+  if (!trimmed) return false;
+  const lower = trimmed.toLowerCase();
+  if (lower.includes("cdn.shopify.com") || lower.includes("shopifycdn.com")) {
+    return false;
+  }
+  const base = readR2Env().publicBaseUrl.replace(/\/+$/, "");
+  if (!base) return false;
+  return trimmed === base || trimmed.startsWith(`${base}/`);
+}
+
+function collectNewR2ObjectUrls(productData) {
+  const urls = [];
+  const push = (value) => {
+    const trimmed = trimUrl(value);
+    if (trimmed) urls.push(trimmed);
+  };
+  push(productData?.groupImageR2?.url);
+  if (Array.isArray(productData?.additionalViews)) {
+    for (const img of productData.additionalViews) {
+      push(img?.r2Data?.url);
+    }
+  }
+  if (Array.isArray(productData?.variants)) {
+    for (const v of productData.variants) {
+      push(v?.cloudflareUrl);
+      if (Array.isArray(v?.images)) {
+        for (const img of v.images) {
+          push(img?.r2Data?.url);
+        }
+      }
+    }
+  }
+  return urls.filter(isR2PublicUrl);
+}
+
 function productHasR2Assets(productData) {
   if (trimUrl(productData?.r2PrefixUrl)) return true;
-  const views = productData?.additionalViews;
-  if (Array.isArray(views) && views.some((img) => trimUrl(img?.r2Data?.url))) {
-    return true;
-  }
-  const variants = productData?.variants;
-  if (!Array.isArray(variants)) return false;
-  return variants.some(
-    (v) =>
-      trimUrl(v?.cloudflareUrl) ||
-      (Array.isArray(v?.images) && v.images.some((img) => trimUrl(img?.r2Data?.url)))
-  );
+  return collectNewR2ObjectUrls(productData).length > 0;
+}
+
+function productHasNewR2ObjectUrls(productData) {
+  return collectNewR2ObjectUrls(productData).length > 0;
 }
 
 export function resolveProductR2ObjectPrefix(productData) {
@@ -56,6 +88,8 @@ export function resolveProductR2DashboardUrl(productData) {
 /**
  * Product `custom.cloudflare_url` plus per-variant `custom.cloudflare_url_variant`
  * on base (non-custom) variants only.
+ *
+ * Writes only for new R2 public URLs — never Shopify CDN media URLs.
  */
 export function appendCloudflareUrlMetafields({
   metafields,
@@ -64,7 +98,12 @@ export function appendCloudflareUrlMetafields({
   variantOwnerIds,
 }) {
   const prefixUrl = resolveProductR2PrefixUrl(productData);
-  if (prefixUrl && productId) {
+  if (
+    prefixUrl &&
+    productId &&
+    isR2PublicUrl(prefixUrl) &&
+    productHasNewR2ObjectUrls(productData)
+  ) {
     metafields.push({
       ownerId: productId,
       namespace: "custom",
@@ -84,7 +123,7 @@ export function appendCloudflareUrlMetafields({
     const ownerId = variantOwnerIds[i]?.id;
     const url =
       trimUrl(pv?.cloudflareUrl) || pickPrimaryVariantImageUrl(pv?.images);
-    if (!ownerId || !url) continue;
+    if (!ownerId || !isR2PublicUrl(url)) continue;
     metafields.push({
       ownerId,
       namespace: "custom",

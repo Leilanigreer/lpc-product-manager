@@ -15,6 +15,7 @@ import {
   Box,
   InlineStack,
   Checkbox,
+  List,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
@@ -48,6 +49,19 @@ import {
   getVariantViewLabels,
   syncSizingGuideGroupSharedFields,
 } from "../lib/utils/shapeUtils";
+import {
+  uploadToGoogleDrive,
+  formatGoogleDriveUploadErrorMessage,
+} from "../lib/utils/googleDrive.js";
+import {
+  uploadToR2,
+  lookupProductR2Prefix,
+  formatR2UploadErrorMessage,
+} from "../lib/utils/r2.js";
+import {
+  pickPrimaryVariantImageUrl,
+  productPrefixFromObjectUrl,
+} from "../lib/utils/r2Paths.js";
 
 /**
  * Seed shape dropzones from loaded Shopify variants (media URL, else Cloudflare).
@@ -456,10 +470,14 @@ export default function UpdateProducts() {
   const [submitErrorDetails, setSubmitErrorDetails] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [lockedShapeValues, setLockedShapeValues] = useState(new Set());
   const [usePatternDerivedBase, setUsePatternDerivedBase] = useState(false);
   /** Seeded from Shopify media (else Cloudflare) on load; optional local File overrides. */
   const [pendingVariantImages, setPendingVariantImages] = useState({});
+  const submitInFlightRef = useRef(false);
+  const pendingUploadFailuresRef = useRef(null);
+  const prevSubmitFetcherStateRef = useRef("idle");
 
   const clearPendingVariantImages = useCallback(() => {
     setPendingVariantImages((prev) => {
@@ -512,6 +530,18 @@ export default function UpdateProducts() {
   const listFetcher = useFetcher();
   const loadFetcher = useFetcher();
   const submitFetcher = useFetcher();
+
+  useEffect(() => {
+    const prev = prevSubmitFetcherStateRef.current;
+    prevSubmitFetcherStateRef.current = submitFetcher.state;
+    if (
+      (prev === "submitting" || prev === "loading") &&
+      submitFetcher.state === "idle"
+    ) {
+      submitInFlightRef.current = false;
+      setIsProcessing(false);
+    }
+  }, [submitFetcher.state]);
 
   useEffect(() => {
     if (listFetcher.data?.success) {
@@ -582,10 +612,17 @@ export default function UpdateProducts() {
   useEffect(() => {
     if (!submitFetcher.data) return;
     if (submitFetcher.data.success) {
-      setSubmitSuccess(submitFetcher.data.result || { success: true });
+      const captured = pendingUploadFailuresRef.current;
+      pendingUploadFailuresRef.current = null;
+      setSubmitSuccess({
+        ...(submitFetcher.data.result || { success: true }),
+        failedImages: captured?.failures ?? [],
+        googleDriveFolderUrl: captured?.googleDriveFolderUrl ?? null,
+      });
       setSubmitError(null);
       setSubmitErrorDetails(null);
     } else {
+      pendingUploadFailuresRef.current = null;
       setSubmitSuccess(null);
       setSubmitError(submitFetcher.data.error || "Update failed.");
       setSubmitErrorDetails(
@@ -834,7 +871,8 @@ export default function UpdateProducts() {
     }
   }, [selectedProduct, formState, descriptionPlain, scrollToPreview, hasVariantPriceMismatch, usePatternDerivedBase]);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
+    if (submitInFlightRef.current) return;
     if (!productData || !selectedProductId || !selectedProduct) return;
     if (hasVariantPriceMismatch) {
       setSubmitError(
@@ -851,14 +889,179 @@ export default function UpdateProducts() {
       setSubmitSuccess(null);
       return;
     }
-    const fd = new FormData();
-    fd.append("intent", "updateProduct");
-    fd.append("productId", selectedProductId);
-    fd.append("productData", JSON.stringify(productData));
+
+    submitInFlightRef.current = true;
+    setIsProcessing(true);
     setSubmitError(null);
     setSubmitErrorDetails(null);
-    submitFetcher.submit(fd, { method: "post" });
-  }, [productData, selectedProductId, selectedProduct, submitFetcher, hasVariantPriceMismatch]);
+    setSubmitSuccess(null);
+    pendingUploadFailuresRef.current = null;
+
+    let payload = productData;
+    const failedImages = [];
+
+    try {
+      const nextVariants = Array.isArray(payload.variants)
+        ? payload.variants.map((v) => ({
+            ...v,
+            images: Array.isArray(v.images) ? [...v.images] : [],
+          }))
+        : [];
+      const variantsBySelectedShape = nextVariants.filter((v) => v && !v.isCustom);
+
+      const hasNewFiles = Object.values(pendingVariantImages ?? {}).some((labelMap) =>
+        Object.values(labelMap || {}).some((entry) => Boolean(entry?.file))
+      );
+
+      let resolvedFolderUrl =
+        typeof payload.googleDriveFolderUrl === "string" &&
+        payload.googleDriveFolderUrl.trim()
+          ? payload.googleDriveFolderUrl.trim()
+          : null;
+      let resolvedR2PrefixUrl = "";
+
+      if (hasNewFiles) {
+        const existingPrefix = String(selectedProduct.r2PrefixUrl || "").trim();
+        if (existingPrefix) {
+          resolvedR2PrefixUrl = existingPrefix;
+        } else {
+          const lookup = await lookupProductR2Prefix({
+            collection: payload.productType,
+            folder: payload.productPictureFolder,
+          });
+          if (lookup.exists && lookup.prefixUrl) {
+            resolvedR2PrefixUrl = lookup.prefixUrl;
+          }
+        }
+
+        for (const [shapeValue, labelMap] of Object.entries(
+          pendingVariantImages ?? {}
+        )) {
+          if (!labelMap) continue;
+          const variant = variantsBySelectedShape.find(
+            (v) => v.shapeValue === shapeValue
+          );
+          if (!variant) {
+            for (const [label, entry] of Object.entries(labelMap)) {
+              if (!entry?.file) continue;
+              failedImages.push({
+                sku: null,
+                label,
+                shapeValue,
+                error:
+                  "No matching variant was found for this shape. Click Preview Update Data again and retry.",
+              });
+            }
+            continue;
+          }
+
+          for (const [label, entry] of Object.entries(labelMap)) {
+            if (!entry?.file) continue;
+            let driveData = null;
+            let r2Data = null;
+            try {
+              driveData = await uploadToGoogleDrive(entry.file, {
+                collection: payload.productType,
+                folderName: payload.productPictureFolder,
+                sku: variant.sku,
+                label,
+                originalsFolderName: payload.originalsFolderName,
+              });
+              const folderUrl = driveData?.folderPath?.productFolderUrl;
+              if (folderUrl && !resolvedFolderUrl) {
+                resolvedFolderUrl = folderUrl;
+              }
+            } catch (err) {
+              failedImages.push({
+                sku: variant.sku,
+                label,
+                error:
+                  formatGoogleDriveUploadErrorMessage(err) ||
+                  "Drive upload failed.",
+              });
+            }
+
+            try {
+              r2Data = await uploadToR2(entry.file, {
+                collection: payload.productType,
+                folder: payload.productPictureFolder,
+                sku: variant.sku,
+                label,
+                originalsFolderName: payload.originalsFolderName,
+              });
+              if (r2Data?.url && !resolvedR2PrefixUrl) {
+                resolvedR2PrefixUrl = productPrefixFromObjectUrl(r2Data.url);
+              }
+            } catch (r2Err) {
+              failedImages.push({
+                sku: variant.sku,
+                label,
+                error: formatR2UploadErrorMessage(r2Err) || "R2 upload failed.",
+              });
+              if (process.env.NODE_ENV === "development") {
+                console.error("R2 variant upload failed:", r2Err);
+              }
+            }
+
+            if (driveData || r2Data) {
+              const variantIdx = nextVariants.findIndex(
+                (v) => v.sku === variant.sku
+              );
+              if (variantIdx >= 0) {
+                const images = nextVariants[variantIdx].images || [];
+                images.push({
+                  label,
+                  displayUrl: r2Data?.url || null,
+                  driveData,
+                  r2Data,
+                });
+                const primary = pickPrimaryVariantImageUrl(images);
+                nextVariants[variantIdx] = {
+                  ...nextVariants[variantIdx],
+                  images,
+                  ...(primary ? { cloudflareUrl: primary } : {}),
+                };
+              }
+            }
+          }
+        }
+      }
+
+      payload = {
+        ...payload,
+        variants: nextVariants,
+        ...(resolvedFolderUrl ? { googleDriveFolderUrl: resolvedFolderUrl } : {}),
+        ...(resolvedR2PrefixUrl ? { r2PrefixUrl: resolvedR2PrefixUrl } : {}),
+      };
+      setProductData(payload);
+
+      pendingUploadFailuresRef.current = {
+        failures: failedImages,
+        googleDriveFolderUrl: resolvedFolderUrl,
+      };
+
+      const fd = new FormData();
+      fd.append("intent", "updateProduct");
+      fd.append("productId", selectedProductId);
+      fd.append("productData", JSON.stringify(payload));
+      submitFetcher.submit(fd, { method: "post" });
+    } catch (err) {
+      submitInFlightRef.current = false;
+      setIsProcessing(false);
+      pendingUploadFailuresRef.current = null;
+      const msg =
+        (err && typeof err.message === "string" && err.message.trim()) ||
+        "Product update failed.";
+      setSubmitError(msg);
+    }
+  }, [
+    productData,
+    selectedProductId,
+    selectedProduct,
+    submitFetcher,
+    hasVariantPriceMismatch,
+    pendingVariantImages,
+  ]);
 
   if (error) return <div>Error: {error}</div>;
 
@@ -914,13 +1117,58 @@ export default function UpdateProducts() {
         )}
         {submitSuccess && (
           <Layout.Section>
-            <Banner status="success">
+            <Banner
+              status={
+                Array.isArray(submitSuccess.failedImages) &&
+                submitSuccess.failedImages.length > 0
+                  ? "warning"
+                  : "success"
+              }
+              title={
+                Array.isArray(submitSuccess.failedImages) &&
+                submitSuccess.failedImages.length > 0
+                  ? "Product updated — some images failed to upload"
+                  : "Product updated"
+              }
+            >
               <BlockStack gap="300">
                 <Text as="p" variant="bodyMd">
-                  Product updated. Created variants: {submitSuccess.createdVariantCount ?? 0}, updated
+                  Created variants: {submitSuccess.createdVariantCount ?? 0}, updated
                   variants: {submitSuccess.updatedVariantCount ?? 0}, manual-price variants left
                   untouched: {submitSuccess.skippedManualPriceCount ?? 0}.
                 </Text>
+                {Array.isArray(submitSuccess.failedImages) &&
+                submitSuccess.failedImages.length > 0 ? (
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodyMd">
+                      The images below could not be uploaded to Google Drive or Cloudflare R2.
+                      Shopify was still updated. Add the files by hand if needed.
+                    </Text>
+                    <List type="bullet">
+                      {submitSuccess.failedImages.map((f, idx) => {
+                        const ident = f.sku
+                          ? `${f.sku} — ${f.label}`
+                          : `${f.shapeValue ?? "unknown shape"} — ${f.label}`;
+                        return (
+                          <List.Item key={`${ident}-${idx}`}>
+                            <Text as="span">{ident}</Text>
+                            {f.error ? (
+                              <Text as="span" tone="subdued">
+                                {" "}
+                                ({f.error})
+                              </Text>
+                            ) : null}
+                          </List.Item>
+                        );
+                      })}
+                    </List>
+                    {submitSuccess.googleDriveFolderUrl ? (
+                      <Link url={submitSuccess.googleDriveFolderUrl} target="_blank">
+                        Open Google Drive folder
+                      </Link>
+                    ) : null}
+                  </BlockStack>
+                ) : null}
                 {adminProductUrl ? (
                   <Link url={adminProductUrl} target="_blank">
                     Open product in Shopify admin
@@ -1144,15 +1392,23 @@ export default function UpdateProducts() {
                   />
                   <Button
                     primary
-                    loading={submitFetcher.state === "submitting"}
+                    loading={
+                      isProcessing ||
+                      submitFetcher.state === "submitting" ||
+                      submitFetcher.state === "loading"
+                    }
                     onClick={handleSubmit}
                     disabled={
+                      isProcessing ||
                       submitFetcher.state === "submitting" ||
+                      submitFetcher.state === "loading" ||
                       !selectedProduct?.baseSku ||
                       hasVariantPriceMismatch
                     }
                   >
-                    Apply Product Update
+                    {isProcessing && submitFetcher.state === "idle"
+                      ? "Uploading images…"
+                      : "Apply Product Update"}
                   </Button>
                 </BlockStack>
               </Card>

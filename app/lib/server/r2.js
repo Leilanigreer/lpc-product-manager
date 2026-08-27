@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   PutBucketCorsCommand,
+  ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
@@ -85,6 +86,40 @@ export function publicUrlForKey(key) {
 export function publicPrefixUrl({ collection, folder }) {
   const { publicBaseUrl } = assertR2Configured();
   return joinPublicUrl(publicBaseUrl, buildR2Prefix({ collection, folder }));
+}
+
+/**
+ * True when at least one object exists under `products/{collection}/{folder}/`.
+ * R2 has no empty folders — a prefix exists only after the first PUT.
+ */
+export async function resolveExistingProductR2Prefix({ collection, folder }) {
+  const prefix = buildR2Prefix({ collection, folder });
+  if (!prefix || prefix === "products/" || prefix === "products//") {
+    return { exists: false, prefix: "", prefixUrl: "" };
+  }
+  if (!isR2Configured()) {
+    return { exists: false, prefix, prefixUrl: "" };
+  }
+
+  const { client, env } = getR2Client();
+  const listPrefix = `${prefix.replace(/\/+$/, "")}/`;
+  const response = await client.send(
+    new ListObjectsV2Command({
+      Bucket: env.bucket,
+      Prefix: listPrefix,
+      MaxKeys: 1,
+    })
+  );
+  const exists =
+    (response.KeyCount ?? 0) > 0 || (response.Contents?.length ?? 0) > 0;
+  if (!exists) {
+    return { exists: false, prefix, prefixUrl: "" };
+  }
+  return {
+    exists: true,
+    prefix,
+    prefixUrl: joinPublicUrl(env.publicBaseUrl, prefix),
+  };
 }
 
 /**
