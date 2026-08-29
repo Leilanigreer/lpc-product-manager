@@ -44,6 +44,13 @@ import {
   updateShopifyProduct,
   ProductUpdateUserError,
 } from "../lib/server/productUpdateShopify.server";
+import { resolveProductR2DashboardUrl } from "../lib/server/r2Metafields.server.js";
+import { sendInternalEmail } from "../services/email.server";
+import {
+  collectNewlyUploadedVariantImages,
+  generateProductUpdateNotification,
+  productDataHasNewlyUploadedImages,
+} from "../templates/product-update-notification";
 import {
   computeShapeNeedsColorDesignation,
   getVariantViewLabels,
@@ -360,7 +367,7 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
 
@@ -410,6 +417,40 @@ export const action = async ({ request }) => {
         preserveExistingInventory: true,
         defaultNewVariantQuantity: 5,
       });
+
+      if (productDataHasNewlyUploadedImages(productData)) {
+        const newImages = collectNewlyUploadedVariantImages(productData);
+        const title =
+          String(productData.title || existing.title || "").trim() || "a product";
+        const googleDriveFolderUrl =
+          (typeof productData.googleDriveFolderUrl === "string" &&
+            productData.googleDriveFolderUrl.trim()) ||
+          existing.googleDriveFolderUrl ||
+          "";
+        const r2DashboardUrl = resolveProductR2DashboardUrl(productData);
+        const htmlContent = generateProductUpdateNotification({
+          productId,
+          title,
+          shop: session.shop,
+          googleDriveFolderUrl,
+          r2DashboardUrl,
+          newImages,
+        });
+        const imageLines = newImages
+          .map((row) => (row.sku ? `${row.sku} — ${row.label}` : row.label))
+          .join("\n");
+        const textBody = `Karl just updated ${title} with new variant photos.\n\n${imageLines}`;
+        try {
+          await sendInternalEmail(
+            `Karl just updated ${title} — new photos need editing`,
+            textBody,
+            htmlContent
+          );
+        } catch (emailError) {
+          console.error("Product update email failed:", emailError);
+        }
+      }
+
       return { success: true, result };
     } catch (error) {
       if (
