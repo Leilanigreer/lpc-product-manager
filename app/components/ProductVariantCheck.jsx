@@ -42,11 +42,7 @@ const VariantReconcileDetail = memo(({ variant, existingVariant }) => {
   const { changes, skipped } = previewVariantFieldChanges(variant, existingVariant);
 
   if (changes.length === 0 && skipped.length === 0) {
-    return (
-      <Text as="p" variant="bodySm" tone="subdued">
-        No field changes on apply (already matches preview).
-      </Text>
-    );
+    return null;
   }
 
   return (
@@ -70,12 +66,20 @@ VariantReconcileDetail.displayName = 'VariantReconcileDetail';
  * of the variant list with the in-page description editor.
  */
 const VariantRow = memo(({ variant, index, showVariantReconcileStatus, existingVariant }) => {
+  const fieldPreview =
+    showVariantReconcileStatus && existingVariant
+      ? previewVariantFieldChanges(variant, existingVariant)
+      : null;
+  const hasFieldChanges = Boolean(fieldPreview?.changes?.length);
+
   const reconcileBadge =
-    showVariantReconcileStatus && variant.existingVariantId != null ? (
-      <Badge tone="info">Updates existing variant</Badge>
-    ) : showVariantReconcileStatus ? (
-      <Badge tone="attention">New variant (create)</Badge>
-    ) : null;
+    showVariantReconcileStatus && variant.existingVariantId != null
+      ? hasFieldChanges
+        ? <Badge tone="info">Updates existing variant</Badge>
+        : null
+      : showVariantReconcileStatus ? (
+          <Badge tone="attention">New variant (create)</Badge>
+        ) : null;
 
   const reconcileDetail = showVariantReconcileStatus ? (
     <VariantReconcileDetail variant={variant} existingVariant={existingVariant} />

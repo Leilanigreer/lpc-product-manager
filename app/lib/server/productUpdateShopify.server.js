@@ -2,17 +2,16 @@ import {
   isShopifyMetaobjectGid,
   isShopifyProductVariantGid,
 } from "../utils/shopifyGid.js";
-import {
-  priceValuesMatch,
-  productHasVariantPriceMismatch,
-} from "../utils/priceUtils.js";
+import { productHasVariantPriceMismatch } from "../utils/priceUtils.js";
 import {
   buildExistingVariantReconcileIndex,
   resolveExistingVariantForUpdateRow,
 } from "../utils/variantReconcileUtils.js";
 import {
+  aggregateVariantFieldUpdates,
   formatOldSkusMetafieldValue,
   parseOldSkusMetafieldValue,
+  previewVariantFieldChanges,
   shapeDisplayNameFromLoadedVariant,
 } from "../utils/updatePreviewUtils.js";
 import { getPrimaryStoreLocationId } from "./inventoryShopify.server.js";
@@ -884,6 +883,7 @@ export async function updateShopifyProduct(admin, payload) {
 
   /** One Shopify variant per generated row; without this, fuzzy reconcile can reuse the same id. */
   const resolveClaimedIds = new Set();
+  const fieldChangeRecords = [];
 
   for (const row of generated) {
     const sku = String(row?.sku || "").trim();
@@ -903,14 +903,24 @@ export async function updateShopifyProduct(admin, payload) {
       queueShapeOptionValueRename(currentName, variantName);
     }
 
-    const manualPrice = !priceValuesMatch(existing.price, existing.compareAtPrice);
+    const { changes, manualPrice } = previewVariantFieldChanges(
+      { ...row, variantName },
+      existing
+    );
+    if (changes.length > 0) {
+      fieldChangeRecords.push({ label: variantName, changes });
+    }
+
+    const skuOrPriceChange = changes.some(
+      (c) => c.field === "SKU" || c.field === "Price"
+    );
 
     const updateInput = {
       id: existing.id,
     };
     let needsBulkUpdate = false;
 
-    if (!manualPrice) {
+    if (!manualPrice && (skuOrPriceChange || !preserveExistingInventory)) {
       needsBulkUpdate = true;
       updateInput.inventoryItem = { sku };
       updateInput.price = String(row.price);
@@ -929,6 +939,9 @@ export async function updateShopifyProduct(admin, payload) {
       variantsToUpdate.push(updateInput);
     }
   }
+
+  const fieldUpdates = aggregateVariantFieldUpdates(fieldChangeRecords);
+  const updatedVariantCount = fieldChangeRecords.length;
 
   await syncShapeOptionValues(admin, productId, shapeOption, {
     optionValuesToUpdate,
@@ -1013,7 +1026,6 @@ export async function updateShopifyProduct(admin, payload) {
     }
   }
 
-  let updatedVariantCount = 0;
   if (variantsToUpdate.length > 0) {
     const dedupedVariantsToUpdate = [];
     const updateById = new Map();
@@ -1024,7 +1036,6 @@ export async function updateShopifyProduct(admin, payload) {
     for (const input of updateById.values()) {
       dedupedVariantsToUpdate.push(input);
     }
-    updatedVariantCount = dedupedVariantsToUpdate.length;
 
     const updateResponse = await admin.graphql(VARIANTS_BULK_UPDATE_MUTATION, {
       variables: {
@@ -1071,11 +1082,7 @@ export async function updateShopifyProduct(admin, payload) {
     success: true,
     productId,
     createdVariantCount: variantsToCreate.length,
-    updatedVariantCount: updatedVariantCount,
-    skippedManualPriceCount: generated.filter((row) => {
-      const ex = resolveExistingForRow(row);
-      if (!ex) return false;
-      return !priceValuesMatch(ex.price, ex.compareAtPrice);
-    }).length,
+    updatedVariantCount,
+    fieldUpdates,
   };
 }

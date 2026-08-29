@@ -169,6 +169,37 @@ export function previewVariantFieldChanges(generatedRow, existingVariant) {
   return { changes, skipped, manualPrice };
 }
 
+/**
+ * Aggregate per-variant field change records into banner-friendly lists.
+ * @param {Array<{ label: string, changes: Array<{ field: string, from: string, to: string }> }>} records
+ */
+export function aggregateVariantFieldUpdates(records) {
+  const priceChanges = [];
+  const skuChanges = [];
+  const nameChanges = [];
+
+  for (const record of Array.isArray(records) ? records : []) {
+    const label = String(record?.label || "").trim() || "—";
+    for (const change of record?.changes || []) {
+      const field = String(change?.field || "");
+      const entry = {
+        label,
+        from: change?.from ?? "—",
+        to: change?.to ?? "—",
+      };
+      if (field === "Price") {
+        priceChanges.push(entry);
+      } else if (field === "SKU") {
+        skuChanges.push(entry);
+      } else if (field === "Shape display name") {
+        nameChanges.push(entry);
+      }
+    }
+  }
+
+  return { priceChanges, skuChanges, nameChanges };
+}
+
 /** Summary lines for a variant that will be created on apply. */
 export function previewNewVariantSummary(generatedRow) {
   const name = String(generatedRow?.variantName || "").trim() || "—";

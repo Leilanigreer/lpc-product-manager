@@ -16,6 +16,7 @@ import {
   InlineStack,
   Checkbox,
   List,
+  Collapsible,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { loader as dataLoader } from "../lib/loaders";
@@ -69,6 +70,37 @@ import {
   pickPrimaryVariantImageUrl,
   productPrefixFromObjectUrl,
 } from "../lib/utils/r2Paths.js";
+
+function formatFieldUpdateEntries(entries) {
+  return (Array.isArray(entries) ? entries : [])
+    .map((e) => `${e.label} → ${e.to}`)
+    .join(", ");
+}
+
+function buildVariantUpdateSummaryLine(result) {
+  const parts = [];
+  const created = result?.createdVariantCount ?? 0;
+  const updated = result?.updatedVariantCount ?? 0;
+  if (created > 0) parts.push(`Created variants: ${created}`);
+  if (updated > 0) {
+    parts.push(
+      parts.length > 0
+        ? `updated variants: ${updated}`
+        : `Updated variants: ${updated}`
+    );
+  }
+  if (parts.length === 0) return "No variant creates or field updates.";
+  return `${parts.join(", ")}.`;
+}
+
+function fieldUpdatesHaveDetails(fieldUpdates) {
+  if (!fieldUpdates || typeof fieldUpdates !== "object") return false;
+  return (
+    (fieldUpdates.priceChanges?.length ?? 0) > 0 ||
+    (fieldUpdates.skuChanges?.length ?? 0) > 0 ||
+    (fieldUpdates.nameChanges?.length ?? 0) > 0
+  );
+}
 
 /**
  * Seed shape dropzones from loaded Shopify variants (media URL, else Cloudflare).
@@ -510,6 +542,7 @@ export default function UpdateProducts() {
   const [submitError, setSubmitError] = useState(null);
   const [submitErrorDetails, setSubmitErrorDetails] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(null);
+  const [showUpdateDetails, setShowUpdateDetails] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lockedShapeValues, setLockedShapeValues] = useState(new Set());
@@ -660,11 +693,13 @@ export default function UpdateProducts() {
         failedImages: captured?.failures ?? [],
         googleDriveFolderUrl: captured?.googleDriveFolderUrl ?? null,
       });
+      setShowUpdateDetails(false);
       setSubmitError(null);
       setSubmitErrorDetails(null);
     } else {
       pendingUploadFailuresRef.current = null;
       setSubmitSuccess(null);
+      setShowUpdateDetails(false);
       setSubmitError(submitFetcher.data.error || "Update failed.");
       setSubmitErrorDetails(
         Array.isArray(submitFetcher.data.details) ? submitFetcher.data.details : null
@@ -1174,10 +1209,54 @@ export default function UpdateProducts() {
             >
               <BlockStack gap="300">
                 <Text as="p" variant="bodyMd">
-                  Created variants: {submitSuccess.createdVariantCount ?? 0}, updated
-                  variants: {submitSuccess.updatedVariantCount ?? 0}, manual-price variants left
-                  untouched: {submitSuccess.skippedManualPriceCount ?? 0}.
+                  {buildVariantUpdateSummaryLine(submitSuccess)}
                 </Text>
+                {fieldUpdatesHaveDetails(submitSuccess.fieldUpdates) ? (
+                  <BlockStack gap="100">
+                    <Button
+                      variant="plain"
+                      onClick={() => setShowUpdateDetails((v) => !v)}
+                      ariaExpanded={showUpdateDetails}
+                    >
+                      {showUpdateDetails ? "Hide update details" : "Show update details"}
+                    </Button>
+                    <Collapsible
+                      open={showUpdateDetails}
+                      id="product-update-field-details"
+                      transition={{ duration: "150ms", timingFunction: "ease-in-out" }}
+                    >
+                      <BlockStack gap="100">
+                        {(submitSuccess.fieldUpdates.priceChanges?.length ?? 0) > 0 ? (
+                          <Text as="p" variant="bodySm">
+                            {submitSuccess.fieldUpdates.priceChanges.length} price change
+                            {submitSuccess.fieldUpdates.priceChanges.length === 1 ? "" : "s"}:{" "}
+                            {formatFieldUpdateEntries(submitSuccess.fieldUpdates.priceChanges)}
+                          </Text>
+                        ) : null}
+                        {(submitSuccess.fieldUpdates.skuChanges?.length ?? 0) > 0 ? (
+                          <Text as="p" variant="bodySm">
+                            {submitSuccess.fieldUpdates.skuChanges.length} SKU
+                            {submitSuccess.fieldUpdates.skuChanges.length === 1
+                              ? ""
+                              : "s"}{" "}
+                            updated:{" "}
+                            {formatFieldUpdateEntries(submitSuccess.fieldUpdates.skuChanges)}
+                          </Text>
+                        ) : null}
+                        {(submitSuccess.fieldUpdates.nameChanges?.length ?? 0) > 0 ? (
+                          <Text as="p" variant="bodySm">
+                            {submitSuccess.fieldUpdates.nameChanges.length} shape name
+                            {submitSuccess.fieldUpdates.nameChanges.length === 1
+                              ? ""
+                              : "s"}{" "}
+                            updated:{" "}
+                            {formatFieldUpdateEntries(submitSuccess.fieldUpdates.nameChanges)}
+                          </Text>
+                        ) : null}
+                      </BlockStack>
+                    </Collapsible>
+                  </BlockStack>
+                ) : null}
                 {Array.isArray(submitSuccess.failedImages) &&
                 submitSuccess.failedImages.length > 0 ? (
                   <BlockStack gap="200">
