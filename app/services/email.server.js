@@ -55,6 +55,50 @@ async function initializeOAuthClient() {
   }
 }
 
+/**
+ * RFC 2047 encode a Subject (or other unstructured header) for non-ASCII text.
+ * Pure ASCII is left unchanged. Otherwise UTF-8 Base64 encoded-words are used,
+ * split on character boundaries so each word stays within the 75-char limit.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+export function encodeEmailHeaderValue(value) {
+  const text = String(value ?? "");
+  if (!text) return "";
+  // eslint-disable-next-line no-control-regex -- ASCII check for email headers
+  if (/^[\x00-\x7F]*$/.test(text)) return text;
+
+  const prefix = "=?UTF-8?B?";
+  const suffix = "?=";
+  // RFC 2047: encoded-word max 75 chars including =?charset?B?...?=
+  const maxBase64Chars = 75 - prefix.length - suffix.length;
+  // Base64 groups of 4 map to 3 source bytes; stay on a 3-byte boundary.
+  const maxSourceBytes = Math.floor(maxBase64Chars / 4) * 3;
+
+  const parts = [];
+  let chunkChars = "";
+  let chunkBytes = 0;
+  for (const char of text) {
+    const charBytes = Buffer.byteLength(char, "utf8");
+    if (chunkBytes > 0 && chunkBytes + charBytes > maxSourceBytes) {
+      parts.push(
+        `${prefix}${Buffer.from(chunkChars, "utf8").toString("base64")}${suffix}`
+      );
+      chunkChars = "";
+      chunkBytes = 0;
+    }
+    chunkChars += char;
+    chunkBytes += charBytes;
+  }
+  if (chunkChars) {
+    parts.push(
+      `${prefix}${Buffer.from(chunkChars, "utf8").toString("base64")}${suffix}`
+    );
+  }
+  return parts.join(" ");
+}
+
 export async function sendEmail({
   to,
   subject,
@@ -68,11 +112,13 @@ export async function sendEmail({
       await initializeOAuthClient();
     }
 
+    const encodedSubject = encodeEmailHeaderValue(subject);
+
     // Create email in base64 format
     const emailLines = [
       `To: ${to}`,
       'From: Leilani@lpcgolf.com',
-      `Subject: ${subject}`,
+      `Subject: ${encodedSubject}`,
       'MIME-Version: 1.0',
       'Content-Type: multipart/mixed; boundary="boundary"',
       '',
