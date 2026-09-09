@@ -6,6 +6,7 @@ import {
   includeStyleInVariantTitle,
   sanitizeStyleLabelForVariantName,
   sortShapeRowsForVariantOrder,
+  findFairwayShapeGid,
 } from "../../utils";
 import { leatherNameForListing } from "../../utils/leatherListing.js";
 import { firstCanonicalEmbroideryThread } from "../../utils/threadUtils.js";
@@ -114,8 +115,14 @@ const generateCustomVariant = (shapeData, formState, skuInfo) => {
     const basePrice = calculatePrice(shapeData.value, formState);
     const customPrice = (parseFloat(basePrice) + 15).toFixed(2);
 
+    const fairwayGid =
+      shapeData.shapeType === "WOOD"
+        ? findFairwayShapeGid(formState.allShapes)
+        : null;
+
     return {
       shapeValue: shapeData.value,
+      ...(fairwayGid ? { singleShapeValue: fairwayGid } : {}),
       shape: shapeData.label,
       shapeType: shapeData.shapeType || "DEFAULT",
       style: shapeData.style || null,

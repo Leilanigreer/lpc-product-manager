@@ -2,6 +2,7 @@ import {
   isShopifyMetaobjectGid,
   isShopifyProductVariantGid,
 } from "../utils/shopifyGid.js";
+import { variantSingleShapeMetafieldGid } from "../utils/shapeUtils.js";
 import { productHasVariantPriceMismatch } from "../utils/priceUtils.js";
 import {
   buildExistingVariantReconcileIndex,
@@ -560,13 +561,14 @@ async function setProductAndVariantMetafields(
     const rv = resolvedVariantsByOrder[i];
     if (!rv?.id) continue;
 
-    if (isShopifyMetaobjectGid(pv.shapeValue)) {
+    const singleShapeGid = variantSingleShapeMetafieldGid(pv);
+    if (singleShapeGid) {
       metafields.push({
         ownerId: rv.id,
         namespace: "custom",
         key: "single_shape",
         type: "metaobject_reference",
-        value: pv.shapeValue,
+        value: singleShapeGid,
       });
     }
     if (isShopifyMetaobjectGid(pv.style?.value)) {

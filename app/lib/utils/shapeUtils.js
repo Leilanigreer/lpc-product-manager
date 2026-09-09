@@ -1,3 +1,5 @@
+import { isShopifyMetaobjectGid } from "./shopifyGid.js";
+
 /**
  * @typedef {Object} Shape
  * @property {string} value - Shape ID
@@ -42,6 +44,46 @@ export const isWoodType = (shape) => {
   }
   return shape.shapeType === 'WOOD';
 };
+
+function isFairwayShapeLabel(value) {
+  return String(value || "").trim().toLowerCase() === "fairway";
+}
+
+/**
+ * Shopify Fairway shape metaobject GID from the loaded catalog (`formState.allShapes`).
+ * Includes hidden / non-representative rows (`isActive === false`).
+ *
+ * @param {Record<string, object> | object[] | null | undefined} allShapes
+ * @returns {string | null}
+ */
+export function findFairwayShapeGid(allShapes) {
+  const rows = Array.isArray(allShapes)
+    ? allShapes
+    : Object.values(allShapes ?? {});
+  const hit = rows.find(
+    (row) =>
+      row?.shapeType === "WOOD" &&
+      (isFairwayShapeLabel(row.abbreviation) || isFairwayShapeLabel(row.label))
+  );
+  return isShopifyMetaobjectGid(hit?.value) ? hit.value : null;
+}
+
+/**
+ * Variant `custom.single_shape` GID. Custom woods use `singleShapeValue` (Fairway)
+ * when set; otherwise `shapeValue` (representative wood / other shapes).
+ *
+ * @param {{ singleShapeValue?: unknown, shapeValue?: unknown } | null | undefined} variant
+ * @returns {string | null}
+ */
+export function variantSingleShapeMetafieldGid(variant) {
+  if (isShopifyMetaobjectGid(variant?.singleShapeValue)) {
+    return variant.singleShapeValue;
+  }
+  if (isShopifyMetaobjectGid(variant?.shapeValue)) {
+    return variant.shapeValue;
+  }
+  return null;
+}
 
 /**
  * Shopify `shape_group` choice (normalized to uppercase snake in loader) or legacy snake_case on object.

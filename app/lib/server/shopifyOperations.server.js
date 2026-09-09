@@ -20,6 +20,7 @@
  * - Variant `custom.cloudflare_url_variant` — primary R2 image URL on base variants only (Front, else first uploaded view). Custom variants are omitted.
  * - Variant `custom.single_shape` / `custom.single_style` / `custom.named_leather`: single
  *   metaobject_reference per variant (`named_leather` → leather_color GID from `colorDesignation`).
+ *   `single_shape` uses `singleShapeValue` when set (custom woods → Fairway GID), else `shapeValue`.
  * - Variant `custom.customizable` (boolean); `custom.customizable_variant_id` (variant_reference) on
  *   base variants. Wood pairing uses `customizeRepresentativeShapeValue` on base woods — see
  *   `buildWoodBaseToRepresentativeShapeValueMap` / `woodCollapseColorDesignationsMatch`.
@@ -37,6 +38,7 @@ import {
   isShopifyMetaobjectGid,
   isShopifyProductVariantGid,
 } from "../utils/shopifyGid.js";
+import { variantSingleShapeMetafieldGid } from "../utils/shapeUtils.js";
 import { appendCloudflareUrlMetafields } from "./r2Metafields.server.js";
 
 const METAFIELDS_SET_MUTATION = `#graphql
@@ -246,13 +248,14 @@ async function setProductAndVariantMetafields(
     const cv = list[i];
     if (!cv?.id) continue;
 
-    if (isShopifyMetaobjectGid(pv.shapeValue)) {
+    const singleShapeGid = variantSingleShapeMetafieldGid(pv);
+    if (singleShapeGid) {
       metafields.push({
         ownerId: cv.id,
         namespace: "custom",
         key: "single_shape",
         type: "metaobject_reference",
-        value: pv.shapeValue,
+        value: singleShapeGid,
       });
     }
 
