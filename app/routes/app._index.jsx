@@ -45,16 +45,6 @@ export default function Index() {
                     </Card>
                   </Grid.Cell>
                   <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
-                    <Card title="Create a new style">
-                      <BlockStack gap="400">
-                        <Text variant="bodyMd">
-                          Create a new style for product creation
-                        </Text>
-                        <Button icon={PlusIcon} onClick={() => navigate("/app/addStyle")}>Create a new style</Button>
-                      </BlockStack>
-                    </Card>
-                  </Grid.Cell>
-                  <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
                     <Card title="Manage leather colors">
                       <BlockStack gap="400">
                         <Text variant="bodyMd">
@@ -71,6 +61,16 @@ export default function Index() {
                           Add or update embroidery (Isacord) and stitching (Amann) thread colors
                         </Text>
                         <Button icon={PlusIcon} onClick={() => navigate("/app/addThreadColors")}>Manage thread colors</Button>
+                      </BlockStack>
+                    </Card>
+                  </Grid.Cell>
+                  <Grid.Cell columnSpan={{xs: 6, sm: 3, md: 3, lg: 6, xl: 6}}>
+                    <Card title="Create a new style">
+                      <BlockStack gap="400">
+                        <Text variant="bodyMd">
+                          Create a new style for product creation
+                        </Text>
+                        <Button icon={PlusIcon} onClick={() => navigate("/app/addStyle")}>Create a new style</Button>
                       </BlockStack>
                     </Card>
                   </Grid.Cell>
