@@ -232,7 +232,7 @@ export default function AddLeatherColor () {
     <Page>
       <BlockStack gap="400">
       <Card>
-      <TitleBar title="Add a New Leather Color" />
+      <TitleBar title="Manage leather colors" />
       {fetcher.state === 'submitting' && (
         <Box paddingBlock="400">
           <Banner status="info">Submitting...</Banner>

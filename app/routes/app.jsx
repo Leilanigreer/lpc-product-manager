@@ -38,12 +38,11 @@ export default function App() {
         </Link>
         <Link to="/app/createProducts">Create a new product</Link>
         <Link to="/app/updateProducts">Update existing product</Link>
-        <Link to="/app/syncSkus">Sync base SKUs</Link>
+        <Link to="/app/addStyle">Create a new style</Link>
+        <Link to="/app/addLeatherColor">Manage leather colors</Link>
+        <Link to="/app/addThreadColors">Manage thread colors</Link>
+        {/* Remove after confirming this sync tool is no longer needed. */}
         <Link to="/app/syncShapeStyle">Sync variant shape/style</Link>
-        <Link to="/app/addLeatherColor">Manage Leather Color</Link>
-        <Link to="/app/addThreadColors">Manage Thread Colors</Link>
-        <Link to="/app/addStyle">Manage Styles</Link>
-        <Link to="/app/updatePricing">Update Pricing</Link>
       </NavMenu>
       <Outlet />
     </PolarisProvider>

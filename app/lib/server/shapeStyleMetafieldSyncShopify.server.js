@@ -7,6 +7,112 @@
 
 import { isShopifyMetaobjectGid } from "../utils/shopifyGid.js";
 
+/** Shopify boolean metafields often store "true" / "false" strings. */
+function parseBoolMetafield(mf) {
+  if (!mf || mf.value == null) return false;
+  const v = mf.value;
+  if (typeof v === "boolean") return v;
+  const s = String(v).trim().toLowerCase();
+  return s === "true" || s === "1";
+}
+
+const CREATION_COLLECTIONS_QUERY = `#graphql
+  query ShapeStyleSyncCreationCollections($first: Int!, $after: String) {
+    collections(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        node {
+          id
+          title
+          showInCreationDropdown: metafield(
+            namespace: "custom"
+            key: "show_in_creation_dropdown"
+          ) {
+            value
+          }
+        }
+      }
+    }
+  }
+`;
+
+const COLLECTION_CREATION_FLAG_QUERY = `#graphql
+  query ShapeStyleSyncCollectionCreationFlag($id: ID!) {
+    collection(id: $id) {
+      id
+      showInCreationDropdown: metafield(
+        namespace: "custom"
+        key: "show_in_creation_dropdown"
+      ) {
+        value
+      }
+    }
+  }
+`;
+
+const COLLECTIONS_PAGE_SIZE = 100;
+
+/**
+ * Collections where `custom.show_in_creation_dropdown` is true (same rule as create-product),
+ * for sync-tool scope UI and server validation.
+ * @param {(query: string, options?: { variables?: object }) => Promise<Response>} graphql
+ * @returns {Promise<Array<{ id: string, title: string }>>}
+ */
+export async function fetchCreationCollections(graphql) {
+  const rows = [];
+  let after = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const response = await graphql(CREATION_COLLECTIONS_QUERY, {
+      variables: { first: COLLECTIONS_PAGE_SIZE, after },
+    });
+    const json = await response.json();
+    if (json.errors?.length) {
+      throw new Error(json.errors.map((e) => e.message).join("; "));
+    }
+    const conn = json.data?.collections;
+    for (const edge of conn?.edges ?? []) {
+      const node = edge?.node;
+      if (!node?.id) continue;
+      if (!parseBoolMetafield(node.showInCreationDropdown)) continue;
+      rows.push({
+        id: node.id,
+        title: (node.title ?? "").trim() || "(Untitled)",
+      });
+    }
+    hasNextPage = conn?.pageInfo?.hasNextPage ?? false;
+    after = conn?.pageInfo?.endCursor ?? null;
+  }
+
+  rows.sort((a, b) => a.title.localeCompare(b.title));
+  return rows;
+}
+
+/**
+ * True if the collection exists and `custom.show_in_creation_dropdown` is true. Used to validate
+ * scan scope without listing every collection in the store.
+ * @param {(query: string, options?: { variables?: object }) => Promise<Response>} graphql
+ * @param {string} collectionGid
+ */
+export async function collectionIsInCreationDropdown(graphql, collectionGid) {
+  const id = (collectionGid ?? "").trim();
+  if (!id) return false;
+  const response = await graphql(COLLECTION_CREATION_FLAG_QUERY, {
+    variables: { id },
+  });
+  const json = await response.json();
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+  const col = json.data?.collection;
+  if (!col) return false;
+  return parseBoolMetafield(col.showInCreationDropdown);
+}
+
 const COLLECTION_PRODUCTS_VARIANTS_PAGE = `#graphql
   query ShapeStyleSyncCollectionProducts($id: ID!, $cursor: String) {
     collection(id: $id) {

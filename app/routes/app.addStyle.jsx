@@ -388,7 +388,7 @@ export default function AddStyle() {
 
   return (
     <Page>
-      <TitleBar title="Add a New Style" />
+      <TitleBar title="Create a new style" />
       <BlockStack gap="600">
           {fetcher.state === "submitting" && (
             <Banner status="info">Submitting...</Banner>

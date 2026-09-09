@@ -21,17 +21,15 @@ import {
 import {
   scanShapeStyleVariantMetafieldDrift,
   syncShapeStyleVariantMetafields,
-} from "../lib/server/shapeStyleMetafieldSyncShopify.server.js";
-import {
-  fetchCreationCollectionsForSkuSync,
+  fetchCreationCollections,
   collectionIsInCreationDropdown,
-} from "../lib/server/skuSyncShopify.server.js";
+} from "../lib/server/shapeStyleMetafieldSyncShopify.server.js";
 
 export const loader = async ({ request }) => {
   const { session, admin } = await authenticate.admin(request);
   const shop = session.shop ?? "";
   const storeHandle = shop.replace(/\.myshopify\.com$/i, "");
-  const creationCollections = await fetchCreationCollectionsForSkuSync((query, options) =>
+  const creationCollections = await fetchCreationCollections((query, options) =>
     admin.graphql(query, options)
   );
   return json({ shop, storeHandle, creationCollections });
@@ -51,7 +49,7 @@ export const action = async ({ request }) => {
 
       let collectionIds;
       if (scope === "all") {
-        const creationRows = await fetchCreationCollectionsForSkuSync(graphql);
+        const creationRows = await fetchCreationCollections(graphql);
         collectionIds = creationRows.map((c) => c.id);
       } else {
         const allowed = await collectionIsInCreationDropdown(graphql, scope);
@@ -276,11 +274,7 @@ export default function SyncShapeStyle() {
                   custom.single_style
                 </Text>{" "}
                 when they differ. Variants with more than one GID in a source field are skipped.
-                Scope matches{" "}
-                <Text as="span" fontWeight="semibold">
-                  Sync base SKUs
-                </Text>{" "}
-                (creation collections only).
+                Scope is creation collections only (same set as create-product).
               </Text>
               <Select
                 label="Collection scope"

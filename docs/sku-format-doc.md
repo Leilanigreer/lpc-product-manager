@@ -113,15 +113,6 @@ Used at variant generation time by `formatSKU` (`app/lib/utils/skuUtils.js`), no
    3. Style abbreviation, if present.
    4. `Custom`, if the variant is custom.
 
-## Base SKU Derivation (Sync)
-
-`app/lib/server/skuSyncShopify.server.js` infers the versioned base from the first variant's SKU when reconciling `custom.base_sku`:
-
-- **Versioned products**: locate the `-V<n>` segment (case-insensitive). The base is everything up to and including that segment. This is robust regardless of suffix length.
-  - `Classic-BRG-V2-Driver-TS` → `Classic-BRG-V2`
-  - `QClassic-BLK-WHT-V3-DR-BLK-50` → `QClassic-BLK-WHT-V3`
-- **V1 products (no version segment)**: fall back to stripping the last `-` segment. Reliable for legacy `{base}-{shape}` SKUs and single-token suffixes. V1 SKUs with multi-token suffixes can't be inferred precisely; the correctly-written `custom.base_sku` metafield set at creation remains the source of truth.
-
 ## Implementation Notes
 
 1. **Version Handling**

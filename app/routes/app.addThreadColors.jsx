@@ -50,7 +50,7 @@ export default function AddThreadColors() {
 
   return (
     <Page>
-      <TitleBar title="Add Thread Colors" />
+      <TitleBar title="Manage thread colors" />
       <SuccessBanner
         show={showBanner}
         onDismiss={() => setShowBanner(false)}
