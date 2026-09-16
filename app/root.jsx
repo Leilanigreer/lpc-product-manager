@@ -4,25 +4,14 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useLoaderData,
   json,
 } from "@remix-run/react";
 
 export const loader = async ({ request }) => {
-  const env = {
-    GOOGLE_CLIENT_EMAIL: process.env.GOOGLE_CLIENT_EMAIL,
-    GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID,
-    HAS_GOOGLE_CREDENTIALS: !!process.env.GOOGLE_PRIVATE_KEY,
-  };
-
-  return json({
-    env,
-  });
+  return json({});
 };
 
 export default function App() {
-  const data = useLoaderData();
-  
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -37,11 +26,6 @@ export default function App() {
         <Links />
       </head>
       <body suppressHydrationWarning>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `window.ENV = ${JSON.stringify(data.env)}`,
-          }}
-        />
         <Outlet />
         <ScrollRestoration />
         <Scripts />
@@ -55,11 +39,57 @@ export function ErrorBoundary({ error }) {
   return (
     <html>
       <head>
-        <title>Error!</title>
+        <title>Something went wrong</title>
         <Meta />
         <Links />
+        <style>{`
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #f6f6f7;
+          }
+          .error-container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 500px;
+          }
+          h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #202223;
+            margin-bottom: 1rem;
+          }
+          p {
+            color: #6d7175;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+          }
+          a {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #008060;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 500;
+          }
+          a:hover {
+            background: #006e52;
+          }
+        `}</style>
       </head>
       <body>
+        <div className="error-container">
+          <h1>Something went wrong</h1>
+          <p>
+            We're sorry, but something unexpected happened. Please try refreshing the page or access the app through your Shopify admin.
+          </p>
+          <a href="/auth/login">Return to Login</a>
+        </div>
         <Scripts />
       </body>
     </html>
