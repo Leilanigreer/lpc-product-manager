@@ -30,9 +30,10 @@ import {
   ShapeSelector,
   ProductVariantCheck,
 } from "../components";
-import { validateProductForm, productHasVariantPriceMismatch, priceValuesMatch } from "../lib/utils";
+import { validateProductForm, productHasVariantPriceMismatch } from "../lib/utils";
 import {
   derivePatternVersionedBaseSku,
+  previewVariantFieldChanges,
   reanchorVariantsToBaseSku,
 } from "../lib/utils/updatePreviewUtils";
 import { attachExistingVariantIdsToGeneratedRows } from "../lib/utils/variantReconcileUtils";
@@ -772,8 +773,8 @@ export default function UpdateProducts() {
   const diffSummary = useMemo(() => {
     if (!productData || !selectedProduct) return null;
     let creates = 0;
-    let updates = 0;
-    let skippedManualPrice = 0;
+    let priceUpdates = 0;
+    let skuUpdates = 0;
     for (const row of productData.variants || []) {
       const ex = (selectedProduct.variants || []).find(
         (v) => v.id === row.existingVariantId
@@ -782,12 +783,11 @@ export default function UpdateProducts() {
         creates += 1;
         continue;
       }
-      updates += 1;
-      if (!priceValuesMatch(ex.price, ex.compareAtPrice)) {
-        skippedManualPrice += 1;
-      }
+      const { changes } = previewVariantFieldChanges(row, ex);
+      if (changes.some((c) => c.field === "Price")) priceUpdates += 1;
+      if (changes.some((c) => c.field === "SKU")) skuUpdates += 1;
     }
-    return { creates, updates, skippedManualPrice };
+    return { creates, priceUpdates, skuUpdates };
   }, [productData, selectedProduct]);
 
   const handleSelectProduct = useCallback(
@@ -1457,10 +1457,10 @@ export default function UpdateProducts() {
                           Creates: {diffSummary.creates}
                         </Text>
                         <Text as="p" variant="bodyMd">
-                          Price updates: {diffSummary.updates}
+                          Price updates: {diffSummary.priceUpdates}
                         </Text>
                         <Text as="p" variant="bodyMd">
-                          Manual price untouched: {diffSummary.skippedManualPrice}
+                          SKU updates: {diffSummary.skuUpdates}
                         </Text>
                       </InlineStack>
                     </Box>

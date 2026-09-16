@@ -43,6 +43,7 @@ export default function App() {
         <Link to="/app/addThreadColors">Manage thread colors</Link>
         {/* Remove after confirming this sync tool is no longer needed. */}
         <Link to="/app/syncShapeStyle">Sync variant shape/style</Link>
+        <Link to="/app/compareThreadNumbers">Compare Postgres thread numbers</Link>
       </NavMenu>
       <Outlet />
     </PolarisProvider>
